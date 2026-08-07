@@ -1,0 +1,27 @@
+你正在开发 PlanSeed — local-first 独栋住宅生成式设计工具。
+
+## 环境
+- Python 3.12 + uv + pytest
+- 所有 Python 命令默认通过 `uv run` 执行，不要混用系统 Python、pip、pipenv、poetry 或独立 venv
+- 常用：`uv sync`、`uv run pytest`、`uv run python -m solver.demo`
+
+## 架构术语
+RequirementSpec → normalize → DesignProgram → generate → LayoutCandidate
+
+LLM 只输出 RequirementSpec，不直接输出 DesignProgram 或坐标。
+
+## 原则
+1. 严格分层：Solver 纯 Python 确定性；Evaluator 只评分；Renderer 只渲染
+2. 输入输出分离：RoomSpec（需求）与 RoomPlacement（solver 输出）不可混用
+3. circulation 系统生成（source=generated），用户可约束
+4. implicit constraint 必须带 source / source_key，可追踪
+5. setbacks 默认 0 = 未提供规划信息，不代表法规结论
+6. Phase 1 专注 solver；FastAPI / Tauri / Ollama 在 solver 验收后再做
+7. 相同 DesignProgram + seed 必须相同结果；禁止未注入的全局 random
+8. reference/floorplan-generator.html 算法迁移到 GuillotineGenerator，不原样复制架构
+
+## 技术栈（锁定）
+FastAPI、Tauri v2 + React + TS、Pydantic、SVG、SQLite、uv、pnpm
+禁止 Electron / Three.js / Canvas 平面图库 / 云端 LLM API
+
+代码注释和 commit message 用中文，标识符用英文。

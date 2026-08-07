@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>户型自动生成器 · 独栋住宅原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F2A44;
+    --bg-deep:#0A2038;
+    --panel:#123253;
+    --panel-2:#0E2B49;
+    --line:rgba(220,238,255,0.10);
+    --ink:#DCEEFF;
+    --ink-dim:rgba(220,238,255,0.55);
+    --ink-faint:rgba(220,238,255,0.30);
+    --brass:#D9A441;
+    --brass-soft:rgba(217,164,65,0.18);
+    --cyan:#6FE3D9;
+    --warn:#E88B6B;
+    --mono:'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --sans:'Manrope', -apple-system, sans-serif;
+    --r-public:#E8A857;
+    --r-private:#7FA8D9;
+    --r-wet:#6FC7B8;
+    --r-other:#B7A38C;
+    --r-circ:#9AA7B0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0/32px 32px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0/32px 32px,
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1320px;margin:0 auto;}
+  header{margin-bottom:24px;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.14em;
+    color:var(--brass);
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  h1{
+    font-size:clamp(24px,3vw,34px);
+    font-weight:800;
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--ink-dim);
+    max-width:640px;
+    line-height:1.6;
+    font-size:14.5px;
+    margin:0;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:20px;
+  }
+  @media (max-width:960px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h2{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin:0 0 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .panel h2::before{
+    content:'';
+    width:6px;height:6px;
+    background:var(--brass);
+    border-radius:1px;
+    transform:rotate(45deg);
+  }
+
+  .field-row{display:flex;gap:10px;margin-bottom:10px;}
+  .field{flex:1;}
+  .field label{
+    display:block;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+    font-family:var(--mono);
+  }
+  input[type=number], select, input[type=text]{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:6px;
+    padding:7px 8px;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  input:focus, select:focus{outline:1px solid var(--brass);}
+
+  .floor-block{
+    border-top:1px dashed var(--line);
+    padding-top:12px;
+    margin-top:12px;
+  }
+  .floor-block-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .floor-block-head span{
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .room-row{
+    display:grid;
+    grid-template-columns:1fr 56px 66px 22px;
+    gap:6px;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .room-row input, .room-row select{padding:5px 6px;font-size:12px;}
+  .room-swatch{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;}
+  .btn-x{
+    background:none;border:none;color:var(--ink-faint);
+    cursor:pointer;font-size:16px;line-height:1;
+    width:22px;height:22px;
+  }
+  .btn-x:hover{color:var(--warn);}
+  .add-room-btn{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--brass);
+    background:var(--brass-soft);
+    border:1px dashed var(--brass);
+    border-radius:6px;
+    padding:5px 10px;
+    cursor:pointer;
+    margin-top:2px;
+  }
+  .add-room-btn:hover{background:rgba(217,164,65,0.3);}
+
+  .btn-row{display:flex;gap:10px;margin-top:16px;}
+  .btn-primary, .btn-secondary{
+    flex:1;
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:0.03em;
+    border-radius:7px;
+    padding:10px 12px;
+    cursor:pointer;
+    text-align:center;
+  }
+  .btn-primary{
+    background:var(--brass);
+    color:#1a1305;
+    border:1px solid var(--brass);
+    font-weight:700;
+  }
+  .btn-primary:hover{background:#e8b455;}
+  .btn-secondary{
+    background:transparent;
+    color:var(--ink);
+    border:1px solid var(--line);
+  }
+  .btn-secondary:hover{border-color:var(--ink-faint);}
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tab{
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:7px 16px;
+    border-radius:7px 7px 0 0;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-bottom:none;
+    color:var(--ink-dim);
+    cursor:pointer;
+  }
+  .tab.active{
+    background:var(--panel);
+    color:var(--brass);
+    font-weight:700;
+    border-color:var(--brass-soft);
+  }
+
+  .plan-canvas{width:100%;}
+  .plan-canvas svg{width:100%;height:auto;display:block;}
+
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    margin-top:12px;
+    padding-top:12px;
+    border-top:1px solid var(--line);
+  }
+  .legend-item{
+    display:flex;align-items:center;gap:6px;
+    font-size:11.5px;color:var(--ink-dim);
+    font-family:var(--mono);
+  }
+  .legend-swatch{width:10px;height:10px;border-radius:2px;}
+
+  .score-panel{margin-top:16px;}
+  .score-metric{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:8px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .score-metric:last-child{border-bottom:none;}
+  .score-metric .label{font-size:12.5px;color:var(--ink-dim);}
+  .score-metric .value{font-family:var(--mono);font-size:14px;font-weight:700;}
+  .flag-list{margin-top:10px;}
+  .flag-item{
+    font-size:12px;
+    color:var(--warn);
+    font-family:var(--mono);
+    padding:4px 0;
+  }
+  .flag-empty{font-size:12px;color:var(--ink-faint);font-family:var(--mono);}
+  .align-msg{
+    font-size:12.5px;
+    color:var(--cyan);
+    font-family:var(--mono);
+    line-height:1.6;
+    margin-top:4px;
+  }
+
+  .align-check{margin-top:16px;}
+  .align-check svg{width:100%;height:auto;}
+  .hint{
+    font-size:12px;
+    color:var(--ink-faint);
+    line-height:1.6;
+    margin-top:10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Floor Plan Generator — Prototype v0.1</div>
+    <h1>独栋住宅户型自动生成器</h1>
+    <p>输入用地尺寸、层数与房间需求，算法会先固定楼梯位置和结构轴网，再逐层用面积权重递归切分房间，并强制让各层湿区（厨房/卫生间）在竖直方向对齐，方便上下水管贯通。右侧可查看外墙周长效率评分与异形房间警告。</p>
+  </header>
+
+  <div class="grid">
+    <!-- 左侧控制面板 -->
+    <div>
+      <div class="panel">
+        <h2>用地与结构</h2>
+        <div class="field-row">
+          <div class="field">
+            <label>面宽 W (m)</label>
+            <input type="number" id="in-W" step="0.5" min="6" max="24">
+          </div>
+          <div class="field">
+            <label>进深 D (m)</label>
+            <input type="number" id="in-D" step="0.5" min="6" max="24">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>楼梯/玄关宽度 (m)</label>
+            <input type="number" id="in-stairW" step="0.1" min="1.0" max="3.0">
+          </div>
+          <div class="field">
+            <label>结构轴网模数 (m)</label>
+            <input type="number" id="in-module" step="0.1" min="2.4" max="4.5">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>层数</label>
+            <select id="in-floorCount">
+              <option value="1">1 层</option>
+              <option value="2">2 层</option>
+              <option value="3">3 层</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="rooms-panel">
+        <h2>各层房间需求</h2>
+        <div id="floor-blocks"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="generateAndRender()">生成方案</button>
+        <button class="btn-secondary" onclick="shuffleOrder()">换一个布局</button>
+      </div>
+    </div>
+
+    <!-- 右侧画布 -->
+    <div>
+      <div class="panel">
+        <div class="tabs" id="floor-tabs"></div>
+        <div class="plan-canvas" id="plan-canvas"></div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--r-public)"></span>公共空间</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--r-private)"></span>私密空间</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--r-wet)"></span>湿区（厨卫）</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--r-other)"></span>其他</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--r-circ)"></span>交通（楼梯/玄关）</div>
+        </div>
+      </div>
+
+      <div class="panel align-check">
+        <h2>楼层对齐检查</h2>
+        <div id="align-canvas"></div>
+        <p class="hint">青色虚线为楼梯轴线与湿区管井轴线 —— 只要各层这两条线对得上，结构和上下水管道就能竖向贯通，不需要额外转换层或加大梁。</p>
+      </div>
+
+      <div class="panel score-panel">
+        <h2>评分</h2>
+        <div class="score-metric">
+          <span class="label">外墙周长效率（同面积正方形为 100%）</span>
+          <span class="value" id="score-efficiency">—</span>
+        </div>
+        <div class="flag-list" id="score-flags"></div>
+        <div class="align-msg" id="score-align"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ 状态 ============
+const TYPE_META = {
+  public:      { label: '公共', color: '#E8A857' },
+  private:     { label: '私密', color: '#7FA8D9' },
+  wet:         { label: '湿区', color: '#6FC7B8' },
+  other:       { label: '其他', color: '#B7A38C' },
+  circulation: { label: '交通', color: '#9AA7B0' },
+};
+
+let state = {
+  W: 11,
+  D: 13,
+  stairW: 1.6,
+  module: 3.3,
+  floorCount: 2,
+  floors: [
+    { key: 'F1', label: '一层', rooms: [
+        { id: 'r1', name: '客厅',      area: 24, type: 'public' },
+        { id: 'r2', name: '餐厅+厨房', area: 16, type: 'wet' },
+        { id: 'r3', name: '卫生间',    area: 4,  type: 'wet' },
+        { id: 'r4', name: '车库/储藏', area: 15, type: 'other' },
+      ]},
+    { key: 'F2', label: '二层', rooms: [
+        { id: 'r5', name: '主卧',       area: 18, type: 'private' },
+        { id: 'r6', name: '主卫',       area: 5,  type: 'wet' },
+        { id: 'r7', name: '次卧1',      area: 12, type: 'private' },
+        { id: 'r8', name: '次卧2',      area: 12, type: 'private' },
+        { id: 'r9', name: '公共卫生间', area: 4,  type: 'wet' },
+        { id: 'r10', name: '书房',      area: 9,  type: 'other' },
+      ]},
+    { key: 'F3', label: '三层', rooms: [
+        { id: 'r11', name: '卧室3',        area: 14, type: 'private' },
+        { id: 'r12', name: '卫生间',       area: 4,  type: 'wet' },
+        { id: 'r13', name: '露台/多功能室', area: 16, type: 'other' },
+      ]},
+  ],
+};
+
+let activeFloorTab = 0;
+let roomIdCounter = 100;
+
+// ============ 布局算法 ============
+
+// 简单递归对半切分（近似 squarified treemap），把 rooms 按面积权重铺进矩形
+function layoutRooms(rooms, x0, y0, x1, y1) {
+  if (rooms.length === 0) return;
+  if (rooms.length === 1) {
+    rooms[0].rect = { x0, y0, x1, y1 };
+    return;
+  }
+  const totalArea = rooms.reduce((s, r) => s + r.area, 0) || 1;
+  const half = totalArea / 2;
+  let cum = 0, splitIdx = 1;
+  for (let i = 0; i < rooms.length - 1; i++) {
+    cum += rooms[i].area;
+    if (cum >= half) { splitIdx = i + 1; break; }
+  }
+  const group1 = rooms.slice(0, splitIdx);
+  const group2 = rooms.slice(splitIdx);
+  const area1 = group1.reduce((s, r) => s + r.area, 0) || 1;
+  const area2 = group2.reduce((s, r) => s + r.area, 0) || 1;
+  const width = x1 - x0, height = y1 - y0;
+  const frac = area1 / (area1 + area2);
+
+  if (width >= height) {
+    let cutX = x0 + width * frac;
+    cutX = snap(cutX, 0.3);
+    cutX = Math.max(x0 + 0.6, Math.min(x1 - 0.6, cutX));
+    layoutRooms(group1, x0, y0, cutX, y1);
+    layoutRooms(group2, cutX, y0, x1, y1);
+  } else {
+    let cutY = y0 + height * frac;
+    cutY = snap(cutY, 0.3);
+    cutY = Math.max(y0 + 0.6, Math.min(y1 - 0.6, cutY));
+    layoutRooms(group1, x0, y0, x1, cutY);
+    layoutRooms(group2, x0, cutY, x1, y1);
+  }
+}
+
+function snap(v, module) {
+  return Math.round(v / module) * module;
+}
+
+// 生成单层平面：楼梯/玄关条带（每层同一 x 区间）+ 湿区条带（每层同一 x 比例，保证竖向对齐）+ 其余房间
+function layoutFloor(floorRooms, W, D, stairW, wetRatio, floorIndex) {
+  const stairRect = { x0: 0, y0: 0, x1: stairW, y1: D };
+  const remainX0 = stairW, remainX1 = W;
+  const remainWidth = remainX1 - remainX0;
+
+  const wetRooms = floorRooms.filter(r => r.type === 'wet').map(r => ({ ...r }));
+  const otherRooms = floorRooms.filter(r => r.type !== 'wet').map(r => ({ ...r }));
+
+  const wetWidth = remainWidth * wetRatio;
+  const wetRect = { x0: remainX0, x1: remainX0 + wetWidth, y0: 0, y1: D };
+  const otherRect = { x0: remainX0 + wetWidth, x1: remainX1, y0: 0, y1: D };
+
+  if (wetRooms.length) layoutRooms(wetRooms, wetRect.x0, wetRect.y0, wetRect.x1, wetRect.y1);
+  if (otherRooms.length) layoutRooms(otherRooms, otherRect.x0, otherRect.y0, otherRect.x1, otherRect.y1);
+
+  const stairRoom = {
+    id: 'stair-' + floorIndex,
+    name: floorIndex === 0 ? '玄关 · 楼梯' : '楼梯厅 · 走廊',
+    area: stairW * D,
+    type: 'circulation',
+    rect: stairRect,
+  };
+
+  return {
+    rooms: [stairRoom, ...wetRooms, ...otherRooms],
+    wetRect,
+  };
+}
+
+function generateLayouts() {
+  const { W, D, stairW, floorCount, floors } = state;
+  const activeFloors = floors.slice(0, floorCount);
+
+  // 湿区宽度比例由一层决定，其余楼层复用同一比例 -> 保证上下楼层湿区在 x 方向对齐
+  const f0 = activeFloors[0];
+  const f0Wet = f0.rooms.filter(r => r.type === 'wet');
+  const f0Other = f0.rooms.filter(r => r.type !== 'wet');
+  const f0WetArea = f0Wet.reduce((s, r) => s + r.area, 0);
+  const f0OtherArea = f0Other.reduce((s, r) => s + r.area, 0);
+  const wetRatio = (f0WetArea + f0OtherArea) > 0 ? f0WetArea / (f0WetArea + f0OtherArea) : 0.3;
+
+  const results = activeFloors.map((floor, idx) =>
+    layoutFloor(floor.rooms, W, D, stairW, wetRatio, idx)
+  );
+
+  return results;
+}
+
+function computeScore(results) {
+  const { W, D } = state;
+  const footprintArea = W * D;
+  const idealPerimeter = 4 * Math.sqrt(footprintArea);
+  const actualPerimeter = 2 * (W + D);
+  const efficiency = (idealPerimeter / actualPerimeter) * 100;
+
+  const flagged = [];
+  results.forEach((res, floorIdx) => {
+    res.rooms.forEach(r => {
+      if (r.type === 'circulation') return;
+      const w = r.rect.x1 - r.rect.x0;
+      const h = r.rect.y1 - r.rect.y0;
+      const ratio = Math.max(w, h) / Math.max(0.01, Math.min(w, h));
+      if (ratio > 2.2) {
+        flagged.push(`${state.floors[floorIdx].label} · ${r.name}（长宽比 ${ratio.toFixed(1)}）`);
+      }
+    });
+  });
+
+  let wetAlignmentMsg = '仅一层，无需对齐';
+  if (results.length > 1) {
+    const ranges = results.map(r => `${r.wetRect.x0.toFixed(1)}–${r.wetRect.x1.toFixed(1)}m`);
+    const allSame = results.every(r =>
+      Math.abs(r.wetRect.x0 - results[0].wetRect.x0) < 0.01 &&
+      Math.abs(r.wetRect.x1 - results[0].wetRect.x1) < 0.01
+    );
+    wetAlignmentMsg = allSame
+      ? `已对齐：所有楼层湿区均在 x = ${ranges[0]} 区间（管道可竖向贯通）`
+      : `未对齐：${ranges.join(' / ')}`;
+  }
+
+  return { efficiency, flagged, wetAlignmentMsg };
+}
+// ============ SVG 绘制辅助 ============
+const INK = '#DCEEFF';
+const INK_DIM = 'rgba(220,238,255,0.55)';
+const GRID = 'rgba(120,180,220,0.18)';
+const CYAN = '#6FE3D9';
+
+function dimLineH(x0, x1, y, label) {
+  const mid = (x0 + x1) / 2;
+  return `
+    <line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="${INK_DIM}" stroke-width="0.025"/>
+    <line x1="${x0}" y1="${y - 0.09}" x2="${x0}" y2="${y + 0.09}" stroke="${INK_DIM}" stroke-width="0.025"/>
+    <line x1="${x1}" y1="${y - 0.09}" x2="${x1}" y2="${y + 0.09}" stroke="${INK_DIM}" stroke-width="0.025"/>
+    <text x="${mid}" y="${y - 0.14}" font-size="0.3" fill="${INK_DIM}" text-anchor="middle" font-family="monospace">${label}</text>`;
+}
+
+function dimLineV(y0, y1, x, label) {
+  const mid = (y0 + y1) / 2;
+  return `
+    <line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="${INK_DIM}" stroke-width="0.025"/>
+    <line x1="${x - 0.09}" y1="${y0}" x2="${x + 0.09}" y2="${y0}" stroke="${INK_DIM}" stroke-width="0.025"/>
+    <line x1="${x - 0.09}" y1="${y1}" x2="${x + 0.09}" y2="${y1}" stroke="${INK_DIM}" stroke-width="0.025"/>
+    <text x="${x - 0.16}" y="${mid}" font-size="0.3" fill="${INK_DIM}" text-anchor="middle" font-family="monospace" transform="rotate(-90 ${x - 0.16} ${mid})">${label}</text>`;
+}
+
+function structuralGrid(W, D, module) {
+  let lines = '';
+  for (let x = module; x < W; x += module) {
+    lines += `<line x1="${x}" y1="0" x2="${x}" y2="${D}" stroke="${GRID}" stroke-width="0.02" stroke-dasharray="0.1 0.08"/>`;
+  }
+  for (let y = module; y < D; y += module) {
+    lines += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${GRID}" stroke-width="0.02" stroke-dasharray="0.1 0.08"/>`;
+  }
+  return lines;
+}
+
+function roomBlock(room) {
+  const w = room.rect.x1 - room.rect.x0;
+  const h = room.rect.y1 - room.rect.y0;
+  const cx = room.rect.x0 + w / 2;
+  const cy = room.rect.y0 + h / 2;
+  const color = TYPE_META[room.type].color;
+  const areaLabel = (w * h).toFixed(1) + ' m²';
+  const nameSize = Math.min(0.32, w * 0.16, h * 0.3);
+  const areaSize = nameSize * 0.72;
+  return `
+    <rect x="${room.rect.x0}" y="${room.rect.y0}" width="${w}" height="${h}"
+      fill="${color}" fill-opacity="0.82" stroke="${INK}" stroke-width="0.045"/>
+    <text x="${cx}" y="${cy - areaSize * 0.3}" font-size="${nameSize}" fill="#0F2A44"
+      text-anchor="middle" font-family="'Manrope',sans-serif" font-weight="700">${room.name}</text>
+    <text x="${cx}" y="${cy + areaSize * 1.3}" font-size="${areaSize}" fill="#0F2A44"
+      text-anchor="middle" font-family="monospace" opacity="0.75">${areaLabel}</text>`;
+}
+
+function northArrowAndScale(W, D) {
+  const bx = W - 1.3, by = D + 0.85;
+  return `
+    <g transform="translate(${bx},${by})">
+      <line x1="0" y1="0.35" x2="0" y2="-0.35" stroke="${INK_DIM}" stroke-width="0.03"/>
+      <polygon points="0,-0.35 -0.1,-0.12 0.1,-0.12" fill="${INK_DIM}"/>
+      <text x="0" y="0.55" font-size="0.24" fill="${INK_DIM}" text-anchor="middle" font-family="monospace">N</text>
+    </g>
+    <g transform="translate(0.3,${D + 1.1})">
+      <line x1="0" y1="0" x2="2" y2="0" stroke="${INK_DIM}" stroke-width="0.03"/>
+      <line x1="0" y1="-0.06" x2="0" y2="0.06" stroke="${INK_DIM}" stroke-width="0.03"/>
+      <line x1="1" y1="-0.06" x2="1" y2="0.06" stroke="${INK_DIM}" stroke-width="0.03"/>
+      <line x1="2" y1="-0.06" x2="2" y2="0.06" stroke="${INK_DIM}" stroke-width="0.03"/>
+      <text x="1" y="0.28" font-size="0.22" fill="${INK_DIM}" text-anchor="middle" font-family="monospace">0 — 2m 比例尺</text>
+    </g>`;
+}
+
+function renderFloorSVG(result, W, D, module) {
+  const mL = 1.5, mT = 1.0, mR = 0.5, mB = 1.7;
+  const vbW = W + mL + mR, vbH = D + mT + mB;
+  const body = [
+    structuralGrid(W, D, module),
+    result.rooms.map(roomBlock).join(''),
+    `<rect x="0" y="0" width="${W}" height="${D}" fill="none" stroke="${INK}" stroke-width="0.09"/>`,
+    dimLineH(0, W, -0.45, `${W.toFixed(1)} m`),
+    dimLineV(0, D, -0.55, `${D.toFixed(1)} m`),
+    northArrowAndScale(W, D),
+  ].join('');
+  return `<svg viewBox="${-mL} ${-mT} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+}
+
+function renderAlignmentSVG(results, W, D) {
+  const gap = 1.2;
+  const n = results.length;
+  const combinedH = n * D + (n - 1) * gap;
+  const mL = 0.5, mR = 0.5, mT = 0.5, mB = 0.5;
+  const vbW = W + mL + mR, vbH = combinedH + mT + mB;
+
+  let floorsSvg = '';
+  results.forEach((res, i) => {
+    const offsetY = i * (D + gap);
+    const simplifiedRooms = res.rooms.map(r => {
+      const w = r.rect.x1 - r.rect.x0, h = r.rect.y1 - r.rect.y0;
+      return `<rect x="${r.rect.x0}" y="${r.rect.y0 + offsetY}" width="${w}" height="${h}"
+        fill="${TYPE_META[r.type].color}" fill-opacity="0.55" stroke="${INK}" stroke-width="0.035"/>`;
+    }).join('');
+    floorsSvg += simplifiedRooms;
+    floorsSvg += `<rect x="0" y="${offsetY}" width="${W}" height="${D}" fill="none" stroke="${INK}" stroke-width="0.06"/>`;
+    floorsSvg += `<text x="0.15" y="${offsetY + 0.4}" font-size="0.38" fill="${INK}" font-family="monospace" font-weight="700">${state.floors[i].label}</text>`;
+  });
+
+  const stairX = state.stairW;
+  const wetX1 = results[0].wetRect.x0;
+  const wetX2 = results[0].wetRect.x1;
+  const guideLines = `
+    <line x1="${stairX}" y1="0" x2="${stairX}" y2="${combinedH}" stroke="${CYAN}" stroke-width="0.04" stroke-dasharray="0.15 0.12"/>
+    <line x1="${wetX2}" y1="0" x2="${wetX2}" y2="${combinedH}" stroke="${CYAN}" stroke-width="0.04" stroke-dasharray="0.15 0.12"/>
+    <text x="${stairX}" y="-0.15" font-size="0.28" fill="${CYAN}" text-anchor="middle" font-family="monospace">楼梯轴</text>
+    <text x="${wetX2}" y="-0.15" font-size="0.28" fill="${CYAN}" text-anchor="middle" font-family="monospace">湿区轴</text>`;
+
+  return `<svg viewBox="${-mL} ${-mT - 0.35} ${vbW} ${vbH + 0.35}" xmlns="http://www.w3.org/2000/svg">${floorsSvg}${guideLines}</svg>`;
+}
+
+// ============ 控制面板渲染 ============
+function renderControls() {
+  document.getElementById('in-W').value = state.W;
+  document.getElementById('in-D').value = state.D;
+  document.getElementById('in-stairW').value = state.stairW;
+  document.getElementById('in-module').value = state.module;
+  document.getElementById('in-floorCount').value = state.floorCount;
+
+  const container = document.getElementById('floor-blocks');
+  container.innerHTML = '';
+  for (let i = 0; i < state.floorCount; i++) {
+    const floor = state.floors[i];
+    const block = document.createElement('div');
+    block.className = 'floor-block';
+    let rowsHtml = '';
+    floor.rooms.forEach(room => {
+      rowsHtml += `
+        <div class="room-row">
+          <input type="text" value="${room.name}" onchange="updateRoomField(${i},'${room.id}','name',this.value)">
+          <input type="number" value="${room.area}" min="1" step="1" onchange="updateRoomField(${i},'${room.id}','area',this.value)">
+          <select onchange="updateRoomField(${i},'${room.id}','type',this.value)">
+            ${Object.keys(TYPE_META).filter(t => t !== 'circulation').map(t =>
+              `<option value="${t}" ${t === room.type ? 'selected' : ''}>${TYPE_META[t].label}</option>`
+            ).join('')}
+          </select>
+          <button class="btn-x" onclick="removeRoom(${i},'${room.id}')">×</button>
+        </div>`;
+    });
+    block.innerHTML = `
+      <div class="floor-block-head"><span>${floor.label}</span></div>
+      ${rowsHtml}
+      <button class="add-room-btn" onclick="addRoom(${i})">+ 添加房间</button>`;
+    container.appendChild(block);
+  }
+}
+
+function renderTabs() {
+  const tabsEl = document.getElementById('floor-tabs');
+  tabsEl.innerHTML = '';
+  for (let i = 0; i < state.floorCount; i++) {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (i === activeFloorTab ? ' active' : '');
+    tab.textContent = state.floors[i].label;
+    tab.onclick = () => { activeFloorTab = i; generateAndRender(); };
+    tabsEl.appendChild(tab);
+  }
+}
+
+// ============ 主渲染流程 ============
+function generateAndRender() {
+  if (activeFloorTab >= state.floorCount) activeFloorTab = state.floorCount - 1;
+  renderControls();
+  renderTabs();
+
+  const results = generateLayouts();
+  document.getElementById('plan-canvas').innerHTML =
+    renderFloorSVG(results[activeFloorTab], state.W, state.D, state.module);
+
+  document.getElementById('align-canvas').innerHTML =
+    renderAlignmentSVG(results, state.W, state.D);
+
+  const score = computeScore(results);
+  document.getElementById('score-efficiency').textContent = score.efficiency.toFixed(1) + '%';
+  const flagsEl = document.getElementById('score-flags');
+  if (score.flagged.length) {
+    flagsEl.innerHTML = score.flagged.map(f => `<div class="flag-item">⚠ ${f}</div>`).join('');
+  } else {
+    flagsEl.innerHTML = `<div class="flag-empty">没有明显狭长的房间</div>`;
+  }
+  document.getElementById('score-align').textContent = score.wetAlignmentMsg;
+}
+
+// ============ 交互事件 ============
+function onSiteChange() {
+  state.W = Math.max(6, parseFloat(document.getElementById('in-W').value) || state.W);
+  state.D = Math.max(6, parseFloat(document.getElementById('in-D').value) || state.D);
+  state.stairW = Math.max(1.0, parseFloat(document.getElementById('in-stairW').value) || state.stairW);
+  state.module = Math.max(2.4, parseFloat(document.getElementById('in-module').value) || state.module);
+  generateAndRender();
+}
+
+function onFloorCountChange() {
+  state.floorCount = parseInt(document.getElementById('in-floorCount').value, 10);
+  if (activeFloorTab >= state.floorCount) activeFloorTab = 0;
+  generateAndRender();
+}
+
+function updateRoomField(floorIdx, roomId, field, value) {
+  const room = state.floors[floorIdx].rooms.find(r => r.id === roomId);
+  if (!room) return;
+  room[field] = field === 'area' ? Math.max(1, parseFloat(value) || 1) : value;
+  generateAndRender();
+}
+
+function addRoom(floorIdx) {
+  roomIdCounter += 1;
+  state.floors[floorIdx].rooms.push({ id: 'r' + roomIdCounter, name: '新房间', area: 10, type: 'other' });
+  generateAndRender();
+}
+
+function removeRoom(floorIdx, roomId) {
+  const rooms = state.floors[floorIdx].rooms;
+  if (rooms.length <= 1) return;
+  state.floors[floorIdx].rooms = rooms.filter(r => r.id !== roomId);
+  generateAndRender();
+}
+
+function shuffleOrder() {
+  for (let i = 0; i < state.floorCount; i++) {
+    const rooms = state.floors[i].rooms;
+    for (let j = rooms.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [rooms[j], rooms[k]] = [rooms[k], rooms[j]];
+    }
+  }
+  generateAndRender();
+}
+
+document.getElementById('in-W').addEventListener('change', onSiteChange);
+document.getElementById('in-D').addEventListener('change', onSiteChange);
+document.getElementById('in-stairW').addEventListener('change', onSiteChange);
+document.getElementById('in-module').addEventListener('change', onSiteChange);
+document.getElementById('in-floorCount').addEventListener('change', onFloorCountChange);
+
+generateAndRender();
+
+</script>
+</body>
+</html>
