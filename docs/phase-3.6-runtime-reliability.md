@@ -3,7 +3,8 @@
 > **当前焦点：Phase 3.6.1 短收口 → 契约冻结 → Phase 4**  
 > 目标：本地引擎、评分单一事实源、比较逻辑、测试与发布链做稳；**不开 3.7+**。  
 > **Desktop Alpha 平台（写死）：Windows 10/11 x64** — 不做并行 macOS/Linux 打包。  
-> **不做：** LLM、推倒四区 UI、继续扩 solver feature、跨平台 packaging。
+> **不做：** LLM、推倒四区 UI、继续扩 solver feature、跨平台 packaging。  
+> **API 冻结：** [api-contract.md](api-contract.md)
 
 配套总览见 [roadmap.md](roadmap.md)。
 
@@ -113,15 +114,16 @@ Rust 三态：
 ## Phase 3.6.1 — Runtime State Cleanup
 
 - [x] `engine-status` 唯一事实源；废弃 `engine-ready` 双发（修 STARTING→ERROR）
-- [x] reuse 外部引擎：连续 health 失败 → ERROR（前后端各 3 次）
-- [x] Retry：`spawning` 防并发 + UI STARTING 时禁用
-- [x] CI stub sidecar 目录（`cargo check` 不依赖真 onedir）
-- [ ] **远端 Actions 是否绿**：以 GitHub 该次 run 为准；「workflow 已配置」≠「已跑通」
-- [ ] 按 [windows-alpha-smoke.md](windows-alpha-smoke.md) 再跑一轮 Alpha smoke
+- [x] reuse：连续 health 失败 → ERROR；ownership **MANAGED | REUSED**
+- [x] Retry：MANAGED kill+spawn；REUSED 健康则继续 reuse；否则 spawn（不 kill 外进程）
+- [x] Retry UI：STARTING / busy 时禁用
+- [x] `src-tauri/src/engine/{probe,process,lifecycle,logging}` 模块拆分
+- [x] CI 保留 cargo check；文档区分 configured vs verified green
+- [x] [api-contract.md](api-contract.md) Alpha 契约冻结
+- [ ] **远端 Actions verified green**（以该次 run 为准）
+- [ ] 按 [windows-alpha-smoke.md](windows-alpha-smoke.md) 再跑一轮
 
-**Phase 4 前工程债（非 P0）：** `desktop/src-tauri/src/lib.rs` 拆 `engine/{probe,process,lifecycle,logging}`，lib 只留 setup/commands/run。
-
-完成后进入 Phase 4 Interactive Design Workbench。
+**完成后停止扩 runtime；进入 Phase 4 Interactive Design Workbench。**
 
 ---
 

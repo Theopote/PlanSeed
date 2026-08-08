@@ -33,7 +33,9 @@ Solver / Evaluation / API **短暂冻结**，避免 Phase 4 交互编辑时前�
 | Alias | `DesignEvaluation = DesignScore` **保持**；正式拆 Evaluation 延后 |
 
 **允许：** bugfix、文档、CI 绿、runtime 小修、Workbench UI（只消费冻结契约）。  
-**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare 规则却不 bump `evaluation_version`；前端自创评分逻辑。
+**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare 规则却不 bump `evaluation_version`；前端自创评分逻辑。  
+
+书面契约：[api-contract.md](api-contract.md)
 
 ---
 

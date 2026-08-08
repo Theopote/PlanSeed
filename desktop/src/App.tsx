@@ -149,7 +149,7 @@ function App() {
         consecutiveHealthFailures += 1;
         if (consecutiveHealthFailures >= HEALTH_FAIL_THRESHOLD) {
           consecutiveHealthFailures = 0;
-          applyEngineStatus("ERROR", "本地引擎连接中断");
+          applyEngineStatus("ERROR", "本地引擎连接中断，请重试。");
         }
       });
     }, HEALTH_INTERVAL_MS);
