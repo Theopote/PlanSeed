@@ -107,6 +107,8 @@ export type LockedZoneRect = {
   width: number;
   depth: number;
   room_ids?: string[];
+  /** ZonePlacement.id，如 F1-day-0 */
+  zone_id?: string | null;
 };
 
 export type LayoutLocks = {
@@ -116,7 +118,9 @@ export type LayoutLocks = {
 };
 
 export type ZonePlacementPayload = {
+  id?: string | null;
   zone: string;
+  kind?: string | null;
   floor_id: string;
   x: number;
   y: number;

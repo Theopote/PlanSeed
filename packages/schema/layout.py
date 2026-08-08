@@ -53,12 +53,29 @@ class PlacementRect(BaseModel):
 
 
 class ZonePlacement(BaseModel):
-    """Solver 产出的功能分区容器（≠ RoomPlacement；供 Lock Zone / Inspector）。"""
+    """
+    Solver 产出的功能分区容器（≠ RoomPlacement；供 Lock Zone / Inspector）。
 
-    zone: str = Field(description="day | night | service | circulation")
+    id 稳定标识单块组件（如 F1-day-0）；kind 为功能类。
+    zone 与 kind 同义，保留兼容旧客户端。
+    """
+
+    id: str | None = Field(
+        default=None,
+        description="分区组件 id，如 F1-day-0；旧候选可空",
+    )
+    zone: str = Field(description="day | night | service | circulation（= kind）")
+    kind: str | None = Field(
+        default=None,
+        description="功能类；空则回退 zone",
+    )
     floor_id: str
     rect: PlacementRect
     room_ids: list[str] = Field(default_factory=list)
+
+    def resolved_kind(self) -> str:
+        return self.kind or self.zone
+
 
 
 class RoomPlacement(BaseModel):

@@ -49,6 +49,7 @@ class LockedZoneRect(BaseModel):
     钉死的功能分区组件矩形。
 
     同 floor_id + zone 的多条共同构成 FunctionalZoneGroup 锁。
+    zone_id 对应 ZonePlacement.id（如 F1-day-0）；可空以兼容旧客户端。
     """
 
     zone: ArchitecturalZone = Field(description="day | night | service（非 circulation）")
@@ -60,6 +61,10 @@ class LockedZoneRect(BaseModel):
     room_ids: list[str] = Field(
         default_factory=list,
         description="锁定时归属该组件的房间；空则按 classify 回填",
+    )
+    zone_id: str | None = Field(
+        default=None,
+        description="分区组件 id（ZonePlacement.id）；空则按 floor+kind+几何匹配",
     )
 
     @field_validator("zone", mode="before")

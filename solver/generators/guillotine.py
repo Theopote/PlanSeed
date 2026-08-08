@@ -253,14 +253,23 @@ class GuillotineGenerator:
                     update={"placements": list(layout.placements) + extra}
                 )
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
+            kind_counts: dict[str, int] = {}
             for zg in zone_plan.zones:
+                kind = (
+                    zg.zone.value if hasattr(zg.zone, "value") else str(zg.zone)
+                )
+                zid = self._stable_zone_id(
+                    locks=locks,
+                    floor_id=floor.id,
+                    kind=kind,
+                    rect=zg.rect,
+                    kind_counts=kind_counts,
+                )
                 zone_placements.append(
                     ZonePlacement(
-                        zone=(
-                            zg.zone.value
-                            if hasattr(zg.zone, "value")
-                            else str(zg.zone)
-                        ),
+                        id=zid,
+                        zone=kind,
+                        kind=kind,
                         floor_id=zg.floor_id,
                         rect=zg.rect.model_copy(),
                         room_ids=list(zg.room_ids),
@@ -309,6 +318,33 @@ class GuillotineGenerator:
         place_door_openings(program, candidate)
         build_realized_connections(program, candidate)
         return candidate
+
+    @staticmethod
+    def _stable_zone_id(
+        *,
+        locks: LayoutLocks,
+        floor_id: str,
+        kind: str,
+        rect,
+        kind_counts: dict[str, int],
+    ) -> str:
+        """优先复用锁上的 zone_id，保证 Regenerate 后组件 id 稳定。"""
+        tol = 1e-4
+        for lz in locks.zones_on_floor(floor_id):
+            z_kind = lz.zone.value if hasattr(lz.zone, "value") else str(lz.zone)
+            if z_kind != kind:
+                continue
+            if (
+                abs(lz.x - rect.x) <= tol
+                and abs(lz.y - rect.y) <= tol
+                and abs(lz.width - rect.width) <= tol
+                and abs(lz.depth - rect.depth) <= tol
+                and lz.zone_id
+            ):
+                return lz.zone_id
+        idx = kind_counts.get(kind, 0)
+        kind_counts[kind] = idx + 1
+        return f"{floor_id}-{kind}-{idx}"
 
     def _inject_locked_zones(
         self,

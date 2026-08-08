@@ -135,7 +135,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] Lock = 管线契约（resolver 尊重 protected；最终 lock invariant；生成前 validate）
 
 **Lock 优先级：** Room Lock > Zone Lock（FunctionalZoneGroup）> Free。  
-同层同 kind 多块 zone rect = 锁定整个分区组，不是单块。非法 zone / 未知房间 → HTTP 422，禁止静默忽略。
+同层同 kind 多块 zone rect = 锁定整个分区组（每块有稳定 `ZonePlacement.id`，如 `F1-day-0`）。非法 zone / 未知房间 → HTTP 422，禁止静默忽略。
 
 ### Phase 4.2 — Create Variant + Compare（✅）
 

@@ -106,42 +106,76 @@ def check_lock_invariants(
     locked_room_ids = locks.locked_room_ids
     for lz in locks.zones:
         z_kind = lz.zone.value if hasattr(lz.zone, "value") else str(lz.zone)
-        match = next(
-            (
-                z
-                for z in candidate.zone_placements
-                if z.zone == z_kind
-                and z.floor_id == lz.floor_id
-                and abs(z.rect.x - lz.x) <= _TOL
-                and abs(z.rect.y - lz.y) <= _TOL
-                and abs(z.rect.width - lz.width) <= _TOL
-                and abs(z.rect.depth - lz.depth) <= _TOL
-            ),
-            None,
-        )
-        # 同 kind 可能多组件：按几何匹配；找不到则看是否有同 kind 但几何变了
-        if match is None:
-            same_kind = [
-                z
-                for z in candidate.zone_placements
-                if z.zone == z_kind and z.floor_id == lz.floor_id
-            ]
-            if not same_kind or not any(
-                _same_rect(z.rect.x, z.rect.y, z.rect.width, z.rect.depth, lz)
-                for z in same_kind
-            ):
+        match = None
+        if lz.zone_id:
+            match = next(
+                (z for z in candidate.zone_placements if z.id == lz.zone_id),
+                None,
+            )
+            if match is None:
                 violations.append(
                     Violation(
                         constraint_id="lock.zone_breached",
                         room_ids=list(lz.room_ids),
                         message=(
-                            f"锁定分区 envelope 被改动：{z_kind} @ {lz.floor_id}"
+                            f"锁定分区组件缺失：{lz.zone_id}"
                         ),
                         hard=True,
                         source="system",
                     )
                 )
                 continue
+            if not _same_rect(
+                match.rect.x, match.rect.y, match.rect.width, match.rect.depth, lz
+            ):
+                violations.append(
+                    Violation(
+                        constraint_id="lock.zone_breached",
+                        room_ids=list(lz.room_ids),
+                        message=(
+                            f"锁定分区 envelope 被改动：{lz.zone_id}"
+                        ),
+                        hard=True,
+                        source="system",
+                    )
+                )
+                continue
+        else:
+            match = next(
+                (
+                    z
+                    for z in candidate.zone_placements
+                    if z.resolved_kind() == z_kind
+                    and z.floor_id == lz.floor_id
+                    and abs(z.rect.x - lz.x) <= _TOL
+                    and abs(z.rect.y - lz.y) <= _TOL
+                    and abs(z.rect.width - lz.width) <= _TOL
+                    and abs(z.rect.depth - lz.depth) <= _TOL
+                ),
+                None,
+            )
+            if match is None:
+                same_kind = [
+                    z
+                    for z in candidate.zone_placements
+                    if z.resolved_kind() == z_kind and z.floor_id == lz.floor_id
+                ]
+                if not same_kind or not any(
+                    _same_rect(z.rect.x, z.rect.y, z.rect.width, z.rect.depth, lz)
+                    for z in same_kind
+                ):
+                    violations.append(
+                        Violation(
+                            constraint_id="lock.zone_breached",
+                            room_ids=list(lz.room_ids),
+                            message=(
+                                f"锁定分区 envelope 被改动：{z_kind} @ {lz.floor_id}"
+                            ),
+                            hard=True,
+                            source="system",
+                        )
+                    )
+                    continue
 
         envelope = Rect(x=lz.x, y=lz.y, width=lz.width, depth=lz.depth)
         for rid in lz.room_ids:
@@ -154,12 +188,13 @@ def check_lock_invariants(
                 x=p.rect.x, y=p.rect.y, width=p.rect.width, depth=p.rect.depth
             )
             if not _contains_tol(envelope, pr):
+                label = lz.zone_id or f"{z_kind}@{lz.floor_id}"
                 violations.append(
                     Violation(
                         constraint_id="lock.zone_breached",
                         room_ids=[rid],
                         message=(
-                            f"分区锁成员越界：{rid} 不在 {z_kind}@{lz.floor_id} envelope 内"
+                            f"分区锁成员越界：{rid} 不在 {label} envelope 内"
                         ),
                         hard=True,
                         source="system",

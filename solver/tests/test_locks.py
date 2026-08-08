@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore
+from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
 from solver.fixtures.benchmark import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.rect import Rect
@@ -106,10 +106,35 @@ def test_pipeline_accepts_locks():
     assert result.generated == 2
 
 
+def test_zone_placement_has_stable_id():
+    """ZonePlacement 带 id/kind；锁 zone_id 后 Regenerate 保持同一 id。"""
+    program = benchmark_program()
+    gen = GuillotineGenerator()
+    base = gen.generate(program, seed=0)
+    assert base.zone_placements
+    z0 = base.zone_placements[0]
+    assert z0.id
+    assert z0.kind == z0.zone or z0.kind is None
+    assert z0.id.startswith(f"{z0.floor_id}-{z0.resolved_kind()}-")
+
+    lock = LockedZoneRect(
+        zone=z0.zone,
+        floor_id=z0.floor_id,
+        x=z0.rect.x,
+        y=z0.rect.y,
+        width=z0.rect.width,
+        depth=z0.rect.depth,
+        room_ids=list(z0.room_ids),
+        zone_id=z0.id,
+    )
+    again = gen.generate(program, seed=5, locks=LayoutLocks(zones=[lock]))
+    pinned = next(z for z in again.zone_placements if z.id == z0.id)
+    assert pinned.rect.x == z0.rect.x
+    assert pinned.rect.y == z0.rect.y
+
+
 def test_locked_zone_envelope_stays_fixed():
     """锁定 day 区后，该层 day 容器几何不变；区内房间仍可重排。"""
-    from packages.schema.locks import LockedZoneRect
-
     program = benchmark_program()
     base = GuillotineGenerator().generate(program, seed=0)
     assert base.zone_placements
@@ -125,14 +150,19 @@ def test_locked_zone_envelope_stays_fixed():
         width=day.rect.width,
         depth=day.rect.depth,
         room_ids=list(day.room_ids),
+        zone_id=day.id,
     )
     locks = LayoutLocks(zones=[lock])
     again = GuillotineGenerator().generate(program, seed=7, locks=locks)
-    pinned = next(
-        z
-        for z in again.zone_placements
-        if z.zone == lock.zone and z.floor_id == lock.floor_id
-    )
+    if day.id:
+        pinned = next(z for z in again.zone_placements if z.id == day.id)
+    else:
+        kind = lock.zone.value if hasattr(lock.zone, "value") else str(lock.zone)
+        pinned = next(
+            z
+            for z in again.zone_placements
+            if z.zone == kind and z.floor_id == lock.floor_id
+        )
     assert pinned.rect.x == lock.x
     assert pinned.rect.y == lock.y
     assert pinned.rect.width == lock.width

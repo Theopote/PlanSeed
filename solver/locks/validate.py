@@ -118,7 +118,15 @@ def validate_layout_locks(
     # —— Zones ——
     # 同 floor+kind 多条 = FunctionalZoneGroup 多组件，合法；校验每条
     zone_members: dict[tuple[str, str], set[str]] = {}
+    seen_zone_ids: set[str] = set()
     for lz in locks.zones:
+        if lz.zone_id:
+            if lz.zone_id in seen_zone_ids:
+                out.add(
+                    "duplicate_zone_lock",
+                    f"分区组件 id 重复：{lz.zone_id}",
+                )
+            seen_zone_ids.add(lz.zone_id)
         kind: ArchitecturalZone
         if isinstance(lz.zone, ArchitecturalZone):
             kind = lz.zone

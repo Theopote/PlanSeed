@@ -425,13 +425,14 @@ function App() {
         );
         if (!matches.length) return prev;
         const next: LockedZoneRect[] = matches.map((z) => ({
-          zone: z.zone,
+          zone: z.kind ?? z.zone,
           floor_id: z.floor_id,
           x: z.x,
           y: z.y,
           width: z.width,
           depth: z.depth,
           room_ids: [...z.room_ids],
+          zone_id: z.id ?? null,
         }));
         return { ...prev, zones: [...prev.zones, ...next] };
       });
@@ -441,11 +442,13 @@ function App() {
 
   const onSelectZone = useCallback(
     (zone: string, floorId: string) => {
-      const zp = selected?.zones?.find(
-        (z) => z.zone === zone && z.floor_id === floorId,
-      );
-      if (!zp) return;
-      setHighlightRoomIds(zp.room_ids);
+      const matches =
+        selected?.zones?.filter(
+          (z) => (z.kind ?? z.zone) === zone && z.floor_id === floorId,
+        ) ?? [];
+      if (!matches.length) return;
+      const rooms = [...new Set(matches.flatMap((z) => z.room_ids))];
+      setHighlightRoomIds(rooms);
       setSelectedRoomId(null);
     },
     [selected],

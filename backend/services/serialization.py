@@ -117,9 +117,12 @@ def _zones_payload(cand: LayoutCandidate) -> list[ZonePlacementPayload]:
     out: list[ZonePlacementPayload] = []
     for z in cand.zone_placements:
         r = z.rect
+        kind = z.kind or z.zone
         out.append(
             ZonePlacementPayload(
+                id=z.id,
                 zone=z.zone,
+                kind=kind,
                 floor_id=z.floor_id,
                 x=r.x,
                 y=r.y,

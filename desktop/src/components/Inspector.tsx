@@ -10,16 +10,41 @@ import type {
 import { AXIS_SCOPE } from "../lib/axisScope";
 import { ComparePanel } from "./ComparePanel";
 
-function uniqueZones(zones: ZonePlacementPayload[]): ZonePlacementPayload[] {
-  const seen = new Set<string>();
-  const out: ZonePlacementPayload[] = [];
+type ZoneGroupRow = {
+  zone: string;
+  floor_id: string;
+  width: number;
+  depth: number;
+  room_ids: string[];
+  componentCount: number;
+  ids: string[];
+};
+
+function zoneGroups(zones: ZonePlacementPayload[]): ZoneGroupRow[] {
+  const map = new Map<string, ZoneGroupRow>();
   for (const z of zones) {
-    const key = `${z.floor_id}:${z.zone}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(z);
+    const kind = z.kind ?? z.zone;
+    const key = `${z.floor_id}:${kind}`;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, {
+        zone: kind,
+        floor_id: z.floor_id,
+        width: z.width,
+        depth: z.depth,
+        room_ids: [...z.room_ids],
+        componentCount: 1,
+        ids: z.id ? [z.id] : [],
+      });
+      continue;
+    }
+    prev.componentCount += 1;
+    prev.room_ids = [...new Set([...prev.room_ids, ...z.room_ids])];
+    prev.width = Math.max(prev.width, z.width);
+    prev.depth = Math.max(prev.depth, z.depth);
+    if (z.id) prev.ids.push(z.id);
   }
-  return out;
+  return [...map.values()];
 }
 
 type Props = {
@@ -387,7 +412,7 @@ export function Inspector({
                 Lock 优先于 Zone Lock
               </p>
               <ul className="zone-rows">
-                {uniqueZones(candidate.zones ?? []).map((z) => {
+                {zoneGroups(candidate.zones ?? []).map((z) => {
                   const locked = locks.zones.some(
                     (lz) =>
                       lz.zone === z.zone && lz.floor_id === z.floor_id,
@@ -403,8 +428,12 @@ export function Inspector({
                           {ZONE_LABEL[z.zone] ?? z.zone} · {z.floor_id}
                         </span>
                         <span className="muted tiny">
+                          {z.componentCount > 1
+                            ? `${z.componentCount} 块 · `
+                            : ""}
                           {z.width.toFixed(1)}×{z.depth.toFixed(1)} ·{" "}
                           {z.room_ids.length} 房
+                          {z.ids.length === 1 ? ` · ${z.ids[0]}` : ""}
                         </span>
                       </button>
                       <button
@@ -414,7 +443,7 @@ export function Inspector({
                           onToggleZoneLock(z.zone, z.floor_id)
                         }
                       >
-                        {locked ? "解锁区" : "锁定区"}
+                        {locked ? "解锁组" : "锁定组"}
                       </button>
                     </li>
                   );

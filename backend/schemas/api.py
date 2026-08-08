@@ -77,7 +77,9 @@ class RoomPlacementPayload(BaseModel):
 class ZonePlacementPayload(BaseModel):
     """功能分区容器摘要（Phase 4 Lock Zone；additive）。"""
 
+    id: str | None = Field(default=None, description="如 F1-day-0")
     zone: str
+    kind: str | None = Field(default=None, description="与 zone 同义")
     floor_id: str
     x: float
     y: float
