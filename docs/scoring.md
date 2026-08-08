@@ -237,7 +237,32 @@ environment 0.10 | technical 0.16 | robustness 0.14
 - Inspector：展开 `explanations` + 各分项 score + metrics + violations
 - 失败 candidate：展示 `hard_violations` 详情
 - API：`POST /api/generate` 返回 SVG + `design_score`（来自 `LayoutCandidate.evaluation`，不重评）
+- `design_score.evaluation_version` + 响应 `solver_identity`（见下）
 - `DesignEvaluation`：**temporary compatibility alias** → 目前 `= DesignScore`（同构，避免双源）；pipeline 写入完整对象，`score` 为 compat 标量
+
+## 版本签名（regression / 历史结果）
+
+常量集中在 [`packages/schema/identity.py`](../packages/schema/identity.py)：
+
+| 字段 | 当前值 | 含义 |
+|------|--------|------|
+| `solver_version` | `0.4` | Solver 管线总签名 |
+| `generator_version` | `guillotine-topology-v2` | 当前主生成器 |
+| `evaluation_version` | `residential-alpha-v1` | 七轴权重 / Finding 规则包 |
+
+持久化示例：
+
+```json
+{
+  "evaluation_version": "residential-alpha-v1",
+  "total_score": 87.2,
+  "solver_version": "0.4",
+  "generator_version": "guillotine-topology-v2"
+}
+```
+
+**何时 bump：** 改权重、轴合成、Finding 规则、生成拓扑 → 升 `evaluation_version` 和/或 `generator_version`；大管线变更 → 升 `solver_version`。  
+否则「同几何明日分数变了」无法解释。`engine_version`（health）仍是进程/打包身份，与算法签名分开。
 
 ### DesignEvaluation vs DesignScore（非 P0，schema 稳定后再拆）
 
@@ -249,13 +274,9 @@ Score 与 Evaluation 语义不同：前者是七轴分数载体；后者是一�
 
 ```text
 DesignEvaluation
-  score: DesignScore
-  findings          # 或继续由 score 承载，再决定下沉
-  metrics
-  profile
-  evaluator_version
-  # 候选：evaluation_version / timestamp / metric_ownership_version
-  #        scenario / comparison_signature
+  score: DesignScore          # 含 evaluation_version（现已在 alias 上）
+  findings / metrics / profile
+  # 候选：timestamp / metric_ownership_version / scenario / comparison_signature
 ```
 
 拆分前业务层继续把 `LayoutCandidate.evaluation` 当完整评价对象用；**不要**再引入第二套并行类型。
@@ -263,6 +284,7 @@ DesignEvaluation
 ## 状态
 
 - ✅ `DesignScore` / `DesignEvaluation`（alias）/ `DesignMetrics` + 七轴
+- ✅ `evaluation_version` + `solver_identity`（`packages/schema/identity.py`）
 - ⬜ `DesignEvaluation` 真正模型化（temporary alias → 组合模型；非 P0）
 - ✅ Geometry / Adjacency / Vertical / Site / Orientation / Circulation / Privacy / ProgramFit
 - ✅ Metric Ownership + pipeline 单次评价

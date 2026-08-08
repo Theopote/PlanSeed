@@ -46,6 +46,7 @@ export type DesignScore = {
   technical_score: number;
   robustness_score: number;
   total_score: number;
+  evaluation_version?: string;
   findings: DesignFinding[];
   explanations: string[];
   warnings: string[];
@@ -97,6 +98,11 @@ export type GenerateResponse = {
   candidates: CandidatePayload[];
   violation_summary?: Record<string, number>;
   rejected_candidates?: RejectedCandidatePayload[];
+  solver_identity?: {
+    solver_version: string;
+    generator_version: string;
+    evaluation_version: string;
+  };
 };
 
 /** Hard-fail 无效候选（≠ 有效但未进 Top-K）。 */

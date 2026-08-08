@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
+from packages.schema.identity import solver_identity
 
 from backend.schemas.api import (
     MAX_REJECTED_SAMPLES,
@@ -44,4 +45,5 @@ def generate(body: GenerateRequest) -> GenerateResponse:
         candidates=candidates,
         violation_summary=dict(result.violation_summary),
         rejected_candidates=rejected_samples,
+        solver_identity=solver_identity(),
     )

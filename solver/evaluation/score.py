@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from packages.schema.identity import (
+    EVALUATION_VERSION,
+    GENERATOR_VERSION,
+    SOLVER_VERSION,
+)
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
 from packages.schema.scoring import (
@@ -331,6 +336,7 @@ class CompositeEvaluator:
             technical_score=round(technical_s, 2),
             robustness_score=round(robust_s, 2),
             total_score=round(total, 2),
+            evaluation_version=EVALUATION_VERSION,
             metrics=metrics,
             findings=findings,
             explanations=explanations,
@@ -339,5 +345,8 @@ class CompositeEvaluator:
         )
 
         candidate.metrics.update(flat_metrics)
+        candidate.metrics["evaluation_version"] = EVALUATION_VERSION
+        candidate.metrics["solver_version"] = SOLVER_VERSION
+        candidate.metrics["generator_version"] = GENERATOR_VERSION
         candidate.score = score.total_score
         return score

@@ -69,3 +69,7 @@ class GenerateResponse(BaseModel):
     candidates: list[CandidatePayload]
     violation_summary: dict[str, int] = Field(default_factory=dict)
     rejected_candidates: list[RejectedCandidatePayload] = Field(default_factory=list)
+    solver_identity: dict[str, str] = Field(
+        default_factory=dict,
+        description="solver_version / generator_version / evaluation_version",
+    )

@@ -6,6 +6,7 @@ import random
 from dataclasses import dataclass
 
 from packages.schema.core import CorePlacementResult
+from packages.schema.identity import GENERATOR_VERSION
 from packages.schema.layout import (
     FloorLayout,
     LayoutCandidate,
@@ -112,6 +113,7 @@ class GuillotineGenerator:
                 metrics={
                     "core_unfit": True,
                     "core_unfit_reason": str(err),
+                    "generator_version": GENERATOR_VERSION,
                 },
             )
 
@@ -159,6 +161,7 @@ class GuillotineGenerator:
             seed=seed,
             floors=floor_layouts,
             wet_stacks=list(building_zones.wet_stacks),
+            metrics={"generator_version": GENERATOR_VERSION},
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         resolve_required_connections(program, candidate, module=module)

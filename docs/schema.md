@@ -188,7 +188,8 @@ packages/schema/
 ├── room.py         # RoomSpec, FloorSpec
 ├── constraints.py  # Constraint union
 ├── layout.py       # RoomPlacement, LayoutCandidate
-├── scoring.py      # DesignScore；DesignEvaluation = temporary compatibility alias
+├── scoring.py      # DesignScore（含 evaluation_version）；DesignEvaluation = temporary alias
+├── identity.py     # solver / generator / evaluation 版本签名
 ├── program.py      # DesignProgram, SolverConfig
 └── topology.py     # RoomGraph, RoomEdge
 ```

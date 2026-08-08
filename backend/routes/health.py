@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
+from packages.schema.identity import solver_identity
 
 router = APIRouter(tags=["health"])
 
@@ -14,9 +15,12 @@ SERVICE_ID = "planseed"
 
 @router.get("/api/health")
 def health() -> dict[str, bool | str]:
-    return {
+    body: dict[str, bool | str] = {
         "ok": True,
         "service": SERVICE_ID,
         "api_version": API_VERSION,
         "engine_version": ENGINE_VERSION,
     }
+    # 算法契约版本（regression / 历史分数解释）；不参与端口 reuse 判定
+    body.update(solver_identity())
+    return body

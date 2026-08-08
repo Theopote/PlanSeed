@@ -22,6 +22,7 @@ generate → validate → evaluate → candidate.evaluation → rank
 - Metric Ownership：原始 metric 单主归属
 - DesignFinding：severity / room_ids / metric / recommended_action  
   （**heuristic only**；≠ code compliance，见 [scoring.md](scoring.md)）
+- 算法签名：`solver_version` / `generator_version` / `evaluation_version`（health + generate；见 [scoring.md](scoring.md)#版本签名regression--历史结果）
 
 ---
 

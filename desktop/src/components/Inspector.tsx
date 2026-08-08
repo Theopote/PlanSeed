@@ -133,6 +133,9 @@ export function Inspector({
           <p className="muted">
             {candidate.label} · seed {candidate.seed}
             {candidate.score != null ? ` · ${candidate.score.toFixed(1)}` : ""}
+            {ds?.evaluation_version
+              ? ` · eval ${ds.evaluation_version}`
+              : ""}
           </p>
         )}
       </header>

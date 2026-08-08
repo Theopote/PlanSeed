@@ -17,6 +17,12 @@ from packages.schema.entry import (
     ExteriorEntryPlacement,
     ExteriorEntrySpec,
 )
+from packages.schema.identity import (
+    EVALUATION_VERSION,
+    GENERATOR_VERSION,
+    SOLVER_VERSION,
+    solver_identity,
+)
 from packages.schema.layout import (
     CandidateValidation,
     DoorOpening,
@@ -71,6 +77,7 @@ __all__ = [
     "DesignProgram",
     "DesignScore",
     "DoorOpening",
+    "EVALUATION_VERSION",
     "EvaluationAxis",
     "ExteriorEntry",
     "ExteriorEntryPlacement",
@@ -79,6 +86,7 @@ __all__ = [
     "FloorConstraint",
     "FloorLayout",
     "FloorSpec",
+    "GENERATOR_VERSION",
     "HouseholdSpec",
     "LayoutCandidate",
     "OrientationConstraint",
@@ -89,6 +97,7 @@ __all__ = [
     "RoomCategory",
     "RoomPlacement",
     "RoomSpec",
+    "SOLVER_VERSION",
     "SemanticRole",
     "SeparationConstraint",
     "SetbackSpec",
@@ -100,4 +109,5 @@ __all__ = [
     "Violation",
     "WetStack",
     "WidthConstraint",
+    "solver_identity",
 ]

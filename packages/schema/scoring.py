@@ -6,6 +6,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from packages.schema.identity import EVALUATION_VERSION
 from packages.schema.layout import Violation
 
 
@@ -112,6 +113,14 @@ class DesignScore(BaseModel):
 
     total_score: float = 0.0
 
+    evaluation_version: str = Field(
+        default=EVALUATION_VERSION,
+        description=(
+            "评价规则签名（packages.schema.identity.EVALUATION_VERSION）；"
+            "相同几何在不同版本下分数可不同。由 Evaluator 写入。"
+        ),
+    )
+
     metrics: DesignMetrics = Field(default_factory=DesignMetrics)
     findings: list[DesignFinding] = Field(default_factory=list)
     explanations: list[str] = Field(
@@ -126,9 +135,9 @@ class DesignScore(BaseModel):
 
 
 # temporary compatibility alias — Score ≠ Evaluation 语义上长期应拆分。
-# 现阶段与 DesignScore 同构，避免双源；schema 稳定后再升级为真正模型，例如：
-#   DesignEvaluation(score, findings, metrics, profile, evaluator_version, …)
-# 候选扩展字段：evaluation_version / timestamp / profile /
-# metric_ownership_version / scenario / comparison_signature
+# 现阶段与 DesignScore 同构，避免双源；evaluation_version 已挂在 DesignScore 上。
+# schema 稳定后再升级为真正模型，例如：
+#   DesignEvaluation(score, findings, metrics, profile, evaluation_version, …)
+# 其它候选：timestamp / metric_ownership_version / scenario / comparison_signature
 # 拆分前勿在业务层假设「Evaluation 仅等于七轴分数」。
 DesignEvaluation = DesignScore

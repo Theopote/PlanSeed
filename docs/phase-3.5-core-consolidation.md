@@ -9,8 +9,11 @@
 ```bash
 uv run pytest
 uv run ruff check packages solver backend
-uv run mypy packages solver backend   # 宽松基线，后续收紧
+uv run mypy packages solver backend   # 宽松基线；禁止立刻 --strict
 ```
+
+静态检查顺序：`ruff clean` → mypy 核心模块 → **逐目录**收紧。  
+Pydantic / union / dynamic metrics 多，全仓 strict 过早。
 
 
 ## 产品原则（本轮最重要）

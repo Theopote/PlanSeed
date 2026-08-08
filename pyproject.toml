@@ -38,6 +38,11 @@ pythonpath = ["."]
 addopts = "-v"
 
 # 静态检查：先宽松落地，避免一次大手术；逐步收紧。
+# 顺序（勿跳到 mypy --strict）：
+#   1) ruff clean
+#   2) mypy 核心包（packages / solver 关键）
+#   3) 逐目录收紧并删 disable_error_code
+# Pydantic / union / dynamic metrics 多，全仓 strict 过早。
 [tool.ruff]
 target-version = "py312"
 line-length = 100
@@ -64,7 +69,8 @@ warn_unused_ignores = false
 pretty = true
 packages = ["packages", "solver", "backend"]
 exclude = ["(?x)(^build/|^dist/)"]
-# Phase 3.5：先接入工具，存量类型债不阻断；后续按包收紧并删 disable。
+# Phase 3.5+：先接入工具，存量类型债不阻断。
+# 禁止立刻 --strict；按目录收紧时再删对应 disable。
 disable_error_code = [
     "arg-type",
     "assignment",
