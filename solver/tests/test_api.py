@@ -11,7 +11,16 @@ client = TestClient(app)
 def test_health():
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json()["ok"] is True
+    body = r.json()
+    assert body["ok"] is True
+    assert body["service"] == "planseed"
+
+
+def test_health_identity_contract():
+    """Tauri 复用端口的唯一身份依据：ok + service=planseed。"""
+    body = client.get("/api/health").json()
+    assert set(body.keys()) >= {"ok", "service"}
+    assert body["service"] == "planseed"
 
 
 def test_generate_benchmark():

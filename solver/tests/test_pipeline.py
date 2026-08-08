@@ -26,6 +26,23 @@ class TestPipeline:
                 assert c.evaluation.total_score == c.score
                 assert c.evaluation.program_score >= 0
 
+    def test_evaluation_deterministic_same_seed(self):
+        """同 program + seed → 同 evaluation（契约：单一事实源可复现）。"""
+        program = benchmark_program()
+        program.solver_config.candidate_count = 4
+        program.solver_config.return_top_k = 2
+        program.solver_config.base_seed = 7
+        a = run_pipeline(program)
+        b = run_pipeline(program)
+        va = [c for c in a.all_candidates if c.validation and c.validation.valid]
+        vb = [c for c in b.all_candidates if c.validation and c.validation.valid]
+        assert va and vb
+        assert len(va) == len(vb)
+        for ca, cb in zip(va, vb, strict=True):
+            assert ca.seed == cb.seed
+            assert ca.evaluation is not None and cb.evaluation is not None
+            assert ca.evaluation.model_dump() == cb.evaluation.model_dump()
+
     def test_at_least_one_valid_candidate(self):
         # 弱断言保留作 smoke；正式质量门槛见 test_quality_regression.py
         program = benchmark_program()

@@ -49,9 +49,10 @@ LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **Implicit constraints**：有限规则集，必须带 `source` / `source_key`
 - **Circulation**：系统生成（`source=generated`），用户可约束
 - **Setbacks 默认 0**：表示未提供规划信息，非法规结论
-- **FastAPI + Tauri**：四区 Workbench 壳已有；**当前 Phase 3.5 Core Consolidation**（评价链 + sidecar → Desktop Alpha）
-- **路线图**：见 [roadmap.md](roadmap.md) / [phase-3.5-core-consolidation.md](phase-3.5-core-consolidation.md)
+- **FastAPI + Tauri**：四区 Workbench 壳已有；**当前 Phase 3.6**（引擎身份 / 端口契约 → Desktop Alpha）
+- **路线图**：见 [roadmap.md](roadmap.md) / [phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
 - **UI 纪律**：不因壳已出现就堆按钮；加深 `Evaluation → Finding → Inspector → Compare`
+- **引擎复用**：仅当 `GET /api/health` 返回 `service=planseed` 时 reuse 端口
 
 ```text
 UI (Tauri + React)

@@ -111,8 +111,8 @@ export async function checkHealth(): Promise<boolean> {
   try {
     const r = await fetch(`${_apiBase}/api/health`);
     if (!r.ok) return false;
-    const data = (await r.json()) as { ok?: boolean };
-    return data.ok === true;
+    const data = (await r.json()) as { ok?: boolean; service?: string };
+    return data.ok === true && data.service === "planseed";
   } catch {
     return false;
   }

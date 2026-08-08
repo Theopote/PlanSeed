@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 3.5 — Core Consolidation & Local Desktop Runtime**  
-> 详案：[phase-3.5-core-consolidation.md](phase-3.5-core-consolidation.md)  
-> 停止扩 solver / 不上 Ollama。收口评价链 + **本地独立运行** → Desktop Alpha。
+> **当前焦点：Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract**  
+> 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)  
+> 3.5 评价链已收口；本短周期把**引擎身份 / 端口 / 就绪探测**做稳 → Desktop Alpha。
 
 ## 阶段总览（以代码为准）
 
@@ -10,14 +10,15 @@
 |-------|------|------|
 | 0–2.3 | Architecture → Realized Circulation | ✅ |
 | **3** | **Architectural Evaluation** | **✅ MVP** |
-| **3.5** | **Core Consolidation & Local Desktop Runtime** | **← 当前** |
-| **4** | **Desktop Workbench（加深 / 交互）** | **🟡 壳已有**；结构锁定，本阶段只加深不重做 |
-| **5** | **Packaging 硬化**（CSP、签名、跨平台 sidecar） | 未开始（Alpha 后门禁） |
-| **6** | **Local LLM** | **未开始**（P2；晚于 Compare） |
+| **3.5** | **Core Consolidation & Local Desktop Runtime** | **✅ 主链收口**（evaluation / ownership / Compare MVP / onedir 骨架） |
+| **3.6** | **Desktop Runtime Reliability & Evaluation Contract** | **← 当前** |
+| **4** | **Desktop Workbench（加深 / 交互）** | **🟡 壳已有**；结构锁定 |
+| **5** | **Packaging 硬化**（CSP、签名、跨平台 sidecar） | 未开始 |
+| **6** | **Local LLM** | **未开始** |
 | 7–8 | Interactive Editing / Persistence | 未开始 |
 | — | SVG Debug | ✅ 开发工具 |
 
-**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 Compare / Sidecar 之前。
+**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 Runtime 稳定之前。
 
 ---
 
@@ -73,6 +74,19 @@ Evaluator 只评分，不改几何。用户层七轴：
 
 开发模式展示未入选 / invalid：`seed` + hard violations / core failure / 缺失开口等。  
 让系统显得「有判断依据」，而非随机吐方案。
+
+---
+
+## Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract（← 当前）
+
+详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
+
+| 级 | 主题 | 状态 |
+|----|------|------|
+| **P0** | 端口复用须 `/api/health` + `service=planseed`；外来 8787 不得误认 | ✅ |
+| **P0** | 就绪探测 = health（非仅 TCP） | ✅ |
+| **P1** | evaluation 单一事实源 / 确定性契约测试 | 🟡 持续 |
+| **P2** | onedir 真装包冒烟 | ❌ |
 
 ---
 
