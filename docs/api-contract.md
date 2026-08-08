@@ -31,7 +31,8 @@
 | 符号 | 位置 |
 |------|------|
 | `GenerateResponse` | `backend/schemas/api.py` |
-| `CandidatePayload` | 同上（含 `design_score`、`provenance`） |
+| `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`） |
+| `RoomPlacementPayload` | Phase 4.0 additive：点选房间用 |
 | `CandidateProvenance` | solver / generator / evaluation_version |
 | `solver_identity` | generate / health 响应 |
 | `CompareRequest` / `CompareResponse` | `POST /api/compare` |

@@ -71,6 +71,16 @@ export type CandidateProvenance = {
   evaluation_version?: string | null;
 };
 
+export type RoomPlacementPayload = {
+  room_id: string;
+  floor_id: string;
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  area: number;
+};
+
 export type CandidatePayload = {
   id: string;
   seed: number;
@@ -86,6 +96,7 @@ export type CandidatePayload = {
   } | null;
   metrics: Record<string, unknown>;
   provenance?: CandidateProvenance | null;
+  placements?: RoomPlacementPayload[];
 };
 
 export type ProgramSummary = {
@@ -258,6 +269,56 @@ export async function generateFromForm(
       if (body.detail) msg = body.detail;
     } catch {
       /* keep msg */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<GenerateResponse>;
+}
+
+/** 用当前 Program 房间清单（含已改 target_area）重生成 — Phase 4.0。 */
+export async function generateFromProgram(
+  form: RequirementForm,
+  program: ProgramSummary,
+  opts?: { candidate_count?: number; return_top_k?: number },
+): Promise<GenerateResponse> {
+  const r = await fetch(`${_apiBase}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      use_benchmark: false,
+      candidate_count: opts?.candidate_count ?? 16,
+      return_top_k: opts?.return_top_k ?? 5,
+      requirements: {
+        site: {
+          width: program.site_width,
+          depth: program.site_depth,
+        },
+        household: {
+          bedrooms: form.bedrooms,
+          bathrooms: form.bathrooms,
+          has_garage: form.has_garage,
+        },
+        preferences: {
+          prefer_south_facing_living: form.prefer_south_facing_living,
+        },
+        floor_count: program.floor_count,
+        spaces: program.rooms.map((room) => ({
+          id: room.id,
+          name: room.name,
+          category: room.category,
+          target_area: room.target_area,
+          floor_preference: room.floor_id ? [room.floor_id] : [],
+        })),
+      },
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: string };
+      if (body.detail) msg = body.detail;
+    } catch {
+      /* keep */
     }
     throw new Error(msg);
   }

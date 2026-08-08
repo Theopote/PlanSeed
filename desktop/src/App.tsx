@@ -3,6 +3,7 @@ import {
   checkHealth,
   generateBenchmark,
   generateFromForm,
+  generateFromProgram,
   resolveEngineBase,
   retryEngine,
   setApiBase,
@@ -46,6 +47,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareId, setCompareId] = useState<string | null>(null);
   const [highlightRoomIds, setHighlightRoomIds] = useState<string[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [rejectedCandidates, setRejectedCandidates] = useState<
     RejectedCandidatePayload[]
   >([]);
@@ -187,18 +189,24 @@ function App() {
     setSelectedId(data.candidates[0]?.id ?? null);
     setCompareId(null);
     setHighlightRoomIds([]);
+    setSelectedRoomId(null);
     setError(null);
   }, []);
 
   const run = useCallback(
-    async (mode: "form" | "benchmark") => {
+    async (mode: "form" | "benchmark" | "program") => {
       setLoading(true);
       setError(null);
       try {
-        const data =
-          mode === "benchmark"
-            ? await generateBenchmark()
-            : await generateFromForm(form);
+        let data: GenerateResponse;
+        if (mode === "benchmark") {
+          data = await generateBenchmark();
+        } else if (mode === "program") {
+          if (!program) throw new Error("尚无 Program，请先 Generate");
+          data = await generateFromProgram(form, program);
+        } else {
+          data = await generateFromForm(form);
+        }
         applyResult(data);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -206,8 +214,25 @@ function App() {
         setLoading(false);
       }
     },
-    [applyResult, form],
+    [applyResult, form, program],
   );
+
+  const onUpdateRoomTargetArea = useCallback((roomId: string, targetArea: number) => {
+    setProgram((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rooms: prev.rooms.map((r) =>
+          r.id === roomId ? { ...r, target_area: targetArea } : r,
+        ),
+      };
+    });
+  }, []);
+
+  const onSelectRoom = useCallback((roomId: string | null) => {
+    setSelectedRoomId(roomId);
+    setHighlightRoomIds(roomId ? [roomId] : []);
+  }, []);
 
   const onComparePick = useCallback(
     (id: string) => {
@@ -221,6 +246,7 @@ function App() {
   const onSelectCandidate = useCallback((id: string) => {
     setSelectedId(id);
     setHighlightRoomIds([]);
+    setSelectedRoomId(null);
   }, []);
 
   const emptyHint =
@@ -230,7 +256,7 @@ function App() {
         ? "正在连接本地引擎…"
         : engineStatus === "STOPPED"
           ? "引擎已停止"
-          : "点击 Generate 或「基准案例」生成平面";
+          : "点击 Generate 或「基准案例」生成平面；再点房间可改面积并 Regenerate";
 
   return (
     <div className="app-shell">
@@ -253,14 +279,22 @@ function App() {
           svg={selected?.svg ?? null}
           emptyHint={emptyHint}
           highlightRoomIds={highlightRoomIds}
+          selectedRoomId={selectedRoomId}
+          onSelectRoom={onSelectRoom}
         />
         <Inspector
           candidate={selected}
           compareWith={compareWith}
           program={program}
+          selectedRoomId={selectedRoomId}
           highlightRoomIds={highlightRoomIds}
           onHighlightRooms={setHighlightRoomIds}
+          onSelectRoom={onSelectRoom}
           onClearCompare={() => setCompareId(null)}
+          onUpdateRoomTargetArea={onUpdateRoomTargetArea}
+          onRegenerate={() => void run("program")}
+          regenerating={loading}
+          canRegenerate={!!program && engineStatus === "READY"}
         />
       </div>
       <CandidateStrip

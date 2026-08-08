@@ -51,6 +51,18 @@ class CandidateProvenance(BaseModel):
     evaluation_version: str
 
 
+class RoomPlacementPayload(BaseModel):
+    """候选上的房间放置摘要（Phase 4.0 Inspector；additive）。"""
+
+    room_id: str
+    floor_id: str
+    x: float
+    y: float
+    width: float
+    depth: float
+    area: float
+
+
 class CandidatePayload(BaseModel):
     id: str
     seed: int
@@ -61,6 +73,10 @@ class CandidatePayload(BaseModel):
     validation: dict[str, Any] | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
     provenance: CandidateProvenance | None = None
+    placements: list[RoomPlacementPayload] = Field(
+        default_factory=list,
+        description="RoomPlacement 摘要；前端点选房间用",
+    )
 
 
 class CompareRequest(BaseModel):

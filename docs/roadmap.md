@@ -1,9 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 3.6.1 收口 → Phase 4 Interactive Design Workbench**  
-> 3.6 Runtime Reliability ≈ **95%**（状态机 / Identity Probe / Compare / provenance 已落地）。  
-> **不再开 Phase 3.7 / 3.8… 无休止收口。** 两个 runtime 状态问题修完即前进。  
-> 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
+> **当前焦点：Phase 4.0 Interactive Workbench（选房 → 改面积 → Regenerate）**  
+> 3.6 Runtime Reliability 已收口。**不再开 Phase 3.7+。**  
+> 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
 
@@ -12,7 +11,7 @@
 | 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
 | **3.5** | **Core Consolidation** | **✅** |
 | **3.6** | **Desktop Runtime Reliability** | **🟡 ~95%**（3.6.1 短收口后冻结进 4） |
-| **4** | **Interactive Design Workbench** | **← 即将进入**（壳已有；结构锁定） |
+| **4** | **Interactive Design Workbench** | **← 当前（4.0）** |
 | **5** | **Project Persistence** | 未开始 |
 | **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
@@ -115,25 +114,29 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 4 — Interactive Design Workbench（← 即将进入）
+## Phase 4 — Interactive Design Workbench（← 当前）
 
 **围绕加深，禁止推倒重做。** UI = 观察/控制 solver 的窗口，不是功能堆场。
 
+### Phase 4.0 — Select → Inspect → Edit area → Regenerate（✅）
+
+- [x] 点击平面房间选中
+- [x] Inspector：RoomSpec + RoomPlacement（`placements` additive）
+- [x] 修改 target_area（session Program）
+- [x] Regenerate（按当前 spaces 整案重生成）
+
+下一刀 **4.1**：Lock Room / Stair / Zone → Regenerate unlocked（不做拖拽）。
+
 ```text
 ┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
-│ Site         │                           │ Score     │
-│ Program      │        FLOOR PLAN         │ Findings  │
-│ Constraints  │                           │ Metrics   │
-│ Preferences  │                           │ Rooms     │
+│ Site         │     点击房间选中          │ RoomSpec  │
+│ Program      │        FLOOR PLAN         │ Placement │
+│ Constraints  │                           │ Score…    │
+│ Preferences  │                           │ Findings  │
 └──────────────┴───────────────────────────┴───────────┘
 │                   Candidate Strip（含 Compare）       │
 └─────────────────────────────────────────────────────┘
 ```
-
-- [x] 四区壳 + `pnpm dev` + 引擎就绪文案  
-- [x] Compare / Rejected（hard-fail）加深；Constraints·Preferences 分区仍待后续
-
-开发工具：`uv run python -m solver.visualize`。
 
 ---
 

@@ -4,9 +4,17 @@ type Props = {
   svg: string | null;
   emptyHint: string;
   highlightRoomIds: string[];
+  selectedRoomId: string | null;
+  onSelectRoom: (roomId: string | null) => void;
 };
 
-export function FloorplanView({ svg, emptyHint, highlightRoomIds }: Props) {
+export function FloorplanView({
+  svg,
+  emptyHint,
+  highlightRoomIds,
+  selectedRoomId,
+  onSelectRoom,
+}: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -16,20 +24,43 @@ export function FloorplanView({ svg, emptyHint, highlightRoomIds }: Props) {
     const want = new Set(highlightRoomIds);
     shapes.forEach((el) => {
       const id = el.getAttribute("data-room-id");
-      if (id && want.has(id)) {
-        el.classList.add("is-hl");
-      } else {
-        el.classList.remove("is-hl");
-      }
+      el.classList.toggle("is-hl", !!(id && want.has(id)));
+      el.classList.toggle("is-selected", !!(id && id === selectedRoomId));
+      el.style.cursor = "pointer";
     });
-  }, [svg, highlightRoomIds]);
+  }, [svg, highlightRoomIds, selectedRoomId]);
+
+  useEffect(() => {
+    const root = stageRef.current;
+    if (!root || !svg) return;
+
+    function onClick(ev: MouseEvent) {
+      const t = ev.target as Element | null;
+      if (!t) return;
+      const shape = t.closest(".room-shape[data-room-id]");
+      if (!shape) {
+        onSelectRoom(null);
+        return;
+      }
+      const id = shape.getAttribute("data-room-id");
+      if (!id) return;
+      onSelectRoom(id);
+    }
+
+    root.addEventListener("click", onClick);
+    return () => root.removeEventListener("click", onClick);
+  }, [svg, onSelectRoom]);
 
   return (
     <main className="panel panel-center">
       <header className="panel-head compact">
         <h2>Floorplan</h2>
-        {highlightRoomIds.length > 0 && (
+        {selectedRoomId ? (
+          <p className="muted">已选房间 · 点击空白取消</p>
+        ) : highlightRoomIds.length > 0 ? (
           <p className="muted">高亮 {highlightRoomIds.length} 个房间</p>
+        ) : (
+          <p className="muted">点击房间查看详情</p>
         )}
       </header>
       <div className="floorplan-stage">

@@ -1,4 +1,10 @@
-import type { CandidatePayload, DesignFinding, ProgramSummary } from "../api/client";
+import { useEffect, useState, type FormEvent } from "react";
+import type {
+  CandidatePayload,
+  DesignFinding,
+  ProgramSummary,
+  RoomPlacementPayload,
+} from "../api/client";
 import { AXIS_SCOPE } from "../lib/axisScope";
 import { ComparePanel } from "./ComparePanel";
 
@@ -6,9 +12,15 @@ type Props = {
   candidate: CandidatePayload | null;
   compareWith: CandidatePayload | null;
   program: ProgramSummary | null;
+  selectedRoomId: string | null;
   highlightRoomIds: string[];
   onHighlightRooms: (roomIds: string[]) => void;
+  onSelectRoom: (roomId: string | null) => void;
   onClearCompare: () => void;
+  onUpdateRoomTargetArea: (roomId: string, targetArea: number) => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
+  canRegenerate: boolean;
 };
 
 const SCORE_ROWS: Array<{
@@ -87,13 +99,147 @@ function formatMeasured(metric: string | null, value: number | null): string | n
   return String(value);
 }
 
+function RoomDetail({
+  program,
+  placement,
+  roomId,
+  onUpdateTargetArea,
+  onRegenerate,
+  regenerating,
+  canRegenerate,
+  onClear,
+}: {
+  program: ProgramSummary;
+  placement: RoomPlacementPayload | null;
+  roomId: string;
+  onUpdateTargetArea: (roomId: string, targetArea: number) => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
+  canRegenerate: boolean;
+  onClear: () => void;
+}) {
+  const spec = program.rooms.find((r) => r.id === roomId);
+  const [draft, setDraft] = useState(String(spec?.target_area ?? ""));
+
+  useEffect(() => {
+    setDraft(String(spec?.target_area ?? ""));
+  }, [roomId, spec?.target_area]);
+
+  if (!spec) {
+    return (
+      <section className="room-detail">
+        <h3>房间</h3>
+        <p className="muted">未在 Program 中找到 {roomId}</p>
+        <button type="button" className="btn-ghost" onClick={onClear}>
+          清除选择
+        </button>
+      </section>
+    );
+  }
+
+  function submitArea(e: FormEvent) {
+    e.preventDefault();
+    const n = Number(draft);
+    if (!Number.isFinite(n) || n <= 0) return;
+    onUpdateTargetArea(roomId, n);
+  }
+
+  return (
+    <section className="room-detail">
+      <div className="room-detail-head">
+        <h3>{spec.name}</h3>
+        <button type="button" className="btn-ghost" onClick={onClear}>
+          清除
+        </button>
+      </div>
+
+      <h4>RoomSpec</h4>
+      <ul className="room-meta">
+        <li>
+          <span>id</span>
+          <code>{spec.id}</code>
+        </li>
+        <li>
+          <span>category</span>
+          <span>{spec.category}</span>
+        </li>
+        <li>
+          <span>floor</span>
+          <span>{spec.floor_id ?? "—"}</span>
+        </li>
+      </ul>
+
+      <form className="room-area-form" onSubmit={submitArea}>
+        <label>
+          target area (㎡)
+          <input
+            type="number"
+            min={1}
+            max={200}
+            step={0.5}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+        </label>
+        <button type="submit" className="secondary">
+          应用面积
+        </button>
+      </form>
+
+      <h4>RoomPlacement</h4>
+      {placement ? (
+        <ul className="room-meta">
+          <li>
+            <span>floor</span>
+            <span>{placement.floor_id}</span>
+          </li>
+          <li>
+            <span>x, y</span>
+            <span>
+              {placement.x.toFixed(2)}, {placement.y.toFixed(2)}
+            </span>
+          </li>
+          <li>
+            <span>w × d</span>
+            <span>
+              {placement.width.toFixed(2)} × {placement.depth.toFixed(2)} m
+            </span>
+          </li>
+          <li>
+            <span>realized area</span>
+            <span>{placement.area.toFixed(1)} ㎡</span>
+          </li>
+        </ul>
+      ) : (
+        <p className="muted tiny">当前候选无此房间放置</p>
+      )}
+
+      <button
+        type="button"
+        className="room-regen"
+        disabled={!canRegenerate || regenerating}
+        onClick={onRegenerate}
+      >
+        {regenerating ? "重新生成中…" : "Regenerate"}
+      </button>
+      <p className="muted tiny">按当前 Program（含已改面积）整案重生成</p>
+    </section>
+  );
+}
+
 export function Inspector({
   candidate,
   compareWith,
   program,
+  selectedRoomId,
   highlightRoomIds,
   onHighlightRooms,
+  onSelectRoom,
   onClearCompare,
+  onUpdateRoomTargetArea,
+  onRegenerate,
+  regenerating,
+  canRegenerate,
 }: Props) {
   if (candidate && compareWith && candidate.id !== compareWith.id) {
     return (
@@ -112,6 +258,10 @@ export function Inspector({
   const soft = candidate?.validation?.soft_violations ?? [];
   const findings = ds?.findings ?? [];
   const groups = groupFindings(findings);
+  const placement =
+    selectedRoomId && candidate
+      ? (candidate.placements?.find((p) => p.room_id === selectedRoomId) ?? null)
+      : null;
 
   function toggleFinding(f: DesignFinding) {
     if (!f.room_ids.length) {
@@ -122,6 +272,7 @@ export function Inspector({
       onHighlightRooms([]);
     } else {
       onHighlightRooms(f.room_ids);
+      if (f.room_ids[0]) onSelectRoom(f.room_ids[0]);
     }
   }
 
@@ -142,12 +293,25 @@ export function Inspector({
 
       {!candidate && (
         <p className="empty-hint">
-          选择下方候选查看评价；Alt+点击另一候选可比较
+          选择下方候选查看评价；点击平面房间可编辑面积
         </p>
       )}
 
       {candidate && (
         <div className="inspector-body">
+          {selectedRoomId && program && (
+            <RoomDetail
+              program={program}
+              placement={placement}
+              roomId={selectedRoomId}
+              onUpdateTargetArea={onUpdateRoomTargetArea}
+              onRegenerate={onRegenerate}
+              regenerating={regenerating}
+              canRegenerate={canRegenerate}
+              onClear={() => onSelectRoom(null)}
+            />
+          )}
+
           {ds && (
             <>
               <div className="total-score">

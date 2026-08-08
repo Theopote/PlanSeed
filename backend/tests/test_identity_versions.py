@@ -78,3 +78,7 @@ def test_health_and_generate_expose_identity():
     assert prov["solver_version"] == SOLVER_VERSION
     assert prov["generator_version"] == GENERATOR_VERSION
     assert prov["evaluation_version"] == EVALUATION_VERSION
+    assert isinstance(top["placements"], list)
+    assert len(top["placements"]) > 0
+    pl = top["placements"][0]
+    assert {"room_id", "floor_id", "x", "y", "width", "depth", "area"} <= set(pl)
