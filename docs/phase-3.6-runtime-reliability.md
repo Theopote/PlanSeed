@@ -1,7 +1,7 @@
 # Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract
 
-> **当前焦点：Phase 3.6.1 短收口 → 契约冻结 → Phase 4**  
-> 目标：本地引擎、评分单一事实源、比较逻辑、测试与发布链做稳；**不开 3.7+**。  
+> **状态：✅ 完成**（含 3.6.1）。**当前主线是 Phase 4**，勿再开 runtime 收口轮次。  
+> 本地引擎、评分单一事实源、比较逻辑、测试与发布链已稳住；**不开 3.7+**。  
 > **Desktop Alpha 平台（写死）：Windows 10/11 x64** — 不做并行 macOS/Linux 打包。  
 > **不做：** LLM、推倒四区 UI、继续扩 solver feature、跨平台 packaging。  
 > **API 冻结：** [api-contract.md](api-contract.md)
@@ -111,7 +111,7 @@ Rust 三态：
 
 ---
 
-## Phase 3.6.1 — Runtime State Cleanup
+## Phase 3.6.1 — Runtime State Cleanup（✅）
 
 - [x] `engine-status` 唯一事实源；废弃 `engine-ready` 双发（修 STARTING→ERROR）
 - [x] reuse：连续 health 失败 → ERROR；ownership **MANAGED | REUSED**
@@ -120,14 +120,14 @@ Rust 三态：
 - [x] `src-tauri/src/engine/{probe,process,lifecycle,logging}` 模块拆分
 - [x] CI 保留 cargo check；文档区分 configured vs verified green
 - [x] [api-contract.md](api-contract.md) Alpha 契约冻结
-- [ ] **远端 Actions verified green**（以该次 run 为准）
-- [ ] 按 [windows-alpha-smoke.md](windows-alpha-smoke.md) 再跑一轮
+- [ ] **远端 Actions verified green**（运维持续项；≠ 未完成 3.6）
+- [ ] 按 [windows-alpha-smoke.md](windows-alpha-smoke.md) 再跑一轮（装包冒烟；≠ 未完成 3.6）
 
-**完成后停止扩 runtime；进入 Phase 4 Interactive Design Workbench。**
+**3.6.1 代码路径已完成。停止扩 runtime；主线为 Phase 4 Interactive Design Workbench。**
 
 ---
 
-## Definition of Done（3.6）
+## Definition of Done（3.6）— ✅
 
 1. 外来 8787 服务不会被当成 PlanSeed  
 2. 自启后 health 轮询到 `service=planseed` 才 `ready`  
@@ -136,4 +136,4 @@ Rust 三态：
 5. pytest + ruff + mypy（宽松）+ desktop tsc 绿  
 6. **GitHub Actions CI**（`.github/workflows/ci.yml`）已配置 pytest / ruff / mypy / pnpm build / cargo check；**是否通过以该次 push 的 Actions run 为准**，勿把「配置存在」写成「已绿」。sidecar 仅手动/release。
 
-下一阶段再回到 Desktop Workbench 加深或 Packaging。
+下一阶段：**Phase 4** Workbench 加深；Packaging 硬化仍属 7+。

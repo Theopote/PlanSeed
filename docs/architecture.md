@@ -54,8 +54,8 @@ LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **版本签名**：`solver_version` / `generator_version` / `evaluation_version`（`packages/schema/identity.py`）；解释历史分数与 regression，≠ `engine_version`
 - **静态检查**：ruff clean → mypy 核心 → 逐目录收紧；**不做**全仓 `mypy --strict`
 - **CI**：`.github/workflows/ci.yml`（pytest / ruff / mypy / pnpm build / cargo check）；sidecar 打包不进每次 commit
-- **FastAPI + Tauri**：四区 Workbench 壳已有；**当前 Phase 3.6**（引擎身份 / 端口契约 → Desktop Alpha）
-- **路线图**：见 [roadmap.md](roadmap.md) / [phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
+- **FastAPI + Tauri**：四区 Workbench 壳已有；**当前 Phase 4**（3.6 runtime ✅ 已冻结）
+- **路线图**：见 [roadmap.md](roadmap.md)（runtime 存档：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)）
 - **UI 纪律**：不因壳已出现就堆按钮；加深 `Evaluation → Finding → Inspector → Compare`
 - **引擎复用**：仅当 `GET /api/health` 返回 `service=planseed` 时 reuse 端口
 
@@ -123,9 +123,9 @@ setup 不阻塞；就绪后 emit **engine-status**（health 身份探针；已�
 
 验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 启动中 / 未就绪」。
 
-**Desktop Alpha 门禁（Phase 3.6）：**  
+**Desktop Alpha 门禁（Phase 3.6 ✅ 已满足）：**  
 平台 = **Windows 10/11 x64**；双击启动 → 自动引擎 → Generate → Top5 → 解释 → A/B Compare；用户路径无 uvicorn。  
-**不做并行 macOS/Linux packaging。**
+**不做并行 macOS/Linux packaging。** 当前开发主线：**Phase 4** Workbench。
 
 **Packaging 硬化（Phase 5，Alpha 后）：**
 

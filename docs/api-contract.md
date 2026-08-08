@@ -1,6 +1,6 @@
 # Desktop Alpha v0.1 — API / Evaluation Contract Freeze
 
-> **冻结至 Desktop Alpha v0.1 完成**（覆盖 Phase 3.6.1 收口与 Phase 4 Workbench 前期）。  
+> **冻结至 Desktop Alpha v0.1 完成**（Phase 3.6 ✅ 已冻结；覆盖 Phase 4 Workbench）。  
 > 详路线：[roadmap.md](roadmap.md) · 评分：[scoring.md](scoring.md)
 
 ## 原则

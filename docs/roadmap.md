@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4 — 拖拽几何已落地；交互加深后置**  
-> 4.1 Room/Stair/Zone/Drag · 4.2 Variant+Compare  
-> 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md) · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 4 — Interactive Design Workbench**  
+> 4.1 Lock/Drag · 4.2 Variant+Compare · **Phase 3.6 runtime ✅ 已冻结进 4**  
+> 契约：[api-contract.md](api-contract.md) · runtime 存档：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
 
 ## 阶段总览（以代码为准）
 
@@ -10,8 +10,8 @@
 |-------|------|------|
 | 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
 | **3.5** | **Core Consolidation** | **✅** |
-| **3.6** | **Desktop Runtime Reliability** | **🟡 ~95%**（3.6.1 短收口后冻结进 4） |
-| **4** | **Interactive Design Workbench** | **← 当前（4.0）** |
+| **3.6** | **Desktop Runtime Reliability** | **✅**（含 3.6.1；勿再扩 runtime 主线） |
+| **4** | **Interactive Design Workbench** | **← 当前** |
 | **5** | **Project Persistence** | 未开始 |
 | **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
@@ -98,18 +98,19 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract（🟡 ~95%）
+## Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract（✅）
 
 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
 
-**收口原则：** 修完 3.6.1（状态机 / reuse health）→ **冻结契约** → Phase 4。不开 3.7+。
+**已完成并冻结进 Phase 4。** 禁止再开「runtime 收口」轮次；仅允许 bugfix / 装包冒烟。不开 3.7+。
 
 | 级 | 主题 | 状态 |
 |----|------|------|
 | **P0** | Engine Identity Probe 三态：PORT_FREE / PLANSEED_ENGINE / FOREIGN_SERVICE | ✅ |
 | **P0** | health 契约含 api_version + engine_version；就绪非仅 TCP | ✅ |
 | **P0** | **GitHub Actions CI**（pytest / ruff / mypy / pnpm build / cargo check） | ✅ workflow 已配；**是否绿以 Actions run 为准** |
-| **P1** | evaluation 单一事实源 / 确定性契约测试 | 🟡 持续（不扩规则） |
+| **P0** | **3.6.1** `engine-status` 唯一事实源；MANAGED / REUSED；reuse health；retry | ✅ |
+| **P1** | evaluation 单一事实源 / 确定性契约测试 | ✅ 基线；后续只 bugfix，不扩规则 |
 | **P2** | onedir 真装包冒烟 | ✅ 本机记录；sidecar 工作流手动/release |
 
 ---
@@ -144,6 +145,9 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] 自动设比较对象（旧选中 vs 新 Top）
 - [x] 沿用 `POST /api/compare`（React 不自算分）
 
+**产品方向（已确认）：** 保留 program + locks → `max(seed)+1` 起跑 8 取 Top3 → 追加 Strip → 自动对比旧选中 vs 新 Top。  
+符合「方案大致对，保持条件再变几个」；**后续优先深化 Variant 体验**，血缘树进 Phase 5，不急着扩拖拽。
+
 ```text
 ┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
 │ Site         │     点击房间选中          │ RoomSpec  │
@@ -161,6 +165,18 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 - [ ] 本地项目 / 候选快照（含 provenance）  
 - [ ] 重开可解释：布局变了 vs `evaluation_version` 变了
+- [ ] **Variant 血缘（设计过程树）** — additive，当前会话 Strip 仍可用扁平列表：
+  - `variant_parent_id`：从哪个候选点的 Create Variant
+  - `variant_generation`：相对根的代数（A → A1 → A1.1）
+  - `lock_snapshot_id`：当时 locks 指纹/快照，解释「同锁不同种子」
+
+```text
+A
+ ├─ A1
+ ├─ A2
+ │   ├─ A2.1
+ │   └─ A2.2
+```
 
 Packaging 硬化（CSP、签名、其后 macOS）并入 **7+**，**禁止**与 Alpha / Phase 4 并行跨平台。
 
@@ -272,7 +288,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | Phase 3.6.1 收口 → **契约冻结** → Phase 4 Workbench |
+| **当前主线** | **Phase 4** Workbench（Lock / Variant）；3.6 runtime ✅ 已冻结 |
 
 ---
 
