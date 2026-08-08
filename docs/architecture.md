@@ -49,8 +49,9 @@ LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **Implicit constraints**：有限规则集，必须带 `source` / `source_key`
 - **Circulation**：系统生成（`source=generated`），用户可约束
 - **Setbacks 默认 0**：表示未提供规划信息，非法规结论
-- **FastAPI + Tauri**：Desktop Workbench 🟡 MVP（`pnpm dev` 一键引擎+UI；Sidecar 真装包见 roadmap Phase 5）
-- **路线图**：见 [roadmap.md](roadmap.md)（**当前焦点 Phase 3.5**；勿按旧「Phase 3 未开始」解读）
+- **FastAPI + Tauri**：四区 Workbench 壳已有；**当前 Phase 3.5 Core Consolidation**（评价链 + sidecar → Desktop Alpha）
+- **路线图**：见 [roadmap.md](roadmap.md) / [phase-3.5-core-consolidation.md](phase-3.5-core-consolidation.md)
+- **UI 纪律**：不因壳已出现就堆按钮；加深 `Evaluation → Finding → Inspector → Compare`
 
 ```text
 UI (Tauri + React)
@@ -113,13 +114,15 @@ Tauri bundle.externalBin         →  PlanSeed.exe 启动时 spawn sidecar
 
 验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 未就绪」。
 
-装包门禁（roadmap Phase 5）：
+**Desktop Alpha 门禁（Phase 3.5）：** 双击启动 → 自动引擎 → Generate → Top5 → 解释 → A/B Compare；用户路径无 uvicorn。
 
-- [ ] sidecar 真机验收
-- [ ] **收紧 `tauri.conf.json` → `app.security.csp`**（当前开发期 `csp: null`；正式包禁止长期保持）
-- [ ] 发布态零系统 Python
+**Packaging 硬化（Phase 5）：**
 
-完整 Windows 安装包签名与商店分发仍后续；本机需 Rust 工具链才能 `tauri:build`。
+- [ ] 跨平台 sidecar
+- [ ] **收紧 `app.security.csp`**（开发期 `null` 可接受）
+- [ ] 签名 / 分发（按需）
+
+本机需 Rust 工具链才能 `tauri:build`。
 
 ## 5. 目录结构
 

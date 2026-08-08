@@ -1,27 +1,23 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 3.5 — Evaluation Consolidation**  
-> Solver / 拓扑 / Phase 3 评价 MVP 已就绪；Desktop 为可用壳，**Local Runtime / Sidecar 尚未闭环**。
+> **当前焦点：Phase 3.5 — Core Consolidation & Local Desktop Runtime**  
+> 详案：[phase-3.5-core-consolidation.md](phase-3.5-core-consolidation.md)  
+> 停止扩 solver / 不上 Ollama。收口评价链 + **本地独立运行** → Desktop Alpha。
 
 ## 阶段总览（以代码为准）
 
 | Phase | 主题 | 状态 |
 |-------|------|------|
-| 0 | Architecture Foundation | ✅ |
-| 1 | Deterministic Layout Core | ✅ |
-| 1.5 | Solver Reliability | ✅ |
-| 1.6 | Spatial Semantics Hardening | ✅ |
-| 2.0–2.3 | Topology / Access / Doors / Realized Circulation | ✅ |
-| **3** | **Architectural Evaluation** | **✅ MVP**（七轴 + findings） |
-| **3.5** | **Evaluation Consolidation** | **← 当前**（Ownership、去重评、`evaluation` 挂候选、API 拆分） |
-| **4** | **Desktop Workbench** | **🟡 MVP**（四区壳 + `pnpm dev`；非独立安装包） |
-| **5** | **Local Runtime / Sidecar / Packaging** | **未完成**（骨架有；装包 / CSP / 零 Python 未验收） |
-| **6** | **Local LLM**（Ollama → RequirementSpec） | **未开始** |
-| 7 | Interactive Editing | 未开始 |
-| 8 | Persistence / Projects | 未开始 |
-| — | SVG Debug（`solver.visualize`） | ✅ 开发工具（非正式产品 Phase） |
+| 0–2.3 | Architecture → Realized Circulation | ✅ |
+| **3** | **Architectural Evaluation** | **✅ MVP** |
+| **3.5** | **Core Consolidation & Local Desktop Runtime** | **← 当前** |
+| **4** | **Desktop Workbench（加深 / 交互）** | **🟡 壳已有**；结构锁定，本阶段只加深不重做 |
+| **5** | **Packaging 硬化**（CSP、签名、跨平台 sidecar） | 未开始（Alpha 后门禁） |
+| **6** | **Local LLM** | **未开始**（P2；晚于 Compare） |
+| 7–8 | Interactive Editing / Persistence | 未开始 |
+| — | SVG Debug | ✅ 开发工具 |
 
-**下一轮禁止**因旧表误判而重做 Phase 3 评价或**推倒四区工作台**；优先收口 **3.5**，Desktop **围绕现结构加深**，装包与 **CSP** 走 **Phase 5**。
+**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 Compare / Sidecar 之前。
 
 ---
 
@@ -44,63 +40,69 @@ Evaluator 只评分，不改几何。用户层七轴：
 
 ---
 
-## Phase 3.5 — Evaluation Consolidation（← 当前）
+## Phase 3.5 — Core Consolidation & Local Desktop Runtime（← 当前）
 
-把「能打分」收成「可解释、单所有权、可编排」：
+详案：[phase-3.5-core-consolidation.md](phase-3.5-core-consolidation.md)
 
-- [x] **DesignFinding**（severity / severity / recommended_action）
-- [x] **Metric Ownership**（`ownership.py`：原始 metric 只进一个轴）
-- [x] Inspector 按 优势 / 注意 / 问题 / 说明 分组
-- [x] `LayoutCandidate.evaluation`；pipeline 写入；**API 禁止重评**
-- [x] Backend 拆分：`routes` / `schemas` / `services`；`python -m backend`
-- [ ] 评价层与 Desktop 文案持续对齐；避免再引入平行分数模型
+### 优先级
 
-仍收紧：API 仅编排、Evaluator 不改几何、Renderer 只渲染。
+| 级 | 主题 | 状态 |
+|----|------|------|
+| **P0** | DesignEvaluation / Finding、Metric ownership、去重评、roadmap | ✅ |
+| **P0** | **Tauri sidecar runtime**（本地独立工具能否成立） | 🟡 骨架；**Windows 真装包未验收** |
+| **P1** | API layering | ✅ |
+| **P1** | Inspector findings 加深 + **Candidate Compare（A vs B）** | 🟡 / ❌ Compare 未做 |
+| **P2** | Rejected Candidates（为何被淘汰） | 规划 |
+| **P2** | Local LLM | **不做本阶段** |
+
+### Desktop Alpha 里程碑（本阶段完成定义）
+
+```text
+双击 PlanSeed → 后台自动起引擎 → 输入需求 → Generate
+→ Top 5 → 评分与设计解释 → A/B 比较
+```
+
+跑通即第一个真正可用 Desktop Alpha。  
+解释必须 deterministic（findings / score 差分），禁止用 LLM 写优缺点。
+
+### Candidate Compare（P1）
+
+不只点击切换 A…E；支持 **Compare A vs B**：七轴对照表 + 双方优势列表（由 findings/分数差分生成）。
+
+### Rejected Candidates（后续）
+
+开发模式展示未入选 / invalid：`seed` + hard violations / core failure / 缺失开口等。  
+让系统显得「有判断依据」，而非随机吐方案。
 
 ---
 
-## Phase 4 — Desktop Workbench（🟡 MVP）
+## Phase 4 — Desktop Workbench（🟡 壳；结构锁定）
 
-**结构已锁定：围绕加深，禁止推倒重做四区工作台。**
+**围绕加深，禁止推倒重做。** UI = 观察/控制 solver 的窗口，不是功能堆场。
 
 ```text
 ┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
-│              │                           │           │
 │ Site         │                           │ Score     │
 │ Program      │        FLOOR PLAN         │ Findings  │
 │ Constraints  │                           │ Metrics   │
 │ Preferences  │                           │ Rooms     │
-│              │                           │           │
 └──────────────┴───────────────────────────┴───────────┘
-│                   Candidate Strip                    │
+│                   Candidate Strip（含 Compare）       │
 └─────────────────────────────────────────────────────┘
 ```
 
-- [x] FastAPI：`/api/health` · `/api/generate`
-- [x] React 四区 + SVG；仓库根 `pnpm dev`（引擎 + Vite）
-- [x] UI 文案「引擎就绪」；不教用户手敲 uvicorn
-- [ ] 左栏加深：Constraints / Preferences 分区（仍在 Requirements 柱内）
-- [ ] 右栏加深：Rooms 明细与七轴 / Findings 同列
-- [ ] 真正「打开即用」→ 依赖 Phase 5
+- [x] 四区壳 + `pnpm dev` + 引擎就绪文案  
+- [ ] Compare / Rejected / Constraints·Preferences 分区 → 在 **3.5 / 本 Phase 加深**，不另起布局  
 
-开发工具：`uv run python -m solver.visualize`（SVG debug，非正式 UI）。
+开发工具：`uv run python -m solver.visualize`。
 
 ---
 
-## Phase 5 — Local Runtime / Sidecar / Packaging（未完成）
+## Phase 5 — Packaging 硬化（Alpha 后）
 
-目标：用户不知道 Python / uvicorn / 端口存在；发布包可验收。
-
-| 项 | 状态 |
-|----|------|
-| `uv run python -m backend` / `pnpm dev` 一键开发 | ✅ |
-| Tauri `setup` spawn 引擎 + 退出 kill | ✅ 骨架 |
-| `bundle.externalBin` + `scripts/build_backend_sidecar.*` | ✅ 骨架 |
-| 本机 `tauri:build` 装包验收（需 Rust） | ❌ |
-| 发布态零 Python 环境 | ❌ |
-| **Tauri CSP**：开发期 `csp: null` 可接受；**正式打包前必须收紧**（禁止长期保持 null） | ❌ 明确任务 |
-
-CSP 收紧时机：与 sidecar 真装包同一验收门禁，不在 Phase 4 提前严配（以免拖慢 Desktop 加深）。
+- [ ] 跨平台 sidecar 验收  
+- [ ] **收紧 `csp`**（开发期 `null` 可接受；正式包禁止长期保持）  
+- [ ] 安装包签名 / 分发（按需）
 
 ---
 
@@ -110,14 +112,14 @@ CSP 收紧时机：与 sidecar 真装包同一验收门禁，不在 Phase 4 提�
 Natural Language → (Ollama) → RequirementSpec → normalize → Solver
 ```
 
-禁止 LLM 输出坐标 / SVG / DesignProgram。
+禁止 LLM 输出坐标 / SVG / DesignProgram。**晚于 Desktop Alpha 与 Compare。**
 
 ---
 
 ## Phase 7+（未开始）
 
-- **7** Interactive Editing（拖拽房间等）
-- **8** Persistence / Projects（本地项目存取）
+- **7** Interactive Editing（拖拽等；仍在中栏 Floorplan）  
+- **8** Persistence / Projects
 
 ---
 
@@ -208,7 +210,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | Phase 3.5 收口 → Phase 5 Sidecar |
+| **当前主线** | Phase 3.5 Core Consolidation → Desktop Alpha（sidecar + Compare） |
 
 ---
 
