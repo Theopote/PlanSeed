@@ -6,8 +6,21 @@ from packages.llm.boundary import (
     GeometryForbiddenError,
     assert_no_geometry_payload,
 )
+from packages.llm.factory import (
+    create_llm_provider,
+    load_ollama_config,
+    resolve_provider_kind,
+)
 from packages.llm.gate import IngestResult, ingest_llm_requirement
 from packages.llm.mock import MockLLMProvider
+from packages.llm.ollama import (
+    OllamaConfig,
+    OllamaConnectionError,
+    OllamaError,
+    OllamaHTTPError,
+    OllamaProvider,
+    OllamaResponseError,
+)
 from packages.llm.provider import LLMProvider
 from packages.llm.semantic import (
     RequirementSemanticValidator,
@@ -24,6 +37,15 @@ __all__ = [
     "ingest_llm_requirement",
     "MockLLMProvider",
     "LLMProvider",
+    "OllamaConfig",
+    "OllamaConnectionError",
+    "OllamaError",
+    "OllamaHTTPError",
+    "OllamaProvider",
+    "OllamaResponseError",
+    "create_llm_provider",
+    "load_ollama_config",
+    "resolve_provider_kind",
     "RequirementSemanticValidator",
     "SemanticIssue",
     "SemanticValidationResult",

@@ -1,8 +1,8 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：进行中（6.0 ✅ → 下一 6.1 Ollama）**  
+> **状态：进行中（6.1 ✅ → 下一 6.2 Structured Parser）**  
 > 总览：[roadmap.md](roadmap.md)  
-> 前置：[phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)
+> 前置：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
 
 ## 最高原则
 
@@ -32,14 +32,14 @@ NL → Local LLM → RequirementSpec
 | 子阶段 | 主题 | 要点 | 状态 |
 |--------|------|------|------|
 | **6.0** | LLM Boundary | 契约、Known/Assumed/Unknown、不进几何 | ✅ |
-| **6.1** | Ollama Provider | `LLMProvider` 抽象；仅 Ollama 实现 | **← 下一** |
-| **6.2** | Structured Parser | Text → JSON → RequirementSpec | 未开始 |
+| **6.1** | Ollama Provider | `LLMProvider` 抽象；仅 Ollama 实现 | ✅ |
+| **6.2** | Structured Parser | Text → JSON → RequirementSpec | **← 下一** |
 | **6.3** | Validation + Repair | schema + semantic gate；非法拒收/修 JSON | 未开始 |
 | **6.4** | Assumption / Unknown UI | 显式假设与未知；禁止偷偷补全 | 未开始 |
 | **6.5** | NL → Generate | Workbench 接入口 | 未开始 |
 | **6.6** | Requirement Benchmark | ~50 条住宅需求；准确率而非「聪明感」 | 未开始 |
 
-详案 6.0：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md)
 
 ## 第一版不做
 
@@ -69,14 +69,10 @@ raw JSON → RequirementSpec.model_validate()
 
 ```python
 class LLMProvider(Protocol):
-    def generate_structured(self, prompt: str, schema: type[T]) -> T: ...
+    def complete_json(self, *, system: str, user: str) -> dict: ...
 ```
 
-实现：`OllamaProvider`；业务层不散落 `ollama.chat`。
-
-## 工程门禁
-
-进入 6.1 实现前：最新 `master` CI green（pytest / ruff / mypy / pnpm build / cargo check）— 人为确认。
+实现：`OllamaProvider`（`packages/llm/ollama.py`）；工厂：`create_llm_provider()`。业务层不散落 Ollama URL。
 
 ## Definition of Done（整 Phase）
 
