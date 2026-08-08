@@ -221,7 +221,7 @@ DesignProgram → FloorAssignment → Semantic RoomGraph → AccessGraph
 - **2.1.2**：同层小 AABB 跨区重切（必连对先共边）
 - **2.1.3**：绕楼梯核挖洞 + 多 free-rect / 绕行扩边（不动核）；踩非成员外人仍放弃
 - **2.2**：门洞 polish — 铰链 / 净宽 soft / SVG 门扇弧；仍不回改房间
-- **下一步**：Sidecar 打包 / 交互编辑 / LLM（延后）
+- **下一步**：Phase 3.5 收口 → Phase 5 Sidecar（见 [roadmap.md](roadmap.md)）
 - **2A**：geometry → 共边校验 → `DoorOpening`（禁止为门重优化房间）
 - **ExteriorEntry**：交通起点（`entrance_edge` / `road_edges`）；**≠** StairCore
 - **延后**：整层 / 全局为连通改切分

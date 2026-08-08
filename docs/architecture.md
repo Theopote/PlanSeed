@@ -41,7 +41,7 @@ RequirementSpec → normalize → DesignProgram → generate → LayoutCandidate
 
 `ProjectSpec` 保留为内部过渡模型，不暴露给 LLM 直接输出。
 
-LLM Phase 4 目标：`Natural Language → RequirementSpec → normalize → Solver`
+LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Solver`
 
 ## 3. 已拍板决策
 
@@ -49,8 +49,8 @@ LLM Phase 4 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **Implicit constraints**：有限规则集，必须带 `source` / `source_key`
 - **Circulation**：系统生成（`source=generated`），用户可约束
 - **Setbacks 默认 0**：表示未提供规划信息，非法规结论
-- **FastAPI + Tauri**：Desktop UI MVP 已开（开发期 `uvicorn` + Vite；发布 sidecar 仍后续）
-- **路线图**：见 [roadmap.md](roadmap.md)
+- **FastAPI + Tauri**：Desktop Workbench 🟡 MVP（`pnpm dev` 一键引擎+UI；Sidecar 真装包见 roadmap Phase 5）
+- **路线图**：见 [roadmap.md](roadmap.md)（**当前焦点 Phase 3.5**；勿按旧「Phase 3 未开始」解读）
 
 ```text
 UI (Tauri + React)
@@ -113,6 +113,12 @@ Tauri bundle.externalBin         →  PlanSeed.exe 启动时 spawn sidecar
 
 验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 未就绪」。
 
+装包门禁（roadmap Phase 5）：
+
+- [ ] sidecar 真机验收
+- [ ] **收紧 `tauri.conf.json` → `app.security.csp`**（当前开发期 `csp: null`；正式包禁止长期保持）
+- [ ] 发布态零系统 Python
+
 完整 Windows 安装包签名与商店分发仍后续；本机需 Rust 工具链才能 `tauri:build`。
 
 ## 5. 目录结构
@@ -165,16 +171,27 @@ Natural Language → Ollama → RequirementSpec/ProjectSpec
 - 校验失败最多 3 次 correction retry
 - 未知信息保持 `unknown`，不强迫 LLM 猜测（confidence 系统后续实现）
 
-## 9. UI 原则（Desktop MVP）
+## 9. UI 原则（Desktop Workbench — 结构锁定）
+
+四区工作台是产品基本形态：**加深，不重设计。**
 
 ```text
-Left: Requirements / Program
-Center: Floorplan
-Right: Inspector / Evaluation
-Bottom: Candidate Strip (A 91, B 89, ...)
+┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
+│ Site         │                           │ Score     │
+│ Program      │        FLOOR PLAN         │ Findings  │
+│ Constraints  │                           │ Metrics   │
+│ Preferences  │                           │ Rooms     │
+└──────────────┴───────────────────────────┴───────────┘
+│                   Candidate Strip                    │
+└─────────────────────────────────────────────────────┘
 ```
 
-启动见根目录 README。AI 推断的 ProjectSpec 必须可编辑；禁止 black box 直接出图（LLM 仍延后）。
+- 左：需求与 Program（可编辑；含未来 Constraints / Preferences）
+- 中：平面图（SVG；交互编辑属 Phase 7，仍在中栏）
+- 右：评价（七轴 / Findings / Metrics / Rooms）
+- 下：候选条（A / B / C…）
+
+启动见仓库根 `pnpm dev`。AI 推断的需求必须可编辑；禁止 black box 直接出图（LLM → Phase 6）。
 
 ## 10. 与旧版开发手册的冲突
 
