@@ -49,7 +49,11 @@ def run_pipeline(program: DesignProgram) -> PipelineResult:
 
         candidates.append(candidate)
 
-    top = rank_candidates(candidates, top_k=cfg.return_top_k)
+    top = rank_candidates(
+        candidates,
+        top_k=cfg.return_top_k,
+        min_diversity_threshold=cfg.min_diversity_threshold,
+    )
     valid = sum(1 for c in candidates if c.validation and c.validation.valid)
 
     return PipelineResult(

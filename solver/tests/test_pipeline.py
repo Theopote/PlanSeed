@@ -62,3 +62,32 @@ class TestRanking:
         b = gen.generate(program, seed=17)
         sim = layout_similarity(a, b)
         assert 0.0 <= sim <= 1.0
+
+    def test_diversity_avoids_identical_top(self):
+        program = benchmark_program()
+        result = run_pipeline(program)
+        top = result.top_candidates
+        assert len(top) >= 2
+        # Top 方案两两不应完全相同
+        jsons = [c.model_dump_json() for c in top]
+        assert len(set(jsons)) == len(jsons)
+
+    def test_diversity_can_be_disabled(self):
+        from solver.optimization.rank import rank_candidates
+        from packages.schema.layout import CandidateValidation, LayoutCandidate
+
+        def make(seed: int, score: float) -> LayoutCandidate:
+            return LayoutCandidate(
+                id=f"c-{seed}",
+                seed=seed,
+                floors=[],
+                validation=CandidateValidation(valid=True),
+                score=score,
+            )
+
+        ranked = rank_candidates(
+            [make(1, 90), make(2, 89), make(3, 88)],
+            top_k=2,
+            min_diversity_threshold=None,
+        )
+        assert [c.seed for c in ranked] == [1, 2]

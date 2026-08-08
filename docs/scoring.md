@@ -29,12 +29,34 @@ DesignScore
 
 | Metric | 说明 |
 |--------|------|
-| `overlap_count` | 房间重叠数 |
-| `boundary_violation` | 越界房间数 |
-| `area_error` | 面积偏差累计 |
-| `min_width_violation` | 宽度不足数 |
+| `area_accuracy` | 面积**份额**与目标权重的一致性（非绝对 m²） |
 | `aspect_ratio_penalty` | 长宽比 > 2.2 惩罚 |
-| `compactness` | 紧凑度 |
+| `compactness` | 紧凑度（perimeter efficiency） |
+| `perimeter_efficiency_pct` | compactness × 100 |
+| `slender_room_count` | 狭长房间数 |
+
+#### area_accuracy 语义
+
+Guillotine 按 `target_area` **权重**切分可建区域，实际平方米通常不等于目标值
+（楼梯占位、整层填满）。因此：
+
+```text
+area_accuracy = 1 - TV(actual_share, target_share)
+```
+
+其中 TV 为 total variation distance。按楼层计算后取平均。
+系统生成的 circulation（`source=generated`）不参与份额计算。
+
+## Ranking Diversity
+
+`rank_candidates` 默认启用：
+
+```text
+min_diversity_threshold = 0.85
+```
+
+贪心选取 Top K：跳过与已选方案 `layout_similarity >= threshold` 的候选。
+设为 `None` 则纯分数排序。配置项：`SolverConfig.min_diversity_threshold`。
 
 ### Adjacency (`evaluation/adjacency.py`)
 

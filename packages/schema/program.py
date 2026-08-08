@@ -16,6 +16,12 @@ class SolverConfig(BaseModel):
     return_top_k: int = Field(default=5, ge=1, le=32)
     base_seed: int = Field(default=42)
     snap_module: float = Field(default=0.3, gt=0)
+    min_diversity_threshold: float | None = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+        description="Top-K 多样性阈值；None 关闭，仅按分数排序",
+    )
 
 
 class DesignProgram(BaseModel):

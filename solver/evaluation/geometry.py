@@ -4,11 +4,53 @@ from __future__ import annotations
 
 import math
 
-from packages.schema.layout import LayoutCandidate
+from packages.schema.layout import LayoutCandidate, PlacementSource, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory
 from solver.evaluation.weights import DEFAULT_WEIGHTS, ScoreWeights
-from solver.geometry.rect import from_placement
+
+
+def _is_program_room(placement: RoomPlacement) -> bool:
+    """仅评价用户程序房间；跳过系统生成的 circulation。"""
+    if placement.source == PlacementSource.GENERATED:
+        return False
+    if placement.category == RoomCategory.CIRCULATION.value:
+        return False
+    return True
+
+
+def _proportional_area_accuracy(
+    program: DesignProgram,
+    placements: list[RoomPlacement],
+) -> float:
+    """
+    Guillotine 按面积权重切分整层/分区，实际 m² 与 target_area 通常不一致。
+
+    area_accuracy 衡量「面积份额」是否与目标权重一致：
+    1 - TV(actual_share, target_share)
+    其中 TV 为 total variation distance ∈ [0, 1]。
+    """
+    pairs: list[tuple[float, float]] = []
+    for p in placements:
+        if not _is_program_room(p):
+            continue
+        room = program.room_by_id(p.room_id)
+        if room is None:
+            continue
+        pairs.append((p.rect.area, room.target_area))
+
+    if not pairs:
+        return 1.0
+
+    actual_sum = sum(a for a, _ in pairs)
+    target_sum = sum(t for _, t in pairs)
+    if actual_sum <= 0 or target_sum <= 0:
+        return 0.0
+
+    tv = 0.0
+    for actual, target in pairs:
+        tv += abs(actual / actual_sum - target / target_sum)
+    return max(0.0, min(1.0, 1.0 - tv / 2.0))
 
 
 def compute_geometry_metrics(
@@ -23,28 +65,23 @@ def compute_geometry_metrics(
     actual_perimeter = 2 * (w + d)
     compactness = ideal_perimeter / actual_perimeter if actual_perimeter > 0 else 0.0
 
-    area_errors: list[float] = []
     aspect_penalty = 0.0
     flagged_count = 0
-
-    room_targets = {r.id: r.target_area for r in program.rooms}
+    floor_accuracies: list[float] = []
 
     for fl in candidate.floors:
+        floor_accuracies.append(_proportional_area_accuracy(program, fl.placements))
         for p in fl.placements:
-            if p.category == RoomCategory.CIRCULATION.value or p.source.value == "generated":
-                if p.room_id.startswith("stair"):
-                    continue
-            actual = p.rect.area
-            target = room_targets.get(p.room_id)
-            if target:
-                area_errors.append(abs(actual - target) / target)
+            if not _is_program_room(p):
+                continue
             ratio = p.aspect_ratio
             if ratio > weights.aspect_ratio_threshold:
                 flagged_count += 1
                 aspect_penalty += (ratio - weights.aspect_ratio_threshold) * 10
 
-    area_accuracy = 1.0 - (sum(area_errors) / len(area_errors) if area_errors else 0.0)
-    area_accuracy = max(0.0, min(1.0, area_accuracy))
+    area_accuracy = (
+        sum(floor_accuracies) / len(floor_accuracies) if floor_accuracies else 1.0
+    )
 
     return {
         "area_accuracy": round(area_accuracy, 4),
