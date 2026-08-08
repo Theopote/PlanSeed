@@ -1,0 +1,32 @@
+# Windows onedir sidecar — 不进每次 commit CI；手动 / release 触发
+
+name: Sidecar (Windows)
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build-sidecar:
+    name: PyInstaller onedir
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Build sidecar
+        shell: pwsh
+        run: |
+          .\scripts\build_backend_sidecar.ps1
+
+      - name: Upload planseed-backend onedir
+        uses: actions/upload-artifact@v4
+        with:
+          name: planseed-backend-windows-x64
+          path: desktop/src-tauri/resources/planseed-backend
+          if-no-files-found: error

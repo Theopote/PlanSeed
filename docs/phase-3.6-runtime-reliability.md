@@ -111,5 +111,6 @@ Rust 三态：
 3. evaluation 契约测试保持绿  
 4. Compare / Inspector 仍走 evaluation  
 5. pytest + ruff + mypy（宽松）+ desktop tsc 绿  
+6. **GitHub Actions CI**（`.github/workflows/ci.yml`）每次提交自动跑；sidecar 仅手动/release
 
 下一阶段再回到 Desktop Workbench 加深或 Packaging。

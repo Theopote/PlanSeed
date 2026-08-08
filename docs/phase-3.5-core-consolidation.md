@@ -15,6 +15,13 @@ uv run mypy packages solver backend   # 宽松基线；禁止立刻 --strict
 静态检查顺序：`ruff clean` → mypy 核心模块 → **逐目录**收紧。  
 Pydantic / union / dynamic metrics 多，全仓 strict 过早。
 
+### GitHub Actions（P0）
+
+| Workflow | 触发 | 内容 |
+|----------|------|------|
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | push / PR | `pytest` + `ruff` + `mypy`；`pnpm build`；`cargo check` |
+| [`.github/workflows/sidecar-windows.yml`](../.github/workflows/sidecar-windows.yml) | **手动** / release | Windows PyInstaller onedir（不进每次 commit） |
+
 
 ## 产品原则（本轮最重要）
 
