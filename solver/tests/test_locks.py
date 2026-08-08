@@ -5,6 +5,7 @@ from __future__ import annotations
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore
 from solver.fixtures.benchmark import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator
+from solver.geometry.rect import Rect
 from solver.pipeline import run_pipeline
 
 
@@ -37,6 +38,21 @@ def _room_lock(cand, room_id: str) -> LockedRoomRect:
                     depth=r.depth,
                 )
     raise AssertionError(f"no placement for {room_id}")
+
+
+def _zone_envelope_key(cand, floor_id: str) -> frozenset[tuple]:
+    """该层 zone envelope 快照：(zone, x, y, w, d)。"""
+    return frozenset(
+        (
+            z.zone,
+            round(z.rect.x, 6),
+            round(z.rect.y, 6),
+            round(z.rect.width, 6),
+            round(z.rect.depth, 6),
+        )
+        for z in cand.zone_placements
+        if z.floor_id == floor_id
+    )
 
 
 def test_locked_stair_stays_fixed():
@@ -141,25 +157,16 @@ def test_locked_zone_envelope_stays_fixed():
         assert pl.rect.bottom <= lock.y + lock.depth + 1e-6
 
 
-def _overlap_area(a: Rect, b: Rect) -> float:
-    x0 = max(a.x, b.x)
-    y0 = max(a.y, b.y)
-    x1 = min(a.x + a.width, b.x + b.width)
-    y1 = min(a.y + a.depth, b.y + b.depth)
-    if x1 <= x0 or y1 <= y0:
-        return 0.0
-    return (x1 - x0) * (y1 - y0)
-
-
-def test_room_lock_hole_is_floor_local():
-    """P0：F1 房间锁不得投影到 F2 free space（楼梯核除外）。"""
-    from solver.geometry.rect import Rect
-
+def test_room_lock_is_floor_local():
+    """P0：F1 房间锁不得影响同 seed 下的 F2 zone envelope。"""
     program = benchmark_program()
     assert len(program.floors) >= 2
     f1_id = program.floors[0].id
     f2_id = program.floors[1].id
-    base = GuillotineGenerator().generate(program, seed=0)
+    gen = GuillotineGenerator()
+
+    # 从 seed=0 取 F1 大房间作锁几何（与对比 seed 解耦）
+    base = gen.generate(program, seed=0)
     f1_rooms = [
         p
         for fl in base.floors
@@ -179,25 +186,39 @@ def test_room_lock_hole_is_floor_local():
     )
     assert lock.floor_id == f1_id
 
-    again = GuillotineGenerator().generate(
-        program, seed=11, locks=LayoutLocks(rooms=[lock])
-    )
-    hole = Rect(x=lock.x, y=lock.y, width=lock.width, depth=lock.depth)
-    f2_overlap = 0.0
-    for fl in again.floors:
-        if fl.floor_id != f2_id:
-            continue
-        for p in fl.placements:
-            if p.room_id.startswith("stair-"):
-                continue
-            pr = Rect(
-                x=p.rect.x, y=p.rect.y, width=p.rect.width, depth=p.rect.depth
-            )
-            f2_overlap += _overlap_area(pr, hole)
+    seed = 11
+    unlocked = gen.generate(program, seed=seed)
+    locked_f1 = gen.generate(program, seed=seed, locks=LayoutLocks(rooms=[lock]))
 
-    assert f2_overlap > 1.0, (
-        f"F2 应仍可占用 F1 锁定脚印；overlap={f2_overlap:.2f}"
+    free_f2 = _zone_envelope_key(unlocked, f2_id)
+    locked_f2 = _zone_envelope_key(locked_f1, f2_id)
+    assert free_f2, "无锁方案应有 F2 zone"
+    assert free_f2 == locked_f2, (
+        "仅锁 F1 时 F2 zone envelope 必须与无锁相同；"
+        f"free={sorted(free_f2)} locked={sorted(locked_f2)}"
     )
+
+    # F1 被锁房间几何仍钉死
+    pinned_again = next(
+        p
+        for fl in locked_f1.floors
+        for p in fl.placements
+        if p.room_id == lock.room_id
+    )
+    assert pinned_again.rect.x == lock.x
+    assert pinned_again.rect.y == lock.y
+    assert pinned_again.rect.width == lock.width
+    assert pinned_again.rect.depth == lock.depth
+
+
+def _overlap_area(a: Rect, b: Rect) -> float:
+    x0 = max(a.x, b.x)
+    y0 = max(a.y, b.y)
+    x1 = min(a.x + a.width, b.x + b.width)
+    y1 = min(a.y + a.depth, b.y + b.depth)
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    return (x1 - x0) * (y1 - y0)
 
 
 def test_plan_building_per_floor_free_rects():
@@ -205,7 +226,6 @@ def test_plan_building_per_floor_free_rects():
     import random
 
     from packages.schema.room import RoomCategory, RoomSpec
-    from solver.geometry.rect import Rect
     from solver.topology.zoning import ZonePlanner
 
     f1 = [
