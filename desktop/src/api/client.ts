@@ -3,6 +3,18 @@
 export const API_BASE =
   import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "http://127.0.0.1:8787";
 
+export type DesignFinding = {
+  id: string;
+  category: string;
+  severity: "info" | "positive" | "warning" | "problem";
+  title: string;
+  message: string;
+  room_ids: string[];
+  metric: string | null;
+  measured_value: number | null;
+  recommended_action: string | null;
+};
+
 export type DesignScore = {
   geometry_score: number;
   adjacency_score: number;
@@ -15,6 +27,7 @@ export type DesignScore = {
   space_efficiency_score: number;
   layout_stability_score: number;
   total_score: number;
+  findings: DesignFinding[];
   explanations: string[];
   warnings: string[];
   violations: Array<{

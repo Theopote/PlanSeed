@@ -273,12 +273,69 @@ button.secondary {
   font-weight: 600;
 }
 
-.score-rows li {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.3rem 0;
-  border-bottom: 1px solid rgba(196, 187, 170, 0.4);
+.finding-block {
+  margin-top: 0.85rem;
+}
+
+.finding-block h3 {
+  margin: 0.5rem 0 0.35rem;
   font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.finding-block.sev-positive h3 {
+  color: var(--accent);
+}
+
+.finding-block.sev-warning h3 {
+  color: var(--warn);
+}
+
+.finding-block.sev-problem h3 {
+  color: var(--bad);
+}
+
+.finding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.finding-list li {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(196, 187, 170, 0.4);
+}
+
+.finding-title {
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.finding-cat {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.finding-msg {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.finding-action {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ink);
+  line-height: 1.35;
 }
 
 .candidate-strip {

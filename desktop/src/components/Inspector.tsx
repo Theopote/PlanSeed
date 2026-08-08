@@ -1,10 +1,13 @@
-import type { CandidatePayload } from "../api/client";
+import type { CandidatePayload, DesignFinding } from "../api/client";
 
 type Props = {
   candidate: CandidatePayload | null;
 };
 
-const SCORE_ROWS: Array<{ key: keyof NonNullable<CandidatePayload["design_score"]>; label: string }> = [
+const SCORE_ROWS: Array<{
+  key: keyof NonNullable<CandidatePayload["design_score"]>;
+  label: string;
+}> = [
   { key: "program_fit_score", label: "Program Fit" },
   { key: "circulation_score", label: "Circulation" },
   { key: "privacy_score", label: "Privacy" },
@@ -17,10 +20,35 @@ const SCORE_ROWS: Array<{ key: keyof NonNullable<CandidatePayload["design_score"
   { key: "site_score", label: "Site" },
 ];
 
+const SEV_ORDER = ["problem", "warning", "positive", "info"] as const;
+
+const SEV_LABEL: Record<string, string> = {
+  problem: "问题",
+  warning: "注意",
+  positive: "优势",
+  info: "说明",
+};
+
+function groupFindings(findings: DesignFinding[]) {
+  const groups: Record<string, DesignFinding[]> = {
+    problem: [],
+    warning: [],
+    positive: [],
+    info: [],
+  };
+  for (const f of findings) {
+    const k = f.severity in groups ? f.severity : "info";
+    groups[k].push(f);
+  }
+  return groups;
+}
+
 export function Inspector({ candidate }: Props) {
   const ds = candidate?.design_score ?? null;
   const hard = candidate?.validation?.hard_violations ?? [];
   const soft = candidate?.validation?.soft_violations ?? [];
+  const findings = ds?.findings ?? [];
+  const groups = groupFindings(findings);
 
   return (
     <aside className="panel panel-right">
@@ -56,26 +84,30 @@ export function Inspector({ candidate }: Props) {
                   );
                 })}
               </ul>
-              {ds.explanations.length > 0 && (
-                <>
-                  <h3>Explanations</h3>
-                  <ul className="tiny-list">
-                    {ds.explanations.map((e) => (
-                      <li key={e}>{e}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              {ds.warnings.length > 0 && (
-                <>
-                  <h3>Warnings</h3>
-                  <ul className="tiny-list warn">
-                    {ds.warnings.map((w) => (
-                      <li key={w}>{w}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
+
+              {SEV_ORDER.map((sev) => {
+                const list = groups[sev];
+                if (!list.length) return null;
+                return (
+                  <section key={sev} className={`finding-block sev-${sev}`}>
+                    <h3>{SEV_LABEL[sev]}</h3>
+                    <ul className="finding-list">
+                      {list.map((f) => (
+                        <li key={f.id}>
+                          <div className="finding-title">
+                            <span className="finding-cat">{f.category}</span>
+                            {f.title}
+                          </div>
+                          <p className="finding-msg">{f.message}</p>
+                          {f.recommended_action && (
+                            <p className="finding-action">→ {f.recommended_action}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
             </>
           )}
 

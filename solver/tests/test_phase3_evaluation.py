@@ -182,6 +182,7 @@ class TestProgramFitAndComposite:
         assert score.layout_stability_score > 0
         assert score.circulation_score > 0
         assert score.total_score > 0
-        assert any("Privacy" in e for e in score.explanations)
+        assert any("Privacy" in e or "privacy" in e.lower() for e in score.explanations)
+        assert score.findings
         assert "privacy_transition_score" in candidate.metrics
         assert candidate.score == score.total_score

@@ -16,7 +16,8 @@
 | **2.2** | **Door placement polish** | **✅**（铰链/净宽 soft / SVG 门扇；**仍不回改房间几何**） |
 | **2.3** | **Realized Circulation** | **✅**（共墙≠通行；RealizedAccessGraph；soft 开口；RepairRecord/Budget；spanning OPEN） |
 | 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
-| 3 | Architectural Evaluation | 未开始 |
+| 3 | Architectural Evaluation | ✅ MVP |
+| **3.5** | **System Consolidation / DesignFinding** | **✅ MVP** |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
 | 5 | FastAPI | **✅ MVP**（`/api/health` · `/api/generate`） |
 | 6 | LLM Requirement Parsing | 延后 |
@@ -263,6 +264,25 @@ shared_edge_length >= minimum ?
 
 `DesignScore` 增加 `program_fit_score` / `privacy_score` / `space_efficiency_score` / `layout_stability_score` + `explanations[]`。  
 **不做**：daylight；LLM；房间拖拽编辑。
+
+---
+
+## Phase 3.5 — System Consolidation / DesignFinding（✅ MVP）
+
+评价从「报分数」升级为可解释设计发现：
+
+```text
+DesignFinding
+  id / category / severity(INFO|POSITIVE|WARNING|PROBLEM)
+  title / message / room_ids
+  metric / measured_value / recommended_action
+```
+
+- `CompositeEvaluator` 聚合 circulation / privacy / program_fit / stability 等 findings
+- `explanations` / `warnings` 由 findings 派生（兼容旧字段）
+- Desktop Inspector 按 **优势 / 注意 / 问题 / 说明** 分组展示
+
+仍收紧中：API 仅编排、Evaluator 不改几何、Renderer 只渲染。
 
 ---
 

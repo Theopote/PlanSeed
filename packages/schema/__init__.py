@@ -30,7 +30,12 @@ from packages.schema.layout import (
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
-from packages.schema.scoring import DesignMetrics, DesignScore
+from packages.schema.scoring import (
+    DesignFinding,
+    DesignMetrics,
+    DesignScore,
+    FindingSeverity,
+)
 from packages.schema.site import (
     CardinalEdge,
     CardinalOrientation,
@@ -58,6 +63,7 @@ __all__ = [
     "ConnectionState",
     "Constraint",
     "ConstraintKind",
+    "DesignFinding",
     "DesignMetrics",
     "DesignProgram",
     "DesignScore",
@@ -65,6 +71,7 @@ __all__ = [
     "ExteriorEntry",
     "ExteriorEntryPlacement",
     "ExteriorEntrySpec",
+    "FindingSeverity",
     "FloorConstraint",
     "FloorLayout",
     "FloorSpec",

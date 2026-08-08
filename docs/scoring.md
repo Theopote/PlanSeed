@@ -22,10 +22,22 @@ DesignScore
 ├── layout_stability_score   # Phase 3（repair 扰动）
 ├── total_score
 ├── metrics: DesignMetrics
-├── explanations[]           # 分项简述
+├── findings: DesignFinding[]   # Phase 3.5：优势/问题/警告
+├── explanations[]           # compat：由 findings 派生
 ├── warnings[]
 └── violations[]             # soft 违反摘要
 ```
+
+### DesignFinding
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 稳定键，如 `privacy.private_through_room:bed_b` |
+| `category` | circulation / privacy / program_fit / … |
+| `severity` | `info` \| `positive` \| `warning` \| `problem` |
+| `title` / `message` | 短标题 + 设计语义说明 |
+| `room_ids` | 相关房间 |
+| `recommended_action` | 可选改进建议 |
 
 ## 第一阶段 Metrics（Phase 1 实现）
 
