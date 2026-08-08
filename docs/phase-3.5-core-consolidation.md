@@ -40,7 +40,7 @@ uv run mypy packages solver backend   # 宽松基线，后续收紧
    A/B 比较
    ```
 
-   该闭环跑通 = **第一个真正可用的 Desktop Alpha**。
+   该闭环跑通 = **第一个真正可用的 Desktop Alpha**（**Windows 10/11 x64**；macOS 延后）。
 
 ---
 

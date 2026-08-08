@@ -1,39 +1,9 @@
 #!/usr/bin/env bash
-# 将 FastAPI 引擎打成 Tauri 资源目录（macOS / Linux，PyInstaller --onedir）
+# [DEFERRED] macOS / Linux sidecar — Desktop Alpha 仅 Windows（见 docs/phase-3.6-runtime-reliability.md）。
+# Alpha 跑通前请用：scripts/build_backend_sidecar.ps1
+# 本脚本保留供后续平台扩展，不是当前主线。
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
-
-RES="$ROOT/desktop/src-tauri/resources"
-TARGET="$RES/planseed-backend"
-mkdir -p "$RES"
-
-uv run python -m pip install -q pyinstaller
-
-NAME="planseed-backend"
-DIST="$ROOT/dist/sidecar"
-uv run pyinstaller \
-  --noconfirm \
-  --clean \
-  --onedir \
-  --name "$NAME" \
-  --distpath "$DIST" \
-  --workpath "$ROOT/build/sidecar" \
-  --paths "$ROOT" \
-  --hidden-import uvicorn.logging \
-  --hidden-import uvicorn.loops \
-  --hidden-import uvicorn.loops.auto \
-  --hidden-import uvicorn.protocols \
-  --hidden-import uvicorn.protocols.http \
-  --hidden-import uvicorn.protocols.http.auto \
-  --hidden-import uvicorn.protocols.websockets \
-  --hidden-import uvicorn.protocols.websockets.auto \
-  --hidden-import uvicorn.lifespan \
-  --hidden-import uvicorn.lifespan.on \
-  "$ROOT/scripts/sidecar_entry.py"
-
-BUILT="$DIST/$NAME"
-rm -rf "$TARGET"
-cp -R "$BUILT" "$TARGET"
-chmod +x "$TARGET/$NAME" || true
-echo "[sidecar] wrote onedir -> $TARGET"
+echo "Desktop Alpha platform is Windows 10/11 x64." >&2
+echo "Use scripts/build_backend_sidecar.ps1 until Alpha ships." >&2
+echo "Re-enable this script only after Windows Alpha is done." >&2
+exit 1

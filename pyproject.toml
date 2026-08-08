@@ -17,6 +17,9 @@ dev = [
     "ruff>=0.9",
     "mypy>=1.14",
 ]
+build = [
+    "pyinstaller>=6.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -27,6 +30,7 @@ packages = ["packages/schema", "solver", "backend"]
 
 [tool.uv]
 default-groups = ["dev"]
+# build 组不进 default：仅 sidecar / 打包脚本 `uv sync --group build`
 
 [tool.pytest.ini_options]
 testpaths = ["packages/schema/tests", "solver/tests"]

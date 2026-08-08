@@ -2,7 +2,7 @@
 
 > **当前焦点：Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract**  
 > 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)  
-> 3.5 评价链已收口；本短周期把**引擎身份 / 端口 / 就绪探测**做稳 → Desktop Alpha。
+> 3.5 评价链已收口；本短周期把**引擎身份 / 端口 / 就绪探测**做稳 → **Desktop Alpha（Windows 10/11 x64）**。
 
 ## 阶段总览（以代码为准）
 
@@ -10,14 +10,15 @@
 |-------|------|------|
 | 0–2.3 | Architecture → Realized Circulation | ✅ |
 | **3** | **Architectural Evaluation** | **✅ MVP** |
-| **3.5** | **Core Consolidation & Local Desktop Runtime** | **✅ 主链收口**（evaluation / ownership / Compare MVP / onedir 骨架） |
-| **3.6** | **Desktop Runtime Reliability & Evaluation Contract** | **← 当前** |
+| **3.5** | **Core Consolidation & Local Desktop Runtime** | **✅ 主链收口** |
+| **3.6** | **Desktop Runtime Reliability & Evaluation Contract** | **← 当前**（**Alpha = Win10/11 x64**） |
 | **4** | **Desktop Workbench（加深 / 交互）** | **🟡 壳已有**；结构锁定 |
-| **5** | **Packaging 硬化**（CSP、签名、跨平台 sidecar） | 未开始 |
+| **5** | **Packaging 硬化**（CSP、签名；**其后**再 macOS） | 未开始 |
 | **6** | **Local LLM** | **未开始** |
 | 7–8 | Interactive Editing / Persistence | 未开始 |
 | — | SVG Debug | ✅ 开发工具 |
 
+**平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
 **禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 Runtime 稳定之前。
 
 ---
@@ -57,6 +58,8 @@ Evaluator 只评分，不改几何。用户层七轴：
 | **P2** | Local LLM | **不做本阶段** |
 
 ### Desktop Alpha 里程碑（本阶段完成定义）
+
+**平台写死：Windows 10/11 x64**（`build_backend_sidecar.ps1`）。macOS/Linux **Alpha 后**再开。
 
 ```text
 双击 PlanSeed → 后台自动起引擎 → 输入需求 → Generate
@@ -112,11 +115,11 @@ Evaluator 只评分，不改几何。用户层七轴：
 
 ---
 
-## Phase 5 — Packaging 硬化（Alpha 后）
+## Phase 5 — Packaging 硬化（Windows Alpha 跑通之后）
 
-- [ ] 跨平台 sidecar 验收  
-- [ ] **收紧 `csp`**（开发期 `null` 可接受；正式包禁止长期保持）  
-- [ ] 安装包签名 / 分发（按需）
+- [ ] Windows 签名 / 分发打磨  
+- [ ] **收紧 `csp`**（开发期 `null` 可接受）  
+- [ ] **其后**再开 macOS（再后 Linux）；**禁止**与 Alpha 并行跨平台
 
 ---
 

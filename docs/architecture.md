@@ -109,23 +109,26 @@ pnpm --dir desktop tauri:dev   # Tauri：Rust setup 内 spawn uv run python -m b
 
 ```text
 scripts/build_backend_sidecar.*  →  PyInstaller --onedir
-desktop/src-tauri/resources/planseed-backend/  →  bundle.resources
+desktop/src-tauri/resources/planseed-backend/  →  bundle.resources map → planseed-backend/
 canonical: {resource_dir}/planseed-backend/planseed-backend(.exe)
+  （Windows: resource_dir = exe 所在目录；必须用 map，勿用列表保留 resources/ 前缀）
 Tauri Command::new 启动；退出时 kill 子进程
 setup 不阻塞；就绪后 emit engine-ready（health 身份探针）
 ```
 
 验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 启动中 / 未就绪」。
 
-**Desktop Alpha 门禁（Phase 3.5）：** 双击启动 → 自动引擎 → Generate → Top5 → 解释 → A/B Compare；用户路径无 uvicorn。
+**Desktop Alpha 门禁（Phase 3.6）：**  
+平台 = **Windows 10/11 x64**；双击启动 → 自动引擎 → Generate → Top5 → 解释 → A/B Compare；用户路径无 uvicorn。  
+**不做并行 macOS/Linux packaging。**
 
-**Packaging 硬化（Phase 5）：**
+**Packaging 硬化（Phase 5，Alpha 后）：**
 
-- [ ] 跨平台 sidecar 验收
+- [ ] Windows 签名 / 分发
 - [ ] **收紧 `app.security.csp`**（开发期 `null` 可接受）
-- [ ] 签名 / 分发（按需）；onedir 更易签名
+- [ ] macOS（再后 Linux）— **仅在 Windows Alpha 跑通后**
 
-本机需 Rust 工具链才能 `tauri:build`。
+本机需 Rust 工具链才能 `tauri:build`；主线脚本：`scripts/build_backend_sidecar.ps1`。
 
 ## 5. 目录结构
 

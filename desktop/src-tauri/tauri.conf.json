@@ -35,8 +35,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "resources/planseed-backend"
-    ]
+    "resources": {
+      "resources/planseed-backend": "planseed-backend"
+    }
   }
 }
