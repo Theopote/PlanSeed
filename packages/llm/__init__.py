@@ -30,6 +30,13 @@ from packages.llm.parser import (
     parse_requirement_text,
 )
 from packages.llm.provider import LLMProvider
+from packages.llm.repair import (
+    DEFAULT_MAX_REPAIRS,
+    LLMRepairExhaustedError,
+    build_repair_prompt,
+    parse_requirement_text_with_repair,
+    parse_with_repair,
+)
 from packages.llm.semantic import (
     RequirementSemanticValidator,
     SemanticIssue,
@@ -39,10 +46,12 @@ from packages.llm.semantic import (
 __all__ = [
     "FORBIDDEN_GEOMETRY_KEYS",
     "SYSTEM_PROMPT_SKELETON",
+    "DEFAULT_MAX_REPAIRS",
     "GeometryForbiddenError",
     "assert_no_geometry_payload",
     "IngestResult",
     "LLMIngestError",
+    "LLMRepairExhaustedError",
     "ingest_llm_requirement",
     "MockLLMProvider",
     "LLMProvider",
@@ -54,12 +63,15 @@ __all__ = [
     "OllamaResponseError",
     "ParseResult",
     "StructuredRequirementParser",
+    "build_repair_prompt",
     "build_user_prompt",
     "create_llm_provider",
     "create_requirement_llm_provider",
     "draft_json_schema",
     "load_ollama_config",
     "parse_requirement_text",
+    "parse_requirement_text_with_repair",
+    "parse_with_repair",
     "resolve_provider_kind",
     "RequirementSemanticValidator",
     "SemanticIssue",

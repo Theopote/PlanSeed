@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from packages.llm.boundary import assert_no_geometry_payload
+from packages.llm.boundary import GeometryForbiddenError, assert_no_geometry_payload
 from packages.llm.semantic import (
     RequirementSemanticValidator,
     SemanticIssue,
@@ -54,19 +54,45 @@ def ingest_llm_requirement(
         try:
             payload: Any = json.loads(raw)
         except json.JSONDecodeError as exc:
-            raise LLMIngestError(f"非法 JSON：{exc}") from exc
+            raise LLMIngestError(
+                f"非法 JSON：{exc}",
+                issues=[
+                    SemanticIssue(code="req.json", message=f"非法 JSON：{exc}"),
+                ],
+            ) from exc
     else:
         payload = raw
 
     if not isinstance(payload, dict):
-        raise LLMIngestError("LLM 输出必须是 JSON object")
+        raise LLMIngestError(
+            "LLM 输出必须是 JSON object",
+            issues=[
+                SemanticIssue(code="req.json_object", message="输出必须是 JSON object"),
+            ],
+        )
 
-    assert_no_geometry_payload(payload)
+    try:
+        assert_no_geometry_payload(payload)
+    except GeometryForbiddenError as exc:
+        raise LLMIngestError(
+            str(exc),
+            issues=[
+                SemanticIssue(
+                    code="req.geometry_forbidden",
+                    message=str(exc),
+                )
+            ],
+        ) from exc
 
     try:
         draft = LLMRequirementDraft.model_validate(payload)
     except ValidationError as exc:
-        raise LLMIngestError(f"Draft schema 校验失败：{exc}") from exc
+        raise LLMIngestError(
+            f"Draft schema 校验失败：{exc}",
+            issues=[
+                SemanticIssue(code="req.draft_schema", message=str(exc)),
+            ],
+        ) from exc
 
     if raw_text and not draft.raw_text:
         draft = draft.model_copy(update={"raw_text": raw_text})

@@ -41,6 +41,8 @@ class ParseResult:
     text: str
     raw: dict[str, Any]
     ingest: IngestResult
+    attempts: int = 1
+    repair_notes: tuple[str, ...] = ()
 
     @property
     def draft(self) -> LLMRequirementDraft:
@@ -50,12 +52,17 @@ class ParseResult:
     def spec(self) -> RequirementSpec:
         return self.ingest.spec
 
+    @property
+    def repaired(self) -> bool:
+        return self.attempts > 1
+
 
 class StructuredRequirementParser:
     """
-    唯一推荐的 NL→RequirementSpec 入口。
+    NL→RequirementSpec 入口。
 
-    Provider 只负责 JSON；本类负责提示 + ingest gate。不含 repair（6.3）。
+    - parse()：单次（6.2）
+    - parse_with_repair()：有限修复（6.3）
     """
 
     def __init__(
@@ -78,6 +85,16 @@ class StructuredRequirementParser:
             validator=self.validator,
         )
         return ParseResult(text=text.strip(), raw=raw, ingest=ingest)
+
+    def parse_with_repair(
+        self,
+        text: str,
+        *,
+        max_repairs: int = 2,
+    ) -> ParseResult:
+        from packages.llm.repair import parse_with_repair as _parse_with_repair
+
+        return _parse_with_repair(self, text, max_repairs=max_repairs)
 
 
 def parse_requirement_text(
