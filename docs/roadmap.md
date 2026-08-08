@@ -37,7 +37,8 @@ Evaluator 只评分，不改几何。用户层七轴：
 | Technical | `vertical.py` + entry/site | 楼梯 / 湿区 / 入口 / 临路 |
 | Robustness | repair metrics | ConnectionResolver / reslice 稳定性 |
 
-`DesignScore` / `DesignEvaluation`：七轴 + `findings[]`；`explanations` / `warnings` 由 findings 派生。  
+`DesignScore`：七轴 + `findings[]`；`explanations` / `warnings` 由 findings 派生。  
+`DesignEvaluation`：当前为 **temporary compatibility alias**（`= DesignScore`）；长期再拆成真正 Evaluation 模型（非 P0，见 [scoring.md](scoring.md)）。  
 **不做（本 Phase）**：daylight；LLM；房间拖拽编辑。
 
 ---

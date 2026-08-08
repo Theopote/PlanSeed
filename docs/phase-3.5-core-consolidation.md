@@ -50,7 +50,7 @@ uv run mypy packages solver backend   # 宽松基线，后续收紧
 
 | 项 | 状态 |
 |----|------|
-| DesignEvaluation / Finding model | ✅（`DesignEvaluation = DesignScore`；`LayoutCandidate.evaluation`） |
+| DesignEvaluation / Finding model | ✅（`DesignEvaluation = DesignScore` **temporary compatibility alias**；长期拆真正 Evaluation 模型，见 [scoring.md](scoring.md)） |
 | Metric ownership | ✅（`ownership.py`） |
 | 删除 API 重复评价 | ✅ |
 | roadmap 与代码一致 | ✅（持续维护） |

@@ -207,10 +207,32 @@ environment 0.10 | technical 0.16 | robustness 0.14
 - Inspector：展开 `explanations` + 各分项 score + metrics + violations
 - 失败 candidate：展示 `hard_violations` 详情
 - API：`POST /api/generate` 返回 SVG + `design_score`（来自 `LayoutCandidate.evaluation`，不重评）
-- `DesignEvaluation` = `DesignScore` 别名；pipeline 写入完整对象，`score` 为 compat 标量
+- `DesignEvaluation`：**temporary compatibility alias** → 目前 `= DesignScore`（同构，避免双源）；pipeline 写入完整对象，`score` 为 compat 标量
+
+### DesignEvaluation vs DesignScore（非 P0，schema 稳定后再拆）
+
+| 现在 | 长期目标 |
+|------|----------|
+| `DesignEvaluation = DesignScore` | `DesignEvaluation` 为真正模型 |
+
+Score 与 Evaluation 语义不同：前者是七轴分数载体；后者是一次评价事件/结果包。稳定后建议：
+
+```text
+DesignEvaluation
+  score: DesignScore
+  findings          # 或继续由 score 承载，再决定下沉
+  metrics
+  profile
+  evaluator_version
+  # 候选：evaluation_version / timestamp / metric_ownership_version
+  #        scenario / comparison_signature
+```
+
+拆分前业务层继续把 `LayoutCandidate.evaluation` 当完整评价对象用；**不要**再引入第二套并行类型。
 
 ## 状态
 
-- ✅ `DesignScore` / `DesignEvaluation` / `DesignMetrics` + 七轴
+- ✅ `DesignScore` / `DesignEvaluation`（alias）/ `DesignMetrics` + 七轴
+- ⬜ `DesignEvaluation` 真正模型化（temporary alias → 组合模型；非 P0）
 - ✅ Geometry / Adjacency / Vertical / Site / Orientation / Circulation / Privacy / ProgramFit
 - ✅ Metric Ownership + pipeline 单次评价

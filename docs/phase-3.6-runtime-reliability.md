@@ -71,7 +71,7 @@ Rust 三态：
 
 | 项 | 要求 |
 |----|------|
-| 单一事实源 | `LayoutCandidate.evaluation` 是完整 DesignEvaluation |
+| 单一事实源 | `LayoutCandidate.evaluation` 是完整评价对象（今 = DesignScore alias） |
 | 确定性 | 同 program + seed → 同 geometry + 同 evaluation（含 findings 序） |
 | Compare | 只吃 evaluation 差分；禁止 LLM |
 | API | 响应 `design_score` 来自 evaluation，次数 = valid |
