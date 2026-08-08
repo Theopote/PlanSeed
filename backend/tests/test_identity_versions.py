@@ -23,7 +23,7 @@ def test_solver_identity_keys():
         "evaluation_version": EVALUATION_VERSION,
     }
     assert SOLVER_VERSION == "0.4"
-    assert GENERATOR_VERSION == "guillotine-lock-v1"
+    assert GENERATOR_VERSION == "guillotine-lock-v2"
     assert EVALUATION_VERSION == "residential-alpha-v1"
 
 

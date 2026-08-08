@@ -15,12 +15,13 @@ from packages.schema.layout import (
     PlacementSource,
     RoomPlacement,
     WetStack,
+    ZonePlacement,
 )
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
 from packages.schema.topology import TopologyPlan
-from packages.schema.zoning import ArchitecturalZone, FloorZonePlan
+from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometry
 from solver.circulation.stair_core import (
     CorePlacementFailure,
     choose_core_placement,
@@ -40,8 +41,7 @@ from solver.topology.plan import (
     order_rooms_for_zone,
     split_avoid_groups,
 )
-from solver.topology.zoning import ZonePlanner
-
+from solver.topology.zoning import ZonePlanner, zone_for_room
 
 def _mirror_wet_stack_onto_floor(
     floor: FloorLayout, stack: WetStack | None
@@ -151,13 +151,26 @@ class GuillotineGenerator:
         lock_holes = [
             Rect(x=r.x, y=r.y, width=r.width, depth=r.depth) for r in locks.rooms
         ]
+        # 湿区锚 / 初规划：只扣楼梯与房间锁（分区锁按层处理）
         free_rects = subtract_rects([floor_rect], [core_rect, *lock_holes])
 
-        # 未锁定房间才参与 Zone / Guillotine
+        def _unlocked_for_planning(
+            floor_id: str, rooms: list[RoomSpec]
+        ) -> list[RoomSpec]:
+            locked_kinds = locks.locked_zone_kinds_on_floor(floor_id)
+            out: list[RoomSpec] = []
+            for r in rooms:
+                if r.id in locked_ids:
+                    continue
+                if zone_for_room(r).value in locked_kinds:
+                    continue
+                out.append(r)
+            return out
+
         floor_room_lists = [
             (
                 floor.id,
-                [r for r in program.rooms_on_floor(floor.id) if r.id not in locked_ids],
+                _unlocked_for_planning(floor.id, program.rooms_on_floor(floor.id)),
             )
             for floor in program.floors
         ]
@@ -168,17 +181,47 @@ class GuillotineGenerator:
             rng=rng,
             max_wet_stacks=program.solver_config.max_wet_stacks,
         )
+        # 有分区锁的层：用「扣掉该层 zone 洞」的剩余区重规划未锁分区
+        if locks.zones:
+            for floor in program.floors:
+                z_holes = [
+                    Rect(x=z.x, y=z.y, width=z.width, depth=z.depth)
+                    for z in locks.zones_on_floor(floor.id)
+                ]
+                if not z_holes:
+                    continue
+                floor_free = subtract_rects(
+                    [floor_rect], [core_rect, *lock_holes, *z_holes]
+                )
+                unlocked = _unlocked_for_planning(
+                    floor.id, program.rooms_on_floor(floor.id)
+                )
+                building_zones.floors[floor.id] = FloorZonePlan(
+                    floor_id=floor.id,
+                    zones=self._zone_planner.plan_geometry(
+                        rooms=unlocked,
+                        free_rects=floor_free,
+                        snap_module=module,
+                        rng=rng,
+                        floor_id=floor.id,
+                    ),
+                )
+            self._inject_locked_zones(program, locks, building_zones)
         primary_stack = building_zones.wet_stacks[0] if building_zones.wet_stacks else None
 
         floor_layouts: list[FloorLayout] = []
+        zone_placements: list[ZonePlacement] = []
         for idx, floor in enumerate(program.floors):
             floor_rooms = [
                 r for r in program.rooms_on_floor(floor.id) if r.id not in locked_ids
             ]
+            zone_plan = building_zones.floors.get(
+                floor.id, FloorZonePlan(floor_id=floor.id, zones=[])
+            )
             layout = self._layout_floor_with_zones(
                 floor=floor,
                 floor_rooms=floor_rooms,
-                zone_plan=building_zones.floors[floor.id],
+                zone_plan=zone_plan,
                 core=core,
                 floor_index=idx,
                 module=module,
@@ -216,6 +259,19 @@ class GuillotineGenerator:
                     update={"placements": list(layout.placements) + extra}
                 )
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
+            for zg in zone_plan.zones:
+                zone_placements.append(
+                    ZonePlacement(
+                        zone=(
+                            zg.zone.value
+                            if hasattr(zg.zone, "value")
+                            else str(zg.zone)
+                        ),
+                        floor_id=zg.floor_id,
+                        rect=zg.rect.model_copy(),
+                        room_ids=list(zg.room_ids),
+                    )
+                )
 
         from solver.circulation.exterior_entry import resolve_exterior_entry
         from solver.topology.access import build_realized_connections
@@ -226,6 +282,7 @@ class GuillotineGenerator:
             "generator_version": GENERATOR_VERSION,
             "solver_version": SOLVER_VERSION,
             "locked_room_count": len(locks.rooms),
+            "locked_zone_count": len(locks.zones),
             "stair_locked": locks.stair is not None,
         }
         candidate = LayoutCandidate(
@@ -233,6 +290,7 @@ class GuillotineGenerator:
             seed=seed,
             floors=floor_layouts,
             wet_stacks=list(building_zones.wet_stacks),
+            zone_placements=zone_placements,
             provenance=CandidateProvenance(
                 solver_version=SOLVER_VERSION,
                 generator_version=GENERATOR_VERSION,
@@ -244,6 +302,46 @@ class GuillotineGenerator:
         place_door_openings(program, candidate)
         build_realized_connections(program, candidate)
         return candidate
+
+    def _inject_locked_zones(
+        self,
+        program: DesignProgram,
+        locks: LayoutLocks,
+        building_zones,
+    ) -> None:
+        """把锁定分区写入 BuildingZonePlan；room_ids 优先用锁内清单。"""
+        if not locks.zones:
+            return
+        for lz in locks.zones:
+            try:
+                zone_enum = ArchitecturalZone(lz.zone)
+            except ValueError:
+                continue
+            if lz.room_ids:
+                room_ids = [
+                    rid for rid in lz.room_ids if rid not in locks.locked_room_ids
+                ]
+            else:
+                room_ids = [
+                    r.id
+                    for r in program.rooms_on_floor(lz.floor_id)
+                    if r.id not in locks.locked_room_ids
+                    and zone_for_room(r) == zone_enum
+                ]
+            geom = ZoneGeometry(
+                zone=zone_enum,
+                floor_id=lz.floor_id,
+                rect=PlacementRect(
+                    x=lz.x, y=lz.y, width=lz.width, depth=lz.depth
+                ),
+                room_ids=room_ids,
+            )
+            plan = building_zones.floors.get(lz.floor_id)
+            if plan is None:
+                plan = FloorZonePlan(floor_id=lz.floor_id, zones=[])
+                building_zones.floors[lz.floor_id] = plan
+            plan.zones = [z for z in plan.zones if z.zone != zone_enum]
+            plan.zones.append(geom)
 
     def _layout_floor_with_zones(
         self,
@@ -262,15 +360,17 @@ class GuillotineGenerator:
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
         }
 
-        # 按 zone 聚合几何（同 zone 多块 rect）
+        # 按 zone 聚合几何（同 zone 多块 rect）；room_ids 合并
         zone_rects: dict[ArchitecturalZone, list[Rect]] = {}
         zone_room_ids: dict[ArchitecturalZone, list[str]] = {}
         for zg in zone_plan.zones:
             zone_rects.setdefault(zg.zone, []).append(
                 Rect(x=zg.rect.x, y=zg.rect.y, width=zg.rect.width, depth=zg.rect.depth)
             )
-            if zg.room_ids:
-                zone_room_ids[zg.zone] = list(zg.room_ids)
+            bucket = zone_room_ids.setdefault(zg.zone, [])
+            for rid in zg.room_ids:
+                if rid not in bucket:
+                    bucket.append(rid)
 
         pack_order = topology.pack_order_hint.get(floor.id, [])
         clusters = [

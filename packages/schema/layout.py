@@ -52,6 +52,15 @@ class PlacementRect(BaseModel):
         return self.y + self.depth
 
 
+class ZonePlacement(BaseModel):
+    """Solver 产出的功能分区容器（≠ RoomPlacement；供 Lock Zone / Inspector）。"""
+
+    zone: str = Field(description="day | night | service | circulation")
+    floor_id: str
+    rect: PlacementRect
+    room_ids: list[str] = Field(default_factory=list)
+
+
 class RoomPlacement(BaseModel):
     """Solver 将房间放置在何处。"""
 
@@ -185,6 +194,10 @@ class LayoutCandidate(BaseModel):
     wet_stacks: list[WetStack] = Field(
         default_factory=list,
         description="技术湿区叠组；MVP 通常 0～1 个",
+    )
+    zone_placements: list[ZonePlacement] = Field(
+        default_factory=list,
+        description="功能分区几何快照；Phase 4 Lock Zone",
     )
     door_openings: list[DoorOpening] = Field(
         default_factory=list,

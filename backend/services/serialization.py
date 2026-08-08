@@ -18,6 +18,7 @@ from backend.schemas.api import (
     RejectedCandidatePayload,
     RoomPlacementPayload,
     RoomSummary,
+    ZonePlacementPayload,
 )
 
 
@@ -89,6 +90,7 @@ def serialize_candidate(
         metrics=dict(cand.metrics),
         provenance=_provenance_payload(cand),
         placements=_placements_payload(cand),
+        zones=_zones_payload(cand),
     )
 
 
@@ -108,6 +110,24 @@ def _placements_payload(cand: LayoutCandidate) -> list[RoomPlacementPayload]:
                     area=round(r.area, 2),
                 )
             )
+    return out
+
+
+def _zones_payload(cand: LayoutCandidate) -> list[ZonePlacementPayload]:
+    out: list[ZonePlacementPayload] = []
+    for z in cand.zone_placements:
+        r = z.rect
+        out.append(
+            ZonePlacementPayload(
+                zone=z.zone,
+                floor_id=z.floor_id,
+                x=r.x,
+                y=r.y,
+                width=r.width,
+                depth=r.depth,
+                room_ids=list(z.room_ids),
+            )
+        )
     return out
 
 

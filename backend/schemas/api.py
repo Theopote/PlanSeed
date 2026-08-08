@@ -74,6 +74,18 @@ class RoomPlacementPayload(BaseModel):
     area: float
 
 
+class ZonePlacementPayload(BaseModel):
+    """功能分区容器摘要（Phase 4 Lock Zone；additive）。"""
+
+    zone: str
+    floor_id: str
+    x: float
+    y: float
+    width: float
+    depth: float
+    room_ids: list[str] = Field(default_factory=list)
+
+
 class CandidatePayload(BaseModel):
     id: str
     seed: int
@@ -87,6 +99,10 @@ class CandidatePayload(BaseModel):
     placements: list[RoomPlacementPayload] = Field(
         default_factory=list,
         description="RoomPlacement 摘要；前端点选房间用",
+    )
+    zones: list[ZonePlacementPayload] = Field(
+        default_factory=list,
+        description="功能分区几何；Lock Zone 用",
     )
 
 

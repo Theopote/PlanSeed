@@ -13,6 +13,7 @@ import {
   type LayoutLocks,
   type LockedRoomRect,
   type LockedStairCore,
+  type LockedZoneRect,
   type ProgramSummary,
   type RejectedCandidatePayload,
   type RequirementForm,
@@ -51,7 +52,11 @@ function App() {
   const [compareId, setCompareId] = useState<string | null>(null);
   const [highlightRoomIds, setHighlightRoomIds] = useState<string[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-  const [locks, setLocks] = useState<LayoutLocks>({ rooms: [], stair: null });
+  const [locks, setLocks] = useState<LayoutLocks>({
+    rooms: [],
+    stair: null,
+    zones: [],
+  });
   const [rejectedCandidates, setRejectedCandidates] = useState<
     RejectedCandidatePayload[]
   >([]);
@@ -251,13 +256,13 @@ function App() {
 
         let data: GenerateResponse;
         if (mode === "benchmark") {
-          setLocks({ rooms: [], stair: null });
+          setLocks({ rooms: [], stair: null, zones: [] });
           data = await generateBenchmark();
         } else if (mode === "program") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
           data = await generateFromProgram(form, program, { locks });
         } else {
-          setLocks({ rooms: [], stair: null });
+          setLocks({ rooms: [], stair: null, zones: [] });
           data = await generateFromForm(form);
         }
         applyResult(data);
@@ -333,8 +338,54 @@ function App() {
   );
 
   const onClearLocks = useCallback(() => {
-    setLocks({ rooms: [], stair: null });
+    setLocks({ rooms: [], stair: null, zones: [] });
   }, []);
+
+  const onToggleZoneLock = useCallback(
+    (zone: string, floorId: string) => {
+      if (!selected?.zones) return;
+      setLocks((prev) => {
+        const exists = prev.zones.some(
+          (z) => z.zone === zone && z.floor_id === floorId,
+        );
+        if (exists) {
+          return {
+            ...prev,
+            zones: prev.zones.filter(
+              (z) => !(z.zone === zone && z.floor_id === floorId),
+            ),
+          };
+        }
+        const matches = selected.zones.filter(
+          (z) => z.zone === zone && z.floor_id === floorId,
+        );
+        if (!matches.length) return prev;
+        const next: LockedZoneRect[] = matches.map((z) => ({
+          zone: z.zone,
+          floor_id: z.floor_id,
+          x: z.x,
+          y: z.y,
+          width: z.width,
+          depth: z.depth,
+          room_ids: [...z.room_ids],
+        }));
+        return { ...prev, zones: [...prev.zones, ...next] };
+      });
+    },
+    [selected],
+  );
+
+  const onSelectZone = useCallback(
+    (zone: string, floorId: string) => {
+      const zp = selected?.zones?.find(
+        (z) => z.zone === zone && z.floor_id === floorId,
+      );
+      if (!zp) return;
+      setHighlightRoomIds(zp.room_ids);
+      setSelectedRoomId(null);
+    },
+    [selected],
+  );
 
   const onSelectRoom = useCallback((roomId: string | null) => {
     setSelectedRoomId(roomId);
@@ -357,7 +408,10 @@ function App() {
   }, []);
 
   const lockCount =
-    locks.rooms.length + (locks.stair ? 1 : 0);
+    locks.rooms.length +
+    (locks.stair ? 1 : 0) +
+    locks.zones.length;
+  const lockedZoneRoomIds = locks.zones.flatMap((z) => z.room_ids ?? []);
   const emptyHint =
     engineStatus === "ERROR"
       ? engineHint || "本地引擎异常，请重试"
@@ -391,6 +445,7 @@ function App() {
           selectedRoomId={selectedRoomId}
           lockedRoomIds={[
             ...locks.rooms.map((r) => r.room_id),
+            ...lockedZoneRoomIds,
             ...(locks.stair
               ? (selected?.placements
                   ?.filter((p) => p.room_id.startsWith("stair-"))
@@ -409,9 +464,11 @@ function App() {
           lockCount={lockCount}
           onHighlightRooms={setHighlightRoomIds}
           onSelectRoom={onSelectRoom}
+          onSelectZone={onSelectZone}
           onClearCompare={() => setCompareId(null)}
           onUpdateRoomTargetArea={onUpdateRoomTargetArea}
           onToggleRoomLock={onToggleRoomLock}
+          onToggleZoneLock={onToggleZoneLock}
           onClearLocks={onClearLocks}
           onRegenerate={() => void run("program")}
           onCreateVariant={() => void run("variant")}

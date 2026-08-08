@@ -88,3 +88,54 @@ def test_pipeline_accepts_locks():
     locks = LayoutLocks(stair=_stair_lock_from_candidate(base))
     result = run_pipeline(program, locks=locks)
     assert result.generated == 2
+
+
+def test_locked_zone_envelope_stays_fixed():
+    """锁定 day 区后，该层 day 容器几何不变；区内房间仍可重排。"""
+    from packages.schema.locks import LockedZoneRect
+
+    program = benchmark_program()
+    base = GuillotineGenerator().generate(program, seed=0)
+    assert base.zone_placements
+    # 取一层有 day 的分区
+    day = next((z for z in base.zone_placements if z.zone == "day"), None)
+    if day is None:
+        day = base.zone_placements[0]
+    lock = LockedZoneRect(
+        zone=day.zone,
+        floor_id=day.floor_id,
+        x=day.rect.x,
+        y=day.rect.y,
+        width=day.rect.width,
+        depth=day.rect.depth,
+        room_ids=list(day.room_ids),
+    )
+    locks = LayoutLocks(zones=[lock])
+    again = GuillotineGenerator().generate(program, seed=7, locks=locks)
+    pinned = next(
+        z
+        for z in again.zone_placements
+        if z.zone == lock.zone and z.floor_id == lock.floor_id
+    )
+    assert pinned.rect.x == lock.x
+    assert pinned.rect.y == lock.y
+    assert pinned.rect.width == lock.width
+    assert pinned.rect.depth == lock.depth
+    assert again.metrics.get("locked_zone_count") == 1
+    # 区内房间仍在 envelope 内（允许边界贴合）
+    for rid in lock.room_ids:
+        pl = next(
+            (
+                p
+                for fl in again.floors
+                for p in fl.placements
+                if p.room_id == rid
+            ),
+            None,
+        )
+        if pl is None:
+            continue
+        assert pl.rect.x >= lock.x - 1e-6
+        assert pl.rect.y >= lock.y - 1e-6
+        assert pl.rect.right <= lock.x + lock.width + 1e-6
+        assert pl.rect.bottom <= lock.y + lock.depth + 1e-6

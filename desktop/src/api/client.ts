@@ -99,9 +99,30 @@ export type LockedStairCore = {
   core_placement?: string | null;
 };
 
+export type LockedZoneRect = {
+  zone: string;
+  floor_id: string;
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  room_ids?: string[];
+};
+
 export type LayoutLocks = {
   rooms: LockedRoomRect[];
   stair?: LockedStairCore | null;
+  zones: LockedZoneRect[];
+};
+
+export type ZonePlacementPayload = {
+  zone: string;
+  floor_id: string;
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  room_ids: string[];
 };
 
 export type CandidatePayload = {
@@ -120,6 +141,7 @@ export type CandidatePayload = {
   metrics: Record<string, unknown>;
   provenance?: CandidateProvenance | null;
   placements?: RoomPlacementPayload[];
+  zones?: ZonePlacementPayload[];
 };
 
 export type ProgramSummary = {
@@ -339,10 +361,11 @@ export async function generateFromProgram(
   if (opts?.base_seed != null) {
     body.base_seed = opts.base_seed;
   }
-  if (opts?.locks && (opts.locks.rooms.length > 0 || opts.locks.stair)) {
+  if (opts?.locks && (opts.locks.rooms.length > 0 || opts.locks.stair || (opts.locks.zones?.length ?? 0) > 0)) {
     body.locks = {
       rooms: opts.locks.rooms,
       stair: opts.locks.stair ?? null,
+      zones: opts.locks.zones ?? [],
     };
   }
   const r = await fetch(`${_apiBase}/api/generate`, {

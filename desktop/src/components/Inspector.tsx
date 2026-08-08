@@ -5,9 +5,22 @@ import type {
   LayoutLocks,
   ProgramSummary,
   RoomPlacementPayload,
+  ZonePlacementPayload,
 } from "../api/client";
 import { AXIS_SCOPE } from "../lib/axisScope";
 import { ComparePanel } from "./ComparePanel";
+
+function uniqueZones(zones: ZonePlacementPayload[]): ZonePlacementPayload[] {
+  const seen = new Set<string>();
+  const out: ZonePlacementPayload[] = [];
+  for (const z of zones) {
+    const key = `${z.floor_id}:${z.zone}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(z);
+  }
+  return out;
+}
 
 type Props = {
   candidate: CandidatePayload | null;
@@ -19,14 +32,23 @@ type Props = {
   lockCount: number;
   onHighlightRooms: (roomIds: string[]) => void;
   onSelectRoom: (roomId: string | null) => void;
+  onSelectZone: (zone: string, floorId: string) => void;
   onClearCompare: () => void;
   onUpdateRoomTargetArea: (roomId: string, targetArea: number) => void;
   onToggleRoomLock: (roomId: string) => void;
+  onToggleZoneLock: (zone: string, floorId: string) => void;
   onClearLocks: () => void;
   onRegenerate: () => void;
   onCreateVariant: () => void;
   regenerating: boolean;
   canRegenerate: boolean;
+};
+
+const ZONE_LABEL: Record<string, string> = {
+  day: "日间 / Day",
+  night: "夜间 / Night",
+  service: "服务 / Service",
+  circulation: "交通",
 };
 
 const SCORE_ROWS: Array<{
@@ -250,9 +272,11 @@ export function Inspector({
   lockCount,
   onHighlightRooms,
   onSelectRoom,
+  onSelectZone,
   onClearCompare,
   onUpdateRoomTargetArea,
   onToggleRoomLock,
+  onToggleZoneLock,
   onClearLocks,
   onRegenerate,
   onCreateVariant,
@@ -354,6 +378,49 @@ export function Inspector({
               Regenerate 替换条带；Variant 追加并自动进入比较
             </p>
           </div>
+
+          {(candidate.zones?.length ?? 0) > 0 && (
+            <section className="zone-list">
+              <h3>Zones</h3>
+              <p className="muted tiny">
+                锁分区 = 钉死 envelope；区内房间仍可重排
+              </p>
+              <ul className="zone-rows">
+                {uniqueZones(candidate.zones ?? []).map((z) => {
+                  const locked = locks.zones.some(
+                    (lz) =>
+                      lz.zone === z.zone && lz.floor_id === z.floor_id,
+                  );
+                  return (
+                    <li key={`${z.floor_id}:${z.zone}`}>
+                      <button
+                        type="button"
+                        className="zone-pick"
+                        onClick={() => onSelectZone(z.zone, z.floor_id)}
+                      >
+                        <span>
+                          {ZONE_LABEL[z.zone] ?? z.zone} · {z.floor_id}
+                        </span>
+                        <span className="muted tiny">
+                          {z.width.toFixed(1)}×{z.depth.toFixed(1)} ·{" "}
+                          {z.room_ids.length} 房
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary zone-lock-btn"
+                        onClick={() =>
+                          onToggleZoneLock(z.zone, z.floor_id)
+                        }
+                      >
+                        {locked ? "解锁区" : "锁定区"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           {selectedRoomId && (
             <RoomDetail

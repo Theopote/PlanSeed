@@ -23,6 +23,7 @@ from packages.schema.identity import (
     SOLVER_VERSION,
     solver_identity,
 )
+from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
 from packages.schema.layout import (
     CandidateProvenance,
     CandidateValidation,
@@ -33,8 +34,8 @@ from packages.schema.layout import (
     RoomPlacement,
     Violation,
     WetStack,
+    ZonePlacement,
 )
-from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
@@ -94,6 +95,7 @@ __all__ = [
     "LayoutLocks",
     "LockedRoomRect",
     "LockedStairCore",
+    "LockedZoneRect",
     "CandidateProvenance",
     "OrientationConstraint",
     "PreferencesSpec",
@@ -115,5 +117,6 @@ __all__ = [
     "Violation",
     "WetStack",
     "WidthConstraint",
+    "ZonePlacement",
     "solver_identity",
 ]

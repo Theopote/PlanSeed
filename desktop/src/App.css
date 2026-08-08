@@ -592,6 +592,54 @@ button.secondary {
   margin-top: 0;
 }
 
+.zone-list {
+  margin-bottom: 0.85rem;
+}
+
+.zone-list h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.zone-rows {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.zone-rows li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.zone-pick {
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  color: var(--ink);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.zone-pick:hover {
+  border-color: var(--ink);
+}
+
+.zone-lock-btn {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.45rem;
+  white-space: nowrap;
+}
+
 .candidate-strip {
   display: flex;
   gap: 0.5rem;
