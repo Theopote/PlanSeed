@@ -20,6 +20,7 @@ import {
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
 import {
+  mutationLiveMessage,
   mutationRejectMessage,
   mutationWarningMessage,
   previewMove,
@@ -27,6 +28,7 @@ import {
 } from "./lib/geometryMutation";
 import {
   FloorplanView,
+  type LivePreviewResult,
   type MutationDragKind,
   type ProposeMoveResult,
   type RoomMovePose,
@@ -368,22 +370,20 @@ function App() {
   }, []);
 
   /** Geometry Mutation Authority：MOVE/RESIZE → Commit 或 Snap Back */
-  const onProposeMove = useCallback(
+  const runPreview = useCallback(
     (
       roomId: string,
       pose: RoomMovePose,
-      kind: MutationDragKind = "move",
-    ): ProposeMoveResult => {
-      if (!selected?.placements || !program) {
-        return { ok: false, message: "无候选可编辑", snapped: null };
-      }
+      kind: MutationDragKind,
+    ) => {
+      if (!selected?.placements || !program) return null;
       const roomMeta = program.rooms.find((r) => r.id === roomId);
       const ctx = {
         placements: selected.placements,
         locks,
         floorWidth: program.site_width,
         floorDepth: program.site_depth,
-        snapModule: 0.3,
+        snapModule: 0.3 as const,
         roomHints: roomMeta
           ? { target_area: roomMeta.target_area }
           : undefined,
@@ -394,14 +394,54 @@ function App() {
         width: pose.width,
         depth: pose.depth,
       };
-      const preview =
-        kind === "resize"
-          ? previewResize(roomId, proposed, pose.floor_id, ctx)
-          : previewMove(roomId, proposed, pose.floor_id, ctx);
-      if (!preview.ok || !preview.snapped) {
-        const msg = mutationRejectMessage(preview);
+      return kind === "resize"
+        ? previewResize(roomId, proposed, pose.floor_id, ctx)
+        : previewMove(roomId, proposed, pose.floor_id, ctx);
+    },
+    [selected, program, locks],
+  );
+
+  const onLivePreview = useCallback(
+    (
+      roomId: string,
+      pose: RoomMovePose,
+      kind: MutationDragKind,
+    ): LivePreviewResult => {
+      const preview = runPreview(roomId, pose, kind);
+      if (!preview) {
+        return { ok: false, message: "无候选可编辑", conflictRoomIds: [] };
+      }
+      return {
+        ok: preview.ok,
+        message: mutationLiveMessage(preview),
+        snapped: preview.snapped,
+        conflictRoomIds: preview.conflictRoomIds,
+      };
+    },
+    [runPreview],
+  );
+
+  const onProposeMove = useCallback(
+    (
+      roomId: string,
+      pose: RoomMovePose,
+      kind: MutationDragKind = "move",
+    ): ProposeMoveResult => {
+      if (!selected?.placements || !program) {
+        return { ok: false, message: "无候选可编辑", snapped: null };
+      }
+      const preview = runPreview(roomId, pose, kind);
+      if (!preview || !preview.ok || !preview.snapped) {
+        const msg = preview
+          ? mutationRejectMessage(preview)
+          : "无候选可编辑";
         setMutationHint(msg);
-        return { ok: false, message: msg, snapped: preview.snapped };
+        return {
+          ok: false,
+          message: msg,
+          snapped: preview?.snapped ?? null,
+          conflictRoomIds: preview?.conflictRoomIds,
+        };
       }
       const s = preview.snapped;
       const isStair = roomId.startsWith("stair-");
@@ -466,9 +506,14 @@ function App() {
       }
       const warn = mutationWarningMessage(preview);
       setMutationHint(warn);
-      return { ok: true, snapped: s, warning: warn };
+      return {
+        ok: true,
+        snapped: s,
+        warning: warn,
+        conflictRoomIds: preview.conflictRoomIds,
+      };
     },
-    [selected, selectedId, program, locks],
+    [selected, selectedId, program, runPreview],
   );
 
   const onToggleZoneLock = useCallback(
@@ -592,6 +637,7 @@ function App() {
           snapModule={0.3}
           onSelectRoom={onSelectRoom}
           onProposeMove={program ? onProposeMove : undefined}
+          onLivePreview={program ? onLivePreview : undefined}
           mutationHint={mutationHint}
         />
         <Inspector

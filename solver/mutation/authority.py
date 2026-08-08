@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from packages.schema.layout import PlacementRect
+from packages.schema.layout import PlacementRect, RoomPlacement
 from packages.schema.locks import LayoutLocks
 from packages.schema.mutation import (
     GeometryMutation,
@@ -14,6 +14,8 @@ from packages.schema.program import DesignProgram
 from solver.geometry.rect import Rect, from_placement, intersects
 from solver.geometry.snap import snap_value
 from solver.locks.envelopes import build_zone_member_envelopes, rect_in_envelope
+from solver.topology.constants import MIN_ACCESS_WALL
+from solver.topology.doors import shared_boundary_between
 
 # 绝对最小边长（米）；小于此硬拒。RoomSpec.min_width 另作 soft warning。
 _HARD_MIN_EDGE = 0.9
@@ -28,7 +30,7 @@ def preview_mutation(
     snap_module: float | None = None,
 ) -> MutationPreviewResult:
     """
-    LockGuard + GeometryConstraintChecker（AccessImpact 本轮不做 hard reject）。
+    LockGuard + GeometryConstraintChecker；AccessImpact 仅 soft warning。
 
     MOVE：平移原点 snap；RESIZE：四边 snap + 最小边硬拒 / min_width·area soft。
     Commit 侧通常 upsert Room/Stair Lock。
@@ -84,7 +86,7 @@ def _preview_move(
         width=prop.width,
         depth=prop.depth,
     )
-    reasons = _geometry_reasons(
+    reasons, conflicts = _geometry_check(
         program=program,
         placements=placements,
         locks=locks,
@@ -93,10 +95,17 @@ def _preview_move(
         current_floor_id=current.floor_id,
         snapped=snapped,
     )
+    warnings = _access_impact_warnings(
+        current=current,
+        snapped=snapped,
+        placements=placements,
+    )
     return MutationPreviewResult(
         ok=len(reasons) == 0,
         reasons=reasons,
+        warnings=warnings,
         snapped=snapped,
+        conflict_room_ids=conflicts,
     )
 
 
@@ -116,6 +125,7 @@ def _preview_resize(
     snapped = _snap_rect_edges(prop, module)
     reasons: list[MutationReject] = []
     warnings: list[MutationReject] = []
+    conflicts: list[str] = []
 
     if snapped.width < _HARD_MIN_EDGE - 1e-9 or snapped.depth < _HARD_MIN_EDGE - 1e-9:
         reasons.append(
@@ -125,17 +135,16 @@ def _preview_resize(
             )
         )
 
-    reasons.extend(
-        _geometry_reasons(
-            program=program,
-            placements=placements,
-            locks=locks,
-            room_id=rid,
-            floor_id=mutation.floor_id,
-            current_floor_id=current.floor_id,
-            snapped=snapped,
-        )
+    geo_reasons, conflicts = _geometry_check(
+        program=program,
+        placements=placements,
+        locks=locks,
+        room_id=rid,
+        floor_id=mutation.floor_id,
+        current_floor_id=current.floor_id,
+        snapped=snapped,
     )
+    reasons.extend(geo_reasons)
 
     if not rid.startswith("stair-"):
         room = program.room_by_id(rid)
@@ -164,11 +173,20 @@ def _preview_resize(
                     )
                 )
 
+    warnings.extend(
+        _access_impact_warnings(
+            current=current,
+            snapped=snapped,
+            placements=placements,
+        )
+    )
+
     return MutationPreviewResult(
         ok=len(reasons) == 0,
         reasons=reasons,
         warnings=warnings,
         snapped=snapped,
+        conflict_room_ids=conflicts,
     )
 
 
@@ -222,7 +240,7 @@ def _snap_rect_edges(prop: PlacementRect, module: float) -> PlacementRect:
     return PlacementRect(x=x0, y=y0, width=w, depth=d)
 
 
-def _geometry_reasons(
+def _geometry_check(
     *,
     program: DesignProgram,
     placements: list,
@@ -231,8 +249,9 @@ def _geometry_reasons(
     floor_id: str,
     current_floor_id: str,
     snapped: PlacementRect,
-) -> list[MutationReject]:
+) -> tuple[list[MutationReject], list[str]]:
     reasons: list[MutationReject] = []
+    conflicts: list[str] = []
     buildable = Rect(
         x=0.0,
         y=0.0,
@@ -274,6 +293,7 @@ def _geometry_reasons(
                     message="不可与锁定楼梯核重叠",
                 )
             )
+            conflicts.append("__stair__")
 
     for p in placements:
         if p.room_id == room_id:
@@ -292,6 +312,7 @@ def _geometry_reasons(
                     message=f"与房间 {p.room_id} 重叠",
                 )
             )
+            conflicts.append(p.room_id)
             break
 
     for lr in locks.rooms:
@@ -307,9 +328,70 @@ def _geometry_reasons(
                     message=f"与锁定房间 {lr.room_id} 重叠",
                 )
             )
+            if lr.room_id not in conflicts:
+                conflicts.append(lr.room_id)
             break
 
-    return reasons
+    return reasons, conflicts
+
+
+def _access_impact_warnings(
+    *,
+    current: object,
+    snapped: PlacementRect,
+    placements: list,
+) -> list[MutationReject]:
+    """推断：原与本房共边≥MIN_ACCESS_WALL 的邻居，变更后丢失共边 → soft。"""
+    before = _as_room_placement(current)
+    if before is None:
+        return []
+    after = before.model_copy(update={"rect": snapped})
+    lost: list[str] = []
+    for p in placements:
+        if getattr(p, "room_id", None) == before.room_id:
+            continue
+        other = _as_room_placement(p)
+        if other is None or other.floor_id != before.floor_id:
+            continue
+        if shared_boundary_between(before, other, min_length=MIN_ACCESS_WALL) is None:
+            continue
+        if shared_boundary_between(after, other, min_length=MIN_ACCESS_WALL) is None:
+            lost.append(other.room_id)
+    if not lost:
+        return []
+    names = "、".join(lost[:3])
+    more = f" 等{len(lost)}处" if len(lost) > 3 else ""
+    return [
+        MutationReject(
+            code="mutation.access_impact",
+            message=f"可能打断与 {names}{more} 的通行共边",
+        )
+    ]
+
+
+def _as_room_placement(obj: object) -> RoomPlacement | None:
+    if isinstance(obj, RoomPlacement):
+        return obj
+    try:
+        rid = obj.room_id  # type: ignore[attr-defined]
+        fid = obj.floor_id  # type: ignore[attr-defined]
+        rect = obj.rect  # type: ignore[attr-defined]
+        if not isinstance(rect, PlacementRect):
+            rect = PlacementRect(
+                x=float(rect.x),
+                y=float(rect.y),
+                width=float(rect.width),
+                depth=float(rect.depth),
+            )
+        return RoomPlacement(
+            room_id=str(rid),
+            floor_id=str(fid),
+            rect=rect,
+            name=str(rid),
+            category="other",
+        )
+    except Exception:
+        return None
 
 
 def _contains_tol(outer: Rect, inner: Rect, tol: float = 1e-6) -> bool:

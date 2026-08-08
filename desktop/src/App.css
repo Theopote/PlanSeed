@@ -95,6 +95,14 @@ body,
   max-width: 28rem;
 }
 
+.panel-head .warn-hint.is-live-bad {
+  color: #9b2c2c;
+}
+
+.panel-head .warn-hint.is-live-warn {
+  color: #8a6a20;
+}
+
 .api-status {
   margin-top: 0.5rem;
   font-size: 0.8rem;
@@ -521,6 +529,28 @@ button.secondary {
 
 .floorplan-svg .resize-handle:hover {
   fill: #c5d4c0;
+}
+
+.floorplan-svg .room-shape.is-conflict {
+  stroke: #9b2c2c !important;
+  stroke-width: 0.2 !important;
+  fill-opacity: 0.75 !important;
+}
+
+.floorplan-svg .proposed-rect {
+  stroke: #2f5d3a;
+  stroke-width: 0.1;
+  stroke-dasharray: 0.22 0.14;
+  pointer-events: none;
+}
+
+.floorplan-svg .proposed-rect.is-warn {
+  stroke: #8a6a20;
+}
+
+.floorplan-svg .proposed-rect.is-invalid {
+  stroke: #9b2c2c;
+  stroke-width: 0.12;
 }
 
 .room-lock-actions {

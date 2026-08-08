@@ -34,10 +34,13 @@ export type MutationPreviewResult = {
   reasons: MutationReject[];
   warnings: MutationReject[];
   snapped: PlacementRect | null;
+  conflictRoomIds: string[];
 };
 
 /** 与 solver 对齐的绝对最小边长（米） */
 export const HARD_MIN_EDGE = 0.9;
+/** 与 MIN_ACCESS_WALL 对齐 */
+export const MIN_ACCESS_WALL = 0.9;
 
 function snapValue(value: number, module: number): number {
   if (module <= 0) return value;
@@ -68,6 +71,25 @@ function contains(
     inner.x + inner.width <= outer.x + outer.width + tol &&
     inner.y + inner.depth <= outer.y + outer.depth + tol
   );
+}
+
+/** 共边长度（贴边且投影重叠）；无共边返回 0 */
+export function sharedEdgeLength(
+  a: PlacementRect,
+  b: PlacementRect,
+  tol = 1e-6,
+): number {
+  if (Math.abs(a.x + a.width - b.x) <= tol || Math.abs(b.x + b.width - a.x) <= tol) {
+    const y0 = Math.max(a.y, b.y);
+    const y1 = Math.min(a.y + a.depth, b.y + b.depth);
+    return Math.max(0, y1 - y0);
+  }
+  if (Math.abs(a.y + a.depth - b.y) <= tol || Math.abs(b.y + b.depth - a.y) <= tol) {
+    const x0 = Math.max(a.x, b.x);
+    const x1 = Math.min(a.x + a.width, b.x + b.width);
+    return Math.max(0, x1 - x0);
+  }
+  return 0;
 }
 
 function zoneEnvelopes(
@@ -112,14 +134,15 @@ export type PreviewGeometryContext = {
   roomHints?: RoomSizeHints;
 };
 
-function geometryReasons(
+function geometryCheck(
   roomId: string,
   floorId: string,
   currentFloorId: string,
   snapped: PlacementRect,
   ctx: PreviewGeometryContext,
-): MutationReject[] {
+): { reasons: MutationReject[]; conflictRoomIds: string[] } {
   const reasons: MutationReject[] = [];
+  const conflictRoomIds: string[] = [];
   const buildable = {
     x: 0,
     y: 0,
@@ -157,6 +180,7 @@ function geometryReasons(
         code: "mutation.stair_overlap",
         message: "不可与锁定楼梯核重叠",
       });
+      conflictRoomIds.push("__stair__");
     }
   }
 
@@ -179,6 +203,7 @@ function geometryReasons(
         code: "mutation.overlap",
         message: `与房间 ${p.room_id} 重叠`,
       });
+      conflictRoomIds.push(p.room_id);
       break;
     }
   }
@@ -198,11 +223,14 @@ function geometryReasons(
         code: "mutation.lock_overlap",
         message: `与锁定房间 ${lr.room_id} 重叠`,
       });
+      if (!conflictRoomIds.includes(lr.room_id)) {
+        conflictRoomIds.push(lr.room_id);
+      }
       break;
     }
   }
 
-  return reasons;
+  return { reasons, conflictRoomIds };
 }
 
 function softSizeWarnings(
@@ -235,6 +263,36 @@ function softSizeWarnings(
   return warnings;
 }
 
+/** 原共边邻居在 proposed 后丢失共边 → soft AccessImpact */
+export function accessImpactWarnings(
+  roomId: string,
+  before: PlacementRect,
+  after: PlacementRect,
+  floorId: string,
+  placements: RoomPlacementPayload[],
+  minWall = MIN_ACCESS_WALL,
+): MutationReject[] {
+  const lost: string[] = [];
+  for (const p of placements) {
+    if (p.room_id === roomId) continue;
+    if (p.floor_id !== floorId) continue;
+    const other = { x: p.x, y: p.y, width: p.width, depth: p.depth };
+    if (sharedEdgeLength(before, other) + 1e-9 < minWall) continue;
+    if (sharedEdgeLength(after, other) + 1e-9 < minWall) {
+      lost.push(p.room_id);
+    }
+  }
+  if (!lost.length) return [];
+  const names = lost.slice(0, 3).join("、");
+  const more = lost.length > 3 ? ` 等${lost.length}处` : "";
+  return [
+    {
+      code: "mutation.access_impact",
+      message: `可能打断与 ${names}${more} 的通行共边`,
+    },
+  ];
+}
+
 /** MOVE 预览：snap 原点 + LockGuard/几何约束；ok 才可 Commit。 */
 export function previewMove(
   roomId: string,
@@ -250,6 +308,7 @@ export function previewMove(
       reasons: [{ code: "mutation.unknown_room", message: `未知房间：${roomId}` }],
       warnings: [],
       snapped: null,
+      conflictRoomIds: [],
     };
   }
 
@@ -259,22 +318,36 @@ export function previewMove(
     width: proposed.width,
     depth: proposed.depth,
   };
-  const reasons = geometryReasons(
+  const { reasons, conflictRoomIds } = geometryCheck(
     roomId,
     floorId,
     current.floor_id,
     snapped,
     ctx,
   );
+  const before = {
+    x: current.x,
+    y: current.y,
+    width: current.width,
+    depth: current.depth,
+  };
+  const warnings = accessImpactWarnings(
+    roomId,
+    before,
+    snapped,
+    current.floor_id,
+    ctx.placements,
+  );
   return {
     ok: reasons.length === 0,
     reasons,
-    warnings: [],
+    warnings,
     snapped,
+    conflictRoomIds,
   };
 }
 
-/** RESIZE 预览：四边 snap + 最小边硬拒 + soft min_width/area。 */
+/** RESIZE 预览：四边 snap + 最小边硬拒 + soft min_width/area / AccessImpact。 */
 export function previewResize(
   roomId: string,
   proposed: PlacementRect,
@@ -289,6 +362,7 @@ export function previewResize(
       reasons: [{ code: "mutation.unknown_room", message: `未知房间：${roomId}` }],
       warnings: [],
       snapped: null,
+      conflictRoomIds: [],
     };
   }
 
@@ -303,15 +377,30 @@ export function previewResize(
       message: `边长不可小于 ${HARD_MIN_EDGE} m`,
     });
   }
-  reasons.push(
-    ...geometryReasons(roomId, floorId, current.floor_id, snapped, ctx),
-  );
-  const warnings = softSizeWarnings(roomId, snapped, ctx.roomHints);
+  const geo = geometryCheck(roomId, floorId, current.floor_id, snapped, ctx);
+  reasons.push(...geo.reasons);
+  const before = {
+    x: current.x,
+    y: current.y,
+    width: current.width,
+    depth: current.depth,
+  };
+  const warnings = [
+    ...softSizeWarnings(roomId, snapped, ctx.roomHints),
+    ...accessImpactWarnings(
+      roomId,
+      before,
+      snapped,
+      current.floor_id,
+      ctx.placements,
+    ),
+  ];
   return {
     ok: reasons.length === 0,
     reasons,
     warnings,
     snapped,
+    conflictRoomIds: geo.conflictRoomIds,
   };
 }
 
@@ -322,6 +411,11 @@ export function mutationRejectMessage(result: MutationPreviewResult): string {
 export function mutationWarningMessage(result: MutationPreviewResult): string | null {
   if (!result.warnings.length) return null;
   return result.warnings.map((r) => r.message).join("；");
+}
+
+export function mutationLiveMessage(result: MutationPreviewResult): string | null {
+  if (!result.ok) return mutationRejectMessage(result);
+  return mutationWarningMessage(result);
 }
 
 /** @deprecated 使用 PreviewGeometryContext */

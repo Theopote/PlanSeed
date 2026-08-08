@@ -7,11 +7,11 @@
 
 ```text
 4.1.2 Lock Semantics Hardening ✅
-4.3 Constraint-aware Direct Manipulation ← 当前（P0/P1 ✅）
+4.3 Constraint-aware Direct Manipulation ← 当前（P0–P2 ✅）
   ├─ GeometryMutation Authority（P0）✅
   ├─ Move Room（P0）✅
   ├─ Resize Room（P1）✅
-  └─ Constraint Preview + Snap Back（P0）✅ · P2 拖动中高亮待做
+  └─ Constraint Preview + Snap Back（P0/P2）✅
 ```
 
 ---
@@ -119,11 +119,11 @@ ProposedMutation
 2. ✅ 同 Authority：四边 snap、`≥0.9m` 硬拒；`min_width` / `resolved_min_area` soft 提示  
 3. ✅ **不做**拖墙（墙是两房共享边界）
 
-### P2 — Preview 体验
+### P2 — Preview 体验 ✅
 
-1. 拖动中虚线 proposed rect  
-2. 冲突高亮（重叠 / 越界 / 锁）  
-3. AccessImpact 警告条
+1. ✅ 拖动中虚线 proposed rect（snap 目标；冲突红 / soft 琥珀 / 合法绿）  
+2. ✅ 冲突高亮（重叠 / 楼梯锁房间）  
+3. ✅ AccessImpact 警告条（推断：丢失 ≥0.9m 共边邻居；soft，不挡 Commit）
 
 ---
 
@@ -158,4 +158,4 @@ ProposedMutation
 5. same seed + same locks 仍 deterministic；lock invariant 仍绿  
 6. 文档与 UI 文案写清：受控编辑 ≠ 自由 CAD  
 
-**P0/P1 已满足。** 下一步 **P2 拖动中 preview/冲突高亮**，或有限墙编辑（仍须走 Authority）/ Phase 5 血缘持久化。
+**P0–P2 已满足。** 下一产品步可为有限墙编辑（仍须走 Authority），或 Phase 5 血缘持久化。

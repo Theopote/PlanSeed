@@ -219,3 +219,52 @@ def test_preview_resize_soft_min_width_warning():
     )
     assert result.ok
     assert any(w.code == "mutation.soft_min_width" for w in result.warnings)
+
+
+def test_preview_move_access_impact_warning():
+    program = benchmark_program()
+    fid = program.floors[0].id
+    # a|b 共边 3m；平移 a 离开共边
+    placements = [
+        _pl("a", fid, 0, 0, 3, 3),
+        _pl("b", fid, 3, 0, 3, 3),
+    ]
+    mut = GeometryMutation(
+        kind=MutationKind.MOVE,
+        room_id="a",
+        floor_id=fid,
+        # 仍贴邻但共边仅 0.6m < MIN_ACCESS_WALL
+        proposed=PlacementRect(x=0, y=2.4, width=3, depth=3),
+    )
+    result = preview_mutation(
+        program=program,
+        placements=placements,
+        locks=LayoutLocks(),
+        mutation=mut,
+        snap_module=0.3,
+    )
+    assert result.ok
+    assert any(w.code == "mutation.access_impact" for w in result.warnings)
+
+
+def test_preview_move_overlap_reports_conflict_id():
+    program = benchmark_program()
+    fid = program.floors[0].id
+    placements = [
+        _pl("a", fid, 0, 0, 3, 3),
+        _pl("b", fid, 4, 0, 3, 3),
+    ]
+    mut = GeometryMutation(
+        kind=MutationKind.MOVE,
+        room_id="a",
+        floor_id=fid,
+        proposed=PlacementRect(x=3.5, y=0, width=3, depth=3),
+    )
+    result = preview_mutation(
+        program=program,
+        placements=placements,
+        locks=LayoutLocks(),
+        mutation=mut,
+    )
+    assert not result.ok
+    assert "b" in result.conflict_room_ids

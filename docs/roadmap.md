@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4.3 — Constraint-aware Direct Manipulation**  
-> **4.1.2 Lock ✅** · 受控 Move/Resize（非自由拖墙）· 详案：[phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)  
+> **当前焦点：Phase 4.3 ✅（P0–P2）** · 下一：有限墙编辑 / Phase 5 血缘  
+> **4.1.2 Lock ✅** · 受控 Move/Resize + 拖动预览 · 详案：[phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)  
 > 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -190,7 +190,7 @@ LockGuard → GeometryConstraintChecker → AccessImpactChecker → Commit → R
 | **P0** | Move Room：迁入现有平移 MVP；非法 Snap Back | ✅ |
 | **P0** | LockGuard（zone envelope；不与其它锁/房重叠；可建范围） | ✅ |
 | **P1** | Resize Room（边/角；受 min width） | ✅ |
-| **P2** | 拖动中 preview / 冲突高亮 / AccessImpact | 未开始 |
+| **P2** | 拖动中 preview / 冲突高亮 / AccessImpact | ✅ |
 
 **不做本阶段：** 拖墙、无约束自由 resize、绕过 Authority 写 PlacementRect。
 

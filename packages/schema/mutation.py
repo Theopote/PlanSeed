@@ -45,3 +45,4 @@ class MutationPreviewResult(BaseModel):
     reasons: list[MutationReject] = Field(default_factory=list)
     warnings: list[MutationReject] = Field(default_factory=list)
     snapped: PlacementRect | None = None
+    conflict_room_ids: list[str] = Field(default_factory=list)

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RoomPlacementPayload } from "../api/client";
 import { HARD_MIN_EDGE } from "../lib/geometryMutation";
 
@@ -23,6 +23,14 @@ export type ProposeMoveResult = {
   message?: string;
   warning?: string | null;
   snapped?: { x: number; y: number; width: number; depth: number } | null;
+  conflictRoomIds?: string[];
+};
+
+export type LivePreviewResult = {
+  ok: boolean;
+  message?: string | null;
+  snapped?: { x: number; y: number; width: number; depth: number } | null;
+  conflictRoomIds?: string[];
 };
 
 type ResizeEdge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -46,6 +54,12 @@ type Props = {
     pose: RoomMovePose,
     kind?: MutationDragKind,
   ) => ProposeMoveResult;
+  /** 拖动中实时预览（虚线 / 冲突 / AccessImpact） */
+  onLivePreview?: (
+    roomId: string,
+    pose: RoomMovePose,
+    kind: MutationDragKind,
+  ) => LivePreviewResult;
   mutationHint?: string | null;
 };
 
@@ -175,11 +189,14 @@ export function FloorplanView({
   snapModule = DEFAULT_SNAP,
   onSelectRoom,
   onProposeMove,
+  onLivePreview,
   mutationHint = null,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const basesRef = useRef<Map<string, BasePose>>(new Map());
   const dragRef = useRef<DragState | null>(null);
+  const [liveHint, setLiveHint] = useState<string | null>(null);
+  const [liveConflict, setLiveConflict] = useState(false);
 
   const placementById = (id: string) =>
     placements.find((p) => p.room_id === id) ?? null;
@@ -322,6 +339,65 @@ export function FloorplanView({
     }
   };
 
+  const clearLiveFeedback = () => {
+    setLiveHint(null);
+    setLiveConflict(false);
+    const root = stageRef.current;
+    if (!root) return;
+    root
+      .querySelectorAll(".room-shape.is-conflict")
+      .forEach((el) => el.classList.remove("is-conflict"));
+    const svgEl = root.querySelector("svg");
+    const layer = svgEl?.querySelector("g.mutation-preview");
+    layer?.replaceChildren();
+  };
+
+  const syncPreviewOverlay = (
+    floorIndex: number,
+    snapped: { x: number; y: number; width: number; depth: number } | null,
+    ok: boolean,
+    hasWarning: boolean,
+    conflictIds: string[],
+  ) => {
+    const root = stageRef.current;
+    if (!root) return;
+    const svgEl = root.querySelector("svg");
+    if (!svgEl) return;
+    let layer = svgEl.querySelector<SVGGElement>("g.mutation-preview");
+    if (!layer) {
+      layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      layer.setAttribute("class", "mutation-preview");
+      svgEl.appendChild(layer);
+    }
+    layer.replaceChildren();
+    root
+      .querySelectorAll(".room-shape.is-conflict")
+      .forEach((el) => el.classList.remove("is-conflict"));
+    for (const id of conflictIds) {
+      if (id === "__stair__") {
+        root
+          .querySelectorAll('.room-shape[data-room-id^="stair-"]')
+          .forEach((el) => el.classList.add("is-conflict"));
+        continue;
+      }
+      root
+        .querySelector(`.room-shape[data-room-id="${CSS.escape(id)}"]`)
+        ?.classList.add("is-conflict");
+    }
+    if (!snapped) return;
+    const oy = floorOffset(floorIndex, floorDepth);
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("class", "proposed-rect");
+    rect.classList.toggle("is-invalid", !ok);
+    rect.classList.toggle("is-warn", ok && hasWarning);
+    rect.setAttribute("x", String(snapped.x));
+    rect.setAttribute("y", String(oy + snapped.y));
+    rect.setAttribute("width", String(snapped.width));
+    rect.setAttribute("height", String(snapped.depth));
+    rect.setAttribute("fill", "none");
+    layer.appendChild(rect);
+  };
+
   useEffect(() => {
     const root = stageRef.current;
     if (!root) return;
@@ -376,6 +452,7 @@ export function FloorplanView({
       if (!commit || !drag.moved) {
         syncFromPlacements();
         syncHandles();
+        clearLiveFeedback();
         return;
       }
 
@@ -435,6 +512,7 @@ export function FloorplanView({
       }
 
       const result = onProposeMove?.(drag.roomId, pose, drag.kind);
+      clearLiveFeedback();
       if (!result?.ok) {
         syncFromPlacements();
         syncHandles();
@@ -596,6 +674,24 @@ export function FloorplanView({
         node?.classList.add("is-dragging");
         applyNodeGeometry(id, x, y, w, d);
       }
+
+      const live = onLivePreview?.(
+        drag.roomId,
+        { x, y, width: w, depth: d, floor_id: drag.floorId },
+        drag.kind,
+      );
+      if (live) {
+        const msg = live.message ?? null;
+        setLiveHint(msg);
+        setLiveConflict(!live.ok);
+        syncPreviewOverlay(
+          drag.floorIndex,
+          live.snapped ?? { x, y, width: w, depth: d },
+          live.ok,
+          !!(live.ok && msg),
+          live.conflictRoomIds ?? [],
+        );
+      }
     }
 
     function onPointerUp(ev: PointerEvent) {
@@ -625,22 +721,34 @@ export function FloorplanView({
     snapModule,
     onSelectRoom,
     onProposeMove,
+    onLivePreview,
   ]);
 
   const canEdit = !!onProposeMove && floorDepth > 0;
+  const headerHint = liveHint ?? mutationHint;
 
   return (
     <main className="panel panel-center">
       <header className="panel-head compact">
         <h2>Floorplan</h2>
-        {mutationHint ? (
-          <p className="muted warn-hint">{mutationHint}</p>
+        {headerHint ? (
+          <p
+            className={
+              liveConflict
+                ? "muted warn-hint is-live-bad"
+                : liveHint
+                  ? "muted warn-hint is-live-warn"
+                  : "muted warn-hint"
+            }
+          >
+            {headerHint}
+          </p>
         ) : selectedRoomId ? (
           <p className="muted">
             {canEdit
               ? selectedRoomId.startsWith("stair-")
                 ? "受控平移楼梯 · 手柄缩放仅房间"
-                : "拖移房间 · 手柄缩放 · Authority 校验"
+                : "拖移房间 · 手柄缩放 · 拖动中预览冲突"
               : "已选 · 可锁定后 Regenerate unlocked"}
           </p>
         ) : lockedRoomIds.length > 0 ? (
