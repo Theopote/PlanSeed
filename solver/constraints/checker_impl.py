@@ -35,6 +35,7 @@ class DefaultConstraintChecker:
 
         result.extend(self._check_overlaps(candidate))
         result.extend(self._check_boundary(candidate, buildable))
+        result.extend(self._check_program_placements(program, candidate))
         result.extend(self._check_area_and_width(program, candidate))
         result.extend(self._check_stair_alignment(candidate))
 
@@ -104,6 +105,83 @@ class DefaultConstraintChecker:
                             source="system",
                         )
                     )
+        return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_program_placements(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """
+        每个 program room 必须且只能有一个 PROGRAM 放置。
+
+        generated circulation 不参与 uniqueness。
+        """
+        from packages.schema.layout import PlacementSource
+
+        violations: list[Violation] = []
+        expected_floor: dict[str, str] = {}
+        for fl in program.floors:
+            for rid in fl.room_ids:
+                expected_floor[rid] = fl.id
+        for room in program.rooms:
+            if room.id not in expected_floor and room.floor_id:
+                expected_floor[room.id] = room.floor_id
+
+        program_ids = {r.id for r in program.rooms}
+        seen: dict[str, int] = {}
+
+        for fl in candidate.floors:
+            for p in fl.placements:
+                if p.source != PlacementSource.PROGRAM:
+                    continue
+                seen[p.room_id] = seen.get(p.room_id, 0) + 1
+
+                if p.room_id not in program_ids:
+                    violations.append(
+                        Violation(
+                            constraint_id="geometry.unknown_room",
+                            room_ids=[p.room_id],
+                            message=f"未知程序房间放置：{p.room_id}",
+                            hard=True,
+                            source="system",
+                        )
+                    )
+                    continue
+
+                exp = expected_floor.get(p.room_id)
+                if exp is not None and p.floor_id != exp:
+                    violations.append(
+                        Violation(
+                            constraint_id="geometry.wrong_floor",
+                            room_ids=[p.room_id],
+                            message=f"房间 {p.room_id} 应在 {exp}，实际在 {p.floor_id}",
+                            hard=True,
+                            source="system",
+                        )
+                    )
+
+        for rid in program_ids:
+            count = seen.get(rid, 0)
+            if count == 0:
+                violations.append(
+                    Violation(
+                        constraint_id="geometry.missing_room",
+                        room_ids=[rid],
+                        message=f"缺少程序房间放置：{rid}",
+                        hard=True,
+                        source="system",
+                    )
+                )
+            elif count > 1:
+                violations.append(
+                    Violation(
+                        constraint_id="geometry.duplicate_room",
+                        room_ids=[rid],
+                        message=f"程序房间重复放置：{rid} ×{count}",
+                        hard=True,
+                        source="system",
+                    )
+                )
+
         return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_area_and_width(

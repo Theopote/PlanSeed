@@ -138,8 +138,7 @@ User Requirement
 
 ## Diversity（预留）
 
-Phase 1 的 `layout_similarity` 使用绝对米差 / 5m，对小住宅够用。
-未来应改为 footprint 归一化，并加入 topology similarity（邻接、core 区位）。暂非 P0。
+Phase 1.5 的 `layout_similarity` 使用 `LayoutSignature`：坐标按 buildable 宽高归一化（dx/W, dy/D, …），并纳入 core 区位。
 
 ## RequirementSpec uncertainty（Phase 1.5）
 
@@ -151,7 +150,8 @@ Phase 1 的 `layout_similarity` 使用绝对米差 / 5m，对小住宅够用。
 | 未指定 `household.bedrooms` 等 | 应用住宅默认，**写入 assumption** |
 | 未指定 `site.width` / `site.depth` | **写入 unknown**，不默认 11×13，`can_solve=False` |
 | 未指定房间面积 | 默认面积 + assumption |
-| 未提供空间清单 | 基准程序 + assumption `spaces.program` |
+| 未提供空间清单 | unknown `spaces.program`（不静默套 benchmark） |
+| Demo / 回归基准 | `solver.fixtures.benchmark` 显式 fixture |
 
 返回 `RequirementsNormalizeResult`；需要 program 时用 `normalize_requirements_to_program()`（缺地块则抛 `IncompleteRequirementsError`）。
 

@@ -1,59 +1,68 @@
-"""候选排序 — score + 可选 diversity。"""
+"""候选排序 — score + 可选 diversity（LayoutSignature）。"""
 
 from __future__ import annotations
 
 from packages.schema.layout import LayoutCandidate
-from solver.geometry.rect import from_placement
+from packages.schema.signature import build_layout_signature, signature_similarity
 
-# similarity ≥ 该阈值视为「过于相似」，diversity 筛选时跳过
 DEFAULT_MIN_DIVERSITY_THRESHOLD = 0.85
 
 
-def layout_similarity(a: LayoutCandidate, b: LayoutCandidate) -> float:
+def layout_similarity(
+    a: LayoutCandidate,
+    b: LayoutCandidate,
+    *,
+    buildable_width: float | None = None,
+    buildable_depth: float | None = None,
+) -> float:
     """
     两候选布局相似度 [0, 1]。
 
-    基于 program 房间矩形的位置与尺寸 L1 偏差。
+    使用 buildable 归一化的 LayoutSignature（dx/W, dy/D, …）。
     """
-    if len(a.floors) != len(b.floors):
-        return 0.0
+    bw, bd = buildable_width, buildable_depth
+    if bw is None or bd is None:
+        bw, bd = _infer_buildable_size(a)
+    sig_a = build_layout_signature(a, buildable_width=bw, buildable_depth=bd)
+    sig_b = build_layout_signature(b, buildable_width=bw, buildable_depth=bd)
+    return signature_similarity(sig_a, sig_b)
 
-    diffs: list[float] = []
-    for fa, fb in zip(a.floors, b.floors):
-        map_a = {p.room_id: p for p in fa.placements if p.source.value == "program"}
-        map_b = {p.room_id: p for p in fb.placements if p.source.value == "program"}
-        for rid, pa in map_a.items():
-            pb = map_b.get(rid)
-            if pb is None:
-                continue
-            ra, rb = from_placement(pa.rect), from_placement(pb.rect)
-            dx = abs(ra.x - rb.x) + abs(ra.y - rb.y)
-            dw = abs(ra.width - rb.width) + abs(ra.depth - rb.depth)
-            diffs.append(dx + dw)
 
-    if not diffs:
-        return 1.0
-    avg_diff = sum(diffs) / len(diffs)
-    return max(0.0, 1.0 - avg_diff / 5.0)
+def _infer_buildable_size(candidate: LayoutCandidate) -> tuple[float, float]:
+    max_r = 1.0
+    max_b = 1.0
+    for fl in candidate.floors:
+        for p in fl.placements:
+            max_r = max(max_r, p.rect.right)
+            max_b = max(max_b, p.rect.bottom)
+    return max_r, max_b
 
 
 def _select_diverse(
     ordered: list[LayoutCandidate],
     top_k: int,
     min_diversity_threshold: float,
+    *,
+    buildable_width: float | None,
+    buildable_depth: float | None,
 ) -> list[LayoutCandidate]:
-    """贪心：按分数顺序选取，跳过与已选方案过于相似的候选。"""
     selected: list[LayoutCandidate] = []
     for candidate in ordered:
         if len(selected) >= top_k:
             break
         if any(
-            layout_similarity(candidate, s) >= min_diversity_threshold for s in selected
+            layout_similarity(
+                candidate,
+                s,
+                buildable_width=buildable_width,
+                buildable_depth=buildable_depth,
+            )
+            >= min_diversity_threshold
+            for s in selected
         ):
             continue
         selected.append(candidate)
 
-    # 若多样性过严导致不足 top_k，用剩余高分补齐
     if len(selected) < top_k:
         selected_ids = {c.id for c in selected}
         for candidate in ordered:
@@ -70,14 +79,10 @@ def rank_candidates(
     top_k: int = 5,
     *,
     min_diversity_threshold: float | None = DEFAULT_MIN_DIVERSITY_THRESHOLD,
+    buildable_width: float | None = None,
+    buildable_depth: float | None = None,
 ) -> list[LayoutCandidate]:
-    """
-    按 total_score 降序；无效 candidate 排末尾。
-
-    min_diversity_threshold:
-      - None：纯分数排序
-      - float：贪心 diversity（默认 0.85）
-    """
+    """按 total_score 降序；无效 candidate 排末尾。"""
     valid = [
         c for c in candidates if c.validation and c.validation.valid and c.score is not None
     ]
@@ -87,7 +92,13 @@ def rank_candidates(
     invalid.sort(key=lambda c: c.score or 0.0, reverse=True)
 
     if min_diversity_threshold is not None and valid:
-        selected = _select_diverse(valid, top_k, min_diversity_threshold)
+        selected = _select_diverse(
+            valid,
+            top_k,
+            min_diversity_threshold,
+            buildable_width=buildable_width,
+            buildable_depth=buildable_depth,
+        )
         if len(selected) < top_k:
             selected.extend(invalid[: top_k - len(selected)])
         return selected

@@ -61,6 +61,15 @@ class TestZonePlanner:
         assert zone_for_room(
             RoomSpec(id="c", name="厨房", category=RoomCategory.WET, target_area=10, tags=["kitchen"])
         ) == ArchitecturalZone.SERVICE
+        assert zone_for_room(
+            RoomSpec(
+                id="d",
+                name="主卫",
+                category=RoomCategory.WET,
+                target_area=5,
+                tags=["ensuite"],
+            )
+        ) == ArchitecturalZone.NIGHT
 
     def test_group_and_plan_single_rect(self):
         rooms = [
@@ -86,7 +95,7 @@ class TestZonePlanner:
         ]
         f2 = [
             RoomSpec(id="bed", name="主卧", category=RoomCategory.PRIVATE, target_area=18),
-            RoomSpec(id="bath2", name="主卫", category=RoomCategory.WET, target_area=5),
+            RoomSpec(id="bath2", name="公共卫生间", category=RoomCategory.WET, target_area=5),
         ]
         free = [Rect(x=0, y=0, width=10, depth=12)]
         plans = ZonePlanner().plan_building(

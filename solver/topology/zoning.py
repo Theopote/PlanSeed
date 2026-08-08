@@ -40,6 +40,14 @@ def zone_for_room(room: RoomSpec) -> ArchitecturalZone:
     if room.category == RoomCategory.SERVICE:
         return ArchitecturalZone.SERVICE
     if room.category == RoomCategory.WET:
+        # 主卫属于 private suite，不并入整栋 service/wet 带
+        if (
+            "主卫" in name
+            or "ensuite" in tags
+            or "master_bath" in tags
+            or "master-bath" in tags
+        ):
+            return ArchitecturalZone.NIGHT
         return ArchitecturalZone.SERVICE
     if "garage" in tags or "车库" in name or "储藏" in name:
         return ArchitecturalZone.SERVICE

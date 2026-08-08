@@ -9,7 +9,7 @@
 |-------|------|------|
 | 0 | Architecture Foundation | ✅ |
 | 1 | Deterministic Layout Core | ✅ 基本完成 |
-| **1.5** | **Solver Reliability** | **← 现在** |
+| **1.5** | **Solver Reliability** | ✅ 收口 |
 | 2 | Spatial Topology + Circulation（门 / AccessGraph） | 未开始 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
@@ -32,12 +32,16 @@ Visual Debugger（Phase 4）安排在 FastAPI 之前：纯 JSON 已难以判断�
 
 - [x] Hard adjacency checker
 - [x] Soft area/width → `ConstraintEvaluationResult` 不丢弃
-- [x] Missing room detection（`ensure_floor_assignment` / `assert_all_rooms_placed`）
+- [x] Missing / duplicate / wrong_floor / unknown room（`geometry.*`）
 - [x] Duplicate room assignment detection
 - [x] Floor assignment consistency
-- [x] RequirementSpec assumption / unknown tracking
+- [x] RequirementSpec assumption / unknown tracking（空 spaces ≠ benchmark）
 - [x] Orientation evaluator 闭环
-- [x] Quality regression 门槛
+- [x] Exterior edges / wall length
+- [x] LayoutSignature + buildable 归一化 similarity
+- [x] `docs/constraint-coverage.md`
+- [x] Quality regression 门槛 + demo 指标
+- [x] SVG debug（room id / target·actual area）
 
 ### P1 Floor Assignment（✅ 已完成）
 

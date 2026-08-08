@@ -4,26 +4,27 @@ from __future__ import annotations
 
 import json
 
-from packages.schema.requirements import RequirementSpec, SiteRequirements
+from solver.fixtures.benchmark import benchmark_program
 from solver.pipeline import run_pipeline
-from solver.program.requirements_normalize import normalize_requirements_to_program
 
 
 def build_benchmark_program():
-    req = RequirementSpec(
-        site=SiteRequirements(width=11, depth=13),
-        floor_count=2,
-    )
-    return normalize_requirements_to_program(req)
+    return benchmark_program()
 
 
 def main() -> None:
     program = build_benchmark_program()
     result = run_pipeline(program)
+    m = result.compute_metrics()
 
     print(f"Generated candidates: {result.generated}")
     print(f"Valid candidates: {result.valid}")
     print(f"Rejected candidates: {result.rejected}")
+    print(f"valid_ratio: {m.valid_ratio:.3f}")
+    print(f"distinct_layouts: {m.distinct_layout_count}")
+    print(f"average_score: {m.average_score:.2f}")
+    print(f"top_score: {m.top_score:.2f}")
+    print(f"average_soft_violations: {m.average_soft_violation_count:.2f}")
     print()
 
     if result.violation_summary:

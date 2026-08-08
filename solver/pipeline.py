@@ -6,11 +6,19 @@ from dataclasses import dataclass, field
 
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
-from packages.schema.scoring import DesignScore
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.score import CompositeEvaluator
 from solver.generators.guillotine import GuillotineGenerator
 from solver.optimization.rank import rank_candidates
+
+
+@dataclass
+class PipelineMetrics:
+    valid_ratio: float
+    distinct_layout_count: int
+    average_score: float
+    top_score: float
+    average_soft_violation_count: float
 
 
 @dataclass
@@ -21,6 +29,33 @@ class PipelineResult:
     all_candidates: list[LayoutCandidate] = field(default_factory=list)
     top_candidates: list[LayoutCandidate] = field(default_factory=list)
     violation_summary: dict[str, int] = field(default_factory=dict)
+
+    def compute_metrics(self) -> PipelineMetrics:
+        import json
+
+        fingerprints = {
+            json.dumps(
+                c.model_dump(exclude={"score", "metrics", "validation"}),
+                sort_keys=True,
+                default=str,
+            )
+            for c in self.all_candidates
+        }
+        scored = [c.score for c in self.all_candidates if c.score is not None]
+        soft_counts = [
+            len(c.validation.soft_violations)
+            for c in self.all_candidates
+            if c.validation is not None
+        ]
+        return PipelineMetrics(
+            valid_ratio=(self.valid / self.generated) if self.generated else 0.0,
+            distinct_layout_count=len(fingerprints),
+            average_score=(sum(scored) / len(scored)) if scored else 0.0,
+            top_score=max(scored) if scored else 0.0,
+            average_soft_violation_count=(
+                sum(soft_counts) / len(soft_counts) if soft_counts else 0.0
+            ),
+        )
 
 
 def run_pipeline(program: DesignProgram) -> PipelineResult:
@@ -53,6 +88,8 @@ def run_pipeline(program: DesignProgram) -> PipelineResult:
         candidates,
         top_k=cfg.return_top_k,
         min_diversity_threshold=cfg.min_diversity_threshold,
+        buildable_width=program.buildable.width,
+        buildable_depth=program.buildable.depth,
     )
     valid = sum(1 for c in candidates if c.validation and c.validation.valid)
 

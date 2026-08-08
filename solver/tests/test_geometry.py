@@ -6,6 +6,8 @@ from solver.geometry.rect import (
     Rect,
     contains,
     distance_between,
+    exterior_edges,
+    exterior_wall_length,
     intersection,
     intersects,
     shared_edge_length,
@@ -71,3 +73,18 @@ class TestRect:
         a = Rect(x=0, y=0, width=1, depth=1)
         b = Rect(x=3, y=0, width=1, depth=1)
         assert distance_between(a, b) == pytest.approx(2.0)
+
+    def test_exterior_edges_and_wall_length(self):
+        buildable = Rect(x=0, y=0, width=10, depth=12)
+        sw = Rect(x=0, y=10, width=4, depth=2)  # 贴南+西
+        edges = exterior_edges(sw, buildable)
+        assert edges["south"] == pytest.approx(4.0)
+        assert edges["west"] == pytest.approx(2.0)
+        assert "north" not in edges
+        assert exterior_wall_length(sw, buildable) == pytest.approx(6.0)
+
+    def test_interior_room_has_no_exterior(self):
+        buildable = Rect(x=0, y=0, width=10, depth=10)
+        inner = Rect(x=2, y=2, width=3, depth=3)
+        assert exterior_edges(inner, buildable) == {}
+        assert exterior_wall_length(inner, buildable) == 0.0

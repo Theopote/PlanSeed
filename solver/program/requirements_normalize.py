@@ -186,13 +186,25 @@ def normalize_requirements(
     assert working.site.width is not None and working.site.depth is not None
     assert working.floor_count is not None
 
-    rooms, floors, space_assumptions = _spaces_to_rooms_and_floors(
+    rooms, floors, space_assumptions, space_unknowns = _spaces_to_rooms_and_floors(
         working.spaces, working.floor_count
     )
     for a in space_assumptions:
         assume(a.key, a.value, a.reason)
+    for u in space_unknowns:
+        mark_unknown(u.key, u.description)
 
     working.assumptions = assumptions
+    working.unknowns = unknowns
+
+    if not rooms:
+        return RequirementsNormalizeResult(
+            requirements=working,
+            program=None,
+            can_solve=False,
+            assumptions=assumptions,
+            unknowns=unknowns,
+        )
 
     site = SiteSpec(
         width=working.site.width,
@@ -255,7 +267,11 @@ def normalize_requirements_to_program(
     """需要 DesignProgram 的调用方；地块缺失时抛 IncompleteRequirementsError。"""
     result = normalize_requirements(req, config, require_complete=True)
     if result.program is None:
-        blocking = [u for u in result.unknowns if u.key.startswith("site.")]
+        blocking = [
+            u
+            for u in result.unknowns
+            if u.key.startswith("site.") or u.key.startswith("spaces.")
+        ]
         raise IncompleteRequirementsError(blocking or result.unknowns)
     return result.program
 
@@ -270,19 +286,25 @@ def _infer_floor_count_from_spaces(req: RequirementSpec) -> int:
 def _spaces_to_rooms_and_floors(
     spaces: list[SpaceRequirement],
     floor_count: int,
-) -> tuple[list[RoomSpec], list[FloorSpec], list[Assumption]]:
+) -> tuple[list[RoomSpec], list[FloorSpec], list[Assumption], list[UnknownRequirement]]:
     assumptions: list[Assumption] = []
+    unknowns: list[UnknownRequirement] = []
 
     if not spaces:
-        rooms, floors = _default_benchmark_rooms(floor_count)
-        assumptions.append(
-            Assumption(
+        unknowns.append(
+            UnknownRequirement(
                 key="spaces.program",
-                value="benchmark_default",
-                reason="未提供空间清单，应用基准住宅程序（演示/回归用）",
+                description=(
+                    "未提供空间清单，无法生成住宅程序；"
+                    "请显式填写 spaces，或使用 solver.fixtures.benchmark"
+                ),
             )
         )
-        return rooms, floors, assumptions
+        floors = [
+            FloorSpec(id=f"F{i + 1}", label=f"{i + 1}层", room_ids=[])
+            for i in range(floor_count)
+        ]
+        return [], floors, assumptions, unknowns
 
     floors = [
         FloorSpec(id=f"F{i + 1}", label=f"{i + 1}层", room_ids=[])
@@ -324,7 +346,7 @@ def _spaces_to_rooms_and_floors(
         )
 
     ensure_floor_assignment(rooms, floors)
-    return rooms, floors, assumptions
+    return rooms, floors, assumptions, unknowns
 
 
 def _parse_category(raw: str | None, tags: list[str], name: str) -> RoomCategory:
@@ -349,27 +371,6 @@ def _default_area(space: SpaceRequirement, category: RoomCategory) -> float:
         if tag in DEFAULT_AREA_BY_TAG:
             return DEFAULT_AREA_BY_TAG[tag]
     return DEFAULT_AREA_BY_CATEGORY.get(category, 10.0)
-
-
-def _default_benchmark_rooms(floor_count: int) -> tuple[list[RoomSpec], list[FloorSpec]]:
-    """旧手册基准案例 — 用于 demo 与回归测试。"""
-    rooms = [
-        RoomSpec(id="r1", name="客厅", category=RoomCategory.PUBLIC, target_area=24, floor_id="F1"),
-        RoomSpec(id="r2", name="餐厅+厨房", category=RoomCategory.WET, target_area=16, floor_id="F1", tags=["kitchen"]),
-        RoomSpec(id="r3", name="卫生间", category=RoomCategory.WET, target_area=4, floor_id="F1"),
-        RoomSpec(id="r4", name="车库/储藏", category=RoomCategory.OTHER, target_area=15, floor_id="F1", tags=["garage"]),
-        RoomSpec(id="r5", name="主卧", category=RoomCategory.PRIVATE, target_area=18, floor_id="F2"),
-        RoomSpec(id="r6", name="主卫", category=RoomCategory.WET, target_area=5, floor_id="F2"),
-        RoomSpec(id="r7", name="次卧1", category=RoomCategory.PRIVATE, target_area=12, floor_id="F2"),
-        RoomSpec(id="r8", name="次卧2", category=RoomCategory.PRIVATE, target_area=12, floor_id="F2"),
-        RoomSpec(id="r9", name="公共卫生间", category=RoomCategory.WET, target_area=4, floor_id="F2"),
-        RoomSpec(id="r10", name="书房", category=RoomCategory.OTHER, target_area=9, floor_id="F2"),
-    ]
-    floors = [
-        FloorSpec(id="F1", label="一层", room_ids=["r1", "r2", "r3", "r4"]),
-        FloorSpec(id="F2", label="二层", room_ids=["r5", "r6", "r7", "r8", "r9", "r10"]),
-    ]
-    return rooms[:], floors[:floor_count]
 
 
 def _apply_preference_constraints(req, constraints: list, program: DesignProgram) -> list:

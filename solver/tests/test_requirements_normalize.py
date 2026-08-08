@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from packages.schema.requirements import RequirementSpec, SiteRequirements, SpaceRequirement
+from solver.fixtures.benchmark import benchmark_requirement_spec
 from solver.program.requirements_normalize import (
     IncompleteRequirementsError,
     normalize_requirements,
@@ -14,7 +15,11 @@ from solver.program.requirements_normalize import (
 
 class TestAssumptionsAndUnknowns:
     def test_household_defaults_recorded_as_assumptions(self):
-        req = RequirementSpec(site=SiteRequirements(width=11, depth=13), floor_count=2)
+        req = RequirementSpec(
+            site=SiteRequirements(width=11, depth=13),
+            floor_count=2,
+            spaces=[SpaceRequirement(name="客厅", category="public", target_area=24)],
+        )
         result = normalize_requirements(req)
         assert result.can_solve
         keys = {a.key for a in result.assumptions}
@@ -34,7 +39,6 @@ class TestAssumptionsAndUnknowns:
         unknown_keys = {u.key for u in result.unknowns}
         assert "site.width" in unknown_keys
         assert "site.depth" in unknown_keys
-        # 不得静默变成 11×13
         assert not any(a.key == "site.width" for a in result.assumptions)
 
     def test_partial_site_width_only(self):
@@ -55,6 +59,7 @@ class TestAssumptionsAndUnknowns:
             site=SiteRequirements(width=11, depth=13),
             floor_count=2,
             household={"occupants": 5, "bedrooms": 4, "bathrooms": 3, "has_garage": False},
+            spaces=[SpaceRequirement(name="客厅", category="public", target_area=24)],
         )
         result = normalize_requirements(req)
         keys = {a.key for a in result.assumptions}
@@ -77,15 +82,31 @@ class TestAssumptionsAndUnknowns:
         assert len(area_assumptions) == 1
         assert "客厅" in area_assumptions[0].reason
 
-    def test_empty_spaces_benchmark_is_assumption(self):
+    def test_empty_spaces_is_unknown_not_benchmark(self):
         req = RequirementSpec(site=SiteRequirements(width=11, depth=13), floor_count=2)
         result = normalize_requirements(req)
-        assert any(a.key == "spaces.program" for a in result.assumptions)
+        assert result.can_solve is False
+        assert result.program is None
+        assert any(u.key == "spaces.program" for u in result.unknowns)
+        assert not any(a.key == "spaces.program" for a in result.assumptions)
+
+    def test_empty_spaces_raises_when_forcing_program(self):
+        req = RequirementSpec(site=SiteRequirements(width=11, depth=13), floor_count=2)
+        with pytest.raises(IncompleteRequirementsError) as exc:
+            normalize_requirements_to_program(req)
+        assert any(u.key == "spaces.program" for u in exc.value.unknowns)
+
+    def test_benchmark_fixture_solves(self):
+        result = normalize_requirements(benchmark_requirement_spec())
+        assert result.can_solve
         assert result.program is not None
         assert len(result.program.rooms) == 10
 
     def test_enriched_requirements_preserve_trace(self):
-        req = RequirementSpec(site=SiteRequirements(width=11, depth=13))
+        req = RequirementSpec(
+            site=SiteRequirements(width=11, depth=13),
+            spaces=[SpaceRequirement(name="客厅", category="public", target_area=24)],
+        )
         result = normalize_requirements(req)
         assert result.requirements.assumptions
         assert any(a.key == "floor_count" for a in result.requirements.assumptions)

@@ -35,26 +35,38 @@ def _fill_for(placement: RoomPlacement) -> str:
     return _CATEGORY_FILL.get(cat, _CATEGORY_FILL["other"])
 
 
-def _render_room(placement: RoomPlacement, oy: float) -> str:
+def _render_room(
+    placement: RoomPlacement,
+    oy: float,
+    *,
+    target_area: float | None = None,
+) -> str:
     r = placement.rect
     fill = _fill_for(placement)
     cx = r.x + r.width / 2
     cy = oy + r.y + r.depth / 2
     name = _esc(placement.name or placement.room_id)
+    rid = _esc(placement.room_id)
     area = f"{r.area:.1f}㎡"
-    # 过小房间只画名字
-    show_area = r.width >= 1.2 and r.depth >= 1.0
+    if target_area is not None:
+        area = f"{r.area:.1f}/{target_area:.0f}㎡"
+    show_detail = r.width >= 1.4 and r.depth >= 1.2
     lines = [
         f'<rect x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
         f'height="{r.depth:.3f}" fill="{fill}" fill-opacity="0.9" '
         f'stroke="{_INK}" stroke-width="0.04"/>',
-        f'<text x="{cx:.3f}" y="{cy - (0.18 if show_area else 0):.3f}" '
-        f'font-size="0.32" fill="{_INK}" text-anchor="middle" '
+        f'<text x="{cx:.3f}" y="{cy - (0.28 if show_detail else 0):.3f}" '
+        f'font-size="0.30" fill="{_INK}" text-anchor="middle" '
         f'font-family="Segoe UI, sans-serif">{name}</text>',
     ]
-    if show_area:
+    if show_detail:
         lines.append(
-            f'<text x="{cx:.3f}" y="{cy + 0.22:.3f}" font-size="0.26" '
+            f'<text x="{cx:.3f}" y="{cy:.3f}" font-size="0.22" '
+            f'fill="{_MUTED}" text-anchor="middle" '
+            f'font-family="Consolas, monospace">{rid}</text>'
+        )
+        lines.append(
+            f'<text x="{cx:.3f}" y="{cy + 0.28:.3f}" font-size="0.24" '
             f'fill="{_MUTED}" text-anchor="middle" '
             f'font-family="Consolas, monospace">{area}</text>'
         )
@@ -108,9 +120,11 @@ def render_candidate_svg(
     floor_width: float,
     floor_depth: float,
     floor_labels: dict[str, str] | None = None,
+    target_areas: dict[str, float] | None = None,
 ) -> str:
     """渲染单个候选：各层纵向堆叠 + 元数据页眉。"""
     labels = floor_labels or {}
+    targets = target_areas or {}
     gap = 1.0
     n = len(candidate.floors)
     stack_h = n * floor_depth + max(0, n - 1) * gap
@@ -184,7 +198,9 @@ def render_candidate_svg(
             f'stroke-width="0.08"/>'
         )
         for p in floor.placements:
-            body.append(_render_room(p, oy))
+            body.append(
+                _render_room(p, oy, target_area=targets.get(p.room_id))
+            )
         body.append(_wet_overlay(floor, oy))
 
     body.append(_legend(floor_width + 0.4, 0.2))
@@ -212,6 +228,7 @@ def write_candidate_svg(
     floor_width: float,
     floor_depth: float,
     floor_labels: dict[str, str] | None = None,
+    target_areas: dict[str, float] | None = None,
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -220,6 +237,7 @@ def write_candidate_svg(
         floor_width=floor_width,
         floor_depth=floor_depth,
         floor_labels=floor_labels,
+        target_areas=target_areas,
     )
     path.write_text(svg, encoding="utf-8")
     return path

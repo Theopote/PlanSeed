@@ -12,10 +12,28 @@ from packages.schema.layout import PlacementRect
 class ArchitecturalZone(StrEnum):
     """住宅功能分区（ZonePlanner 使用）。"""
 
-    DAY = "day"  # 公共起居：客厅、餐厅等
-    NIGHT = "night"  # 私密：卧室、书房
-    SERVICE = "service"  # 厨卫、车库、储藏
-    CIRCULATION = "circulation"  # 楼梯核等（通常由系统生成）
+    DAY = "day"  # 公共起居 ≈ ZoneKind.PUBLIC
+    NIGHT = "night"  # 私密/主卫 suite ≈ ZoneKind.PRIVATE
+    SERVICE = "service"  # 厨卫（非 suite）、车库、储藏
+    CIRCULATION = "circulation"
+
+
+class ZoneKind(StrEnum):
+    """文档用语：PUBLIC / PRIVATE / SERVICE / CIRCULATION。"""
+
+    PUBLIC = "public"
+    PRIVATE = "private"
+    SERVICE = "service"
+    CIRCULATION = "circulation"
+
+
+def architectural_from_zone_kind(kind: ZoneKind) -> ArchitecturalZone:
+    return {
+        ZoneKind.PUBLIC: ArchitecturalZone.DAY,
+        ZoneKind.PRIVATE: ArchitecturalZone.NIGHT,
+        ZoneKind.SERVICE: ArchitecturalZone.SERVICE,
+        ZoneKind.CIRCULATION: ArchitecturalZone.CIRCULATION,
+    }[kind]
 
 
 class ZoneRoomGroup(BaseModel):

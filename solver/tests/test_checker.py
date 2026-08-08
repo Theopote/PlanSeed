@@ -130,15 +130,29 @@ class TestHardAdjacency:
         )
 
     def test_soft_adjacency_still_does_not_invalidate(self):
-        program = benchmark_program()
-        program.constraints.append(
-            AdjacencyConstraint(
-                id="adj-soft",
-                room_a_id="kitchen",
-                room_b_id="dining",
-                hard=False,
-                source=ConstraintSource.USER,
-            )
+        from packages.schema.program import DesignProgram, SolverConfig
+        from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
+        from packages.schema.site import Rect2D, SiteSpec
+
+        program = DesignProgram(
+            project_id="adj-soft",
+            site=SiteSpec(width=11, depth=13),
+            buildable=Rect2D(x=0, y=0, width=11, depth=13),
+            floors=[FloorSpec(id="F1", label="一层", room_ids=["kitchen", "dining"])],
+            rooms=[
+                RoomSpec(id="kitchen", name="厨房", category=RoomCategory.WET, target_area=10),
+                RoomSpec(id="dining", name="餐厅", category=RoomCategory.PUBLIC, target_area=12),
+            ],
+            constraints=[
+                AdjacencyConstraint(
+                    id="adj-soft",
+                    room_a_id="kitchen",
+                    room_b_id="dining",
+                    hard=False,
+                    source=ConstraintSource.USER,
+                )
+            ],
+            solver_config=SolverConfig(candidate_count=1),
         )
         candidate = _candidate_with_two_rooms(
             a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
@@ -207,6 +221,61 @@ class TestSoftAreaWidth:
         validation = DefaultConstraintChecker().check(program, candidate)
         assert not validation.valid
         assert any(v.constraint_id == "width-hard-r1" for v in validation.hard_violations)
+
+
+class TestProgramPlacementIntegrity:
+    def test_missing_room_invalidates(self):
+        program = benchmark_program()
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        # 去掉一个 program 房间
+        for fl in candidate.floors:
+            fl.placements = [
+                p for p in fl.placements if p.room_id != program.rooms[0].id
+            ]
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "geometry.missing_room" for v in validation.hard_violations)
+
+    def test_duplicate_room_invalidates(self):
+        program = benchmark_program()
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        fl = candidate.floors[0]
+        prog = next(p for p in fl.placements if p.source == PlacementSource.PROGRAM)
+        fl.placements.append(prog.model_copy(deep=True))
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "geometry.duplicate_room" for v in validation.hard_violations)
+
+    def test_wrong_floor_invalidates(self):
+        program = benchmark_program()
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        # 把 F1 的第一个 program 房间改到 F2
+        f1 = candidate.floors[0]
+        p = next(x for x in f1.placements if x.source == PlacementSource.PROGRAM)
+        f1.placements.remove(p)
+        moved = p.model_copy(deep=True)
+        moved.floor_id = "F2"
+        candidate.floors[1].placements.append(moved)
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "geometry.wrong_floor" for v in validation.hard_violations)
+
+    def test_unknown_room_invalidates(self):
+        program = benchmark_program()
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        candidate.floors[0].placements.append(
+            RoomPlacement(
+                room_id="ghost-room",
+                floor_id="F1",
+                rect=PlacementRect(x=0, y=0, width=1, depth=1),
+                source=PlacementSource.PROGRAM,
+                name="幽灵",
+                category="other",
+            )
+        )
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "geometry.unknown_room" for v in validation.hard_violations)
 
 
 class TestConstraintEvaluationResult:

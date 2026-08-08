@@ -11,9 +11,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from packages.schema.requirements import RequirementSpec, SiteRequirements
+from solver.fixtures.benchmark import benchmark_program
 from solver.pipeline import run_pipeline
-from solver.program.requirements_normalize import normalize_requirements_to_program
 from solver.visualize.svg import write_candidate_svg
 
 
@@ -31,28 +30,13 @@ def main(argv: list[str] | None = None) -> int:
         default=5,
         help="导出 Top-K 候选（默认 5）",
     )
-    parser.add_argument(
-        "--width",
-        type=float,
-        default=11.0,
-        help="基准场地宽（米）",
-    )
-    parser.add_argument(
-        "--depth",
-        type=float,
-        default=13.0,
-        help="基准场地深（米）",
-    )
     args = parser.parse_args(argv)
 
-    req = RequirementSpec(
-        site=SiteRequirements(width=args.width, depth=args.depth),
-        floor_count=2,
-    )
-    program = normalize_requirements_to_program(req)
+    program = benchmark_program()
     result = run_pipeline(program)
 
     labels = {fl.id: fl.label or fl.id for fl in program.floors}
+    targets = {r.id: r.target_area for r in program.rooms}
     w = program.buildable.width
     d = program.buildable.depth
 
@@ -65,10 +49,12 @@ def main(argv: list[str] | None = None) -> int:
             floor_width=w,
             floor_depth=d,
             floor_labels=labels,
+            target_areas=targets,
         )
         written.append(path)
 
-    print(f"Generated: {result.generated}  Valid: {result.valid}")
+    m = result.compute_metrics()
+    print(f"Generated: {result.generated}  Valid: {result.valid}  distinct={m.distinct_layout_count}")
     print(f"Wrote {len(written)} SVG(s) → {args.out.resolve()}")
     for p in written:
         print(f"  {p}")

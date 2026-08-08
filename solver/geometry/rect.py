@@ -108,6 +108,40 @@ def shared_edge_length(a: Rect, b: Rect, tolerance: float = 1e-6) -> float:
     return length
 
 
+def exterior_edges(
+    room: Rect,
+    buildable: Rect,
+    *,
+    tolerance: float = 0.05,
+) -> dict[str, float]:
+    """
+    房间贴靠 buildable 外缘的各向边长（米）。
+
+    坐标系：y=0 北，y 增大向南；x=0 西，x 增大向东。
+    未贴靠方向不出现在字典中。
+    """
+    edges: dict[str, float] = {}
+    if abs(room.top - buildable.top) <= tolerance:
+        edges["north"] = room.width
+    if abs(room.bottom - buildable.bottom) <= tolerance:
+        edges["south"] = room.width
+    if abs(room.left - buildable.left) <= tolerance:
+        edges["west"] = room.depth
+    if abs(room.right - buildable.right) <= tolerance:
+        edges["east"] = room.depth
+    return edges
+
+
+def exterior_wall_length(
+    room: Rect,
+    buildable: Rect,
+    *,
+    tolerance: float = 0.05,
+) -> float:
+    """贴外墙总长度（米）。"""
+    return sum(exterior_edges(room, buildable, tolerance=tolerance).values())
+
+
 def from_placement(rect: "PlacementRect") -> Rect:
     from packages.schema.layout import PlacementRect
 

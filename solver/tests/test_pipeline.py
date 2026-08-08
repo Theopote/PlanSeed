@@ -38,8 +38,9 @@ class TestPipeline:
         assert len(jsons) > 1
 
     def test_requirement_spec_normalize(self):
-        req = RequirementSpec(site=SiteRequirements(width=11, depth=13), floor_count=2)
-        program = normalize_requirements_to_program(req)
+        from solver.fixtures.benchmark import benchmark_requirement_spec
+
+        program = normalize_requirements_to_program(benchmark_requirement_spec())
         assert program.buildable.width == 11
         assert len(program.floors) == 2
         assert len(program.rooms) == 10

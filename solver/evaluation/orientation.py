@@ -5,8 +5,7 @@ from __future__ import annotations
 from packages.schema.constraints import ConstraintKind, OrientationConstraint
 from packages.schema.layout import LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
-from packages.schema.site import CardinalOrientation
-from solver.geometry.rect import Rect, from_placement
+from solver.geometry.rect import Rect, exterior_edges, from_placement
 
 EDGE_TOLERANCE = 0.05  # m：贴外墙判定
 
@@ -22,16 +21,7 @@ def exterior_orientations(
 
     坐标系：y=0 为北，y 增大向南；x=0 为西，x 增大向东。
     """
-    faces: set[str] = set()
-    if abs(room_rect.top - buildable.top) <= tolerance:
-        faces.add(CardinalOrientation.NORTH.value)
-    if abs(room_rect.bottom - buildable.bottom) <= tolerance:
-        faces.add(CardinalOrientation.SOUTH.value)
-    if abs(room_rect.left - buildable.left) <= tolerance:
-        faces.add(CardinalOrientation.WEST.value)
-    if abs(room_rect.right - buildable.right) <= tolerance:
-        faces.add(CardinalOrientation.EAST.value)
-    return faces
+    return set(exterior_edges(room_rect, buildable, tolerance=tolerance))
 
 
 def compute_orientation_metrics(

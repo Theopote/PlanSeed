@@ -4,37 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from packages.schema.layout import PlacementRect, PlacementSource
-from packages.schema.project import ProjectSpec
-from packages.schema.room import RoomCategory, RoomSpec
-from packages.schema.site import SiteSpec
+from packages.schema.layout import PlacementSource
 from solver.constraints.checker_impl import DefaultConstraintChecker
+from solver.fixtures.benchmark import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.rect import from_placement, intersects
-from solver.program.normalize import normalize
-
-
-def benchmark_program():
-    spec = ProjectSpec(
-        site=SiteSpec(width=11, depth=13, stair_width=1.8, stair_depth=4.2),
-        floors=[
-            {"id": "F1", "label": "一层", "room_ids": ["r1", "r2", "r3", "r4"]},
-            {"id": "F2", "label": "二层", "room_ids": ["r5", "r6", "r7", "r8", "r9", "r10"]},
-        ],
-        rooms=[
-            RoomSpec(id="r1", name="客厅", category=RoomCategory.PUBLIC, target_area=24),
-            RoomSpec(id="r2", name="餐厅+厨房", category=RoomCategory.WET, target_area=16, tags=["kitchen"]),
-            RoomSpec(id="r3", name="卫生间", category=RoomCategory.WET, target_area=4),
-            RoomSpec(id="r4", name="车库/储藏", category=RoomCategory.OTHER, target_area=15),
-            RoomSpec(id="r5", name="主卧", category=RoomCategory.PRIVATE, target_area=18),
-            RoomSpec(id="r6", name="主卫", category=RoomCategory.WET, target_area=5),
-            RoomSpec(id="r7", name="次卧1", category=RoomCategory.PRIVATE, target_area=12),
-            RoomSpec(id="r8", name="次卧2", category=RoomCategory.PRIVATE, target_area=12),
-            RoomSpec(id="r9", name="公共卫生间", category=RoomCategory.WET, target_area=4),
-            RoomSpec(id="r10", name="书房", category=RoomCategory.OTHER, target_area=9),
-        ],
-    )
-    return normalize(spec)
 
 
 class TestGuillotineGenerator:
