@@ -10,6 +10,7 @@ from solver.evaluation.access import (
     compute_access_metrics,
 )
 from solver.evaluation.adjacency import adjacency_score, compute_adjacency_metrics
+from solver.evaluation.circulation import compute_circulation_metrics
 from solver.evaluation.geometry import compute_geometry_metrics, geometry_score
 from solver.evaluation.orientation import (
     compute_orientation_metrics,
@@ -32,13 +33,19 @@ class CompositeEvaluator:
         orient_m = compute_orientation_metrics(program, candidate)
         site_m = compute_site_metrics(program, candidate)
         access_m = compute_access_metrics(program, candidate)
+        circ_m = compute_circulation_metrics(program, candidate)
 
         g_score = geometry_score(geo_m)
         a_score = adjacency_score(adj_m)
         v_score = vertical_score(vert_m)
         o_score = orientation_score(orient_m)
         s_score = compute_site_score(site_m)
-        c_score = access_circulation_score(access_m)
+        # circulation：realized 可达 + intent 共边可行性
+        c_score = (
+            0.55 * access_circulation_score(access_m)
+            + 0.35 * float(circ_m.get("reachable_ratio", 1.0)) * 100.0
+            + 0.10 * float(circ_m.get("layout_stability_score", 100.0))
+        )
 
         w = self.weights
         denom = (
@@ -107,6 +114,7 @@ class CompositeEvaluator:
             **{k: v for k, v in orient_m.items()},
             **{k: v for k, v in site_m.items()},
             **access_m,
+            **circ_m,
         }
 
         score = DesignScore(

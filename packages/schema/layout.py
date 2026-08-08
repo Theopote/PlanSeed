@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Literal
 
 from packages.schema.entry import ExteriorEntryPlacement
+from packages.schema.topology import RealizedConnection
 from pydantic import BaseModel, Field
 
 
@@ -148,6 +149,19 @@ class DoorOpening(BaseModel):
     hinge_y: float | None = Field(default=None, description="铰链点 y")
 
 
+class RepairRecord(BaseModel):
+    """ConnectionResolver 局部修改台账（Phase 2.3）。"""
+
+    type: str = Field(description="gap_close | edge_lengthen | reslice")
+    connection_id: str | None = None
+    room_ids: list[str] = Field(default_factory=list)
+    before_rects: dict[str, PlacementRect] = Field(default_factory=dict)
+    after_rects: dict[str, PlacementRect] = Field(default_factory=dict)
+    area_delta: float = 0.0
+    max_displacement: float = 0.0
+    reason: str = ""
+
+
 class LayoutCandidate(BaseModel):
     id: str
     seed: int
@@ -158,11 +172,19 @@ class LayoutCandidate(BaseModel):
     )
     door_openings: list[DoorOpening] = Field(
         default_factory=list,
-        description="Phase 2A：在共边上标注开口；不回改房间几何",
+        description="在共边上标注开口；不回改房间几何（除 Resolver 台账外）",
     )
     exterior_entry: ExteriorEntryPlacement | None = Field(
         default=None,
         description="对外主入口放置（≠ 楼梯）；AccessGraph 交通起点",
+    )
+    repair_records: list[RepairRecord] = Field(
+        default_factory=list,
+        description="ConnectionResolver 修改记录",
+    )
+    realized_connections: list[RealizedConnection] = Field(
+        default_factory=list,
+        description="RealizedAccessGraph 边快照",
     )
     validation: CandidateValidation | None = None
     score: float | None = None

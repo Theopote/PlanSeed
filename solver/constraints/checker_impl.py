@@ -69,7 +69,9 @@ class DefaultConstraintChecker:
 
         result.extend(self._check_access_reachability(program, candidate))
         result.extend(self._check_required_connection_boundaries(program, candidate))
+        result.extend(self._check_preferred_connections(program, candidate))
         result.extend(self._check_door_clear_width(candidate))
+        result.extend(self._check_repair_budget(program, candidate))
 
         return result.to_candidate_validation()
 
@@ -393,8 +395,16 @@ class DefaultConstraintChecker:
     def _check_access_reachability(
         self, program: DesignProgram, candidate: LayoutCandidate
     ) -> ConstraintEvaluationResult:
-        """Hard：所有 occupied room 必须从 Entry 经 AccessGraph 可达。"""
-        from solver.topology.access import unreachable_occupied_rooms
+        """Hard：occupied room 须从 Entry 经 RealizedAccessGraph 可达。"""
+        from solver.topology.access import (
+            build_realized_connections,
+            unreachable_occupied_rooms,
+        )
+        from solver.topology.doors import place_door_openings
+
+        # 先实现可落的开口，再谈可达（共墙本身不可通行）
+        place_door_openings(program, candidate)
+        build_realized_connections(program, candidate)
 
         missing = unreachable_occupied_rooms(program, candidate)
         if not missing:
@@ -414,17 +424,10 @@ class DefaultConstraintChecker:
     def _check_required_connection_boundaries(
         self, program: DesignProgram, candidate: LayoutCandidate
     ) -> ConstraintEvaluationResult:
-        """
-        Phase 2A：required SpaceConnection 必须有足够共边。
+        """required SpaceConnection 无共边 → hard；开口已在 reachability 前放置。"""
+        from solver.topology.doors import missing_shared_boundaries
 
-        有共边 → 标注 DoorOpening（不改房间几何）；无共边 → hard invalid。
-        """
-        from solver.topology.doors import (
-            missing_shared_boundaries,
-            place_door_openings,
-        )
-
-        missing = missing_shared_boundaries(program, candidate)
+        missing = missing_shared_boundaries(program, candidate, only_required=True)
         violations: list[Violation] = []
         for conn, measured in missing:
             violations.append(
@@ -441,19 +444,49 @@ class DefaultConstraintChecker:
                     source="system",
                 )
             )
-        if not violations:
-            # 仅在必连共边均满足时标注开口；绝不回改 placements
-            place_door_openings(program, candidate)
         return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_preferred_connections(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        from solver.topology.doors import preferred_blocked_violations
+
+        return ConstraintEvaluationResult.from_violations(
+            preferred_blocked_violations(program, candidate)
+        )
 
     def _check_door_clear_width(
         self, candidate: LayoutCandidate
     ) -> ConstraintEvaluationResult:
-        """Phase 2.2：门洞净宽 soft 校验（不改几何）。"""
+        """Phase 2.2/2.3：门洞净宽 soft。"""
         from solver.topology.doors import door_clear_width_violations
 
         return ConstraintEvaluationResult.from_violations(
             door_clear_width_violations(candidate)
+        )
+
+    def _check_repair_budget(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        cfg = program.solver_config
+        ratio = float(candidate.metrics.get("modified_area_ratio", 0.0) or 0.0)
+        if ratio <= cfg.max_modified_area_ratio + 1e-9:
+            return ConstraintEvaluationResult.empty()
+        return ConstraintEvaluationResult.from_violations(
+            [
+                Violation(
+                    constraint_id="repair.budget_exceeded",
+                    room_ids=[],
+                    message=(
+                        f"布局修补面积比 {ratio:.2%} 超过预算 "
+                        f"{cfg.max_modified_area_ratio:.0%}"
+                    ),
+                    measured_value=ratio,
+                    required_value=cfg.max_modified_area_ratio,
+                    hard=True,
+                    source="system",
+                )
+            ]
         )
 
     def _check_wet_alignment(self, candidate: LayoutCandidate) -> ConstraintEvaluationResult:

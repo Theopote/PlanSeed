@@ -31,6 +31,22 @@ class SolverConfig(BaseModel):
         le=2,
         description="技术湿区叠组上限；MVP=1，未来可扩到 2（WS1/WS2）",
     )
+    max_connection_repairs: int = Field(
+        default=8,
+        ge=0,
+        description="ConnectionResolver 最大修补次数（含 gap/lengthen）",
+    )
+    max_connection_reslices: int = Field(
+        default=3,
+        ge=0,
+        description="跨区局部重切上限",
+    )
+    max_modified_area_ratio: float = Field(
+        default=0.25,
+        ge=0.0,
+        le=1.0,
+        description="修补累计 |Δarea| / 程序总面积上限；超出 → hard",
+    )
 
 
 class DesignProgram(BaseModel):

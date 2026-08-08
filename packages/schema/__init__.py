@@ -22,6 +22,7 @@ from packages.schema.layout import (
     DoorOpening,
     FloorLayout,
     LayoutCandidate,
+    RepairRecord,
     RoomPlacement,
     Violation,
     WetStack,
@@ -38,6 +39,8 @@ from packages.schema.site import (
 )
 from packages.schema.topology import (
     AccessGraph,
+    ConnectionState,
+    RealizedConnection,
     SpaceConnection,
     SpaceConnectionType,
     TopologyPlan,
@@ -52,6 +55,7 @@ __all__ = [
     "CandidateValidation",
     "CardinalEdge",
     "CardinalOrientation",
+    "ConnectionState",
     "Constraint",
     "ConstraintKind",
     "DesignMetrics",
@@ -69,6 +73,8 @@ __all__ = [
     "OrientationConstraint",
     "PreferencesSpec",
     "ProjectSpec",
+    "RealizedConnection",
+    "RepairRecord",
     "RoomCategory",
     "RoomPlacement",
     "RoomSpec",

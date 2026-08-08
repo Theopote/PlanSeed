@@ -16,10 +16,9 @@ from packages.schema.layout import LayoutCandidate, PlacementRect, RoomPlacement
 from packages.schema.program import DesignProgram
 from solver.geometry.rect import Rect, contains, from_placement, intersects, shared_edge_length
 from solver.geometry.snap import snap_value
-from solver.topology.access import MIN_ACCESS_WALL
+from solver.topology.constants import MIN_ACCESS_WALL
 from solver.topology.doors import (
     find_placements,
-    required_opening_connections,
     shared_boundary_between,
 )
 
@@ -281,18 +280,39 @@ def resolve_required_connections(
     min_wall: float = MIN_ACCESS_WALL,
     max_nudge: float = DEFAULT_MAX_NUDGE,
     allow_reslice: bool = True,
+    include_preferred: bool = True,
 ) -> int:
     """
-    对 required 开口连接做局部共边修补，必要时跨区局部重切。
+    对开口类 AccessIntent 做局部共边修补（required 优先，再 preferred）。
 
-    返回成功修补次数（含 reslice）。远距过大 / 撞楼梯核的必连不处理。
+    写入 RepairRecord；遵守 SolverConfig repair budget。
     """
+    from packages.schema.layout import RepairRecord
+    from solver.topology.derive_access import ensure_access_graph
+    from solver.topology.doors import opening_connections
     from solver.topology.reslice import try_reslice_required_pair
 
-    snap = module if module is not None else program.solver_config.snap_module
+    ensure_access_graph(program)
+    cfg = program.solver_config
+    snap = module if module is not None else cfg.snap_module
+    max_repairs = cfg.max_connection_repairs
+    max_reslices = cfg.max_connection_reslices
+
+    conns = sorted(
+        opening_connections(program),
+        key=lambda c: (0 if c.required else 1, -c.weight, c.id),
+    )
+    if not include_preferred:
+        conns = [c for c in conns if c.required]
+
     repaired = 0
     resliced = 0
-    for conn in required_opening_connections(program):
+    total_area = sum(r.target_area for r in program.rooms) or 1.0
+    abs_area_delta = 0.0
+
+    for conn in conns:
+        if repaired >= max_repairs and resliced >= max_reslices:
+            break
         pas = find_placements(candidate, conn.a)
         pbs = find_placements(candidate, conn.b)
         if not pas or not pbs:
@@ -305,9 +325,16 @@ def resolve_required_connections(
                 if shared_boundary_between(pa, pb, min_length=min_wall) is not None:
                     done = True
                     break
+
+                before = {
+                    pa.room_id: pa.rect.model_copy(),
+                    pb.room_id: pb.rect.model_copy(),
+                }
                 bounds = _floor_bounds(candidate, pa.floor_id, program)
                 obs = _obstacles(candidate, pa.floor_id, pa, pb)
-                if repair_connection_pair(
+
+                kind = None
+                if repaired < max_repairs and repair_connection_pair(
                     pa,
                     pb,
                     bounds=bounds,
@@ -316,30 +343,63 @@ def resolve_required_connections(
                     min_wall=min_wall,
                     max_nudge=max_nudge,
                 ):
+                    kind = "gap_close_or_lengthen"
                     repaired += 1
-                    done = True
-                    break
-                if allow_reslice and try_reslice_required_pair(
-                    program,
-                    candidate,
-                    pa,
-                    pb,
-                    module=snap,
-                    min_wall=min_wall,
-                    floor_bounds=bounds,
+                elif (
+                    allow_reslice
+                    and resliced < max_reslices
+                    and try_reslice_required_pair(
+                        program,
+                        candidate,
+                        pa,
+                        pb,
+                        module=snap,
+                        min_wall=min_wall,
+                        floor_bounds=bounds,
+                    )
                 ):
+                    kind = "reslice"
                     resliced += 1
                     repaired += 1
-                    done = True
-                    break
+
+                if kind is None:
+                    continue
+
+                after = {pa.room_id: pa.rect.model_copy(), pb.room_id: pb.rect.model_copy()}
+                # reslice 可能改更多房间 — 尽量记录对端
+                area_delta = sum(
+                    after[rid].area - before[rid].area for rid in before
+                )
+                abs_area_delta += abs(area_delta)
+                max_disp = 0.0
+                for rid in before:
+                    br, ar = before[rid], after[rid]
+                    max_disp = max(
+                        max_disp,
+                        abs(ar.x - br.x) + abs(ar.y - br.y),
+                        abs(ar.width - br.width) + abs(ar.depth - br.depth),
+                    )
+                candidate.repair_records.append(
+                    RepairRecord(
+                        type=kind,
+                        connection_id=conn.id,
+                        room_ids=sorted(before.keys()),
+                        before_rects=before,
+                        after_rects=after,
+                        area_delta=round(area_delta, 4),
+                        max_displacement=round(max_disp, 4),
+                        reason=f"{'required' if conn.required else 'preferred'} {conn.type.value}",
+                    )
+                )
+                done = True
+                break
             if done:
                 break
-    if repaired:
-        candidate.metrics["connection_repairs"] = float(
-            candidate.metrics.get("connection_repairs", 0)
-        ) + repaired
-    if resliced:
-        candidate.metrics["connection_reslices"] = float(
-            candidate.metrics.get("connection_reslices", 0)
-        ) + resliced
+
+    candidate.metrics["connection_repairs"] = float(repaired)
+    candidate.metrics["connection_reslices"] = float(resliced)
+    candidate.metrics["modified_area_ratio"] = round(abs_area_delta / total_area, 4)
+    if total_area > 0:
+        stability = max(0.0, 1.0 - abs_area_delta / total_area)
+        candidate.metrics["layout_stability"] = round(stability, 4)
     return repaired

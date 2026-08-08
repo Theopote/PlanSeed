@@ -16,7 +16,7 @@ from packages.schema.layout import DoorOpening, LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.topology import SpaceConnection, SpaceConnectionType
 from solver.geometry.rect import from_placement, shared_edge_length
-from solver.topology.access import MIN_ACCESS_WALL
+from solver.topology.constants import MIN_ACCESS_WALL
 
 # 需要同层共边才能落开口的连接类型（楼梯 / 入口另议）
 _OPENING_TYPES = frozenset(
@@ -28,8 +28,10 @@ _OPENING_TYPES = frozenset(
 )
 
 DEFAULT_DOOR_WIDTH = 0.9
-MIN_CLEAR_WIDTH = 0.8
-MIN_WALL_REVEAL = 0.05  # 洞口距共边端头的最小留墙
+PHYSICAL_MIN_WIDTH = 0.7  # 物理可用下限（内部默认，非法规）
+PREFERRED_CLEAR_WIDTH = 0.8  # 偏好净宽
+MIN_CLEAR_WIDTH = PREFERRED_CLEAR_WIDTH  # 兼容旧名
+MIN_WALL_REVEAL = 0.05
 
 
 @dataclass(frozen=True)
@@ -109,14 +111,25 @@ def shared_boundary_between(
     return None
 
 
-def required_opening_connections(program: DesignProgram) -> list[SpaceConnection]:
+def opening_connections(program: DesignProgram) -> list[SpaceConnection]:
+    """全部开口类 AccessIntent（required + preferred）。"""
     if program.access_graph is None:
         return []
     return [
         c
-        for c in program.access_graph.required_connections()
+        for c in program.access_graph.connections
         if c.type in _OPENING_TYPES
+        and not str(c.a).startswith("exterior")
+        and not str(c.b).startswith("exterior")
     ]
+
+
+def required_opening_connections(program: DesignProgram) -> list[SpaceConnection]:
+    return [c for c in opening_connections(program) if c.required]
+
+
+def preferred_opening_connections(program: DesignProgram) -> list[SpaceConnection]:
+    return [c for c in opening_connections(program) if not c.required]
 
 
 def missing_shared_boundaries(
@@ -124,13 +137,19 @@ def missing_shared_boundaries(
     candidate: LayoutCandidate,
     *,
     min_length: float = MIN_ACCESS_WALL,
+    only_required: bool = True,
 ) -> list[tuple[SpaceConnection, float]]:
     """
-    返回 (connection, measured_shared_length) 列表：required 开口连接缺少足够共边。
-    measured 为实际共边（可能为 0）。
+    返回缺少足够共边的开口连接。
+    only_required=True → hard 必连；False → 含 soft 偏好。
     """
     missing: list[tuple[SpaceConnection, float]] = []
-    for conn in required_opening_connections(program):
+    conns = (
+        required_opening_connections(program)
+        if only_required
+        else opening_connections(program)
+    )
+    for conn in conns:
         pas = find_placements(candidate, conn.a)
         pbs = find_placements(candidate, conn.b)
         if not pas or not pbs:
@@ -311,6 +330,10 @@ def build_door_opening(
     )
 
 
+def _pair_key(a: str, b: str) -> tuple[str, str]:
+    return (a, b) if a <= b else (b, a)
+
+
 def place_door_openings(
     program: DesignProgram,
     candidate: LayoutCandidate,
@@ -319,12 +342,19 @@ def place_door_openings(
     door_width: float = DEFAULT_DOOR_WIDTH,
 ) -> list[DoorOpening]:
     """
-    在已有共边上标注 DoorOpening（含 2.2 polish）；**不修改** floors/placements。
+    为所有几何可实现的开口类 Intent（含 soft）标注 DoorOpening，
+    并在同层共墙连通分量上补 spanning-tree OPEN（显式开口，≠ 自动 PASSAGE）。
 
-    无足够共边的 required 连接不生成开口（由 checker 判 invalid）。
+    required 无法实现 → checker hard；soft 无法实现 → soft penalty。
+    **不修改** floors/placements。
     """
+    from solver.topology.derive_access import ensure_access_graph
+
+    ensure_access_graph(program)
     openings: list[DoorOpening] = []
-    for conn in required_opening_connections(program):
+    seen_pairs: set[tuple[str, str]] = set()
+
+    for conn in opening_connections(program):
         pas = find_placements(candidate, conn.a)
         pbs = find_placements(candidate, conn.b)
         paired: tuple[RoomPlacement, RoomPlacement, SharedBoundary] | None = None
@@ -340,20 +370,134 @@ def place_door_openings(
             continue
         pa, pb, boundary = paired
         openings.append(
-            build_door_opening(
-                conn, pa, pb, boundary, door_width=door_width
-            )
+            build_door_opening(conn, pa, pb, boundary, door_width=door_width)
         )
+        seen_pairs.add(_pair_key(pa.room_id, pb.room_id))
+
+    openings.extend(
+        _spanning_tree_open_openings(
+            program,
+            candidate,
+            seen_pairs=seen_pairs,
+            min_length=min_length,
+        )
+    )
     candidate.door_openings = openings
     return openings
+
+
+def _spanning_tree_open_openings(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+    *,
+    seen_pairs: set[tuple[str, str]],
+    min_length: float,
+) -> list[DoorOpening]:
+    """
+    同层 program 房间共墙图 → 从入口/楼梯锚点 BFS 生成树 → OPEN 开口。
+
+    共墙本身仍不可通行；这里显式生成开口，使连通分量可导航。
+    """
+    from collections import defaultdict, deque
+
+    program_ids = {r.id for r in program.rooms}
+    out: list[DoorOpening] = []
+
+    entry = candidate.exterior_entry
+    entry_rooms = set(entry.connected_room_ids) if entry is not None else set()
+
+    for fl in candidate.floors:
+        rooms = [
+            p
+            for p in fl.placements
+            if p.room_id in program_ids and not p.room_id.startswith("stair-")
+        ]
+        if len(rooms) < 2:
+            continue
+        by_id = {p.room_id: p for p in rooms}
+        adj: dict[str, list[str]] = defaultdict(list)
+        edge_bound: dict[tuple[str, str], SharedBoundary] = {}
+        ids = sorted(by_id)
+        for i, a in enumerate(ids):
+            for b in ids[i + 1 :]:
+                bound = shared_boundary_between(
+                    by_id[a], by_id[b], min_length=min_length
+                )
+                if bound is None:
+                    continue
+                adj[a].append(b)
+                adj[b].append(a)
+                edge_bound[_pair_key(a, b)] = bound
+
+        # 锚点：入口贴边房间；上层则贴楼梯的房间
+        anchors = [rid for rid in ids if rid in entry_rooms]
+        if not anchors:
+            stairs = [
+                p
+                for p in fl.placements
+                if p.room_id.startswith("stair-")
+                or (
+                    (p.category or "") == "circulation"
+                    and "楼梯" in (p.name or "")
+                )
+            ]
+            for s in stairs:
+                for rid in ids:
+                    if shared_boundary_between(s, by_id[rid], min_length=min_length):
+                        anchors.append(rid)
+        if not anchors:
+            anchors = [ids[0]]
+
+        visited: set[str] = set()
+        for start in anchors:
+            if start in visited or start not in by_id:
+                continue
+            q: deque[str] = deque([start])
+            visited.add(start)
+            while q:
+                cur = q.popleft()
+                for nb in sorted(adj.get(cur, ())):
+                    if nb in visited:
+                        continue
+                    visited.add(nb)
+                    q.append(nb)
+                    key = (cur, nb) if cur <= nb else (nb, cur)
+                    if key in seen_pairs:
+                        continue
+                    bound = edge_bound.get(key)
+                    if bound is None:
+                        continue
+                    seen_pairs.add(key)
+                    width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
+                    out.append(
+                        DoorOpening(
+                            id=f"open-span-{key[0]}-{key[1]}",
+                            connection_id=f"span-{key[0]}-{key[1]}",
+                            room_a_id=key[0],
+                            room_b_id=key[1],
+                            floor_id=fl.floor_id,
+                            x=bound.mid_x,
+                            y=bound.mid_y,
+                            width=width,
+                            axis=bound.axis,  # type: ignore[arg-type]
+                            connection_type=SpaceConnectionType.OPEN.value,
+                            clear_width=width,
+                            swing_room_id=None,
+                            hinge_side=None,
+                            hinge_x=None,
+                            hinge_y=None,
+                        )
+                    )
+    return out
 
 
 def door_clear_width_violations(
     candidate: LayoutCandidate,
     *,
-    min_clear: float = MIN_CLEAR_WIDTH,
+    preferred_clear: float = PREFERRED_CLEAR_WIDTH,
+    physical_min: float = PHYSICAL_MIN_WIDTH,
 ) -> list:
-    """净宽不足 → soft Violation 列表（不改几何）。"""
+    """净宽：< physical_min soft 偏硬警告；< preferred soft。"""
     from packages.schema.layout import Violation
 
     viols: list[Violation] = []
@@ -361,19 +505,66 @@ def door_clear_width_violations(
         if op.connection_type == SpaceConnectionType.OPEN.value:
             continue
         clear = op.clear_width if op.clear_width is not None else op.width
-        if clear + 1e-9 < min_clear:
+        if clear + 1e-9 < physical_min:
+            viols.append(
+                Violation(
+                    constraint_id="door.physical_min_width",
+                    room_ids=[op.room_a_id, op.room_b_id],
+                    message=(
+                        f"门洞物理宽度 {clear:.2f}m < {physical_min:.2f}m "
+                        f"({op.room_a_id}—{op.room_b_id})"
+                    ),
+                    measured_value=clear,
+                    required_value=physical_min,
+                    hard=False,
+                    source="system",
+                )
+            )
+        elif clear + 1e-9 < preferred_clear:
             viols.append(
                 Violation(
                     constraint_id="door.clear_width",
                     room_ids=[op.room_a_id, op.room_b_id],
                     message=(
-                        f"门洞净宽 {clear:.2f}m < {min_clear:.2f}m "
+                        f"门洞净宽 {clear:.2f}m < 偏好 {preferred_clear:.2f}m "
                         f"({op.room_a_id}—{op.room_b_id})"
                     ),
                     measured_value=clear,
-                    required_value=min_clear,
+                    required_value=preferred_clear,
                     hard=False,
                     source="system",
                 )
             )
+    return viols
+
+
+def preferred_blocked_violations(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+    *,
+    min_length: float = MIN_ACCESS_WALL,
+) -> list:
+    """soft AccessIntent 无法实现 → soft violation。"""
+    from packages.schema.layout import Violation
+
+    viols: list[Violation] = []
+    for conn, measured in missing_shared_boundaries(
+        program, candidate, min_length=min_length, only_required=False
+    ):
+        if conn.required:
+            continue
+        viols.append(
+            Violation(
+                constraint_id="access.preferred_blocked",
+                room_ids=[conn.a, conn.b],
+                message=(
+                    f"偏好通行 {conn.a}—{conn.b}（{conn.type.value}）"
+                    f"未实现共边/开口"
+                ),
+                measured_value=measured,
+                required_value=min_length,
+                hard=False,
+                source="system",
+            )
+        )
     return viols

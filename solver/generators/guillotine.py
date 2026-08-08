@@ -145,11 +145,14 @@ class GuillotineGenerator:
                 module=module,
                 rng=rng,
                 topology=topology,
+                access_graph=program.access_graph,
             )
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
 
         from solver.circulation.exterior_entry import resolve_exterior_entry
+        from solver.topology.access import build_realized_connections
         from solver.topology.connection_resolve import resolve_required_connections
+        from solver.topology.doors import place_door_openings
 
         candidate = LayoutCandidate(
             id=f"candidate-{seed}",
@@ -159,6 +162,8 @@ class GuillotineGenerator:
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         resolve_required_connections(program, candidate, module=module)
+        place_door_openings(program, candidate)
+        build_realized_connections(program, candidate)
         return candidate
 
     def _layout_floor_with_zones(
@@ -172,6 +177,7 @@ class GuillotineGenerator:
         module: float,
         rng: random.Random,
         topology: TopologyPlan,
+        access_graph=None,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
@@ -193,6 +199,12 @@ class GuillotineGenerator:
             for c in topology.clusters
             if c.floor_id == floor.id
         ]
+        # AccessIntent 对作为额外 slicing unit（required 优先共边）
+        if access_graph is not None:
+            floor_ids = {r.id for r in floor_rooms}
+            for conn in access_graph.connections:
+                if conn.a in floor_ids and conn.b in floor_ids:
+                    clusters.append({conn.a, conn.b})
 
         # WetStack 锚由 candidate.wet_stacks 承载；本层按 TopologyPlan 序打包
         for zone, room_ids in zone_room_ids.items():

@@ -1,7 +1,9 @@
 """
-AccessGraph 可达性 — Phase 2.1 第一硬规则。
+Realized Circulation — Phase 2.3。
 
-原则：所有 occupied space 必须从 ExteriorEntry（≠ Stair）可达。
+原则：
+  Adjacency / 共墙 ≠ Access Intent ≠ Realized Access
+  Reachability BFS 只走 RealizedAccessGraph（门/开口/入口/楼梯核）。
 """
 
 from __future__ import annotations
@@ -12,102 +14,37 @@ from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.topology import (
     AccessGraph,
+    ConnectionState,
+    ConnectionStatus,
+    RealizedConnection,
     SpaceConnection,
     SpaceConnectionType,
 )
 from solver.geometry.rect import from_placement, shared_edge_length
+from solver.topology.constants import ENTRY_NODE_ID, MIN_ACCESS_WALL
 
-ENTRY_NODE_ID = "exterior-entry"  # ExteriorEntry.id；≠ stair
-MIN_ACCESS_WALL = 0.9  # 可通行开口最小共边（米）
+# 兼容旧 import 路径
+__all__ = [
+    "ENTRY_NODE_ID",
+    "MIN_ACCESS_WALL",
+    "access_depths",
+    "build_realized_access_graph",
+    "build_realized_connections",
+    "evaluate_connection_statuses",
+    "occupied_room_ids",
+    "reachable_nodes",
+    "realized_to_access_graph",
+    "unreachable_occupied_rooms",
+]
 
 
 def occupied_room_ids(program: DesignProgram) -> set[str]:
-    """须从入口可达的占用空间（程序房间，不含仅 generated 的核）。"""
     return {r.id for r in program.rooms}
 
 
-def build_realized_access_graph(
-    program: DesignProgram,
-    candidate: LayoutCandidate,
-) -> AccessGraph:
-    """
-    构造用于可达性检查的 AccessGraph。
-
-    起点：ExteriorEntry（≠ Stair）。
-    边：program.access_graph + 入口→厅/门厅 + 共边 PASSAGE + 楼梯 STAIR。
-    """
-    from solver.circulation.exterior_entry import resolve_exterior_entry
-
-    graph = AccessGraph()
-    if program.access_graph is not None:
-        for c in program.access_graph.connections:
-            graph.add_connection(c)
-        for nid in program.access_graph.node_ids:
-            if nid not in graph.node_ids:
-                graph.node_ids.append(nid)
-
-    entry = candidate.exterior_entry
-    if entry is None:
-        entry = resolve_exterior_entry(program, candidate)
-        candidate.exterior_entry = entry
-
-    if entry.id not in graph.node_ids:
-        graph.node_ids.append(entry.id)
-
-    _add_exterior_entry_edges(entry, graph)
-    _add_shared_boundary_edges(candidate, graph)
-    _add_stair_edges(candidate, graph)
-    return graph
-
-
-def _add_exterior_entry_edges(entry, graph: AccessGraph) -> None:
-    """
-    ExteriorEntry → 贴边房间。
-
-    connected_room_ids 已按「非楼梯优先」排序；若全是楼梯才连楼梯（回退）。
-    """
-    targets = list(entry.connected_room_ids)
-    non_stair = [r for r in targets if not str(r).startswith("stair-")]
-    use = non_stair if non_stair else targets
-    for rid in use:
-        graph.add_connection(
-            SpaceConnection(
-                id=f"ext-entry-{rid}",
-                a=entry.id,
-                b=rid,
-                type=SpaceConnectionType.EXTERIOR_ENTRY,
-                required=True,
-                description="ExteriorEntry → 室内首达空间",
-            )
-        )
-
-
-def _add_shared_boundary_edges(
-    candidate: LayoutCandidate, graph: AccessGraph
-) -> None:
-    for fl in candidate.floors:
-        placements = fl.placements
-        for i, a in enumerate(placements):
-            ra = from_placement(a.rect)
-            for b in placements[i + 1 :]:
-                shared = shared_edge_length(ra, from_placement(b.rect))
-                if shared + 1e-9 < MIN_ACCESS_WALL:
-                    continue
-                pair = tuple(sorted((a.room_id, b.room_id)))
-                graph.add_connection(
-                    SpaceConnection(
-                        id=f"pass-{pair[0]}-{pair[1]}",
-                        a=pair[0],
-                        b=pair[1],
-                        type=SpaceConnectionType.PASSAGE,
-                        required=True,
-                        description=f"共边 {shared:.2f}m",
-                    )
-                )
-
-
-def _add_stair_edges(candidate: LayoutCandidate, graph: AccessGraph) -> None:
-    """跨层楼梯核：同名 stair-* 或均为 circulation 且 AABB 对齐。"""
+def _add_stair_realized(candidate: LayoutCandidate) -> list[RealizedConnection]:
+    """跨层对齐楼梯核 → realized STAIR（非共墙）。"""
+    out: list[RealizedConnection] = []
     by_floor: dict[str, list[RoomPlacement]] = {}
     for fl in candidate.floors:
         by_floor[fl.floor_id] = [
@@ -115,7 +52,6 @@ def _add_stair_edges(candidate: LayoutCandidate, graph: AccessGraph) -> None:
             for p in fl.placements
             if p.category == "circulation" or p.room_id.startswith("stair-")
         ]
-
     floor_ids = [fl.floor_id for fl in candidate.floors]
     for i in range(len(floor_ids) - 1):
         fa, fb = floor_ids[i], floor_ids[i + 1]
@@ -129,16 +65,201 @@ def _add_stair_edges(candidate: LayoutCandidate, graph: AccessGraph) -> None:
                     continue
                 if abs(pa.rect.depth - pb.rect.depth) > 0.05:
                     continue
-                graph.add_connection(
-                    SpaceConnection(
-                        id=f"stair-{pa.room_id}-{pb.room_id}",
+                out.append(
+                    RealizedConnection(
+                        connection_id=f"stair-{pa.room_id}-{pb.room_id}",
                         a=pa.room_id,
                         b=pb.room_id,
                         type=SpaceConnectionType.STAIR,
-                        required=True,
-                        description="楼梯核跨层",
+                        floor_id=None,
+                        opening_id=None,
+                        source="stair",
                     )
                 )
+    return out
+
+
+def _add_stair_access_realized(
+    candidate: LayoutCandidate,
+) -> list[RealizedConnection]:
+    """
+    楼梯核与贴邻房间：基础设施开口（≠ 普通房间共墙自动通行）。
+
+    竖向核必须可从同层贴边房间进入，否则跨层 Realized 图断裂。
+    """
+    from solver.topology.doors import shared_boundary_between
+
+    out: list[RealizedConnection] = []
+    for fl in candidate.floors:
+        stairs = [
+            p
+            for p in fl.placements
+            if p.room_id.startswith("stair-")
+            or (
+                (p.category or "") == "circulation"
+                and "楼梯" in (p.name or "")
+            )
+        ]
+        rooms = [p for p in fl.placements if p not in stairs]
+        for s in stairs:
+            for r in rooms:
+                if shared_boundary_between(s, r, min_length=MIN_ACCESS_WALL) is None:
+                    continue
+                pair = tuple(sorted((s.room_id, r.room_id)))
+                out.append(
+                    RealizedConnection(
+                        connection_id=f"stair-access-{pair[0]}-{pair[1]}",
+                        a=s.room_id,
+                        b=r.room_id,
+                        type=SpaceConnectionType.PASSAGE,
+                        floor_id=fl.floor_id,
+                        opening_id=None,
+                        source="stair_access",
+                    )
+                )
+    return out
+
+
+def build_realized_connections(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+) -> list[RealizedConnection]:
+    """
+    汇总已实现通行边：ExteriorEntry、DoorOpening、Stair 竖向、楼梯贴邻。
+
+    **禁止**把普通房间共墙自动变成 PASSAGE。
+    """
+    from solver.circulation.exterior_entry import resolve_exterior_entry
+
+    realized: list[RealizedConnection] = []
+
+    entry = candidate.exterior_entry
+    if entry is None:
+        entry = resolve_exterior_entry(program, candidate)
+        candidate.exterior_entry = entry
+
+    targets = list(entry.connected_room_ids)
+    non_stair = [r for r in targets if not str(r).startswith("stair-")]
+    use = non_stair if non_stair else targets
+    for rid in use:
+        realized.append(
+            RealizedConnection(
+                connection_id=f"ext-entry-{rid}",
+                a=entry.id,
+                b=rid,
+                type=SpaceConnectionType.EXTERIOR_ENTRY,
+                floor_id=entry.floor_id,
+                opening_id=None,
+                source="exterior_entry",
+            )
+        )
+
+    for op in candidate.door_openings:
+        try:
+            ctype = SpaceConnectionType(op.connection_type)
+        except ValueError:
+            ctype = SpaceConnectionType.DOOR
+        realized.append(
+            RealizedConnection(
+                connection_id=op.connection_id,
+                a=op.room_a_id,
+                b=op.room_b_id,
+                type=ctype,
+                floor_id=op.floor_id,
+                opening_id=op.id,
+                source="opening",
+            )
+        )
+
+    realized.extend(_add_stair_realized(candidate))
+    realized.extend(_add_stair_access_realized(candidate))
+    candidate.realized_connections = list(realized)
+    return realized
+
+
+def realized_to_access_graph(realized: list[RealizedConnection]) -> AccessGraph:
+    graph = AccessGraph()
+    for rc in realized:
+        graph.add_connection(
+            SpaceConnection(
+                id=rc.connection_id or f"{rc.a}-{rc.b}",
+                a=rc.a,
+                b=rc.b,
+                type=rc.type,
+                required=True,
+                description=f"realized:{rc.source}",
+            )
+        )
+    return graph
+
+
+def build_realized_access_graph(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+) -> AccessGraph:
+    """RealizedAccessGraph — 仅已实现通行边。"""
+    return realized_to_access_graph(build_realized_connections(program, candidate))
+
+
+def evaluate_connection_statuses(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+) -> list[ConnectionStatus]:
+    """为每条开口类 AccessIntent 标注 INTENDED/FEASIBLE/REALIZED/BLOCKED。"""
+    from solver.topology.derive_access import ensure_access_graph
+    from solver.topology.doors import (
+        find_placements,
+        opening_connections,
+        shared_boundary_between,
+    )
+
+    ensure_access_graph(program)
+    opening_ids = {op.connection_id for op in candidate.door_openings if op.connection_id}
+    statuses: list[ConnectionStatus] = []
+    for conn in opening_connections(program):
+        pas = find_placements(candidate, conn.a)
+        pbs = find_placements(candidate, conn.b)
+        shared = 0.0
+        feasible = False
+        for pa in pas:
+            for pb in pbs:
+                if pa.floor_id != pb.floor_id:
+                    continue
+                length = shared_edge_length(
+                    from_placement(pa.rect), from_placement(pb.rect)
+                )
+                shared = max(shared, length)
+                if shared_boundary_between(pa, pb, min_length=MIN_ACCESS_WALL):
+                    feasible = True
+        if conn.id in opening_ids:
+            state = ConnectionState.REALIZED
+            oid = next(
+                (
+                    op.id
+                    for op in candidate.door_openings
+                    if op.connection_id == conn.id
+                ),
+                None,
+            )
+        elif feasible:
+            state = ConnectionState.FEASIBLE
+            oid = None
+        else:
+            state = ConnectionState.BLOCKED
+            oid = None
+        statuses.append(
+            ConnectionStatus(
+                connection_id=conn.id,
+                a=conn.a,
+                b=conn.b,
+                type=conn.type,
+                required=conn.required,
+                state=state,
+                opening_id=oid,
+                shared_length=shared if shared > 0 else None,
+            )
+        )
+    return statuses
 
 
 def reachable_nodes(graph: AccessGraph, *, start: str = ENTRY_NODE_ID) -> set[str]:
@@ -163,17 +284,39 @@ def reachable_nodes(graph: AccessGraph, *, start: str = ENTRY_NODE_ID) -> set[st
     return seen
 
 
+def access_depths(
+    graph: AccessGraph, *, start: str = ENTRY_NODE_ID
+) -> dict[str, int]:
+    """从 Entry 的 BFS 深度（仅 realized）。"""
+    adj: dict[str, set[str]] = defaultdict(set)
+    for c in graph.connections:
+        if c.a == c.b:
+            continue
+        adj[c.a].add(c.b)
+        adj[c.b].add(c.a)
+    if start not in adj and start not in graph.node_ids:
+        return {}
+    depth = {start: 0}
+    q: deque[str] = deque([start])
+    while q:
+        cur = q.popleft()
+        for nb in adj.get(cur, ()):
+            if nb not in depth:
+                depth[nb] = depth[cur] + 1
+                q.append(nb)
+    return depth
+
+
 def unreachable_occupied_rooms(
     program: DesignProgram,
     candidate: LayoutCandidate,
 ) -> list[str]:
-    """返回从 Entry 不可达的 occupied room_id（排序稳定）。"""
+    """从 Entry 经 RealizedAccessGraph 不可达的 occupied room。"""
     occupied = occupied_room_ids(program)
     if not occupied or not candidate.floors:
         return []
 
     graph = build_realized_access_graph(program, candidate)
-    # 无任何入口边 → 全部 occupied 不可达（强失败）
     has_entry = any(
         c.type == SpaceConnectionType.EXTERIOR_ENTRY and ENTRY_NODE_ID in (c.a, c.b)
         for c in graph.connections

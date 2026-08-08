@@ -104,10 +104,10 @@ class SpaceConnection(BaseModel):
 
 class AccessGraph(BaseModel):
     """
-    可达图 — Phase 2.1 核心。
+    AccessIntentGraph — 通行设计意图（≠ 几何邻接，≠ 已实现通行）。
 
     节点：房间 + 特殊节点（entry、stair 等）。
-    边：SpaceConnection（通行要求，不是几何邻接）。
+    边：SpaceConnection（希望/必须连通）。
     """
 
     node_ids: list[str] = Field(default_factory=list)
@@ -122,3 +122,48 @@ class AccessGraph(BaseModel):
 
     def required_connections(self) -> list[SpaceConnection]:
         return [c for c in self.connections if c.required]
+
+    def preferred_connections(self) -> list[SpaceConnection]:
+        return [c for c in self.connections if not c.required]
+
+
+class ConnectionState(StrEnum):
+    """通行意图生命周期。"""
+
+    INTENDED = "intended"
+    FEASIBLE = "feasible"
+    REALIZED = "realized"
+    BLOCKED = "blocked"
+
+
+class RealizedConnection(BaseModel):
+    """
+    已实现可通行边 — RealizedAccessGraph 的边。
+
+    Adjacency / 共墙本身不产生本对象。
+    """
+
+    connection_id: str | None = None
+    a: str
+    b: str
+    type: SpaceConnectionType
+    floor_id: str | None = None
+    realized: bool = True
+    opening_id: str | None = None
+    source: str = Field(
+        default="opening",
+        description="opening | exterior_entry | stair",
+    )
+
+
+class ConnectionStatus(BaseModel):
+    """单条 AccessIntent 的状态快照。"""
+
+    connection_id: str
+    a: str
+    b: str
+    type: SpaceConnectionType
+    required: bool
+    state: ConnectionState
+    opening_id: str | None = None
+    shared_length: float | None = None

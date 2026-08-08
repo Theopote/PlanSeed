@@ -14,6 +14,7 @@
 | **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
 | **2.1** | **AccessGraph + connections** | **✅ 主线**（unreachable；软边；2A Door；SVG；局部修补；**跨区重切**） |
 | **2.2** | **Door placement polish** | **✅**（铰链/净宽 soft / SVG 门扇；**仍不回改房间几何**） |
+| **2.3** | **Realized Circulation** | **✅**（共墙≠通行；RealizedAccessGraph；soft 开口；RepairRecord/Budget；spanning OPEN） |
 | 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
@@ -200,7 +201,21 @@ StairCore              ← 仅竖向交通，不当作主入口
 FloorAssignment / ZonePlanner / AccessGraph 只读 tags，不读 name
 ```
 
-## Phase 2A — 共边校验 + DoorOpening（✅；禁止回改几何）
+## Phase 2.3 — Realized Circulation（✅ 主线）
+
+核心原则：
+
+```text
+Adjacency / 共墙  ≠  Access Intent  ≠  Realized Access
+```
+
+- **删除** `shared wall → PASSAGE` 自动边
+- Reachability 只走 `RealizedAccessGraph`（ExteriorEntry / DoorOpening / Stair / stair_access / spanning OPEN）
+- soft Intent 可实现时也会生成开口；required 失败 → hard；soft 失败 → `access.preferred_blocked`
+- `RepairRecord` + `SolverConfig` repair budget；`layout_stability` metric
+- 同层共墙连通分量 spanning-tree → **显式 OPEN**（仍不是「共墙即通行」）
+
+---
 
 **第一版绝对不做**：为放门重新优化所有房间。否则 Phase 2 爆炸。
 

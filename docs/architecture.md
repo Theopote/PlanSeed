@@ -15,11 +15,11 @@ Natural Language / Manual Input
 → DesignProgram（normalize）
 → FloorAssignment
 → Semantic RoomGraph + TopologyPlan（打包序 / slicing group）
-→ AccessGraph / required connections
+→ AccessIntentGraph（SpaceConnection）
 → ZonePlanner + CorePlacement
 → Graph-aware Room Ordering → Guillotine
-→ ConnectionResolver → DoorOpening（不回改几何）
-→ AccessibilityValidator → Evaluator → Ranking
+→ ConnectionResolver → DoorOpening / RealizedAccessGraph
+→ AccessibilityValidator（仅 realized）→ Evaluator → Ranking
 → Interactive Floorplan（SVG）
 ```
 

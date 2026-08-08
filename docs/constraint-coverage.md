@@ -41,11 +41,14 @@
 | geometry.core_size | ✓ | ✓ |
 | access.unreachable_room | ✓ | ✓ |
 | access.missing_shared_boundary | ✓ | ✓ |
-| door.clear_width | ✓ soft | ✓ |
+| access.preferred_blocked | ✓ soft | ✓ |
+| door.clear_width / physical_min | ✓ soft | ✓ |
+| repair.budget_exceeded | ✓ | ✓ |
 
 ## 结论
 
+- **Adjacency ≠ Access Intent ≠ Realized Access**（Phase 2.3）
 - Separation：未接线
-- Door：2A 共边标注；2.2 铰链/净宽 soft/SVG；2.1.x 局部修补/重切（仍非全局重跑）
+- Door：Intent 可实现则落开口（含 soft）；共墙 alone 不可通行；spanning-tree OPEN 为显式开口
 - FloorConstraint：FloorAssignmentSolver 消费
 - Generator 不「理解」约束语义；靠 zone/core + checker/evaluator 闭环

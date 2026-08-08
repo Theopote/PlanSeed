@@ -214,9 +214,9 @@ class TestDoorPhase22Polish:
                 )
             ],
         )
-        viols = door_clear_width_violations(candidate, min_clear=0.8)
+        viols = door_clear_width_violations(candidate, preferred_clear=0.8)
         assert len(viols) == 1
-        assert viols[0].constraint_id == "door.clear_width"
+        assert viols[0].constraint_id == "door.physical_min_width"
         assert viols[0].hard is False
         soft_result = ConstraintEvaluationResult.from_violations(viols)
         assert soft_result.valid is True

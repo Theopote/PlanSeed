@@ -24,7 +24,7 @@ from solver.semantics.roles import (
     is_master_bath,
     is_master_bedroom,
 )
-from solver.topology.access import ENTRY_NODE_ID
+from solver.topology.constants import ENTRY_NODE_ID
 
 
 def is_bedroom(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
@@ -55,8 +55,8 @@ def is_bedroom(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
 
 
 def _hub_for_floor(rooms: list[RoomSpec]) -> RoomSpec | None:
-    """通行枢纽：门厅 > 客厅 > 过厅。"""
-    for pred in (is_foyer, is_living, is_hall):
+    """通行枢纽：门厅 > 客厅 > 过厅 > 主卧（夜区回退）。"""
+    for pred in (is_foyer, is_living, is_hall, is_master_bedroom):
         for r in sorted(rooms, key=lambda x: x.id):
             if pred(r):
                 return r
@@ -97,30 +97,18 @@ def derive_residential_access_graph(program: DesignProgram) -> AccessGraph:
             for room in rooms:
                 if room.id == hub.id:
                     continue
-                if is_bedroom(room):
-                    add(
-                        SpaceConnection(
-                            id=_pair_id(hub.id, room.id, "door"),
-                            a=hub.id,
-                            b=room.id,
-                            type=SpaceConnectionType.DOOR,
-                            required=False,
-                            weight=1.0,
-                            description=f"默认：{hub.name}↔卧室通行",
-                        )
+                # 同层枢纽辐射：卧室/客卫/其它功能房 soft DOOR（可实现才落门）
+                add(
+                    SpaceConnection(
+                        id=_pair_id(hub.id, room.id, "door"),
+                        a=hub.id,
+                        b=room.id,
+                        type=SpaceConnectionType.DOOR,
+                        required=False,
+                        weight=1.0 if is_bedroom(room) or is_guest_bath(room) else 0.6,
+                        description=f"默认：{hub.name}↔{room.name}通行",
                     )
-                elif is_guest_bath(room):
-                    add(
-                        SpaceConnection(
-                            id=_pair_id(hub.id, room.id, "door"),
-                            a=hub.id,
-                            b=room.id,
-                            type=SpaceConnectionType.DOOR,
-                            required=False,
-                            weight=0.8,
-                            description=f"默认：{hub.name}↔客卫通行",
-                        )
-                    )
+                )
 
         kitchens = [r for r in rooms if is_kitchen(r)]
         dinings = [r for r in rooms if is_dining(r)]
