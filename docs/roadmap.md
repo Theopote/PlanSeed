@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6 — Local LLM（6.3 ✅ → 下一 6.4）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
-> **6.0–6.3 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6 — Local LLM（6.4 ✅ → 下一 6.5）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
+> **6.0–6.4 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
 
@@ -271,11 +271,11 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 | **6.1** | Ollama Provider（`LLMProvider` 抽象） | ✅ |
 | **6.2** | Structured Requirement Parser | ✅ |
 | **6.3** | Validation + Repair | ✅ |
-| **6.4** | Assumption / Unknown UI | **← 下一** |
-| **6.5** | NL → Generate | 未开始 |
+| **6.4** | Assumption / Unknown UI | ✅ |
+| **6.5** | NL → Generate | **← 下一** |
 | **6.6** | Requirement Benchmark | 未开始 |
 
-详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
 ### Phase 6.0 — LLM Boundary ✅
 
@@ -306,6 +306,13 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 - [x] `parse_requirement_text_with_repair` / `LLMRepairExhaustedError`
 - [x] `ParseResult.attempts` / `repair_notes`
 - [x] 连接类错误不走 repair；测试覆盖成功与耗尽
+
+### Phase 6.4 — Assumption / Unknown UI ✅
+
+- [x] 左栏 `RequirementGapsPanel`（假设可改/清除，未知可「已知悉」）
+- [x] 事实源 `requirementSpec`；镜像 `program`；空态明示
+- [x] Generate 时把假设/未知写入会话 spec
+- [x] 无 NL 入口（留给 6.5）
 
 ---
 

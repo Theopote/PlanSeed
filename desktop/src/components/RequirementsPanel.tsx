@@ -4,7 +4,12 @@ import type {
   ProgramSummary,
   RejectedCandidatePayload,
   RequirementForm,
+  RequirementSpecPayload,
 } from "../api/client";
+import {
+  RequirementGapsPanel,
+  resolveRequirementGaps,
+} from "./RequirementGapsPanel";
 
 type Props = {
   form: RequirementForm;
@@ -15,6 +20,13 @@ type Props = {
   engineStatus: EngineLifecycle;
   onRetryEngine: () => void;
   program: ProgramSummary | null;
+  requirementSpec: RequirementSpecPayload | null;
+  onUpdateAssumption: (
+    key: string,
+    patch: { value: string; reason: string },
+  ) => void;
+  onRemoveAssumption: (key: string) => void;
+  onDismissUnknown: (key: string) => void;
   error: string | null;
   stats: { generated: number; valid: number; rejected: number } | null;
   rejectedCandidates: RejectedCandidatePayload[];
@@ -58,6 +70,10 @@ export function RequirementsPanel({
   engineStatus,
   onRetryEngine,
   program,
+  requirementSpec,
+  onUpdateAssumption,
+  onRemoveAssumption,
+  onDismissUnknown,
   error,
   stats,
   rejectedCandidates,
@@ -72,6 +88,7 @@ export function RequirementsPanel({
   const [rejectedOpen, setRejectedOpen] = useState(true);
   const [retryBusy, setRetryBusy] = useState(false);
   const engineReady = engineStatus === "READY";
+  const gaps = resolveRequirementGaps(requirementSpec, program);
 
   useEffect(() => {
     if (engineStatus !== "STARTING") {
@@ -317,31 +334,31 @@ export function RequirementsPanel({
               </li>
             ))}
           </ul>
-          {program.assumptions.length > 0 && (
-            <>
-              <h3>Assumptions</h3>
-              <ul className="tiny-list">
-                {program.assumptions.map((a) => (
-                  <li key={a.key}>
-                    <code>{a.key}</code> = {String(a.value)}
-                    {a.reason ? ` — ${a.reason}` : ""}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {program.unknowns.length > 0 && (
-            <>
-              <h3>Unknowns</h3>
-              <ul className="tiny-list">
-                {program.unknowns.map((u) => (
-                  <li key={u.key}>
-                    <code>{u.key}</code> {u.description}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+          <RequirementGapsPanel
+            active={Boolean(program || requirementSpec)}
+            assumptions={gaps.assumptions}
+            unknowns={gaps.unknowns}
+            sourceLabel={gaps.sourceLabel}
+            onUpdateAssumption={onUpdateAssumption}
+            onRemoveAssumption={onRemoveAssumption}
+            onDismissUnknown={onDismissUnknown}
+          />
+        </section>
+      )}
+
+      {!program && requirementSpec && (
+        <section className="program-meta">
+          <h2>需求规格</h2>
+          <p className="muted tiny">尚未生成 Program；仍可查看假设 / 未知</p>
+          <RequirementGapsPanel
+            active
+            assumptions={gaps.assumptions}
+            unknowns={gaps.unknowns}
+            sourceLabel={gaps.sourceLabel}
+            onUpdateAssumption={onUpdateAssumption}
+            onRemoveAssumption={onRemoveAssumption}
+            onDismissUnknown={onDismissUnknown}
+          />
         </section>
       )}
     </aside>

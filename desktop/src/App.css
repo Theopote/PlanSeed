@@ -352,6 +352,69 @@ button.secondary {
   font-size: 0.75rem;
 }
 
+.requirement-gaps {
+  margin-top: 0.85rem;
+}
+
+.gaps-hint {
+  margin: 0 0 0.35rem;
+}
+
+.tiny {
+  font-size: 0.75rem;
+}
+
+.gaps-list .gaps-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(196, 187, 170, 0.45);
+}
+
+.gaps-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.gaps-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.gaps-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.gaps-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.gaps-field input {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel, #fff);
+  color: inherit;
+}
+
+.tiny-btn {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+}
+
 .floorplan-stage {
   flex: 1;
   min-height: 0;

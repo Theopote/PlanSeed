@@ -48,6 +48,7 @@ import {
 } from "./components/FloorplanView";
 import { Inspector } from "./components/Inspector";
 import { RequirementsPanel } from "./components/RequirementsPanel";
+import { coerceAssumptionValue } from "./components/RequirementGapsPanel";
 import "./App.css";
 
 const DEFAULT_FORM: RequirementForm = {
@@ -294,7 +295,15 @@ function App() {
     (data: GenerateResponse) => {
       setProgram(data.program_summary);
       if (data.requirement_spec) {
-        setRequirementSpec(data.requirement_spec);
+        const spec: RequirementSpecPayload = { ...data.requirement_spec };
+        // 保证假设/未知进入会话事实源（与 Program 对齐）
+        if (spec.assumptions === undefined) {
+          spec.assumptions = data.program_summary.assumptions ?? [];
+        }
+        if (spec.unknowns === undefined) {
+          spec.unknowns = data.program_summary.unknowns ?? [];
+        }
+        setRequirementSpec(spec);
       }
       if (data.solver_identity) {
         setSolverIdentity(data.solver_identity);
@@ -444,6 +453,77 @@ function App() {
       }));
     },
     [],
+  );
+
+  /** Phase 6.4 — 假设/未知写入 requirementSpec，并镜像 program。 */
+  const ensureEditableSpec = useCallback((): RequirementSpecPayload => {
+    if (requirementSpec) return requirementSpec;
+    return fallbackRequirementFromForm(form, program);
+  }, [requirementSpec, form, program]);
+
+  const onUpdateAssumption = useCallback(
+    (key: string, patch: { value: string; reason: string }) => {
+      const base = ensureEditableSpec();
+      const prevList = base.assumptions ?? [];
+      const existing = prevList.find((a) => a.key === key);
+      const nextValue = coerceAssumptionValue(
+        patch.value,
+        existing?.value ?? patch.value,
+      );
+      const nextAssumptions = prevList.map((a) =>
+        a.key === key
+          ? { key, value: nextValue, reason: patch.reason }
+          : a,
+      );
+      setRequirementSpec({ ...base, assumptions: nextAssumptions });
+      setProgram((prev) =>
+        prev
+          ? {
+              ...prev,
+              assumptions: nextAssumptions.map((a) => ({
+                key: a.key,
+                value: a.value,
+                reason: a.reason ?? "",
+              })),
+            }
+          : prev,
+      );
+    },
+    [ensureEditableSpec],
+  );
+
+  const onRemoveAssumption = useCallback(
+    (key: string) => {
+      const base = ensureEditableSpec();
+      const nextAssumptions = (base.assumptions ?? []).filter((a) => a.key !== key);
+      setRequirementSpec({ ...base, assumptions: nextAssumptions });
+      setProgram((prev) =>
+        prev
+          ? {
+              ...prev,
+              assumptions: prev.assumptions.filter((a) => a.key !== key),
+            }
+          : prev,
+      );
+    },
+    [ensureEditableSpec],
+  );
+
+  const onDismissUnknown = useCallback(
+    (key: string) => {
+      const base = ensureEditableSpec();
+      const nextUnknowns = (base.unknowns ?? []).filter((u) => u.key !== key);
+      setRequirementSpec({ ...base, unknowns: nextUnknowns });
+      setProgram((prev) =>
+        prev
+          ? {
+              ...prev,
+              unknowns: prev.unknowns.filter((u) => u.key !== key),
+            }
+          : prev,
+      );
+    },
+    [ensureEditableSpec],
   );
 
   const onToggleRoomLock = useCallback(
@@ -1195,6 +1275,10 @@ function App() {
           engineStatus={engineStatus}
           onRetryEngine={() => void onRetryEngine()}
           program={program}
+          requirementSpec={requirementSpec}
+          onUpdateAssumption={onUpdateAssumption}
+          onRemoveAssumption={onRemoveAssumption}
+          onDismissUnknown={onDismissUnknown}
           error={error ?? engineHint}
           stats={stats}
           rejectedCandidates={rejectedCandidates}
