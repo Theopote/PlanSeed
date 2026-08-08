@@ -27,6 +27,8 @@
 | geometry.core_unfit | ✓ | ✓ | 规定尺寸放不下 → invalid，禁止缩小 |
 | geometry.core_missing | ✓ | ✓ | |
 | geometry.core_size | ✓ | ✓ | 尺寸必须等于 StairCoreSpec |
+| access.unreachable_room | ✓ | ✓ | Entry BFS；occupied 不可达 → invalid |
+| access.missing_shared_boundary | ✓ | ✓ | Phase 2A：必连无足够共边 → invalid；有则标 DoorOpening |
 
 ## 结论
 

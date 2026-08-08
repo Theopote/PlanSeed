@@ -67,6 +67,9 @@ class DefaultConstraintChecker:
         if not has_explicit_wet:
             result.extend(self._check_wet_stack_alignment(candidate))
 
+        result.extend(self._check_access_reachability(program, candidate))
+        result.extend(self._check_required_connection_boundaries(program, candidate))
+
         return result.to_candidate_validation()
 
     def _check_overlaps(self, candidate: LayoutCandidate) -> ConstraintEvaluationResult:
@@ -385,6 +388,62 @@ class DefaultConstraintChecker:
                     ]
                 )
         return ConstraintEvaluationResult.empty()
+
+    def _check_access_reachability(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """Hard：所有 occupied room 必须从 Entry 经 AccessGraph 可达。"""
+        from solver.topology.access import unreachable_occupied_rooms
+
+        missing = unreachable_occupied_rooms(program, candidate)
+        if not missing:
+            return ConstraintEvaluationResult.empty()
+        return ConstraintEvaluationResult.from_violations(
+            [
+                Violation(
+                    constraint_id="access.unreachable_room",
+                    room_ids=missing,
+                    message=f"从入口不可达的占用空间: {', '.join(missing)}",
+                    hard=True,
+                    source="system",
+                )
+            ]
+        )
+
+    def _check_required_connection_boundaries(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """
+        Phase 2A：required SpaceConnection 必须有足够共边。
+
+        有共边 → 标注 DoorOpening（不改房间几何）；无共边 → hard invalid。
+        """
+        from solver.topology.doors import (
+            missing_shared_boundaries,
+            place_door_openings,
+        )
+
+        missing = missing_shared_boundaries(program, candidate)
+        violations: list[Violation] = []
+        for conn, measured in missing:
+            violations.append(
+                Violation(
+                    constraint_id="access.missing_shared_boundary",
+                    room_ids=[conn.a, conn.b],
+                    message=(
+                        f"必连 {conn.a}—{conn.b}（{conn.type.value}）"
+                        f"共边不足，无法落门/开口"
+                    ),
+                    measured_value=measured,
+                    required_value=0.9,
+                    hard=True,
+                    source="system",
+                )
+            )
+        if not violations:
+            # 仅在必连共边均满足时标注开口；绝不回改 placements
+            place_door_openings(program, candidate)
+        return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_wet_alignment(self, candidate: LayoutCandidate) -> ConstraintEvaluationResult:
         """[deprecated] 请用 _check_wet_stack_alignment。"""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -110,6 +111,27 @@ class CandidateValidation(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class DoorOpening(BaseModel):
+    """
+    门洞 / 开口标注 — Phase 2A。
+
+    只写在已有 shared boundary 上，**不修改** RoomPlacement 几何。
+    """
+
+    id: str
+    connection_id: str | None = None
+    room_a_id: str
+    room_b_id: str
+    floor_id: str
+    x: float = Field(description="开口中心 x（模型坐标）")
+    y: float = Field(description="开口中心 y（模型坐标）")
+    width: float = Field(gt=0, description="沿墙方向开口宽度（米）")
+    axis: Literal["x", "y"] = Field(
+        description="墙走向：x=水平墙（南北向分隔），y=竖向墙（东西向分隔）"
+    )
+    connection_type: str = Field(default="door", description="对应 SpaceConnectionType")
+
+
 class LayoutCandidate(BaseModel):
     id: str
     seed: int
@@ -117,6 +139,10 @@ class LayoutCandidate(BaseModel):
     wet_stacks: list[WetStack] = Field(
         default_factory=list,
         description="技术湿区叠组；MVP 通常 0～1 个",
+    )
+    door_openings: list[DoorOpening] = Field(
+        default_factory=list,
+        description="Phase 2A：在共边上标注开口；不回改房间几何",
     )
     validation: CandidateValidation | None = None
     score: float | None = None

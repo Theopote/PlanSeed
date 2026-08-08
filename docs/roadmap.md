@@ -12,9 +12,9 @@
 | **1.5** | **Solver Reliability** | ✅ 收口 |
 | **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
 | **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
-| **2.1** | **AccessGraph + connections** | 未开始（拓扑可达 / 必连 / 共享边；**先于画门**） |
-| **2.2** | **Door placement** | 未开始（依赖 2.1 的共享边界） |
-| 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 AccessGraph → 2.2 Door |
+| **2.1** | **AccessGraph + connections** | **进行中**（✅ `access.unreachable_room`；✅ 2A 共边→DoorOpening） |
+| **2.2** | **Door placement polish** | 未开始（铰链/净宽/SVG；**仍不回改房间几何**） |
+| 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
 | 5 | FastAPI | 延后 |
@@ -163,12 +163,14 @@ Hall
 
 2.1 交付物：
 
+- **Hard 第一原则（✅ MVP）**：`access.unreachable_room`
+  - Entry → SpaceConnection / 共边临时图 BFS
+  - 任意 occupied room（`DesignProgram.rooms`）不在 reachable set → **candidate invalid**
 - **`SpaceConnection`**：`a` / `b` / `type`（OPEN|DOOR|PASSAGE|STAIR|EXTERIOR_ENTRY）/ `required`
   - 邻接 ≠ 通行：Kitchen—Dining 可用 `AdjacencyConstraint`；Hall—Bedroom 用 `SpaceConnection(type=DOOR)`
-- **`AccessGraph`**：由 SpaceConnection 构成（`DesignProgram.access_graph`）
-- Required connections：从 constraints / 住宅默认规则派生
+- **`AccessGraph`**：由 SpaceConnection 构成（`DesignProgram.access_graph`）；校验时回退共边+入口贴边+楼梯叠置
+- Required connections：从 constraints / 住宅默认规则派生（后续）
 - Shared boundary 查询：两节点是否同层共边、共边几何段
-- Validation：`unreachable room` 作为 hard（相对入口/楼梯）
 - **仍不画门**；SVG 可先画「应连通」虚线边
 
 语义标签硬化可并行：tags 为唯一规则入口（淘汰 Solver 侧中文 name 回退）。
@@ -178,15 +180,31 @@ Hall
 FloorAssignment / ZonePlanner / AccessGraph 只读 tags，不读 name
 ```
 
-## Phase 2.2 — Door placement
+## Phase 2A — 共边校验 + DoorOpening（✅；禁止回改几何）
 
-在 2.1 确认「谁必须通谁」且存在共享边之后：
+**第一版绝对不做**：为放门重新优化所有房间。否则 Phase 2 爆炸。
 
-- 在 shared boundary 上放置 Opening / Door
+```text
+geometry（已有 RoomPlacement）
+      ↓
+required SpaceConnection
+      ↓
+shared_edge_length >= minimum ?
+      ├─ yes → 标注 DoorOpening（不改房间矩形）
+      └─ no  → access.missing_shared_boundary（invalid）
+```
+
+当前阶段是 **geometry → topology validation**。  
+**topology drives geometry** 留给更晚阶段。
+
+## Phase 2.2 — Door polish（仍不回改房间）
+
+在 2A 共边开口之上：
+
 - 门宽、侧铰、净宽校验
 - SVG 画门洞
 
-无 AccessGraph 与共享边，禁止凭空在墙上戳门。
+无共边仍禁止凭空戳门；**仍禁止**为门重跑 Guillotine。
 
 ---
 

@@ -14,6 +14,7 @@ from packages.schema.constraints import (
 )
 from packages.schema.layout import (
     CandidateValidation,
+    DoorOpening,
     FloorLayout,
     LayoutCandidate,
     RoomPlacement,
@@ -51,6 +52,7 @@ __all__ = [
     "DesignMetrics",
     "DesignProgram",
     "DesignScore",
+    "DoorOpening",
     "FloorConstraint",
     "FloorLayout",
     "FloorSpec",
