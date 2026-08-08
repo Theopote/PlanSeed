@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import pytest
+from solver.program.requirements_normalize import normalize_requirements_to_program
+
 from packages.llm import (
+    SYSTEM_PROMPT_SKELETON,
     GeometryForbiddenError,
     MockLLMProvider,
-    SYSTEM_PROMPT_SKELETON,
     assert_no_geometry_payload,
     ingest_llm_requirement,
 )
 from packages.llm.gate import LLMIngestError
 from packages.schema.llm_contract import LLMRequirementDraft
-from solver.program.requirements_normalize import normalize_requirements_to_program
 
 
 def test_reject_geometry_keys():

@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, field_validator
-
-from backend.services.nl_parse import parse_nl_requirement
 from packages.llm import LLMIngestError, LLMRepairExhaustedError
 from packages.llm.ollama import OllamaConnectionError, OllamaHTTPError
 from packages.schema.requirements import RequirementSpec
+from pydantic import BaseModel, Field, field_validator
+
+from backend.services.nl_parse import parse_nl_requirement
 
 router = APIRouter(tags=["requirements"])
 

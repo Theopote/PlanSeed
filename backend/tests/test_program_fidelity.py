@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -181,8 +180,13 @@ def test_revalidate_hydrates_stair_so_vertical_can_detect_misalignment():
 
 def test_missing_stair_metadata_is_not_perfect():
     """有楼梯 placement 但缺 stair_* → 不得默认 stair_alignment=1。"""
-    from packages.schema.layout import FloorLayout, LayoutCandidate, RoomPlacement
-    from packages.schema.layout import PlacementRect, PlacementSource
+    from packages.schema.layout import (
+        FloorLayout,
+        LayoutCandidate,
+        PlacementRect,
+        PlacementSource,
+        RoomPlacement,
+    )
 
     floors = [
         FloorLayout(

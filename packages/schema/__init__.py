@@ -36,6 +36,7 @@ from packages.schema.layout import (
     ZonePlacement,
 )
 from packages.schema.lineage import lineage_label, locks_fingerprint
+from packages.schema.llm_contract import LLMKnownFacts, LLMRequirementDraft
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
 from packages.schema.mutation import (
     GeometryMutation,
@@ -44,7 +45,6 @@ from packages.schema.mutation import (
     MutationReject,
     MutationSource,
 )
-from packages.schema.llm_contract import LLMKnownFacts, LLMRequirementDraft
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.requirements import (

@@ -5,12 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from packages.llm.benchmark.cases import (
-    ExpectKnown,
     RequirementBenchmarkCase,
     load_benchmark_cases,
 )
 from packages.llm.benchmark.report import BenchmarkReport
-from packages.llm.benchmark.score import score_requirement_case
+from packages.llm.benchmark.score import CaseScore, score_requirement_case
 from packages.llm.boundary import GeometryForbiddenError
 from packages.llm.gate import LLMIngestError, ingest_llm_requirement
 from packages.llm.mock import MockLLMProvider
