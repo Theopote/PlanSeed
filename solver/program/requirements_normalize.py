@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
 from packages.schema.constraints import (
     AlignmentConstraint,
     ConstraintSource,
@@ -19,9 +17,10 @@ from packages.schema.requirements import (
 )
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
 from packages.schema.site import CardinalEdge, SetbackSpec, SiteSpec
-from solver.program.floor_assign import ensure_floor_assignment
-from solver.program.normalize import build_room_graph, normalize as normalize_project
-
+from pydantic import BaseModel, Field
+from solver.program.floor_assignment import ensure_floor_assignment
+from solver.program.normalize import build_room_graph
+from solver.program.normalize import normalize as normalize_project
 
 # 住宅默认面积（平方米）— 来自 normalizer，非 LLM 猜测
 DEFAULT_AREA_BY_TAG: dict[str, float] = {

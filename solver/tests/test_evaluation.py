@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from packages.schema.layout import PlacementRect, PlacementSource, RoomPlacement
+from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory, RoomSpec
 from packages.schema.site import Rect2D, SiteSpec
-from packages.schema.program import DesignProgram
-from solver.evaluation.geometry import compute_geometry_metrics, _proportional_area_accuracy
-from solver.tests.test_guillotine import benchmark_program
-from solver.generators.guillotine import GuillotineGenerator
+from solver.evaluation.geometry import _proportional_area_accuracy, compute_geometry_metrics
 from solver.evaluation.score import CompositeEvaluator
+from solver.generators.guillotine import GuillotineGenerator
+from solver.tests.test_guillotine import benchmark_program
 
 
 def _placement(room_id: str, floor_id: str, area_as_width: float) -> RoomPlacement:

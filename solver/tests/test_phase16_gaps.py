@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 from packages.schema.entry import ExteriorEntrySpec
+from packages.schema.layout import (
+    FloorLayout,
+    LayoutCandidate,
+    PlacementRect,
+    PlacementSource,
+    RoomPlacement,
+)
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
 from packages.schema.site import CardinalEdge, SiteSpec
@@ -20,13 +27,6 @@ from solver.topology.graph import (
     has_edge,
 )
 from solver.visualize.svg import render_candidate_svg
-from packages.schema.layout import (
-    FloorLayout,
-    LayoutCandidate,
-    PlacementRect,
-    PlacementSource,
-    RoomPlacement,
-)
 
 
 class TestGraphHelpers:

@@ -14,7 +14,7 @@ from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import ProjectSpec
 from packages.schema.room import RoomCategory
 from packages.schema.topology import RoomEdge, RoomEdgeKind, RoomGraph
-from solver.program.floor_assign import ensure_floor_assignment
+from solver.program.floor_assignment import ensure_floor_assignment
 
 
 def normalize(spec: ProjectSpec, config: SolverConfig | None = None) -> DesignProgram:

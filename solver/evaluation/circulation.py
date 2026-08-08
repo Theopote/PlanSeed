@@ -185,8 +185,8 @@ def circulation_findings(
                 severity=FindingSeverity.POSITIVE,
                 title="\u5168\u90e8\u5360\u7528\u623f\u95f4\u53ef\u8fbe",
                 message=(
-                    "RealizedAccessGraph \u4e0a\u6240\u6709\u7a0b\u5e8f\u623f\u95f4"
-                    "\u5747\u53ef\u4ece\u4e3b\u5165\u53e3\u5230\u8fbe\u3002"
+                    "??????????????????????"
+                    "?????????????"
                 ),
                 metric="reachable_ratio",
                 measured_value=ratio,

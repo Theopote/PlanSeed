@@ -44,7 +44,8 @@ from solver.evaluation.program_fit import (
     program_fit_score,
     space_efficiency_score,
 )
-from solver.evaluation.site import compute_site_metrics, site_score as compute_site_score
+from solver.evaluation.site import compute_site_metrics
+from solver.evaluation.site import site_score as compute_site_score
 from solver.evaluation.vertical import compute_vertical_metrics, vertical_score
 from solver.evaluation.weights import DEFAULT_WEIGHTS, ScoreWeights
 
@@ -125,14 +126,15 @@ class CompositeEvaluator:
                     severity=FindingSeverity.WARNING,
                     title="必选邻接未完全满足",
                     message=(
-                        f"required adjacency "
-                        f"{float(adj_m['required_adjacency_satisfaction']):.0%}"
+                        "若干必须相邻的房间尚未形成有效共边"
+                        f"（满足率 {float(adj_m['required_adjacency_satisfaction']):.0%}），"
+                        "功能流线可能被打断。"
                     ),
                     metric="required_adjacency_satisfaction",
                     measured_value=float(
                         adj_m.get("required_adjacency_satisfaction", 1.0)
                     ),
-                    recommended_action="调整拓扑簇或 ConnectionResolver 共边。",
+                    recommended_action="优先保证厨餐、厅卧等必连对共边，或收紧拓扑簇打包。",
                 )
             )
         elif float(adj_m.get("preferred_adjacency_satisfaction", 1.0)) >= 0.85:
@@ -142,7 +144,10 @@ class CompositeEvaluator:
                     category=EvaluationAxis.PROGRAM.value,
                     severity=FindingSeverity.POSITIVE,
                     title="功能邻接较好",
-                    message="偏好/必选邻接共边满足率较高。",
+                    message=(
+                        "偏好与必选邻接的共边满足率较高，"
+                        "主要功能房间的相邻关系与住宅流线一致。"
+                    ),
                     metric="preferred_adjacency_satisfaction",
                     measured_value=float(
                         adj_m.get("preferred_adjacency_satisfaction", 1.0)
@@ -157,7 +162,10 @@ class CompositeEvaluator:
                     category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.INFO,
                     title="未提供规划退界",
-                    message="setbacks=0 表示信息缺失，不代表法规结论。",
+                    message=(
+                        "地块未声明退界数值（setbacks 默认 0 表示信息缺失），"
+                        "系统不会据此推断合规结论。"
+                    ),
                     metric="setback_info_provided",
                     measured_value=0.0,
                 )
@@ -173,7 +181,7 @@ class CompositeEvaluator:
                     category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.POSITIVE,
                     title="主入口临路",
-                    message="ExteriorEntry 落在 road_edges 上。",
+                    message="主入口落在声明的临路边上，对外到达关系清晰。",
                     metric="entry_on_road",
                     measured_value=entry_road,
                 )
@@ -185,7 +193,7 @@ class CompositeEvaluator:
                     category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.WARNING,
                     title="主入口未临路",
-                    message="入口未落在声明的临路边上。",
+                    message="主入口未落在声明的临路边上，对外到达可能绕行或不符合场地意图。",
                     metric="entry_on_road",
                     measured_value=entry_road,
                     recommended_action="调整 entrance_edge / road_edges 或入口放置。",
@@ -213,7 +221,7 @@ class CompositeEvaluator:
                     category=EvaluationAxis.ENVIRONMENT.value,
                     severity=FindingSeverity.POSITIVE,
                     title="朝向偏好满足",
-                    message="声明的 OrientationConstraint 均满足（世界朝向）。",
+                    message="已声明的朝向约束均满足（按世界坐标边判断），采光/景观意图得到落实。",
                     metric="orientation_satisfaction",
                     measured_value=float(orient_m.get("orientation_satisfaction", 1.0)),
                 )
@@ -227,7 +235,7 @@ class CompositeEvaluator:
                     category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.POSITIVE,
                     title="楼梯跨层对齐",
-                    message="楼梯核在各层位置对齐，竖向交通清晰。",
+                    message="楼梯核在各层位置对齐，竖向交通连续、少错位。",
                     metric="stair_alignment",
                     measured_value=stair_al,
                 )
@@ -242,7 +250,7 @@ class CompositeEvaluator:
                     category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.POSITIVE,
                     title="湿区叠组对齐",
-                    message="WetStack 锚跨层对齐良好。",
+                    message="厨卫等湿区在竖向叠组上对齐，有利于管井与施工组织。",
                     metric="wet_stack_alignment",
                     measured_value=wet_al,
                 )

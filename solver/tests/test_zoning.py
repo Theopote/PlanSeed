@@ -5,23 +5,22 @@ from __future__ import annotations
 import random
 
 import pytest
-
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
 from packages.schema.zoning import ArchitecturalZone, WetStackGroup
+from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.rect import Rect
+from solver.pipeline import run_pipeline
 from solver.program.floor_assignment import (
     DuplicateRoomAssignmentError,
     FloorAssignmentSolver,
 )
+from solver.tests.test_guillotine import benchmark_program
 from solver.topology.zoning import (
     ZonePlanner,
     classify_room,
-    zone_for_room,
     wet_stack_group_for_room,
+    zone_for_room,
 )
-from solver.tests.test_guillotine import benchmark_program
-from solver.generators.guillotine import GuillotineGenerator
-from solver.pipeline import run_pipeline
 
 
 class TestDuplicateAssignment:

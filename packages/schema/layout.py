@@ -5,9 +5,10 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
+from pydantic import BaseModel, Field
+
 from packages.schema.entry import ExteriorEntryPlacement
 from packages.schema.topology import RealizedConnection
-from pydantic import BaseModel, Field
 
 
 class PlacementSource(StrEnum):

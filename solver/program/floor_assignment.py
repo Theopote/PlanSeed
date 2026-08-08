@@ -18,7 +18,7 @@ Generator 不得自行猜测楼层。
 
 from __future__ import annotations
 
-from packages.schema.constraints import Constraint, FloorConstraint, ConstraintKind
+from packages.schema.constraints import Constraint, ConstraintKind, FloorConstraint
 from packages.schema.floor_assignment import (
     FloorAssignment,
     FloorAssignmentSource,
@@ -33,6 +33,7 @@ from solver.semantics.roles import (
     is_master_bath,
     is_master_bedroom,
 )
+
 
 class UnassignedRoomError(ValueError):
     """规范化后仍有房间未归属楼层。"""

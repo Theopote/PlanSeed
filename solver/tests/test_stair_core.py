@@ -5,7 +5,6 @@ from __future__ import annotations
 import random
 
 import pytest
-
 from packages.schema.core import CorePlacement, StairCoreSpec
 from packages.schema.layout import PlacementSource
 from solver.circulation.stair_core import (
@@ -16,9 +15,9 @@ from solver.circulation.stair_core import (
     resolve_stair_core_spec,
 )
 from solver.constraints.checker_impl import DefaultConstraintChecker
+from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.free_rects import subtract_rect
 from solver.geometry.rect import Rect
-from solver.generators.guillotine import GuillotineGenerator
 from solver.tests.test_guillotine import benchmark_program
 
 

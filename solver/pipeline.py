@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
+
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.score import CompositeEvaluator
 from solver.generators.guillotine import GuillotineGenerator

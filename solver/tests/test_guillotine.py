@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from packages.schema.layout import PlacementSource
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.fixtures.benchmark import benchmark_program
@@ -87,7 +86,7 @@ class TestGuillotineGenerator:
     def test_compactness_near_reference(self):
         """11×13 接近正方形，外墙效率应 ≈ 99.6%。"""
         program = benchmark_program()
-        candidate = GuillotineGenerator().generate(program, seed=0)
+        GuillotineGenerator().generate(program, seed=0)
         footprint = 11 * 13
         import math
 

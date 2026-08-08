@@ -12,6 +12,10 @@ desktop/node_modules/
 desktop/dist/
 desktop/src-tauri/target/
 desktop/src-tauri/binaries/planseed-backend-*
+desktop/src-tauri/resources/planseed-backend/
+!desktop/src-tauri/resources/.gitkeep
 dist/
 build/
 *.spec
+.mypy_cache/
+.ruff_cache/

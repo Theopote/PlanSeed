@@ -10,6 +10,7 @@ from packages.schema.layout import (
     PlacementSource,
     RoomPlacement,
 )
+from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge, CardinalOrientation
 from solver.evaluation.orientation import (
     compute_orientation_metrics,
@@ -21,11 +22,10 @@ from solver.evaluation.orientation import (
 )
 from solver.evaluation.score import CompositeEvaluator
 from solver.evaluation.site import compute_site_metrics, site_score
+from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.rect import Rect
 from solver.geometry.site_coords import SiteCoordinateSystem, azimuth_to_cardinal
 from solver.tests.test_guillotine import benchmark_program
-from solver.generators.guillotine import GuillotineGenerator
-from packages.schema.program import DesignProgram
 
 
 def _program_with_orientation(

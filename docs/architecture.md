@@ -107,20 +107,22 @@ pnpm --dir desktop tauri:dev   # Tauri：Rust setup 内 spawn uv run python -m b
 ### Release
 
 ```text
-scripts/build_backend_sidecar.*  →  desktop/src-tauri/binaries/planseed-backend-<triple>
-Tauri bundle.externalBin         →  PlanSeed.exe 启动时 spawn sidecar
+scripts/build_backend_sidecar.*  →  PyInstaller --onedir
+desktop/src-tauri/resources/planseed-backend/  →  bundle.resources
+Tauri 启动时 spawn 该目录内 planseed-backend(.exe)
 退出时 kill 子进程
+setup 不阻塞窗口；就绪后 emit engine-ready
 ```
 
-验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 未就绪」。
+验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 启动中 / 未就绪」。
 
 **Desktop Alpha 门禁（Phase 3.5）：** 双击启动 → 自动引擎 → Generate → Top5 → 解释 → A/B Compare；用户路径无 uvicorn。
 
 **Packaging 硬化（Phase 5）：**
 
-- [ ] 跨平台 sidecar
+- [ ] 跨平台 sidecar 验收
 - [ ] **收紧 `app.security.csp`**（开发期 `null` 可接受）
-- [ ] 签名 / 分发（按需）
+- [ ] 签名 / 分发（按需）；onedir 更易签名
 
 本机需 Rust 工具链才能 `tauri:build`。
 
@@ -132,7 +134,7 @@ PlanSeed/
 ├── solver/                # 纯 Python 求解引擎
 ├── backend/               # FastAPI（routes / schemas / services）
 ├── desktop/               # Tauri v2 + React
-│   └── src-tauri/binaries # sidecar 产物（externalBin）
+│   └── src-tauri/resources/planseed-backend  # onedir sidecar
 ├── scripts/               # dev-desktop / build_backend_sidecar
 ├── reference/             # floorplan-generator.html 参考原型
 └── docs/                  # 架构文档

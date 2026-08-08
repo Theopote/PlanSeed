@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from packages.schema.requirements import RequirementSpec, SiteRequirements, SpaceRequirement
 from solver.fixtures.benchmark import benchmark_requirement_spec
 from solver.program.requirements_normalize import (

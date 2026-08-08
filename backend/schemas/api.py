@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from packages.schema.requirements import RequirementSpec
 from packages.schema.scoring import DesignScore
+from pydantic import BaseModel, Field
 
 
 class GenerateRequest(BaseModel):

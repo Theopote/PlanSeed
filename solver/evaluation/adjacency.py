@@ -20,10 +20,6 @@ def compute_adjacency_metrics(
     if not adj_constraints:
         return {"preferred_adjacency_satisfaction": 1.0, "required_adjacency_satisfaction": 1.0}
 
-    placement_map = {
-        (p.floor_id, p.room_id): p for fl in candidate.floors for p in fl.placements
-    }
-
     hard_total = hard_sat = 0
     soft_total = soft_sat = 0
 

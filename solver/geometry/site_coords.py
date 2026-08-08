@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 from packages.schema.site import CardinalEdge, CardinalOrientation
 
-
 _EDGE_BASE_AZIMUTH: dict[str, float] = {
     CardinalEdge.NORTH.value: 0.0,
     CardinalEdge.EAST.value: 90.0,

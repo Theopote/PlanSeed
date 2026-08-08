@@ -14,6 +14,8 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",
+    "ruff>=0.9",
+    "mypy>=1.14",
 ]
 
 [build-system]
@@ -30,3 +32,50 @@ default-groups = ["dev"]
 testpaths = ["packages/schema/tests", "solver/tests"]
 pythonpath = ["."]
 addopts = "-v"
+
+# 静态检查：先宽松落地，避免一次大手术；逐步收紧。
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["packages", "solver", "backend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+    "E501",  # 行宽由 formatter / 后续收紧
+    "B008",  # FastAPI Depends 常见模式
+]
+
+[tool.ruff.lint.per-file-ignores]
+"solver/tests/**" = ["E402"]
+"packages/schema/tests/**" = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = false
+allow_untyped_defs = true
+allow_incomplete_defs = true
+warn_unused_ignores = false
+pretty = true
+packages = ["packages", "solver", "backend"]
+exclude = ["(?x)(^build/|^dist/)"]
+# Phase 3.5：先接入工具，存量类型债不阻断；后续按包收紧并删 disable。
+disable_error_code = [
+    "arg-type",
+    "assignment",
+    "attr-defined",
+    "operator",
+    "var-annotated",
+    "union-attr",
+    "return-value",
+    "misc",
+]
+
+[[tool.mypy.overrides]]
+module = "solver.tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "packages.schema.tests.*"
+ignore_errors = true

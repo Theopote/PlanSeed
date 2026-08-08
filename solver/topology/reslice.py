@@ -557,7 +557,7 @@ def try_reslice_required_pair(
         return False
 
     rects = [(p, from_placement(p.rect)) for p in members]
-    for i, (pi, ri) in enumerate(rects):
+    for i, (_pi, ri) in enumerate(rects):
         if not contains(bounds, ri):
             for p in members:
                 p.rect = backup[p.room_id]
@@ -567,7 +567,7 @@ def try_reslice_required_pair(
                 for p in members:
                     p.rect = backup[p.room_id]
                 return False
-        for pj, rj in rects[i + 1 :]:
+        for _pj, rj in rects[i + 1 :]:
             if intersects(ri, rj):
                 for p in members:
                     p.rect = backup[p.room_id]

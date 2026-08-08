@@ -4,9 +4,14 @@
 > 停止继续扩展 solver feature。不要开始 Ollama。  
 > 收口 Solver → Evaluation → API → Desktop 数据链，并让 PlanSeed 成为**用户无需手动启动 Python**的本地桌面应用。
 
-配套总览见 [roadmap.md](roadmap.md)。
+## 工程工具
 
----
+```bash
+uv run pytest
+uv run ruff check packages solver backend
+uv run mypy packages solver backend   # 宽松基线，后续收紧
+```
+
 
 ## 产品原则（本轮最重要）
 
@@ -18,6 +23,7 @@
    DesignEvaluation → DesignFinding → Inspector → Candidate Compare
    ```
 
+   同时：**不要用这条原则把「已有 findings 写成人话」无限往后推**——七轴解释是用户判断「有没有判断力」的第一印象。
 2. **最大产品缺口是本地独立运行，不是再堆 solver。**  
    任何「请先启动 uvicorn / 手动 Python」文案与目标冲突。  
    Desktop Alpha 里程碑：
@@ -54,18 +60,18 @@
 | 项 | 状态 |
 |----|------|
 | `pnpm dev` 一键引擎 + UI | ✅ |
-| Tauri spawn / kill 骨架 | ✅ |
-| `externalBin` + PyInstaller 脚本 | ✅ 骨架 |
-| Windows 真装包验收（零系统 Python） | ❌ **当前最关键缺口** |
-| 动态/预留端口；前端从 Tauri 取 URL | ❌ |
-| 端口占用 / 崩溃明确 UI 状态 | 🟡 部分（引擎就绪轮询） |
+| Tauri spawn / kill；**setup 不阻塞**，`engine-ready` 异步通知 | ✅ |
+| **PyInstaller `--onedir`** + `bundle.resources`（非 onefile / 非 externalBin） | ✅ 脚本与路径已切 |
+| Windows 真装包验收（零系统 Python） | ❌ **仍为关键缺口**（需本机跑 build 脚本 + `tauri:build`） |
+| 动态/预留端口；前端 `get_engine_url` | ✅ |
+| 端口占用 / 超时 UI 提示 | 🟡 |
 
 ### P1
 
 | 项 | 状态 |
 |----|------|
 | API layering（routes / schemas / services） | ✅ |
-| Inspector findings（非纯分数标签） | 🟡 MVP；继续加深真实建筑解释 |
+| **Inspector findings 人话解释**（七轴「为什么」） | **并行加深**；禁止用「少加按钮」无限推迟 |
 | **Candidate Compare（A vs B）** | ✅ MVP（Strip Alt+点击；Inspector 对照表 + 优势差分） |
 
 ### P2

@@ -1,4 +1,4 @@
-//! PlanSeed Tauri shell — 拉起 / 关闭本地求解引擎，并向前端暴露引擎 URL。
+//! PlanSeed Tauri shell — 异步拉起本地引擎，窗口先出，就绪后 emit。
 
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
@@ -7,12 +7,21 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
-use tauri::{Manager, RunEvent, State};
+use serde::Serialize;
+use tauri::{Emitter, Manager, RunEvent, State};
 
 struct BackendChild(Mutex<Option<Child>>);
 
 struct EngineMeta {
     url: Mutex<String>,
+}
+
+#[derive(Clone, Serialize)]
+struct EngineReadyPayload {
+    url: String,
+    ready: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
 }
 
 fn repo_root_from_manifest() -> PathBuf {
@@ -46,15 +55,12 @@ fn port_open(host: &str, port: u16) -> bool {
 
 fn pick_listen_port(host: &str, preferred: u16) -> u16 {
     if !port_open(host, preferred) {
-        // 端口空闲（或无可连服务）→ 优先占用 preferred
         if TcpListener::bind((host, preferred)).is_ok() {
             return preferred;
         }
     } else {
-        // 已有服务：复用（多为开发期 pnpm 已起的引擎）
         return preferred;
     }
-    // preferred 被非 HTTP 占用等 → 系统分配
     TcpListener::bind((host, 0))
         .ok()
         .and_then(|l| l.local_addr().ok())
@@ -85,35 +91,47 @@ fn spawn_dev_backend(root: &Path, host: &str, port: u16) -> Result<Child, String
         .map_err(|e| format!("failed to spawn uv backend: {e}"))
 }
 
+/// PyInstaller --onedir：resources/planseed-backend/planseed-backend(.exe)
 fn sidecar_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let name = if cfg!(windows) {
+    let exe_name = if cfg!(windows) {
         "planseed-backend.exe"
     } else {
         "planseed-backend"
     };
     if let Ok(dir) = app.path().resource_dir() {
-        let candidate = dir.join(name);
+        let candidate = dir.join("planseed-backend").join(exe_name);
         if candidate.exists() {
             return Ok(candidate);
+        }
+        // 个别平台 resources 扁平展开
+        let flat = dir.join(exe_name);
+        if flat.exists() {
+            return Ok(flat);
         }
     }
     let mut beside = std::env::current_exe().map_err(|e| e.to_string())?;
     beside.pop();
-    beside.push(name);
+    beside.push("resources");
+    beside.push("planseed-backend");
+    beside.push(exe_name);
     if beside.exists() {
         return Ok(beside);
     }
-    Err("planseed-backend sidecar not found".into())
+    Err("planseed-backend onedir not found under resources/".into())
 }
 
 fn spawn_release_backend(app: &tauri::AppHandle, host: &str, port: u16) -> Result<Child, String> {
     let path = sidecar_path(app)?;
-    Command::new(path)
-        .env("PLANSEED_HOST", host)
+    let workdir = path.parent().map(Path::to_path_buf);
+    let mut cmd = Command::new(&path);
+    cmd.env("PLANSEED_HOST", host)
         .env("PLANSEED_PORT", port.to_string())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stderr(Stdio::null());
+    if let Some(dir) = workdir {
+        cmd.current_dir(dir);
+    }
+    cmd.spawn()
         .map_err(|e| format!("failed to spawn sidecar: {e}"))
 }
 
@@ -126,6 +144,12 @@ fn kill_backend(state: &BackendChild) {
     }
 }
 
+fn emit_ready(handle: &tauri::AppHandle, payload: EngineReadyPayload) {
+    if let Err(e) = handle.emit("engine-ready", payload) {
+        log::warn!("emit engine-ready failed: {e}");
+    }
+}
+
 #[tauri::command]
 fn get_engine_url(meta: State<'_, EngineMeta>) -> String {
     meta.url.lock().expect("engine url").clone()
@@ -135,7 +159,6 @@ fn get_engine_url(meta: State<'_, EngineMeta>) -> String {
 pub fn run() {
     let host = engine_host();
     let preferred = preferred_port();
-    // 若 preferred 已有进程在听，复用且不 spawn；否则选端口并 spawn
     let already = port_open(&host, preferred);
     let port = if already {
         preferred
@@ -162,8 +185,17 @@ pub fn run() {
             let handle = app.handle().clone();
             *handle.state::<EngineMeta>().url.lock().expect("url") = url.clone();
 
+            // 窗口先出现；就绪在后台线程等待并 emit，避免 setup 同步卡死最多 30s
             if already {
                 log::info!("reusing engine at {url}");
+                emit_ready(
+                    &handle,
+                    EngineReadyPayload {
+                        url: url.clone(),
+                        ready: true,
+                        error: None,
+                    },
+                );
                 return Ok(());
             }
 
@@ -172,18 +204,43 @@ pub fn run() {
                 log::info!("starting PlanSeed engine (dev) {url} from {:?}", root);
                 spawn_dev_backend(&root, &host, port)
             } else {
-                log::info!("starting PlanSeed engine (sidecar) {url}");
+                log::info!("starting PlanSeed engine (onedir sidecar) {url}");
                 spawn_release_backend(&handle, &host, port)
             };
 
             match child {
                 Ok(c) => {
                     *handle.state::<BackendChild>().0.lock().expect("child") = Some(c);
-                    let ready = wait_for_port(&host, port, Duration::from_secs(30));
-                    log::info!("engine ready={ready} url={url}");
+                    let h = handle.clone();
+                    let host_c = host.clone();
+                    let url_c = url.clone();
+                    thread::spawn(move || {
+                        let ready = wait_for_port(&host_c, port, Duration::from_secs(45));
+                        log::info!("engine ready={ready} url={url_c}");
+                        emit_ready(
+                            &h,
+                            EngineReadyPayload {
+                                url: url_c,
+                                ready,
+                                error: if ready {
+                                    None
+                                } else {
+                                    Some("engine failed to become ready in time".into())
+                                },
+                            },
+                        );
+                    });
                 }
                 Err(e) => {
                     log::error!("engine launch failed: {e}");
+                    emit_ready(
+                        &handle,
+                        EngineReadyPayload {
+                            url: url.clone(),
+                            ready: false,
+                            error: Some(e),
+                        },
+                    );
                 }
             }
             Ok(())

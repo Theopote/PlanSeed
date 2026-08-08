@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from packages.schema.layout import PlacementRect
 
 
 @dataclass(frozen=True)
@@ -142,7 +146,7 @@ def exterior_wall_length(
     return sum(exterior_edges(room, buildable, tolerance=tolerance).values())
 
 
-def from_placement(rect: "PlacementRect") -> Rect:
+def from_placement(rect: PlacementRect) -> Rect:
     from packages.schema.layout import PlacementRect
 
     if not isinstance(rect, PlacementRect):

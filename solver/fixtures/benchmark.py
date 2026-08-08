@@ -7,6 +7,7 @@ from packages.schema.project import ProjectSpec
 from packages.schema.requirements import RequirementSpec, SiteRequirements, SpaceRequirement
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
 from packages.schema.site import SiteSpec
+
 from solver.program.normalize import normalize
 
 

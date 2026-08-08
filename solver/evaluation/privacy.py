@@ -193,11 +193,11 @@ def privacy_findings(
                     category="privacy",
                     severity=FindingSeverity.PROBLEM,
                     title=f"{target_name} 不可达",
-                    message=f"从主入口无法经 realized 开口到达「{target_name}」。",
+                    message=f"从主入口无法到达「{target_name}」，该私密房间成为交通孤岛。",
                     room_ids=[pid],
                     metric="reachable",
                     measured_value=0.0,
-                    recommended_action="检查门洞 / AccessIntent / ConnectionResolver。",
+                    recommended_action="为该房间增加通向走廊或公共厅的门洞，并检查必连共边。",
                 )
             )
             continue
@@ -243,13 +243,13 @@ def privacy_findings(
                     severity=FindingSeverity.WARNING,
                     title=f"{target_name} 访问深度 {depth}",
                     message=(
-                        f"到达「{target_name}」需 {depth} 步 realized 连接，"
-                        "私密区过深可能影响使用。"
+                        f"到达「{target_name}」需经过 {depth} 个空间节点，"
+                        "私密区离公共核偏远，日常往返路径偏长。"
                     ),
                     room_ids=[pid],
                     metric="access_depth",
                     measured_value=float(depth),
-                    recommended_action="缩短私密区到公共核的路径，或增加同层走廊。",
+                    recommended_action="把卧室靠近楼梯/走廊核，或缩短入户到夜区的序列。",
                 )
             )
 

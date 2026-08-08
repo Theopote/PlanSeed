@@ -12,6 +12,7 @@ from packages.schema.entry import ExteriorEntryPlacement, ExteriorEntrySpec
 from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge
+
 from solver.evaluation.orientation import exterior_world_orientations
 from solver.geometry.rect import Rect, from_placement
 from solver.geometry.site_coords import SiteCoordinateSystem

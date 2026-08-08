@@ -1,29 +1,13 @@
 #!/usr/bin/env bash
-# 将 FastAPI 引擎打成 Tauri externalBin（macOS / Linux）
+# 将 FastAPI 引擎打成 Tauri 资源目录（macOS / Linux，PyInstaller --onedir）
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-case "$(uname -s)" in
-  Darwin)
-    ARCH="$(uname -m)"
-    if [[ "$ARCH" == "arm64" ]]; then
-      TRIPLE="aarch64-apple-darwin"
-    else
-      TRIPLE="x86_64-apple-darwin"
-    fi
-    ;;
-  Linux)
-    TRIPLE="x86_64-unknown-linux-gnu"
-    ;;
-  *)
-    echo "unsupported OS; use build_backend_sidecar.ps1 on Windows" >&2
-    exit 1
-    ;;
-esac
+RES="$ROOT/desktop/src-tauri/resources"
+TARGET="$RES/planseed-backend"
+mkdir -p "$RES"
 
-OUT="$ROOT/desktop/src-tauri/binaries"
-mkdir -p "$OUT"
 uv run python -m pip install -q pyinstaller
 
 NAME="planseed-backend"
@@ -31,7 +15,7 @@ DIST="$ROOT/dist/sidecar"
 uv run pyinstaller \
   --noconfirm \
   --clean \
-  --onefile \
+  --onedir \
   --name "$NAME" \
   --distpath "$DIST" \
   --workpath "$ROOT/build/sidecar" \
@@ -48,6 +32,8 @@ uv run pyinstaller \
   --hidden-import uvicorn.lifespan.on \
   "$ROOT/scripts/sidecar_entry.py"
 
-cp -f "$DIST/$NAME" "$OUT/$NAME-$TRIPLE"
-chmod +x "$OUT/$NAME-$TRIPLE"
-echo "[sidecar] wrote $OUT/$NAME-$TRIPLE"
+BUILT="$DIST/$NAME"
+rm -rf "$TARGET"
+cp -R "$BUILT" "$TARGET"
+chmod +x "$TARGET/$NAME" || true
+echo "[sidecar] wrote onedir -> $TARGET"

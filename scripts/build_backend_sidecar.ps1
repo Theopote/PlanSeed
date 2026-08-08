@@ -1,11 +1,12 @@
-# 将 FastAPI 引擎打成 Tauri externalBin（Windows）
+# 将 FastAPI 引擎打成 Tauri 资源目录（Windows，PyInstaller --onedir）
+# onedir：冷启动更快，且比 onefile 更不易被 Defender 误拦。
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$Triple = "x86_64-pc-windows-msvc"
-$OutDir = Join-Path $Root "desktop\src-tauri\binaries"
-New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+$ResRoot = Join-Path $Root "desktop\src-tauri\resources"
+$TargetDir = Join-Path $ResRoot "planseed-backend"
+New-Item -ItemType Directory -Force -Path $ResRoot | Out-Null
 
 Write-Host "[sidecar] installing PyInstaller…"
 & uv run python -m pip install -q pyinstaller
@@ -14,11 +15,11 @@ $Entry = Join-Path $Root "scripts\sidecar_entry.py"
 $Dist = Join-Path $Root "dist\sidecar"
 $Name = "planseed-backend"
 
-Write-Host "[sidecar] building $Name…"
+Write-Host "[sidecar] building $Name (--onedir)…"
 & uv run pyinstaller `
   --noconfirm `
   --clean `
-  --onefile `
+  --onedir `
   --name $Name `
   --distpath $Dist `
   --workpath (Join-Path $Root "build\sidecar") `
@@ -35,8 +36,20 @@ Write-Host "[sidecar] building $Name…"
   --hidden-import uvicorn.lifespan.on `
   $Entry
 
-$Built = Join-Path $Dist "$Name.exe"
-$Target = Join-Path $OutDir "$Name-$Triple.exe"
-Copy-Item -Force $Built $Target
-Write-Host "[sidecar] wrote $Target"
-Write-Host "[sidecar] next: install Rust toolchain, then pnpm --dir desktop tauri:build"
+$BuiltDir = Join-Path $Dist $Name
+if (-not (Test-Path $BuiltDir)) {
+  throw "PyInstaller output missing: $BuiltDir"
+}
+
+if (Test-Path $TargetDir) {
+  Remove-Item -Recurse -Force $TargetDir
+}
+Copy-Item -Recurse -Force $BuiltDir $TargetDir
+
+$Exe = Join-Path $TargetDir "$Name.exe"
+if (-not (Test-Path $Exe)) {
+  throw "engine exe missing: $Exe"
+}
+
+Write-Host "[sidecar] wrote onedir -> $TargetDir"
+Write-Host "[sidecar] next: pnpm --dir desktop tauri:build"

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from fastapi import HTTPException
-
-from backend.schemas.api import GenerateRequest
 from packages.schema.program import DesignProgram
 from solver.fixtures.benchmark import benchmark_program
 from solver.pipeline import PipelineResult, run_pipeline
@@ -12,6 +10,8 @@ from solver.program.requirements_normalize import (
     IncompleteRequirementsError,
     normalize_requirements_to_program,
 )
+
+from backend.schemas.api import GenerateRequest
 
 
 def resolve_program(body: GenerateRequest) -> DesignProgram:

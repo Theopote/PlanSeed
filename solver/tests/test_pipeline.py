@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from packages.schema.requirements import RequirementSpec, SiteRequirements
 from solver.optimization.rank import layout_similarity
 from solver.pipeline import run_pipeline
 from solver.program.requirements_normalize import normalize_requirements_to_program
@@ -79,8 +78,8 @@ class TestRanking:
         assert len(set(jsons)) == len(jsons)
 
     def test_diversity_can_be_disabled(self):
-        from solver.optimization.rank import rank_candidates
         from packages.schema.layout import CandidateValidation, LayoutCandidate
+        from solver.optimization.rank import rank_candidates
 
         def make(seed: int, score: float) -> LayoutCandidate:
             return LayoutCandidate(

@@ -3,8 +3,6 @@
 import json
 
 import pytest
-from pydantic import ValidationError
-
 from packages.schema.constraints import (
     AdjacencyConstraint,
     ConstraintKind,
@@ -15,7 +13,8 @@ from packages.schema.layout import LayoutCandidate, PlacementRect, RoomPlacement
 from packages.schema.project import ProjectSpec
 from packages.schema.room import RoomCategory, RoomSpec
 from packages.schema.scoring import DesignScore
-from packages.schema.site import CardinalEdge, SiteSpec
+from packages.schema.site import SiteSpec
+from pydantic import ValidationError
 from solver.program.normalize import build_room_graph, normalize
 
 
@@ -100,7 +99,6 @@ class TestLayoutCandidate:
         assert p.aspect_ratio == 2.0
 
     def test_layout_candidate_separates_from_room_spec(self):
-        spec = _sample_project()
         candidate = LayoutCandidate(
             id="c-1",
             seed=42,

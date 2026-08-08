@@ -1,7 +1,6 @@
 """几何运算单元测试。"""
 
 import pytest
-
 from solver.geometry.rect import (
     Rect,
     contains,

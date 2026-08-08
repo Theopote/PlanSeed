@@ -27,7 +27,7 @@ from solver.circulation.stair_core import (
 from solver.geometry.free_rects import subtract_rect
 from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
-from solver.program.floor_assign import assert_all_rooms_placed
+from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
 from solver.topology.plan import (
     TopologyPlanner,

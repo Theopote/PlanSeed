@@ -8,6 +8,7 @@ from typing import Literal
 from packages.schema.core import CorePlacement, CorePlacementResult, StairCoreSpec
 from packages.schema.layout import PlacementRect
 from packages.schema.site import CardinalEdge
+
 from solver.geometry.snap import snap_value
 
 DEFAULT_STAIR_CORE = StairCoreSpec()

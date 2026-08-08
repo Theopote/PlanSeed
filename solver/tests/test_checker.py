@@ -8,7 +8,7 @@ from packages.schema.layout import (
     PlacementSource,
     RoomPlacement,
 )
-from solver.constraints.checker_impl import DefaultConstraintChecker, MIN_ADJACENCY_WALL
+from solver.constraints.checker_impl import MIN_ADJACENCY_WALL, DefaultConstraintChecker
 from solver.generators.guillotine import GuillotineGenerator
 from solver.tests.test_guillotine import benchmark_program
 
