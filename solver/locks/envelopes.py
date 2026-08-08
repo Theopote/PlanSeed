@@ -27,14 +27,17 @@ def build_zone_member_envelopes(locks: LayoutLocks) -> dict[str, Rect]:
     return out
 
 
-def placement_in_envelope(p: RoomPlacement, envelope: Rect, *, tol: float = _TOL) -> bool:
-    r = from_placement(p.rect)
+def rect_in_envelope(inner: Rect, envelope: Rect, *, tol: float = _TOL) -> bool:
     return (
-        r.x >= envelope.x - tol
-        and r.y >= envelope.y - tol
-        and r.x + r.width <= envelope.x + envelope.width + tol
-        and r.y + r.depth <= envelope.y + envelope.depth + tol
+        inner.x >= envelope.x - tol
+        and inner.y >= envelope.y - tol
+        and inner.x + inner.width <= envelope.x + envelope.width + tol
+        and inner.y + inner.depth <= envelope.y + envelope.depth + tol
     )
+
+
+def placement_in_envelope(p: RoomPlacement, envelope: Rect, *, tol: float = _TOL) -> bool:
+    return rect_in_envelope(from_placement(p.rect), envelope, tol=tol)
 
 
 def placements_respect_zone_envelopes(

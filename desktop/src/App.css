@@ -90,6 +90,11 @@ body,
   margin: 0.25rem 0 0;
 }
 
+.panel-head .warn-hint {
+  color: #8a4b2a;
+  max-width: 28rem;
+}
+
 .api-status {
   margin-top: 0.5rem;
   font-size: 0.8rem;

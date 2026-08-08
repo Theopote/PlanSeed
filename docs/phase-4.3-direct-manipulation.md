@@ -7,11 +7,11 @@
 
 ```text
 4.1.2 Lock Semantics Hardening ✅
-4.3 Constraint-aware Direct Manipulation ← 当前
-  ├─ GeometryMutation Authority（P0）
-  ├─ Move Room（P0）
+4.3 Constraint-aware Direct Manipulation ← 当前（P0 ✅）
+  ├─ GeometryMutation Authority（P0）✅
+  ├─ Move Room（P0）✅
   ├─ Resize Room（P1）
-  └─ Constraint Preview + Snap Back（P0）
+  └─ Constraint Preview + Snap Back（P0）✅
 ```
 
 ---
@@ -94,7 +94,7 @@ ProposedMutation
 
 | 层 | 职责 |
 |----|------|
-| **LockGuard** | Room/Stair 钉死则拒绝 MOVE/RESIZE；Zone member 不得出 envelope |
+| **LockGuard** | Zone member（无独立 Room Lock）不得出 envelope；不得侵入其它 Room/Stair lock；**本房 Room Lock 可经 MOVE Commit 更新** |
 | **GeometryConstraintChecker** | 场地内、不重叠（或仅允许与 self）、snap_module、min width |
 | **AccessImpactChecker** | P1：破坏 required 共边 → reject 或 warning+仍可 commit（产品选定一种） |
 | **Commit** | 单一写入口；UI 只发 ProposedMutation |
@@ -106,12 +106,12 @@ ProposedMutation
 
 ## 分期交付
 
-### P0 — Authority + Move Room
+### P0 — Authority + Move Room ✅
 
-1. Python（或共享）`apply_geometry_mutation` / preview API **或** 纯前端 Authority 调本地规则 + 提交后 Regenerate unlocked（二选一，优先本地确定性预览）  
-2. 迁入现有拖拽：松手 → `MOVE` ProposedMutation → Guard → Commit →（可选）自动 Room Lock  
-3. 非法：Snap Back + Inspector/Toast 人话原因  
-4. 测：locked room 不可 MOVE；zone member 不可移出 envelope；buildable 外拒绝
+1. ✅ `packages/schema/mutation.py` + `solver/mutation/preview_mutation`；桌面 `previewMove` 镜像规则  
+2. ✅ 拖拽松手 → `MOVE` → Guard → Commit（upsert Room/Stair Lock）或 Snap Back  
+3. ✅ 非法：Snap Back + `mutationHint` 人话原因  
+4. ✅ 测：`solver/tests/test_mutation.py`（buildable / overlap / zone envelope / snap）
 
 ### P1 — Resize Room
 
@@ -151,11 +151,11 @@ ProposedMutation
 
 ## Definition of Done
 
-1. 不存在「pointer → 直接写 PlacementRect」的旁路（旧 MVP 已迁入或删除）  
-2. MOVE（及 P1 RESIZE）一律经 LockGuard → GeometryChecker → Commit → Revalidate  
-3. 非法 mutation：Snap Back + 可见原因  
-4. Locked room/stair 不可 MOVE/RESIZE；zone member 不出 envelope  
+1. ✅ 不存在「pointer → 直接写 PlacementRect」旁路（拖拽经 `onProposeMove` → Authority）  
+2. ✅ MOVE 经 LockGuard → GeometryChecker → Commit；RESIZE 待 P1  
+3. ✅ 非法 mutation：Snap Back + 可见原因  
+4. ✅ 不得侵入其它 locked room/stair；zone member（无 Room Lock）不出 envelope；本房锁可经 MOVE 更新  
 5. same seed + same locks 仍 deterministic；lock invariant 仍绿  
 6. 文档与 UI 文案写清：受控编辑 ≠ 自由 CAD  
 
-完成后可开 **有限墙编辑 / 多房协调**（仍须走 Authority），或 Phase 5 血缘持久化。
+**P0 已满足。** 下一步 **P1 Resize**，或有限墙编辑（仍须走 Authority）/ Phase 5 血缘持久化。

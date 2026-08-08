@@ -14,6 +14,12 @@ export type RoomMovePose = {
   depth: number;
 };
 
+export type ProposeMoveResult = {
+  ok: boolean;
+  message?: string;
+  snapped?: { x: number; y: number; width: number; depth: number } | null;
+};
+
 type Props = {
   svg: string | null;
   emptyHint: string;
@@ -27,7 +33,9 @@ type Props = {
   floorDepth?: number;
   snapModule?: number;
   onSelectRoom: (roomId: string | null) => void;
-  onRoomMoved?: (roomId: string, pose: RoomMovePose) => void;
+  /** Geometry Mutation Authority：预览+提交；失败则 Snap Back */
+  onProposeMove?: (roomId: string, pose: RoomMovePose) => ProposeMoveResult;
+  mutationHint?: string | null;
 };
 
 type BasePose = {
@@ -79,7 +87,8 @@ export function FloorplanView({
   floorDepth = 0,
   snapModule = DEFAULT_SNAP,
   onSelectRoom,
-  onRoomMoved,
+  onProposeMove,
+  mutationHint = null,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const basesRef = useRef<Map<string, BasePose>>(new Map());
@@ -181,9 +190,9 @@ export function FloorplanView({
       el.classList.toggle("is-hl", !!(id && want.has(id)));
       el.classList.toggle("is-selected", !!(id && id === selectedRoomId));
       el.classList.toggle("is-locked", !!(id && locked.has(id)));
-      el.style.cursor = onRoomMoved ? "grab" : "pointer";
+      el.style.cursor = onProposeMove ? "grab" : "pointer";
     });
-  }, [svg, highlightRoomIds, selectedRoomId, lockedRoomIds, onRoomMoved]);
+  }, [svg, highlightRoomIds, selectedRoomId, lockedRoomIds, onProposeMove]);
 
   // SVG 注入后记录基准位，再按 placements 对齐（拖拽预览的事实源）
   useEffect(() => {
@@ -257,13 +266,24 @@ export function FloorplanView({
         applyNodeTransform(id, x, y);
       }
 
-      onRoomMoved?.(drag.roomId, {
+      const pose = {
         x,
         y,
         floor_id: drag.floorId,
         width: drag.width,
         depth: drag.depth,
-      });
+      };
+      const result = onProposeMove?.(drag.roomId, pose);
+      if (!result?.ok) {
+        syncFromPlacements();
+        return;
+      }
+      if (result.snapped) {
+        const s = result.snapped;
+        for (const id of ids) {
+          applyNodeTransform(id, s.x, s.y);
+        }
+      }
     }
 
     function onPointerDown(ev: PointerEvent) {
@@ -279,7 +299,7 @@ export function FloorplanView({
       if (!roomId) return;
       onSelectRoom(roomId);
 
-      if (!onRoomMoved || floorDepth <= 0) return;
+      if (!onProposeMove || floorDepth <= 0) return;
 
       const pl = placementById(roomId);
       const base = basesRef.current.get(roomId);
@@ -375,19 +395,21 @@ export function FloorplanView({
     floorIds,
     snapModule,
     onSelectRoom,
-    onRoomMoved,
+    onProposeMove,
   ]);
 
-  const canDrag = !!onRoomMoved && floorDepth > 0;
+  const canDrag = !!onProposeMove && floorDepth > 0;
 
   return (
     <main className="panel panel-center">
       <header className="panel-head compact">
         <h2>Floorplan</h2>
-        {selectedRoomId ? (
+        {mutationHint ? (
+          <p className="muted warn-hint">{mutationHint}</p>
+        ) : selectedRoomId ? (
           <p className="muted">
             {canDrag
-              ? "拖拽定位 · 松手自动锁定 · Regenerate unlocked"
+              ? "受控拖拽 · Authority 校验 · 非法回弹"
               : "已选 · 可锁定后 Regenerate unlocked"}
           </p>
         ) : lockedRoomIds.length > 0 ? (

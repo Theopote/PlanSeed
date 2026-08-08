@@ -24,6 +24,13 @@ from packages.schema.identity import (
     solver_identity,
 )
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
+from packages.schema.mutation import (
+    GeometryMutation,
+    MutationKind,
+    MutationPreviewResult,
+    MutationReject,
+    MutationSource,
+)
 from packages.schema.layout import (
     CandidateProvenance,
     CandidateValidation,
@@ -89,6 +96,7 @@ __all__ = [
     "FloorConstraint",
     "FloorLayout",
     "FloorSpec",
+    "GeometryMutation",
     "GENERATOR_VERSION",
     "HouseholdSpec",
     "LayoutCandidate",
@@ -96,6 +104,10 @@ __all__ = [
     "LockedRoomRect",
     "LockedStairCore",
     "LockedZoneRect",
+    "MutationKind",
+    "MutationPreviewResult",
+    "MutationReject",
+    "MutationSource",
     "CandidateProvenance",
     "OrientationConstraint",
     "PreferencesSpec",

@@ -20,7 +20,12 @@ import {
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
 import {
+  mutationRejectMessage,
+  previewMove,
+} from "./lib/geometryMutation";
+import {
   FloorplanView,
+  type ProposeMoveResult,
   type RoomMovePose,
 } from "./components/FloorplanView";
 import { Inspector } from "./components/Inspector";
@@ -72,6 +77,7 @@ function App() {
     stair: null,
     zones: [],
   });
+  const [mutationHint, setMutationHint] = useState<string | null>(null);
   const [rejectedCandidates, setRejectedCandidates] = useState<
     RejectedCandidatePayload[]
   >([]);
@@ -358,9 +364,35 @@ function App() {
     setLocks({ rooms: [], stair: null, zones: [] });
   }, []);
 
-  /** 拖拽松手：更新当前候选 placements 预览，并自动写入 Room/Stair Lock */
-  const onRoomMoved = useCallback(
-    (roomId: string, pose: RoomMovePose) => {
+  /** Geometry Mutation Authority：预览 → Commit（写 placements + upsert lock）或 Snap Back */
+  const onProposeMove = useCallback(
+    (roomId: string, pose: RoomMovePose): ProposeMoveResult => {
+      if (!selected?.placements || !program) {
+        return { ok: false, message: "无候选可编辑", snapped: null };
+      }
+      const preview = previewMove(
+        roomId,
+        {
+          x: pose.x,
+          y: pose.y,
+          width: pose.width,
+          depth: pose.depth,
+        },
+        pose.floor_id,
+        {
+          placements: selected.placements,
+          locks,
+          floorWidth: program.site_width,
+          floorDepth: program.site_depth,
+          snapModule: 0.3,
+        },
+      );
+      if (!preview.ok || !preview.snapped) {
+        const msg = mutationRejectMessage(preview);
+        setMutationHint(msg);
+        return { ok: false, message: msg, snapped: preview.snapped };
+      }
+      const s = preview.snapped;
       const isStair = roomId.startsWith("stair-");
       setCandidates((prev) =>
         prev.map((c) => {
@@ -372,19 +404,19 @@ function App() {
                 if (!p.room_id.startsWith("stair-")) return p;
                 return {
                   ...p,
-                  x: pose.x,
-                  y: pose.y,
-                  area: Math.round(pose.width * pose.depth * 100) / 100,
+                  x: s.x,
+                  y: s.y,
+                  area: Math.round(s.width * s.depth * 100) / 100,
                 };
               }
               if (p.room_id !== roomId) return p;
               return {
                 ...p,
-                x: pose.x,
-                y: pose.y,
-                width: pose.width,
-                depth: pose.depth,
-                area: Math.round(pose.width * pose.depth * 100) / 100,
+                x: s.x,
+                y: s.y,
+                width: s.width,
+                depth: s.depth,
+                area: Math.round(s.width * s.depth * 100) / 100,
               };
             }),
           };
@@ -394,29 +426,31 @@ function App() {
         setLocks((prev) => ({
           ...prev,
           stair: {
-            x: pose.x,
-            y: pose.y,
-            width: pose.width,
-            depth: pose.depth,
+            x: s.x,
+            y: s.y,
+            width: s.width,
+            depth: s.depth,
             core_placement: prev.stair?.core_placement ?? null,
           },
         }));
-        return;
+      } else {
+        setLocks((prev) => {
+          const rest = prev.rooms.filter((r) => r.room_id !== roomId);
+          const next: LockedRoomRect = {
+            room_id: roomId,
+            floor_id: pose.floor_id,
+            x: s.x,
+            y: s.y,
+            width: s.width,
+            depth: s.depth,
+          };
+          return { ...prev, rooms: [...rest, next] };
+        });
       }
-      setLocks((prev) => {
-        const rest = prev.rooms.filter((r) => r.room_id !== roomId);
-        const next: LockedRoomRect = {
-          room_id: roomId,
-          floor_id: pose.floor_id,
-          x: pose.x,
-          y: pose.y,
-          width: pose.width,
-          depth: pose.depth,
-        };
-        return { ...prev, rooms: [...rest, next] };
-      });
+      setMutationHint(null);
+      return { ok: true, snapped: s };
     },
-    [selectedId],
+    [selected, selectedId, program, locks],
   );
 
   const onToggleZoneLock = useCallback(
@@ -539,7 +573,8 @@ function App() {
           floorDepth={program?.site_depth}
           snapModule={0.3}
           onSelectRoom={onSelectRoom}
-          onRoomMoved={program ? onRoomMoved : undefined}
+          onProposeMove={program ? onProposeMove : undefined}
+          mutationHint={mutationHint}
         />
         <Inspector
           candidate={selected}
