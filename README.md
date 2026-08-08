@@ -16,6 +16,15 @@ uv sync --dev
 # 运行全部测试
 uv run pytest
 
+# 静态检查（与 CI 对齐；mypy 宽松，勿 --strict）
+uv run ruff check .
+uv run mypy packages solver backend
+```
+
+CI：push / PR 自动跑 pytest · ruff · mypy · `pnpm --dir desktop build` · `cargo check`（见 `.github/workflows/ci.yml`）。  
+Windows sidecar（PyInstaller）仅手动 / release 工作流。
+
+```bash
 # 运行 solver demo
 uv run python -m solver.demo
 
