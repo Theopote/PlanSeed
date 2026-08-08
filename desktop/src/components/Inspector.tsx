@@ -1,7 +1,10 @@
 import type { CandidatePayload, DesignFinding } from "../api/client";
+import { ComparePanel } from "./ComparePanel";
 
 type Props = {
   candidate: CandidatePayload | null;
+  compareWith: CandidatePayload | null;
+  onClearCompare: () => void;
 };
 
 const SCORE_ROWS: Array<{
@@ -41,7 +44,19 @@ function groupFindings(findings: DesignFinding[]) {
   return groups;
 }
 
-export function Inspector({ candidate }: Props) {
+export function Inspector({ candidate, compareWith, onClearCompare }: Props) {
+  if (candidate && compareWith && candidate.id !== compareWith.id) {
+    return (
+      <aside className="panel panel-right">
+        <header className="panel-head compact">
+          <h2>Inspector</h2>
+          <p className="muted">方案比较</p>
+        </header>
+        <ComparePanel a={candidate} b={compareWith} onClear={onClearCompare} />
+      </aside>
+    );
+  }
+
   const ds = candidate?.design_score ?? null;
   const hard = candidate?.validation?.hard_violations ?? [];
   const soft = candidate?.validation?.soft_violations ?? [];
@@ -60,7 +75,11 @@ export function Inspector({ candidate }: Props) {
         )}
       </header>
 
-      {!candidate && <p className="empty-hint">选择下方候选查看评价</p>}
+      {!candidate && (
+        <p className="empty-hint">
+          选择下方候选查看评价；Alt+点击另一候选可比较
+        </p>
+      )}
 
       {candidate && (
         <div className="inspector-body">

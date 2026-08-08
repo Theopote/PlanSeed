@@ -1,7 +1,29 @@
 /** PlanSeed API 客户端类型与调用。 */
 
-export const API_BASE =
+let _apiBase =
   import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "http://127.0.0.1:8787";
+
+export function getApiBase(): string {
+  return _apiBase;
+}
+
+export function setApiBase(url: string): void {
+  _apiBase = url.replace(/\/$/, "");
+}
+
+/** 浏览器用默认端口；Tauri 内从 get_engine_url 覆盖。 */
+export async function resolveEngineBase(): Promise<string> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const url = await invoke<string>("get_engine_url");
+    if (url && url.startsWith("http")) {
+      setApiBase(url);
+    }
+  } catch {
+    /* 非 Tauri / 命令未就绪 → 保留默认 */
+  }
+  return _apiBase;
+}
 
 export type DesignFinding = {
   id: string;
@@ -87,7 +109,7 @@ export type RequirementForm = {
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const r = await fetch(`${API_BASE}/api/health`);
+    const r = await fetch(`${_apiBase}/api/health`);
     if (!r.ok) return false;
     const data = (await r.json()) as { ok?: boolean };
     return data.ok === true;
@@ -99,7 +121,7 @@ export async function checkHealth(): Promise<boolean> {
 export async function generateBenchmark(
   opts?: { candidate_count?: number; return_top_k?: number },
 ): Promise<GenerateResponse> {
-  const r = await fetch(`${API_BASE}/api/generate`, {
+  const r = await fetch(`${_apiBase}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -119,7 +141,7 @@ export async function generateFromForm(
   form: RequirementForm,
   opts?: { candidate_count?: number; return_top_k?: number },
 ): Promise<GenerateResponse> {
-  const r = await fetch(`${API_BASE}/api/generate`, {
+  const r = await fetch(`${_apiBase}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

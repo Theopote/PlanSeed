@@ -51,7 +51,7 @@ Evaluator 只评分，不改几何。用户层七轴：
 | **P0** | DesignEvaluation / Finding、Metric ownership、去重评、roadmap | ✅ |
 | **P0** | **Tauri sidecar runtime**（本地独立工具能否成立） | 🟡 骨架；**Windows 真装包未验收** |
 | **P1** | API layering | ✅ |
-| **P1** | Inspector findings 加深 + **Candidate Compare（A vs B）** | 🟡 / ❌ Compare 未做 |
+| **P1** | Inspector findings 加深 + **Candidate Compare（A vs B）** | 🟡 / ✅ Compare MVP |
 | **P2** | Rejected Candidates（为何被淘汰） | 规划 |
 | **P2** | Local LLM | **不做本阶段** |
 

@@ -3,6 +3,7 @@ import {
   checkHealth,
   generateBenchmark,
   generateFromForm,
+  resolveEngineBase,
   type CandidatePayload,
   type GenerateResponse,
   type ProgramSummary,
@@ -32,6 +33,7 @@ function App() {
   const [program, setProgram] = useState<ProgramSummary | null>(null);
   const [candidates, setCandidates] = useState<CandidatePayload[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [compareId, setCompareId] = useState<string | null>(null);
   const [stats, setStats] = useState<{
     generated: number;
     valid: number;
@@ -39,24 +41,37 @@ function App() {
   } | null>(null);
 
   const selected = candidates.find((c) => c.id === selectedId) ?? null;
+  const compareWith =
+    compareId && compareId !== selectedId
+      ? (candidates.find((c) => c.id === compareId) ?? null)
+      : null;
 
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
-    async function ping() {
-      const ok = await checkHealth();
-      if (cancelled) return;
-      setApiOk(ok);
-      // 启动期加快轮询；就绪后降频
-      attempts += 1;
-      if (!ok && attempts < 40) {
-        window.setTimeout(() => {
-          if (!cancelled) void ping();
-        }, 500);
+
+    async function boot() {
+      await resolveEngineBase();
+      async function ping() {
+        const ok = await checkHealth();
+        if (cancelled) return;
+        setApiOk(ok);
+        attempts += 1;
+        if (!ok && attempts < 60) {
+          window.setTimeout(() => {
+            if (!cancelled) void ping();
+          }, 500);
+        }
       }
+      void ping();
     }
-    void ping();
-    const id = window.setInterval(() => void ping(), 8000);
+
+    void boot();
+    const id = window.setInterval(() => {
+      void checkHealth().then((ok) => {
+        if (!cancelled) setApiOk(ok);
+      });
+    }, 8000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -72,6 +87,7 @@ function App() {
       rejected: data.rejected,
     });
     setSelectedId(data.candidates[0]?.id ?? null);
+    setCompareId(null);
     setError(null);
   }, []);
 
@@ -94,6 +110,14 @@ function App() {
     [applyResult, form],
   );
 
+  const onComparePick = useCallback(
+    (id: string) => {
+      if (id === selectedId) return;
+      setCompareId(id);
+    },
+    [selectedId],
+  );
+
   return (
     <div className="app-shell">
       <div className="app-main">
@@ -112,18 +136,25 @@ function App() {
           svg={selected?.svg ?? null}
           emptyHint={
             apiOk === false
-              ? "本地引擎未就绪。请从仓库根目录运行 pnpm dev（或等待 Tauri 自动拉起）"
+              ? "本地引擎未就绪，正在等待自动启动…"
               : apiOk === null
                 ? "正在连接本地引擎…"
                 : "点击 Generate 或「基准案例」生成平面"
           }
         />
-        <Inspector candidate={selected} />
+        <Inspector
+          candidate={selected}
+          compareWith={compareWith}
+          onClearCompare={() => setCompareId(null)}
+        />
       </div>
       <CandidateStrip
         candidates={candidates}
         selectedId={selectedId}
+        compareId={compareId}
         onSelect={setSelectedId}
+        onComparePick={onComparePick}
+        onClearCompare={() => setCompareId(null)}
       />
     </div>
   );

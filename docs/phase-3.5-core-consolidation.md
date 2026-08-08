@@ -66,7 +66,7 @@
 |----|------|
 | API layering（routes / schemas / services） | ✅ |
 | Inspector findings（非纯分数标签） | 🟡 MVP；继续加深真实建筑解释 |
-| **Candidate Compare（A vs B）** | ❌ **下一产品功能优先于 LLM** |
+| **Candidate Compare（A vs B）** | ✅ MVP（Strip Alt+点击；Inspector 对照表 + 优势差分） |
 
 ### P2
 

@@ -6,6 +6,13 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    {
+      "identifier": "allow-get-engine-url",
+      "description": "前端获取本地引擎 URL",
+      "commands": {
+        "allow": ["get_engine_url"]
+      }
+    }
   ]
 }
