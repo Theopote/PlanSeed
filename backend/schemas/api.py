@@ -1,4 +1,10 @@
-"""FastAPI 请求/响应模型（≠ solver 领域模型）。"""
+"""FastAPI 请求/响应模型（≠ solver 领域模型）。
+
+Desktop Alpha v0.1 契约冻结（至 Phase 4 交互深化）：
+GenerateResponse / CandidatePayload / DesignScore / DesignFinding /
+solver_identity / CandidateProvenance — 禁止无 bump 的破坏性改字段。
+详见 docs/roadmap.md。
+"""
 
 from __future__ import annotations
 

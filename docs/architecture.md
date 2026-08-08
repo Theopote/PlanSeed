@@ -1,6 +1,7 @@
 # PlanSeed 架构文档
 
-> Phase 0 基线 — 以 Architecture Foundation & MVP v2 为准。
+> Phase 0 基线 — 以 Architecture Foundation & MVP v2 为准。  
+> **Desktop Alpha v0.1：** Solver schema / 七轴 / API 契约短暂冻结（见 [roadmap.md](roadmap.md)）；runtime 与 solver **不要同时快速改**。
 
 ## 1. 产品定位
 

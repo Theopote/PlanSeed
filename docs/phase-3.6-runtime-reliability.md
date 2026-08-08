@@ -1,9 +1,9 @@
 # Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract
 
-> **← 当前短周期**（在 3.5 Core Consolidation 之上收口「真能双击用」）  
-> 目标：本地引擎、评分单一事实源、比较逻辑、测试与发布链做稳。  
+> **当前焦点：Phase 3.6.1 短收口 → 契约冻结 → Phase 4**  
+> 目标：本地引擎、评分单一事实源、比较逻辑、测试与发布链做稳；**不开 3.7+**。  
 > **Desktop Alpha 平台（写死）：Windows 10/11 x64** — 不做并行 macOS/Linux 打包。  
-> **不做**：LLM、推倒四区 UI、继续扩 solver feature、跨平台 packaging。
+> **不做：** LLM、推倒四区 UI、继续扩 solver feature、跨平台 packaging。
 
 配套总览见 [roadmap.md](roadmap.md)。
 
@@ -113,10 +113,13 @@ Rust 三态：
 ## Phase 3.6.1 — Runtime State Cleanup
 
 - [x] `engine-status` 唯一事实源；废弃 `engine-ready` 双发（修 STARTING→ERROR）
-- [x] reuse 外部引擎：`watch_reused_health` + 前端 health 掉线 → ERROR
+- [x] reuse 外部引擎：连续 health 失败 → ERROR（前后端各 3 次）
+- [x] Retry：`spawning` 防并发 + UI STARTING 时禁用
 - [x] CI stub sidecar 目录（`cargo check` 不依赖真 onedir）
-- [ ] push 后确认 GitHub Actions 三 job 绿
+- [ ] **远端 Actions 是否绿**：以 GitHub 该次 run 为准；「workflow 已配置」≠「已跑通」
 - [ ] 按 [windows-alpha-smoke.md](windows-alpha-smoke.md) 再跑一轮 Alpha smoke
+
+**Phase 4 前工程债（非 P0）：** `desktop/src-tauri/src/lib.rs` 拆 `engine/{probe,process,lifecycle,logging}`，lib 只留 setup/commands/run。
 
 完成后进入 Phase 4 Interactive Design Workbench。
 
@@ -129,6 +132,6 @@ Rust 三态：
 3. evaluation 契约测试保持绿  
 4. Compare / Inspector 仍走 evaluation  
 5. pytest + ruff + mypy（宽松）+ desktop tsc 绿  
-6. **GitHub Actions CI**（`.github/workflows/ci.yml`）每次提交自动跑；sidecar 仅手动/release
+6. **GitHub Actions CI**（`.github/workflows/ci.yml`）已配置 pytest / ruff / mypy / pnpm build / cargo check；**是否通过以该次 push 的 Actions run 为准**，勿把「配置存在」写成「已绿」。sidecar 仅手动/release。
 
 下一阶段再回到 Desktop Workbench 加深或 Packaging。

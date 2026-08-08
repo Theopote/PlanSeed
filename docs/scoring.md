@@ -8,8 +8,8 @@
 
 ## DesignScore 七轴（用户层）
 
-**冻结（至少两个阶段：3.6–4）：** 轴的英文标识与用户显示名不再改动。  
-API / Desktop / docs / tests / Compare 全部对齐下列七名；只允许轴内加深 metric 与 ownership，禁止改名或退回 `geometry_score` / `efficiency_score` 等旧并列名。
+**冻结（至少两个阶段：3.6–4 / Desktop Alpha v0.1）：** 轴的英文标识与用户显示名不再改动。  
+同步冻结 **`DesignScore` / `DesignFinding` 字段契约**（见 [roadmap.md](roadmap.md)#desktop-alpha-v01--契约冻结至少到-v01-发布）；只允许轴内加深 metric 与 ownership，禁止改名或退回 `geometry_score` / `efficiency_score` 等旧并列名。
 
 ```text
 Program      = Program Fit + Adjacency

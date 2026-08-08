@@ -1,25 +1,39 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract**  
-> 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)  
-> 3.5 评价链已收口；本短周期把**引擎身份 / 端口 / 就绪探测**做稳 → **Desktop Alpha（Windows 10/11 x64）**。
+> **当前焦点：Phase 3.6.1 收口 → Phase 4 Interactive Design Workbench**  
+> 3.6 Runtime Reliability ≈ **95%**（状态机 / Identity Probe / Compare / provenance 已落地）。  
+> **不再开 Phase 3.7 / 3.8… 无休止收口。** 两个 runtime 状态问题修完即前进。  
+> 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
 
 ## 阶段总览（以代码为准）
 
 | Phase | 主题 | 状态 |
 |-------|------|------|
-| 0–2.3 | Architecture → Realized Circulation | ✅ |
-| **3** | **Architectural Evaluation** | **✅ MVP** |
-| **3.5** | **Core Consolidation & Local Desktop Runtime** | **✅ 主链收口** |
-| **3.6** | **Desktop Runtime Reliability & Evaluation Contract** | **← 当前**（**Alpha = Win10/11 x64**） |
-| **4** | **Desktop Workbench（加深 / 交互）** | **🟡 壳已有**；结构锁定 |
-| **5** | **Packaging 硬化**（CSP、签名；**其后**再 macOS） | 未开始 |
-| **6** | **Local LLM** | **未开始** |
-| 7–8 | Interactive Editing / Persistence | 未开始 |
+| 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
+| **3.5** | **Core Consolidation** | **✅** |
+| **3.6** | **Desktop Runtime Reliability** | **🟡 ~95%**（3.6.1 短收口后冻结进 4） |
+| **4** | **Interactive Design Workbench** | **← 即将进入**（壳已有；结构锁定） |
+| **5** | **Project Persistence** | 未开始 |
+| **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
+| **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
 | — | SVG Debug | ✅ 开发工具 |
 
 **平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
-**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 Runtime 稳定之前。
+**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 Alpha 冻结之前；runtime 与 solver **同时快速改**。
+
+### Desktop Alpha v0.1 — 契约冻结（至少到 v0.1 发布）
+
+Solver / Evaluation / API **短暂冻结**，避免 Phase 4 交互编辑时前端追 schema：
+
+| 层 | 冻结内容 |
+|----|----------|
+| Solver schema | `LayoutCandidate` 主字段形状；不借机大改几何模型 |
+| Evaluation | **七轴名称**（已冻）+ `DesignScore` / `DesignFinding` 字段契约 |
+| API | `GenerateResponse` · `CandidatePayload` · `DesignScore` · `DesignFinding` · `solver_identity` / `CandidateProvenance` |
+| Alias | `DesignEvaluation = DesignScore` **保持**；正式拆 Evaluation 延后 |
+
+**允许：** bugfix、文档、CI 绿、runtime 小修、Workbench UI（只消费冻结契约）。  
+**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare 规则却不 bump `evaluation_version`；前端自创评分逻辑。
 
 ---
 
@@ -45,7 +59,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 3.5 — Core Consolidation & Local Desktop Runtime（← 当前）
+## Phase 3.5 — Core Consolidation & Local Desktop Runtime（✅）
 
 详案：[phase-3.5-core-consolidation.md](phase-3.5-core-consolidation.md)
 
@@ -83,21 +97,23 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract（← 当前）
+## Phase 3.6 — Desktop Runtime Reliability & Evaluation Contract（🟡 ~95%）
 
 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
+
+**收口原则：** 修完 3.6.1（状态机 / reuse health）→ **冻结契约** → Phase 4。不开 3.7+。
 
 | 级 | 主题 | 状态 |
 |----|------|------|
 | **P0** | Engine Identity Probe 三态：PORT_FREE / PLANSEED_ENGINE / FOREIGN_SERVICE | ✅ |
 | **P0** | health 契约含 api_version + engine_version；就绪非仅 TCP | ✅ |
-| **P0** | **GitHub Actions CI**（pytest / ruff / mypy / pnpm build / cargo check） | ✅ workflow 已加；merge 后看 checks |
-| **P1** | evaluation 单一事实源 / 确定性契约测试 | 🟡 持续 |
-| **P2** | onedir 真装包冒烟 | ✅ 本机；sidecar 工作流手动/release |
+| **P0** | **GitHub Actions CI**（pytest / ruff / mypy / pnpm build / cargo check） | ✅ workflow 已配；**是否绿以 Actions run 为准** |
+| **P1** | evaluation 单一事实源 / 确定性契约测试 | 🟡 持续（不扩规则） |
+| **P2** | onedir 真装包冒烟 | ✅ 本机记录；sidecar 工作流手动/release |
 
 ---
 
-## Phase 4 — Desktop Workbench（🟡 壳；结构锁定）
+## Phase 4 — Interactive Design Workbench（← 即将进入）
 
 **围绕加深，禁止推倒重做。** UI = 观察/控制 solver 的窗口，不是功能堆场。
 
@@ -119,28 +135,31 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 5 — Packaging 硬化（Windows Alpha 跑通之后）
+## Phase 5 — Project Persistence（未开始）
 
-- [ ] Windows 签名 / 分发打磨  
-- [ ] **收紧 `csp`**（开发期 `null` 可接受）  
-- [ ] **其后**再开 macOS（再后 Linux）；**禁止**与 Alpha 并行跨平台
+- [ ] 本地项目 / 候选快照（含 provenance）  
+- [ ] 重开可解释：布局变了 vs `evaluation_version` 变了
+
+Packaging 硬化（CSP、签名、其后 macOS）并入 **7+**，**禁止**与 Alpha / Phase 4 并行跨平台。
 
 ---
 
-## Phase 6 — Local LLM（未开始）
+## Phase 6 — Local LLM Requirement Parsing（未开始）
 
 ```text
 Natural Language → (Ollama) → RequirementSpec → normalize → Solver
 ```
 
-禁止 LLM 输出坐标 / SVG / DesignProgram。**晚于 Desktop Alpha 与 Compare。**
+禁止 LLM 输出坐标 / SVG / DesignProgram。**晚于 Desktop Alpha 契约冻结与 Phase 4 壳深化。**
 
 ---
 
-## Phase 7+（未开始）
+## Phase 7+ — Export / Advanced Analysis（未开始）
 
-- **7** Interactive Editing（拖拽等；仍在中栏 Floorplan）  
-- **8** Persistence / Projects
+- Export（图纸 / 数据）  
+- Advanced analysis  
+- Packaging 硬化（Windows 签名、CSP；其后 macOS / Linux）  
+- Interactive editing 加深（仍在中栏 Floorplan）
 
 ---
 
@@ -231,7 +250,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | Phase 3.5 Core Consolidation → Desktop Alpha（sidecar + Compare） |
+| **当前主线** | Phase 3.6.1 收口 → **契约冻结** → Phase 4 Workbench |
 
 ---
 

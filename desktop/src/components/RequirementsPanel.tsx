@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type {
   EngineLifecycle,
   ProgramSummary,
@@ -58,7 +58,14 @@ export function RequirementsPanel({
   violationSummary,
 }: Props) {
   const [rejectedOpen, setRejectedOpen] = useState(true);
+  const [retryBusy, setRetryBusy] = useState(false);
   const engineReady = engineStatus === "READY";
+
+  useEffect(() => {
+    if (engineStatus !== "STARTING") {
+      setRetryBusy(false);
+    }
+  }, [engineStatus]);
 
   function set<K extends keyof RequirementForm>(key: K, value: RequirementForm[K]) {
     onChange({ ...form, [key]: value });
@@ -90,13 +97,21 @@ export function RequirementsPanel({
         >
           引擎 {statusLabel(engineStatus)}
         </p>
-        {(engineStatus === "ERROR" || engineStatus === "STOPPED") && (
+        {(engineStatus === "ERROR" ||
+          engineStatus === "STOPPED" ||
+          retryBusy) && (
           <button
             type="button"
             className="secondary engine-retry"
-            onClick={onRetryEngine}
+            disabled={retryBusy || engineStatus === "STARTING"}
+            onClick={() => {
+              setRetryBusy(true);
+              onRetryEngine();
+            }}
           >
-            重试引擎
+            {engineStatus === "STARTING" || retryBusy
+              ? "启动中…"
+              : "重试引擎"}
           </button>
         )}
       </header>
