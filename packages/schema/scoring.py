@@ -110,5 +110,10 @@ class DesignScore(BaseModel):
     violations: list[Violation] = Field(default_factory=list)
 
 
-# 正式结果对象别名（LayoutCandidate.evaluation）；与 DesignScore 同构，避免双源。
+# temporary compatibility alias — Score ≠ Evaluation 语义上长期应拆分。
+# 现阶段与 DesignScore 同构，避免双源；schema 稳定后再升级为真正模型，例如：
+#   DesignEvaluation(score, findings, metrics, profile, evaluator_version, …)
+# 候选扩展字段：evaluation_version / timestamp / profile /
+# metric_ownership_version / scenario / comparison_signature
+# 拆分前勿在业务层假设「Evaluation 仅等于七轴分数」。
 DesignEvaluation = DesignScore
