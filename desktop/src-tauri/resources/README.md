@@ -1,18 +1,21 @@
-# Sidecar 资源（PyInstaller --onedir）
+# Sidecar 资源（锁定：PyInstaller --onedir + bundle.resources）
 
-正式产物目录：
+**不**再使用 `externalBin`。onedir 是整目录（exe + `_internal` + runtime），由 Tauri `resources` 打包、Rust `Command` 托管进程。
+
+## Canonical 路径（正式包唯一契约）
 
 ```text
-resources/planseed-backend/
-  planseed-backend.exe   # Windows
-  _internal/             # 依赖与运行时
+{resource_dir}/planseed-backend/planseed-backend.exe   # Windows
+{resource_dir}/planseed-backend/planseed-backend       # Unix
++ _internal/
 ```
 
-生成：
+`sidecar_path()` 正式只认这一条；其它探测仅 `debug_assertions`。
+
+## 生成
 
 ```powershell
 .\scripts\build_backend_sidecar.ps1
 ```
 
 开发态 `tauri:dev` 仍用 `uv run python -m backend`，不依赖本目录真引擎。
-`tauri.conf.json` 通过 `bundle.resources` 打包整目录（**不用** onefile / externalBin）。

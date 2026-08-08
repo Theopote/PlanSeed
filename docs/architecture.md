@@ -105,14 +105,14 @@ pnpm --dir desktop tauri:dev   # Tauri：Rust setup 内 spawn uv run python -m b
 
 等价引擎入口：`uv run python -m backend`（`PLANSEED_HOST` / `PLANSEED_PORT` 可覆写，默认 `127.0.0.1:8787`）。
 
-### Release
+### Release（锁定：resources + managed process，不回退 externalBin）
 
 ```text
 scripts/build_backend_sidecar.*  →  PyInstaller --onedir
 desktop/src-tauri/resources/planseed-backend/  →  bundle.resources
-Tauri 启动时 spawn 该目录内 planseed-backend(.exe)
-退出时 kill 子进程
-setup 不阻塞窗口；就绪后 emit engine-ready
+canonical: {resource_dir}/planseed-backend/planseed-backend(.exe)
+Tauri Command::new 启动；退出时 kill 子进程
+setup 不阻塞；就绪后 emit engine-ready（health 身份探针）
 ```
 
 验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 启动中 / 未就绪」。

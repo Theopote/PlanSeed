@@ -45,13 +45,23 @@ Rust 三态：
 | `PLANSEED_ENGINE` | reuse |
 | `FOREIGN_SERVICE` | **不要 reuse** → pick another port → launch PlanSeed |
 
-就绪探测同样要求完整身份 JSON，而非仅 TCP connect。
+就绪判定：**poll `/api/health` + identity/version**（应用级），不是 TCP listen。
+
+端口占用：
+
+```text
+选 port → 立即 spawn → health 失败或进程退出 → 换 port 重试（最多 5 次）
+```
+
+不预占 `TcpListener` 再释放（避免 TOCTOU）；极小竞态由重试消化。
 
 | 项 | 状态 |
 |----|------|
 | health 含 api_version / engine_version | ✅ |
 | 三态探针 PORT_FREE / PLANSEED_ENGINE / FOREIGN_SERVICE | ✅ |
 | FOREIGN → 换端口自启 | ✅ |
+| `probe_engine` / `wait_for_engine`（非 port_open / wait_for_port） | ✅ |
+| spawn 失败 / health 超时 → 换端口重试 | ✅ |
 | setup 不阻塞；`engine-ready` 异步通知 | ✅ |
 | Windows onedir 真装包验收 | ❌ 仍待本机跑 |
 ---
@@ -67,8 +77,10 @@ Rust 三态：
 
 ---
 
-## P2 — 发布链（本短周期能推进多少算多少）
+## P2 — 发布链（resources 路线，不回退 externalBin）
 
+- [x] 锁定：`bundle.resources` + onedir + managed `Command`（**不做 externalBin**）
+- [x] 正式 `sidecar_path` 仅 canonical：`{resource_dir}/planseed-backend/<exe>`
 - [ ] `build_backend_sidecar` onedir → `tauri:build` Windows 冒烟
 - [ ] 文档与 DoD 与代码一致
 - [ ] CSP 仍属 Phase 5 Packaging，不在此强行严配
