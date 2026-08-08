@@ -45,6 +45,6 @@
 ## 结论
 
 - Separation：未接线
-- Door 不回改房间几何（2A）；topology drives geometry 延后
+- Door：2A 不回改几何；2.1.1 ConnectionResolver 仅局部缝隙/短边修补
 - FloorConstraint：FloorAssignmentSolver 消费
 - Generator 不「理解」约束语义；靠 zone/core + checker/evaluator 闭环

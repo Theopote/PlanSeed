@@ -149,6 +149,7 @@ class GuillotineGenerator:
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
 
         from solver.circulation.exterior_entry import resolve_exterior_entry
+        from solver.topology.connection_resolve import resolve_required_connections
 
         candidate = LayoutCandidate(
             id=f"candidate-{seed}",
@@ -157,6 +158,7 @@ class GuillotineGenerator:
             wet_stacks=list(building_zones.wet_stacks),
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
+        resolve_required_connections(program, candidate, module=module)
         return candidate
 
     def _layout_floor_with_zones(
