@@ -49,7 +49,7 @@ LLM Phase 4 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **Implicit constraints**：有限规则集，必须带 `source` / `source_key`
 - **Circulation**：系统生成（`source=generated`），用户可约束
 - **Setbacks 默认 0**：表示未提供规划信息，非法规结论
-- **FastAPI + Tauri**：延后至 Phase 5/7；当前焦点 Phase 1.5 Solver Reliability
+- **FastAPI + Tauri**：Desktop UI MVP 已开（开发期 `uvicorn` + Vite；发布 sidecar 仍后续）
 - **路线图**：见 [roadmap.md](roadmap.md)
 
 ```text
@@ -114,8 +114,8 @@ FastAPI backend → self-contained executable → Tauri sidecar
 PlanSeed/
 ├── packages/schema/       # Schema v2 Pydantic 模型
 ├── solver/                # 纯 Python 求解引擎
-├── backend/               # FastAPI（Phase 2+）
-├── desktop/               # Tauri + React（Phase 3+）
+├── backend/               # FastAPI（Desktop MVP）
+├── desktop/               # Tauri v2 + React（Desktop MVP）
 ├── reference/             # floorplan-generator.html 参考原型
 └── docs/                  # 架构文档
 ```
@@ -156,7 +156,7 @@ Natural Language → Ollama → RequirementSpec/ProjectSpec
 - 校验失败最多 3 次 correction retry
 - 未知信息保持 `unknown`，不强迫 LLM 猜测（confidence 系统后续实现）
 
-## 9. UI 原则（Phase 3+）
+## 9. UI 原则（Desktop MVP）
 
 ```text
 Left: Requirements / Program
@@ -165,7 +165,7 @@ Right: Inspector / Evaluation
 Bottom: Candidate Strip (A 91, B 89, ...)
 ```
 
-AI 推断的 ProjectSpec 必须可编辑；禁止 black box 直接出图。
+启动见根目录 README。AI 推断的 ProjectSpec 必须可编辑；禁止 black box 直接出图（LLM 仍延后）。
 
 ## 10. 与旧版开发手册的冲突
 

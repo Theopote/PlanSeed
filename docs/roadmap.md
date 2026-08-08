@@ -18,14 +18,14 @@
 | 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
-| 5 | FastAPI | 延后 |
+| 5 | FastAPI | **✅ MVP**（`/api/health` · `/api/generate`） |
 | 6 | LLM Requirement Parsing | 延后 |
-| 7 | Tauri UX | 延后 |
+| 7 | Tauri UX | **✅ MVP 壳**（四区 + SVG；`pnpm tauri:dev` 需 Rust） |
 | 8 | Interactive Editing | 延后 |
 | 9 | Persistence / Projects | 延后 |
 | 10 | Packaging | 延后 |
 
-**FastAPI / Tauri / LLM 在 Phase 1.5 与拓扑闭环之前不做。**
+**Solver / 拓扑 / Phase 3 评价已就绪。** Desktop MVP：FastAPI + Vite/Tauri 四区壳；LLM / 编辑 / 打包仍延后。
 
 Visual Debugger（Phase 4）安排在 FastAPI 之前：纯 JSON 已难以判断方案好坏。
 
@@ -128,7 +128,7 @@ Evaluator
 | **2.1.1 ✅** | ConnectionResolver：必连小缝 / 短共边 **局部修补**（不全局重排） |
 | **2.1.2 ✅** | 同层小 AABB **跨区局部重切**：必连对先共边占位，其余在剩余矩形打包 |
 | **2.1.3 ✅** | **绕核 / 多 free-rect**：楼梯核固定挖洞；必要时扩绕行带再打包（仍不动核） |
-| **下一步** | 桌面 SVG Inspector 增强；FastAPI / Tauri 仍延后 |
+| **下一步** | Sidecar 打包；交互编辑；LLM（均延后） |
 
 示例簇：
 
@@ -262,7 +262,7 @@ shared_edge_length >= minimum ?
 | Layout Stability | repair metrics | ConnectionResolver 扰动 |
 
 `DesignScore` 增加 `program_fit_score` / `privacy_score` / `space_efficiency_score` / `layout_stability_score` + `explanations[]`。  
-**不做**：daylight、正式 UI Inspector（仍属 Phase 4+ 桌面）。
+**不做**：daylight；LLM；房间拖拽编辑。
 
 ---
 
@@ -275,3 +275,18 @@ uv run python -m solver.visualize
 
 输出 `debug/candidate_0N_seedXX.svg`（房间名/面积、category 色、core、wet、entry、access 虚线、**门洞/开启弧**、score/metrics、hard violations）。  
 非正式 UI，供 generator 回归目视检查。
+
+---
+
+## Phase 5 / 7 — Desktop UI MVP（✅）
+
+```text
+Left: Requirements / Program
+Center: Floorplan (SVG from solver)
+Right: Inspector (DesignScore breakdown)
+Bottom: Candidate Strip (A 91, B 89…)
+```
+
+- API：`uv run uvicorn backend.main:app --port 8787`
+- UI：`cd desktop && pnpm dev`（或 `pnpm tauri:dev`）
+- `POST /api/generate`：RequirementSpec 或 `use_benchmark` → pipeline → SVG + 分项分
