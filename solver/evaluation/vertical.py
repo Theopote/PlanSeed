@@ -12,12 +12,20 @@ def compute_vertical_metrics(candidate: LayoutCandidate) -> dict[str, float]:
     if len(candidate.floors) >= 2:
         ref = candidate.floors[0]
         for fl in candidate.floors[1:]:
-            if ref.stair_x0 is not None and fl.stair_x0 is not None:
-                if abs(fl.stair_x0 - ref.stair_x0) > 0.01 or abs(fl.stair_x1 - ref.stair_x1) > 0.01:
+            if None not in (ref.stair_x0, ref.stair_x1, ref.stair_y0, ref.stair_y1, fl.stair_x0, fl.stair_x1, fl.stair_y0, fl.stair_y1):
+                if (
+                    abs(fl.stair_x0 - ref.stair_x0) > 0.01
+                    or abs(fl.stair_x1 - ref.stair_x1) > 0.01
+                    or abs(fl.stair_y0 - ref.stair_y0) > 0.01
+                    or abs(fl.stair_y1 - ref.stair_y1) > 0.01
+                ):
                     stair = 0.0
             if ref.wet_zone_x0 is not None and fl.wet_zone_x0 is not None:
                 if abs(fl.wet_zone_x0 - ref.wet_zone_x0) > 0.01 or abs(fl.wet_zone_x1 - ref.wet_zone_x1) > 0.01:
                     wet = 0.0
+                if ref.wet_zone_y0 is not None and fl.wet_zone_y0 is not None:
+                    if abs(fl.wet_zone_y0 - ref.wet_zone_y0) > 0.01 or abs(fl.wet_zone_y1 - ref.wet_zone_y1) > 0.01:
+                        wet = 0.0
 
     return {"stair_alignment": stair, "wet_zone_alignment": wet}
 

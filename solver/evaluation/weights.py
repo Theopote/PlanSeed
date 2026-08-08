@@ -4,13 +4,13 @@ from pydantic import BaseModel, Field
 
 
 class ScoreWeights(BaseModel):
-    geometry: float = 0.35
-    adjacency: float = 0.20
-    vertical: float = 0.20
-    site: float = 0.15
+    geometry: float = 0.30
+    adjacency: float = 0.18
+    vertical: float = 0.18
+    site: float = 0.12
+    orientation: float = 0.12
     circulation: float = 0.05
-    orientation: float = 0.025
-    privacy: float = 0.025
+    privacy: float = 0.05
 
     aspect_ratio_threshold: float = 2.2
     min_adjacency_wall: float = 1.2

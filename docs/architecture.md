@@ -45,7 +45,8 @@ LLM Phase 4 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **Implicit constraints**：有限规则集，必须带 `source` / `source_key`
 - **Circulation**：系统生成（`source=generated`），用户可约束
 - **Setbacks 默认 0**：表示未提供规划信息，非法规结论
-- **FastAPI + Tauri**：Phase 1 完成后才启动
+- **FastAPI + Tauri**：延后至 Phase 5/7；当前焦点 Phase 1.5 Solver Reliability
+- **路线图**：见 [roadmap.md](roadmap.md)
 
 ```text
 UI (Tauri + React)

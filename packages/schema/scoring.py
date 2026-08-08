@@ -24,6 +24,7 @@ class DesignMetrics(BaseModel):
     wet_zone_alignment: float = 0.0
 
     setback_compliance: float = 1.0
+    orientation_satisfaction: float = 1.0
 
 
 class DesignScore(BaseModel):

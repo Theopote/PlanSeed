@@ -13,10 +13,10 @@ DesignScore
 ├── geometry_score
 ├── adjacency_score
 ├── circulation_score      # Phase 2+ 实现，Phase 1 可为 0
-├── orientation_score        # Phase 2+
-├── privacy_score            # Phase 2+
+├── orientation_score        # OrientationConstraint 满足度
+├── privacy_score            # 后续
 ├── vertical_score
-├── site_score
+├── site_score               # setback/envelope，非常量
 ├── total_score
 ├── metrics: DesignMetrics
 ├── warnings[]
@@ -58,7 +58,26 @@ min_diversity_threshold = 0.85
 贪心选取 Top K：跳过与已选方案 `layout_similarity >= threshold` 的候选。
 设为 `None` 则纯分数排序。配置项：`SolverConfig.min_diversity_threshold`。
 
+### Orientation (`evaluation/orientation.py`)
+
+| Metric | 说明 |
+|--------|------|
+| `orientation_satisfaction` | 加权朝向满足率（贴 buildable 外墙） |
+| soft violations | 未满足的 soft OrientationConstraint |
+
+坐标系：`y=0` 北，`y` 增大向南；`x=0` 西。
+
+### Site (`evaluation/site.py`)
+
+| Metric | 说明 |
+|--------|------|
+| `setback_compliance` | 程序房间落在 buildable 内比例 |
+| `setback_info_provided` | 是否用户提供了退界；未提供时 site_score ≤ 95 |
+
+不再使用 `site_score = 100` 常量。
+
 ### Adjacency (`evaluation/adjacency.py`)
+
 
 | Metric | 说明 |
 |--------|------|

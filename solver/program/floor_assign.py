@@ -1,6 +1,7 @@
 """楼层归属 — 兼容入口，正式实现见 floor_assignment.py。"""
 
 from solver.program.floor_assignment import (
+    DuplicateRoomAssignmentError,
     FloorAssignmentSolver,
     UnassignedRoomError,
     assert_all_rooms_placed,
@@ -9,6 +10,7 @@ from solver.program.floor_assignment import (
 )
 
 __all__ = [
+    "DuplicateRoomAssignmentError",
     "FloorAssignmentSolver",
     "UnassignedRoomError",
     "assert_all_rooms_placed",

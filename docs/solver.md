@@ -77,7 +77,72 @@ LayoutCandidate[]
 Top K candidates
 ```
 
+## Architectural Zones（Phase 1.5 P3）
+
+```text
+StairCore → free rects → ZonePlanner 整栋共享 (day/night/service) → Guillotine within zones
+```
+
+| Zone | 房间来源 |
+|------|----------|
+| day | PUBLIC |
+| night | PRIVATE / 书房 |
+| service | WET / garage / SERVICE |
+| circulation | StairCore（generated） |
+
+Guillotine 降级为 **RoomLayout strategy**，不再独自决定整栋组织。
+
+## Quality regression（Phase 1.5）
+
+
+正式门槛集中在 `solver/tests/quality_baselines.py`，由 `test_quality_regression.py` 执行。
+
+当前默认（基准 11×13 两层，N=32）：
+
+| 指标 | 门槛 | 实测基线 |
+|------|------|----------|
+| valid_ratio | ≥ 0.70 | ≈ 0.875 |
+| distinct layouts | ≥ 8 | 32 |
+| distinct valid | ≥ 8 | 28 |
+| Top-5 hard violations | 0 | 0 |
+| Top-5 area_accuracy | ≥ 0.70 | ≈ 0.86 |
+| core placements | ≥ 2 | 5 |
+
+`valid >= 1` / `distinct > 1` 仅作 smoke；质量以本表为准。收紧阈值前先更新 `MEASURED_BASELINE`。
+
+## Constraint 生命周期（强制）
+
+
+每新增一条 constraint 必须走通：
+
+```text
+User Requirement
+  → Schema
+  → Normalizer（source / source_key）
+  → Constraint
+  → Generator 使用  和/或  Evaluator 评价
+  → Score / Validation
+  → 可解释结果
+```
+
+禁止：schema/constraint 存在但 solver 忽略。
+
+| Constraint | Checker | Evaluator |
+|------------|---------|-----------|
+| Adjacency hard/soft | ✓ | adjacency metrics |
+| Orientation hard | ✓ | — |
+| Orientation soft | — | **orientation.py** ✓ |
+| Area / Width | ✓ | geometry |
+| Alignment / stair / wet | ✓ | vertical |
+| Site / setbacks | boundary hard | **site.py**（非常量） |
+
+## Diversity（预留）
+
+Phase 1 的 `layout_similarity` 使用绝对米差 / 5m，对小住宅够用。
+未来应改为 footprint 归一化，并加入 topology similarity（邻接、core 区位）。暂非 P0。
+
 ## RequirementSpec uncertainty（Phase 1.5）
+
 
 `normalize_requirements()` 必须真正使用 `assumptions` / `unknowns`：
 
@@ -125,10 +190,11 @@ floor.room_ids + RoomSpec.floor_id
 
 来自 `reference/floorplan-generator.html`：
 
-1. **楼梯/玄关条带**：每层固定 x 区间 `[0, stair_width]`
-2. **湿区条带**：第一层计算 `wetRatio = wet_area / (wet + other)`，其余层复用 → x 方向对齐
-3. **递归切分**：`layoutRooms` 按面积权重二分，选更接近正方形的切分方向，snap 到 `grid_module`（默认 0.3m）
-4. **确定性**：shuffle 等随机操作必须使用传入 seed
+1. **StairCore（非整层条带）**：默认约 `1.8 × 4.2`，区位 `N/S/E/W/center` 由 seed 选择，跨层对齐完整 AABB
+2. **剩余矩形**：从 footprint 挖去核心后做正交分解
+3. **ZonePlanner（整栋共享）**：按全楼 day/night/service 面积权重切分一次；各层只绑定本层房间。SERVICE 矩形跨层一致 → `wet_zone_*` 对齐
+4. **Guillotine within zones**：在各 zone 矩形内递归切分
+5. **确定性**：`rng = random.Random(seed)`；相同 program+seed → 相同 candidate
 
 输出映射到 `RoomPlacement`，不修改 `RoomSpec`。
 

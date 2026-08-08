@@ -34,14 +34,12 @@ RequirementSpec  →  normalize  →  DesignProgram  →  generate  →  LayoutC
 
 ## 当前阶段
 
-**Phase 1 — Deterministic Layout Core**（已完成）
+**Phase 1.5 — Solver Reliability**（进行中）
 
-- Geometry / Snap / GuillotineGenerator
-- ConstraintChecker / Evaluation / Pipeline
-- 32 candidates → Top 5
-- `uv run pytest` + `uv run python -m solver.demo`
+见 [docs/roadmap.md](docs/roadmap.md)。FastAPI / Tauri / LLM 暂缓。
 
-FastAPI、Tauri、Ollama 在 Phase 2+ 启动。
+已完成：FloorAssignment、StairCore、Orientation 闭环、Quality regression。  
+进行中：Architectural Zones（Guillotine 降为 RoomLayout strategy）。
 
 ## 文档
 

@@ -30,6 +30,10 @@ class UnassignedRoomError(ValueError):
     """规范化后仍有房间未归属楼层。"""
 
 
+class DuplicateRoomAssignmentError(ValueError):
+    """同一房间被声明到多个楼层，或显式来源互相冲突。"""
+
+
 class FloorAssignmentSolver:
     """
     第一版：规则驱动，非优化算法。
@@ -59,14 +63,43 @@ class FloorAssignmentSolver:
         ground = floor_ids[0]
         upper = floor_ids[min(1, len(floor_ids) - 1)]
         constraints = constraints or []
+        room_id_set = {r.id for r in rooms}
+
+        # 输入侧：同一房间出现在多个 floor.room_ids
+        seen_in_room_ids: dict[str, str] = {}
+        for fl in floors:
+            for rid in fl.room_ids:
+                if rid in seen_in_room_ids and seen_in_room_ids[rid] != fl.id:
+                    raise DuplicateRoomAssignmentError(
+                        f"房间 {rid} 同时出现在 {seen_in_room_ids[rid]} 与 {fl.id} 的 room_ids"
+                    )
+                seen_in_room_ids[rid] = fl.id
 
         decided: dict[str, RoomFloorDecision] = {}
 
-        def accept(decision: RoomFloorDecision) -> None:
-            if decision.room_id in decided:
-                return
+        def accept(decision: RoomFloorDecision, *, allow_override: bool = False) -> None:
             if decision.floor_id not in floor_set:
                 return
+            if decision.room_id in room_id_set or decision.room_id in seen_in_room_ids:
+                pass  # 允许尚未在 rooms 列表的显式 id 时仍记录；最终 apply 以 rooms 为准
+            existing = decided.get(decision.room_id)
+            if existing is not None:
+                if existing.floor_id == decision.floor_id:
+                    return
+                # 显式来源冲突不可静默覆盖
+                explicit = {
+                    FloorAssignmentSource.EXPLICIT_CONSTRAINT,
+                    FloorAssignmentSource.EXPLICIT_ROOM_IDS,
+                    FloorAssignmentSource.EXPLICIT_FLOOR_ID,
+                }
+                if existing.source in explicit and decision.source in explicit:
+                    raise DuplicateRoomAssignmentError(
+                        f"房间 {decision.room_id} 楼层冲突："
+                        f"{existing.floor_id} ({existing.source.value}) vs "
+                        f"{decision.floor_id} ({decision.source.value})"
+                    )
+                if not allow_override:
+                    return
             decided[decision.room_id] = decision
 
         # --- 1. Explicit FloorConstraint ---
@@ -338,6 +371,16 @@ def ensure_floor_assignment(
     missing = [r.id for r in rooms if r.id not in covered]
     if missing:
         raise UnassignedRoomError(f"房间未归属任何楼层: {missing}")
+
+    # 输出侧不变量：每个房间恰好出现一次
+    counts: dict[str, int] = {}
+    for fl in floors:
+        for rid in fl.room_ids:
+            counts[rid] = counts.get(rid, 0) + 1
+    dupes = [rid for rid, n in counts.items() if n > 1]
+    if dupes:
+        raise DuplicateRoomAssignmentError(f"输出 room_ids 出现重复归属: {dupes}")
+
     return assignment
 
 

@@ -1,10 +1,11 @@
-"""Guillotine 递归切分候选生成器 — 迁移自 reference/floorplan-generator.html。"""
+"""Guillotine 递归切分 — ZonePlanner 之后的 RoomLayout strategy。"""
 
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
+from packages.schema.core import CorePlacementResult
 from packages.schema.layout import (
     FloorLayout,
     LayoutCandidate,
@@ -13,9 +14,18 @@ from packages.schema.layout import (
     RoomPlacement,
 )
 from packages.schema.program import DesignProgram
-from packages.schema.room import RoomCategory, RoomSpec
+from packages.schema.room import RoomSpec
+from packages.schema.zoning import ArchitecturalZone, FloorZonePlan
+from solver.circulation.stair_core import (
+    choose_core_placement,
+    place_stair_core,
+    resolve_stair_core_spec,
+)
+from solver.geometry.free_rects import subtract_rect
+from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 from solver.program.floor_assign import assert_all_rooms_placed
+from solver.topology.zoning import ZonePlanner
 
 
 @dataclass
@@ -25,15 +35,16 @@ class _LayoutRoom:
     rect: PlacementRect | None = None
 
 
-@dataclass
-class _FloorState:
-    wet_rect: PlacementRect | None = None
-    stair_rect: PlacementRect | None = None
-    rooms: list[_LayoutRoom] = field(default_factory=list)
-
-
 class GuillotineGenerator:
-    """递归面积切分 + 楼梯/湿区条带对齐。"""
+    """
+    Generator #1 — Baseline Guillotine（RoomLayout strategy）。
+
+    流水线：
+      StairCore → free rects → ZonePlanner(整栋共享几何) → Guillotine within zones
+    """
+
+    def __init__(self) -> None:
+        self._zone_planner = ZonePlanner()
 
     def generate(self, program: DesignProgram, seed: int) -> LayoutCandidate:
         assert_all_rooms_placed(program.rooms, program.floors)
@@ -42,126 +53,171 @@ class GuillotineGenerator:
         buildable = program.buildable
         w = buildable.width
         d = buildable.depth
-        stair_w = program.site.stair_width
 
-        wet_ratio = self._compute_wet_ratio(program)
+        core_spec = resolve_stair_core_spec(
+            stair_width=program.site.stair_width,
+            stair_depth=getattr(program.site, "stair_depth", 4.2),
+        )
+        placement = choose_core_placement(
+            rng,
+            preferred=core_spec.preferred_placement,
+            entrance_edge=program.site.entrance_edge,
+        )
+        core = place_stair_core(
+            floor_width=w,
+            floor_depth=d,
+            spec=core_spec,
+            placement=placement,
+            snap_module=module,
+        )
+
+        floor_rect = Rect(x=0, y=0, width=w, depth=d)
+        core_rect = Rect(
+            x=core.rect.x, y=core.rect.y, width=core.rect.width, depth=core.rect.depth
+        )
+        free_rects = subtract_rect(floor_rect, core_rect)
+
+        floor_room_lists = [
+            (floor.id, program.rooms_on_floor(floor.id)) for floor in program.floors
+        ]
+        zone_plans = self._zone_planner.plan_building(
+            floors=floor_room_lists,
+            free_rects=free_rects,
+            snap_module=module,
+            rng=rng,
+        )
+
         floor_layouts: list[FloorLayout] = []
-
         for idx, floor in enumerate(program.floors):
             floor_rooms = program.rooms_on_floor(floor.id)
-            wet = [r for r in floor_rooms if r.category == RoomCategory.WET]
-            other = [r for r in floor_rooms if r.category != RoomCategory.WET]
-
-            wet_copy = [_LayoutRoom(spec=r, weight=r.target_area) for r in wet]
-            other_copy = [_LayoutRoom(spec=r, weight=r.target_area) for r in other]
-            rng.shuffle(wet_copy)
-            rng.shuffle(other_copy)
-
-            layout = self._layout_floor(
-                floor,
-                wet_copy,
-                other_copy,
-                w,
-                d,
-                stair_w,
-                wet_ratio,
-                idx,
-                module,
-                rng,
+            layout = self._layout_floor_with_zones(
+                floor=floor,
+                floor_rooms=floor_rooms,
+                zone_plan=zone_plans[floor.id],
+                core=core,
+                floor_index=idx,
+                module=module,
+                rng=rng,
             )
-            floor_layouts.append(
-                FloorLayout(
-                    floor_id=floor.id,
-                    placements=layout["placements"],
-                    wet_zone_x0=layout["wet_x0"],
-                    wet_zone_x1=layout["wet_x1"],
-                    stair_x0=0.0,
-                    stair_x1=stair_w,
-                )
-            )
+            floor_layouts.append(layout)
 
         return LayoutCandidate(id=f"candidate-{seed}", seed=seed, floors=floor_layouts)
 
-    def _compute_wet_ratio(self, program: DesignProgram) -> float:
-        f0 = program.floors[0]
-        rooms = program.rooms_on_floor(f0.id)
-        wet_area = sum(r.target_area for r in rooms if r.category == RoomCategory.WET)
-        other_area = sum(r.target_area for r in rooms if r.category != RoomCategory.WET)
-        total = wet_area + other_area
-        return wet_area / total if total > 0 else 0.3
-
-    def _layout_floor(
+    def _layout_floor_with_zones(
         self,
+        *,
         floor,
-        wet_rooms: list[_LayoutRoom],
-        other_rooms: list[_LayoutRoom],
-        w: float,
-        d: float,
-        stair_w: float,
-        wet_ratio: float,
+        floor_rooms: list[RoomSpec],
+        zone_plan: FloorZonePlan,
+        core: CorePlacementResult,
         floor_index: int,
         module: float,
         rng: random.Random,
-    ) -> dict:
-        remain_x0 = stair_w
-        remain_width = w - stair_w
-        wet_width = remain_width * wet_ratio
+    ) -> FloorLayout:
+        layout_rooms: dict[str, _LayoutRoom] = {
+            r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
+        }
 
-        wet_rect = PlacementRect(x=remain_x0, y=0, width=wet_width, depth=d)
-        other_rect = PlacementRect(x=remain_x0 + wet_width, y=0, width=remain_width - wet_width, depth=d)
-
-        if wet_rooms:
-            self._layout_rooms(
-                wet_rooms,
-                wet_rect.x,
-                wet_rect.y,
-                wet_rect.right,
-                wet_rect.bottom,
-                module,
-                rng,
+        # 按 zone 聚合几何（同 zone 多块 rect）
+        zone_rects: dict[ArchitecturalZone, list[Rect]] = {}
+        zone_room_ids: dict[ArchitecturalZone, list[str]] = {}
+        for zg in zone_plan.zones:
+            zone_rects.setdefault(zg.zone, []).append(
+                Rect(x=zg.rect.x, y=zg.rect.y, width=zg.rect.width, depth=zg.rect.depth)
             )
-        if other_rooms:
-            self._layout_rooms(
-                other_rooms,
-                other_rect.x,
-                other_rect.y,
-                other_rect.right,
-                other_rect.bottom,
-                module,
-                rng,
-            )
+            if zg.room_ids:
+                zone_room_ids[zg.zone] = list(zg.room_ids)
 
-        stair_name = "玄关 · 楼梯" if floor_index == 0 else "楼梯厅 · 走廊"
+        # 共享 SERVICE 几何写入湿区 AABB（即使本层无 service 房间也保留，保证跨层对齐）
+        wet_zone_rect: Rect | None = None
+        service_rects = zone_rects.get(ArchitecturalZone.SERVICE)
+        if service_rects:
+            wet_zone_rect = service_rects[0]
+
+        for zone, room_ids in zone_room_ids.items():
+            rects = zone_rects.get(zone, [])
+            if not rects or not room_ids:
+                continue
+            rooms = [
+                layout_rooms[rid] for rid in room_ids if rid in layout_rooms
+            ]
+            rng.shuffle(rooms)
+            self._pack_into_rects(rooms, rects, module, rng)
+
+        stair_name = "楼梯" if floor_index > 0 else "楼梯 · 入口"
         stair_placement = RoomPlacement(
             room_id=f"stair-{floor.id}",
             floor_id=floor.id,
-            rect=PlacementRect(x=0, y=0, width=stair_w, depth=d),
+            rect=core.rect.model_copy(),
             source=PlacementSource.GENERATED,
             name=stair_name,
             category="circulation",
         )
 
         placements: list[RoomPlacement] = [stair_placement]
-        for group in (wet_rooms, other_rooms):
-            for lr in group:
-                if lr.rect is None:
-                    continue
-                placements.append(
-                    RoomPlacement(
-                        room_id=lr.spec.id,
-                        floor_id=floor.id,
-                        rect=lr.rect,
-                        source=PlacementSource.PROGRAM,
-                        name=lr.spec.name,
-                        category=lr.spec.category.value,
-                    )
+        for lr in layout_rooms.values():
+            if lr.rect is None:
+                continue
+            placements.append(
+                RoomPlacement(
+                    room_id=lr.spec.id,
+                    floor_id=floor.id,
+                    rect=lr.rect,
+                    source=PlacementSource.PROGRAM,
+                    name=lr.spec.name,
+                    category=lr.spec.category.value,
                 )
+            )
 
-        return {
-            "placements": placements,
-            "wet_x0": wet_rect.x,
-            "wet_x1": wet_rect.right,
-        }
+        return FloorLayout(
+            floor_id=floor.id,
+            placements=placements,
+            wet_zone_x0=wet_zone_rect.x if wet_zone_rect else None,
+            wet_zone_y0=wet_zone_rect.y if wet_zone_rect else None,
+            wet_zone_x1=wet_zone_rect.right if wet_zone_rect else None,
+            wet_zone_y1=wet_zone_rect.bottom if wet_zone_rect else None,
+            stair_x0=core.rect.x,
+            stair_y0=core.rect.y,
+            stair_x1=core.rect.right,
+            stair_y1=core.rect.bottom,
+            core_placement=core.placement.value,
+        )
+
+    def _pack_into_rects(
+        self,
+        rooms: list[_LayoutRoom],
+        rects: list[Rect],
+        module: float,
+        rng: random.Random,
+    ) -> None:
+        if not rooms or not rects:
+            return
+        if len(rects) == 1:
+            r = rects[0]
+            self._layout_rooms(rooms, r.x, r.y, r.right, r.bottom, module, rng)
+            return
+
+        total_area = sum(r.area for r in rects) or 1.0
+        total_weight = sum(r.weight for r in rooms) or 1.0
+        remaining = list(rooms)
+        for i, rect in enumerate(rects):
+            if not remaining:
+                break
+            if i == len(rects) - 1:
+                share = remaining
+                remaining = []
+            else:
+                target_w = total_weight * (rect.area / total_area)
+                cum = 0.0
+                split = max(1, len(remaining) - (len(rects) - i - 1))
+                for j, lr in enumerate(remaining):
+                    cum += lr.weight
+                    if cum >= target_w and j + 1 < len(remaining):
+                        split = j + 1
+                        break
+                share = remaining[:split]
+                remaining = remaining[split:]
+            self._layout_rooms(share, rect.x, rect.y, rect.right, rect.bottom, module, rng)
 
     def _layout_rooms(
         self,
@@ -176,7 +232,9 @@ class GuillotineGenerator:
         if not rooms:
             return
         if len(rooms) == 1:
-            rooms[0].rect = PlacementRect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
+            rooms[0].rect = PlacementRect(
+                x=x0, y=y0, width=max(module, x1 - x0), depth=max(module, y1 - y0)
+            )
             return
 
         total = sum(r.weight for r in rooms) or 1.0
@@ -197,14 +255,12 @@ class GuillotineGenerator:
         height = y1 - y0
         frac = area1 / (area1 + area2)
 
-        split_horizontal: bool
         if abs(width - height) < 1e-6:
             split_horizontal = rng.random() < 0.5
         else:
             split_horizontal = width >= height
 
         min_span = module * 2
-
         if split_horizontal:
             cut_x = snap_value(x0 + width * frac, module)
             cut_x = max(x0 + min_span, min(x1 - min_span, cut_x))
@@ -215,7 +271,3 @@ class GuillotineGenerator:
             cut_y = max(y0 + min_span, min(y1 - min_span, cut_y))
             self._layout_rooms(group1, x0, y0, x1, cut_y, module, rng)
             self._layout_rooms(group2, x0, cut_y, x1, y1, module, rng)
-
-
-# Protocol 兼容
-assert issubclass(GuillotineGenerator, object)

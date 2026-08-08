@@ -92,7 +92,18 @@ class SiteSpec(BaseModel):
         description="建筑占地（solver 输出回填，输入可为空）",
     )
 
-    stair_width: float = Field(default=1.6, ge=1.0, le=3.0)
+    stair_width: float = Field(
+        default=1.8,
+        ge=1.0,
+        le=3.0,
+        description="楼梯核短边（净宽）；不再表示整层交通条带宽度",
+    )
+    stair_depth: float = Field(
+        default=4.2,
+        ge=2.4,
+        le=8.0,
+        description="楼梯核长边（梯段+平台）",
+    )
     grid_module: float = Field(default=0.3, ge=0.1, le=1.0, description="坐标 snap 模数（米）")
     structural_module: float = Field(default=3.3, ge=2.4, le=4.5, description="结构网格模数（米）")
 

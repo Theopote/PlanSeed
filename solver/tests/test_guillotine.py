@@ -16,7 +16,7 @@ from solver.program.normalize import normalize
 
 def benchmark_program():
     spec = ProjectSpec(
-        site=SiteSpec(width=11, depth=13, stair_width=1.6),
+        site=SiteSpec(width=11, depth=13, stair_width=1.8, stair_depth=4.2),
         floors=[
             {"id": "F1", "label": "一层", "room_ids": ["r1", "r2", "r3", "r4"]},
             {"id": "F2", "label": "二层", "room_ids": ["r5", "r6", "r7", "r8", "r9", "r10"]},
@@ -75,15 +75,24 @@ class TestGuillotineGenerator:
         program = benchmark_program()
         candidate = GuillotineGenerator().generate(program, seed=0)
         f1, f2 = candidate.floors
+        assert f1.wet_zone_x0 is not None and f2.wet_zone_x0 is not None
         assert f1.wet_zone_x0 == pytest.approx(f2.wet_zone_x0, abs=0.01)
         assert f1.wet_zone_x1 == pytest.approx(f2.wet_zone_x1, abs=0.01)
+        assert f1.wet_zone_y0 == pytest.approx(f2.wet_zone_y0, abs=0.01)
+        assert f1.wet_zone_y1 == pytest.approx(f2.wet_zone_y1, abs=0.01)
 
     def test_stair_x_alignment(self):
         program = benchmark_program()
         candidate = GuillotineGenerator().generate(program, seed=0)
+        f1 = candidate.floors[0]
         for fl in candidate.floors:
-            assert fl.stair_x0 == pytest.approx(0.0)
-            assert fl.stair_x1 == pytest.approx(1.6)
+            assert fl.stair_x0 == pytest.approx(f1.stair_x0, abs=0.01)
+            assert fl.stair_x1 == pytest.approx(f1.stair_x1, abs=0.01)
+            assert fl.stair_y0 == pytest.approx(f1.stair_y0, abs=0.01)
+            assert fl.stair_y1 == pytest.approx(f1.stair_y1, abs=0.01)
+        # 核心面积远小于整层条带 1.6×13
+        area = (f1.stair_x1 - f1.stair_x0) * (f1.stair_y1 - f1.stair_y0)
+        assert area < 15.0
 
     def test_all_rooms_within_buildable(self):
         program = benchmark_program()

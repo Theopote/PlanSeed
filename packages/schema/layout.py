@@ -61,8 +61,16 @@ class FloorLayout(BaseModel):
     placements: list[RoomPlacement] = Field(default_factory=list)
     wet_zone_x0: float | None = Field(default=None, description="湿区带左边界（跨层对齐用）")
     wet_zone_x1: float | None = None
+    wet_zone_y0: float | None = None
+    wet_zone_y1: float | None = None
     stair_x0: float | None = None
+    stair_y0: float | None = None
     stair_x1: float | None = None
+    stair_y1: float | None = None
+    core_placement: str | None = Field(
+        default=None,
+        description="楼梯核区位 north/south/east/west/center",
+    )
 
 
 class Violation(BaseModel):

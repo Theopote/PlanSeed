@@ -7,11 +7,13 @@ from packages.schema.constraints import (
     AlignmentConstraint,
     AreaConstraint,
     ConstraintKind,
+    OrientationConstraint,
     WidthConstraint,
 )
 from packages.schema.layout import CandidateValidation, LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
 from solver.constraints.checker import ConstraintEvaluationResult
+from solver.evaluation.orientation import exterior_orientations
 from solver.geometry.rect import Rect, contains, from_placement, intersects, shared_edge_length
 
 OVERLAP_TOLERANCE = 1e-4
@@ -41,6 +43,12 @@ class DefaultConstraintChecker:
                 constraint, AdjacencyConstraint
             ):
                 result.extend(self._check_adjacency(constraint, candidate))
+            elif constraint.kind == ConstraintKind.ORIENTATION and isinstance(
+                constraint, OrientationConstraint
+            ):
+                # hard orientation → validation；soft 由 Evaluator 评分
+                if constraint.hard:
+                    result.extend(self._check_orientation_hard(constraint, candidate, buildable))
             elif constraint.kind == ConstraintKind.ALIGNMENT and isinstance(
                 constraint, AlignmentConstraint
             ):
@@ -165,19 +173,27 @@ class DefaultConstraintChecker:
         refs = candidate.floors[0]
         if refs.stair_x0 is None or refs.stair_x1 is None:
             return ConstraintEvaluationResult.empty()
+        if refs.stair_y0 is None or refs.stair_y1 is None:
+            return ConstraintEvaluationResult.empty()
 
         violations: list[Violation] = []
         for fl in candidate.floors[1:]:
-            if fl.stair_x0 is None or fl.stair_x1 is None:
+            if None in (fl.stair_x0, fl.stair_x1, fl.stair_y0, fl.stair_y1):
                 continue
-            if abs(fl.stair_x0 - refs.stair_x0) > 0.01 or abs(fl.stair_x1 - refs.stair_x1) > 0.01:
+            aligned = (
+                abs(fl.stair_x0 - refs.stair_x0) <= 0.01
+                and abs(fl.stair_x1 - refs.stair_x1) <= 0.01
+                and abs(fl.stair_y0 - refs.stair_y0) <= 0.01
+                and abs(fl.stair_y1 - refs.stair_y1) <= 0.01
+            )
+            if not aligned:
                 violations.append(
                     Violation(
                         constraint_id="vertical.stair_alignment",
                         room_ids=[],
-                        message="楼梯 x 区间跨层未对齐",
-                        measured_value=fl.stair_x1 - fl.stair_x0,
-                        required_value=refs.stair_x1 - refs.stair_x0,
+                        message="楼梯核跨层未对齐",
+                        measured_value=(fl.stair_x1 - fl.stair_x0) if fl.stair_x1 and fl.stair_x0 else None,
+                        required_value=(refs.stair_x1 - refs.stair_x0) if refs.stair_x1 and refs.stair_x0 else None,
                         hard=True,
                         source="system",
                     )
@@ -286,6 +302,44 @@ class DefaultConstraintChecker:
                 ]
                 return ConstraintEvaluationResult(soft_violations=demoted)
             return result
+        return ConstraintEvaluationResult.empty()
+
+    def _check_orientation_hard(
+        self,
+        constraint: OrientationConstraint,
+        candidate: LayoutCandidate,
+        buildable: Rect,
+    ) -> ConstraintEvaluationResult:
+        placement = None
+        for fl in candidate.floors:
+            for p in fl.placements:
+                if p.room_id == constraint.room_id:
+                    placement = p
+                    break
+        if placement is None:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_id],
+                    message=f"强制朝向未满足：房间缺失（期望 {constraint.preferred_orientation}）",
+                    hard=True,
+                    source=constraint.source.value,
+                )
+            )
+        faces = exterior_orientations(from_placement(placement.rect), buildable)
+        if constraint.preferred_orientation.lower() not in faces:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_id],
+                    message=(
+                        f"强制朝向未满足：期望贴 {constraint.preferred_orientation} 外墙，"
+                        f"实际={sorted(faces) or ['无']}"
+                    ),
+                    hard=True,
+                    source=constraint.source.value,
+                )
+            )
         return ConstraintEvaluationResult.empty()
 
 

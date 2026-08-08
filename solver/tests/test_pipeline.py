@@ -25,11 +25,13 @@ class TestPipeline:
                 assert c.score > 0
 
     def test_at_least_one_valid_candidate(self):
+        # 弱断言保留作 smoke；正式质量门槛见 test_quality_regression.py
         program = benchmark_program()
         result = run_pipeline(program)
         assert result.valid >= 1
 
     def test_multiple_distinct_layouts(self):
+        # 弱断言保留作 smoke；正式质量门槛见 test_quality_regression.py
         program = benchmark_program()
         result = run_pipeline(program)
         jsons = {c.model_dump_json() for c in result.all_candidates}
