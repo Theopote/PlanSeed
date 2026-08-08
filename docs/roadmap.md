@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4.3 — Constraint-aware Direct Manipulation（前置）**  
-> **4.1.2 Lock Semantics ✅** · 暂停自由拖拽深化 · 详案：[phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)  
+> **当前焦点：Phase 4.3 — Constraint-aware Direct Manipulation**  
+> **4.1.2 Lock ✅** · 受控 Move/Resize（非自由拖墙）· 详案：[phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)  
 > 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -11,7 +11,7 @@
 | 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
 | **3.5** | **Core Consolidation** | **✅** |
 | **3.6** | **Desktop Runtime Reliability** | **✅**（勿再扩 runtime 主线） |
-| **4** | **Interactive Design Workbench** | **← 当前（4.1.2 ✅ → 4.3）** |
+| **4** | **Interactive Design Workbench** | **← 当前（4.3）** |
 | **5** | **Project Persistence** | 未开始 |
 | **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
@@ -115,7 +115,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 4 — Interactive Design Workbench（← 当前：4.3 前置）
+## Phase 4 — Interactive Design Workbench（← 当前：4.3）
 
 **围绕加深，禁止推倒重做。** UI = 观察/控制 solver 的窗口，不是功能堆场。
 
@@ -167,21 +167,36 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 **产品方向（已确认）：** 保留 program + locks → `max(seed)+1` 起跑 8 取 Top3 → 追加 Strip → 自动对比。  
 血缘树进 Phase 5。
 
-### Phase 4.3 — Constraint-aware Direct Manipulation（未开始）
+### Phase 4.3 — Constraint-aware Direct Manipulation（← 当前）
 
-先建立统一几何变更权威，再做有限编辑（非自由 CAD）：
+详案：[phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)
+
+**不是**鼠标随便拖墙。流程必须是：
 
 ```text
-MutationRequest → LockGuard → GeometryValidator → Apply → Revalidate
+拖动 → ProposedMutation → Constraint Preview
+  → 合法？ Commit : 显示原因 / Snap Back
 ```
 
-- [ ] Geometry Mutation Authority（所有改 placement 的唯一入口）
-- [ ] 有限平移 / 有限改尺寸（受 lock + 约束）
-- [ ] **不做**本阶段：拖墙、完全自由 resize、constraint solver 重写
+统一经 **Geometry Mutation Authority**：
+
+```text
+LockGuard → GeometryConstraintChecker → AccessImpactChecker → Commit → Revalidate
+```
+
+| 级 | 主题 | 状态 |
+|----|------|------|
+| **P0** | `GeometryMutation`（MOVE / RESIZE / LOCK / UNLOCK）+ Authority 唯一写入口 | 未开始 |
+| **P0** | Move Room：迁入现有平移 MVP；非法 Snap Back | 未开始 |
+| **P0** | LockGuard（钉死房/梯；zone member 不出 envelope） | 未开始 |
+| **P1** | Resize Room（边/角；受 min width） | 未开始 |
+| **P2** | 拖动中 preview / 冲突高亮 / AccessImpact | 未开始 |
+
+**不做本阶段：** 拖墙、无约束自由 resize、绕过 Authority 写 PlacementRect。
 
 ```text
 ┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
-│ Site         │     点击房间选中          │ RoomSpec  │
+│ Site         │     受控 Move / Resize    │ RoomSpec  │
 │ Program      │        FLOOR PLAN         │ Placement │
 │ Constraints  │                           │ Score…    │
 │ Preferences  │                           │ Findings  │
@@ -319,7 +334,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 4.3** Constraint-aware Direct Manipulation（4.1.2 Lock ✅） |
+| **当前主线** | **Phase 4.3** Constraint-aware Direct Manipulation（Lock 已硬化） |
 
 ---
 

@@ -54,8 +54,8 @@ LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Sol
 - **版本签名**：`solver_version` / `generator_version` / `evaluation_version`（`packages/schema/identity.py`）；解释历史分数与 regression，≠ `engine_version`
 - **静态检查**：ruff clean → mypy 核心 → 逐目录收紧；**不做**全仓 `mypy --strict`
 - **CI**：`.github/workflows/ci.yml`（pytest / ruff / mypy / pnpm build / cargo check）；sidecar 打包不进每次 commit
-- **FastAPI + Tauri**：四区 Workbench 壳已有；**当前 Phase 4.3 前置**（4.1.2 Lock ✅；暂停自由拖拽深化）
-- **路线图**：见 [roadmap.md](roadmap.md) · [phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)
+- **FastAPI + Tauri**：四区 Workbench；**当前 Phase 4.3**（受控 Move/Resize + Mutation Authority）
+- **路线图**：见 [roadmap.md](roadmap.md) · [phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)
 - **UI 纪律**：不因壳已出现就堆按钮；加深 `Evaluation → Finding → Inspector → Compare`
 - **引擎复用**：仅当 `GET /api/health` 返回 `service=planseed` 时 reuse 端口
 
