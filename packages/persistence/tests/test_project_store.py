@@ -51,5 +51,7 @@ def test_project_store_update(tmp_path: Path):
         project_id=first["id"],
     )
     assert second["id"] == first["id"]
-    assert store.get(first["id"])["payload"]["form"]["width"] == 12
+    loaded = store.get(first["id"])
+    assert loaded is not None
+    assert loaded["payload"]["form"]["width"] == 12
     assert len(store.list_projects()) == 1
