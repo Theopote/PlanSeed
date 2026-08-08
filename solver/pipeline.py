@@ -35,7 +35,9 @@ class PipelineResult:
 
         fingerprints = {
             json.dumps(
-                c.model_dump(exclude={"score", "metrics", "validation"}),
+                c.model_dump(
+                    exclude={"score", "metrics", "validation", "evaluation"}
+                ),
                 sort_keys=True,
                 default=str,
             )
@@ -73,8 +75,9 @@ def run_pipeline(program: DesignProgram) -> PipelineResult:
         candidate.validation = checker.check(program, candidate)
 
         if candidate.validation.valid:
-            score = evaluator.evaluate(program, candidate)
-            candidate.score = score.total_score
+            evaluation = evaluator.evaluate(program, candidate)
+            candidate.evaluation = evaluation
+            candidate.score = evaluation.total_score
         else:
             for v in candidate.validation.hard_violations:
                 key = v.constraint_id.split(".")[0]

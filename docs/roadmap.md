@@ -309,6 +309,6 @@ Right: Inspector (DesignScore breakdown)
 Bottom: Candidate Strip (A 91, B 89…)
 ```
 
-- API：`uv run uvicorn backend.main:app --port 8787`
-- UI：`cd desktop && pnpm dev`（或 `pnpm tauri:dev`）
-- `POST /api/generate`：RequirementSpec 或 `use_benchmark` → pipeline → SVG + 分项分
+- 开发：仓库根 `pnpm dev`（引擎 + UI）；或 `pnpm --dir desktop tauri:dev`（Tauri spawn 引擎）
+- `POST /api/generate`：RequirementSpec 或 `use_benchmark` → pipeline → SVG + `evaluation`（不重评）
+- Sidecar 骨架：`bundle.externalBin` + `scripts/build_backend_sidecar.*`（装包验证需 Rust）

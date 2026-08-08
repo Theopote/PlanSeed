@@ -23,6 +23,9 @@ class TestPipeline:
             if c.validation and c.validation.valid:
                 assert c.score is not None
                 assert c.score > 0
+                assert c.evaluation is not None
+                assert c.evaluation.total_score == c.score
+                assert c.evaluation.program_score >= 0
 
     def test_at_least_one_valid_candidate(self):
         # 弱断言保留作 smoke；正式质量门槛见 test_quality_regression.py

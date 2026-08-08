@@ -162,6 +162,10 @@ class RepairRecord(BaseModel):
     reason: str = ""
 
 
+# scoring 依赖 Violation；此处延迟导入避免循环。
+from packages.schema.scoring import DesignEvaluation  # noqa: E402
+
+
 class LayoutCandidate(BaseModel):
     id: str
     seed: int
@@ -187,5 +191,12 @@ class LayoutCandidate(BaseModel):
         description="RealizedAccessGraph 边快照",
     )
     validation: CandidateValidation | None = None
-    score: float | None = None
+    evaluation: DesignEvaluation | None = Field(
+        default=None,
+        description="完整评价结果；由 pipeline 写入，API 不得重评",
+    )
+    score: float | None = Field(
+        default=None,
+        description="[compat] 与 evaluation.total_score 同步，供 rank/demo",
+    )
     metrics: dict[str, float | int | str | bool] = Field(default_factory=dict)

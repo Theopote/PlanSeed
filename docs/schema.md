@@ -188,7 +188,7 @@ packages/schema/
 ├── room.py         # RoomSpec, FloorSpec
 ├── constraints.py  # Constraint union
 ├── layout.py       # RoomPlacement, LayoutCandidate
-├── scoring.py      # DesignScore, DesignMetrics
+├── scoring.py      # DesignScore / DesignEvaluation, DesignMetrics
 ├── program.py      # DesignProgram, SolverConfig
 └── topology.py     # RoomGraph, RoomEdge
 ```

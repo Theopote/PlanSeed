@@ -1,5 +1,5 @@
 """PlanSeed HTTP API 包。"""
 
-from backend.main import app
+from backend.main import app, create_app
 
-__all__ = ["app"]
+__all__ = ["app", "create_app"]

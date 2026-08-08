@@ -206,9 +206,11 @@ environment 0.10 | technical 0.16 | robustness 0.14
 - Candidate Strip：显示 `total_score` 简写（A 91, B 89…）
 - Inspector：展开 `explanations` + 各分项 score + metrics + violations
 - 失败 candidate：展示 `hard_violations` 详情
-- API：`POST /api/generate` 返回 SVG + `DesignScore`
+- API：`POST /api/generate` 返回 SVG + `design_score`（来自 `LayoutCandidate.evaluation`，不重评）
+- `DesignEvaluation` = `DesignScore` 别名；pipeline 写入完整对象，`score` 为 compat 标量
 
 ## 状态
 
-- ✅ `DesignScore` / `DesignMetrics` + Phase 3 分项
+- ✅ `DesignScore` / `DesignEvaluation` / `DesignMetrics` + 七轴
 - ✅ Geometry / Adjacency / Vertical / Site / Orientation / Circulation / Privacy / ProgramFit
+- ✅ Metric Ownership + pipeline 单次评价

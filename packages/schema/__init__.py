@@ -31,6 +31,7 @@ from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
 from packages.schema.scoring import (
+    DesignEvaluation,
     DesignFinding,
     DesignMetrics,
     DesignScore,
@@ -64,6 +65,7 @@ __all__ = [
     "ConnectionState",
     "Constraint",
     "ConstraintKind",
+    "DesignEvaluation",
     "DesignFinding",
     "DesignMetrics",
     "DesignProgram",

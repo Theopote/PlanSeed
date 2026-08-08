@@ -42,9 +42,18 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
+    let attempts = 0;
     async function ping() {
       const ok = await checkHealth();
-      if (!cancelled) setApiOk(ok);
+      if (cancelled) return;
+      setApiOk(ok);
+      // 启动期加快轮询；就绪后降频
+      attempts += 1;
+      if (!ok && attempts < 40) {
+        window.setTimeout(() => {
+          if (!cancelled) void ping();
+        }, 500);
+      }
     }
     void ping();
     const id = window.setInterval(() => void ping(), 8000);
@@ -103,8 +112,10 @@ function App() {
           svg={selected?.svg ?? null}
           emptyHint={
             apiOk === false
-              ? "后端未连接。请先启动：uv run uvicorn backend.main:app --port 8787"
-              : "点击 Generate 或「基准案例」生成平面"
+              ? "本地引擎未就绪。请从仓库根目录运行 pnpm dev（或等待 Tauri 自动拉起）"
+              : apiOk === null
+                ? "正在连接本地引擎…"
+                : "点击 Generate 或「基准案例」生成平面"
           }
         />
         <Inspector candidate={selected} />

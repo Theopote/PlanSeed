@@ -94,19 +94,26 @@ Renderer (desktop SVG — 后续)
 
 ## 4. Local-first 与 Sidecar 打包
 
-MVP 开发阶段：
+### 开发入口（用户不可见 Python / 端口）
 
 ```text
-uv run uvicorn backend.main:app
+pnpm dev                  # 仓库根：自动拉起 backend + Vite UI
+pnpm --dir desktop tauri:dev   # Tauri：Rust setup 内 spawn uv run python -m backend
 ```
 
-Release 架构预留：
+等价引擎入口：`uv run python -m backend`（`PLANSEED_HOST` / `PLANSEED_PORT` 可覆写，默认 `127.0.0.1:8787`）。
+
+### Release
 
 ```text
-FastAPI backend → self-contained executable → Tauri sidecar
+scripts/build_backend_sidecar.*  →  desktop/src-tauri/binaries/planseed-backend-<triple>
+Tauri bundle.externalBin         →  PlanSeed.exe 启动时 spawn sidecar
+退出时 kill 子进程
 ```
 
-最终用户不应需要手动 `pip install` / `uvicorn` / Python 环境。Phase 0 不实现打包，仅在此文档记录意图。
+验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 未就绪」。
+
+完整 Windows 安装包签名与商店分发仍后续；本机需 Rust 工具链才能 `tauri:build`。
 
 ## 5. 目录结构
 
@@ -114,8 +121,10 @@ FastAPI backend → self-contained executable → Tauri sidecar
 PlanSeed/
 ├── packages/schema/       # Schema v2 Pydantic 模型
 ├── solver/                # 纯 Python 求解引擎
-├── backend/               # FastAPI（Desktop MVP）
-├── desktop/               # Tauri v2 + React（Desktop MVP）
+├── backend/               # FastAPI（routes / schemas / services）
+├── desktop/               # Tauri v2 + React
+│   └── src-tauri/binaries # sidecar 产物（externalBin）
+├── scripts/               # dev-desktop / build_backend_sidecar
 ├── reference/             # floorplan-generator.html 参考原型
 └── docs/                  # 架构文档
 ```

@@ -29,7 +29,32 @@ def test_generate_benchmark():
     assert c0["svg"].lstrip().startswith("<svg")
     assert c0["design_score"] is not None
     assert c0["design_score"]["total_score"] > 0
+    assert c0["score"] == c0["design_score"]["total_score"]
+    assert "program_score" in c0["design_score"]
     assert data["program_summary"]["floor_count"] >= 1
+
+
+def test_generate_does_not_re_evaluate(monkeypatch):
+    """API 只序列化 pipeline 写入的 evaluation，不再调用 CompositeEvaluator。"""
+    from solver.evaluation import score as score_mod
+
+    calls = {"n": 0}
+    real_evaluate = score_mod.CompositeEvaluator.evaluate
+
+    def wrapped(self, program, candidate):
+        calls["n"] += 1
+        return real_evaluate(self, program, candidate)
+
+    monkeypatch.setattr(score_mod.CompositeEvaluator, "evaluate", wrapped)
+    r = client.post(
+        "/api/generate",
+        json={"use_benchmark": True, "candidate_count": 4, "return_top_k": 2},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    # 仅 pipeline 评价 valid 候选；若 API 再评 top，次数会 > valid
+    assert calls["n"] == data["valid"]
+    assert data["candidates"][0]["design_score"] is not None
 
 
 def test_generate_requires_body():

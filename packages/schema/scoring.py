@@ -108,3 +108,7 @@ class DesignScore(BaseModel):
         description="[compat] WARNING/PROBLEM 摘要",
     )
     violations: list[Violation] = Field(default_factory=list)
+
+
+# 正式结果对象别名（LayoutCandidate.evaluation）；与 DesignScore 同构，避免双源。
+DesignEvaluation = DesignScore

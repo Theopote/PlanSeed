@@ -39,7 +39,8 @@ export function RequirementsPanel({
         <h1 className="brand">PlanSeed</h1>
         <p className="muted">需求 → 生成 → 评价</p>
         <p className={`api-status ${apiOk === true ? "ok" : apiOk === false ? "bad" : ""}`}>
-          API {apiOk === null ? "…" : apiOk ? "已连接" : "离线"}
+          引擎{" "}
+          {apiOk === null ? "启动中…" : apiOk ? "已就绪" : "未就绪"}
         </p>
       </header>
 

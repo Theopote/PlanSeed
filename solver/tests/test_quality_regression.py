@@ -10,7 +10,7 @@ from solver.tests.test_guillotine import benchmark_program
 def _fingerprint(candidate) -> str:
     """布局指纹：几何 + core 区位（忽略 score/metrics）。"""
     payload = candidate.model_dump(
-        exclude={"score", "metrics", "validation"},
+        exclude={"score", "metrics", "validation", "evaluation"},
     )
     import json
 
