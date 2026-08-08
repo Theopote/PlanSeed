@@ -12,7 +12,7 @@
 | **1.5** | **Solver Reliability** | ✅ 收口 |
 | **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
 | **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
-| **2.1** | **AccessGraph + connections** | **✅ 主线**（unreachable；默认软边；2A Door；SVG；**2.1.1 局部共边修补**） |
+| **2.1** | **AccessGraph + connections** | **✅ 主线**（unreachable；软边；2A Door；SVG；局部修补；**跨区重切**） |
 | **2.2** | **Door placement polish** | 未开始（铰链/净宽/SVG；**仍不回改房间几何**） |
 | 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
 | 3 | Architectural Evaluation | 未开始 |
@@ -125,7 +125,8 @@ Evaluator
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 作为 **同一 slicing group** 进入切分（组间不拆簇；组内可再切） |
 | **2.1 ✅ 软驱动** | 默认 AccessGraph + 高连通度打包加权；硬必连仍显式 `required=True` |
 | **2.1.1 ✅** | ConnectionResolver：必连小缝 / 短共边 **局部修补**（不全局重排） |
-| **下一步** | 更强 topology→geometry（跨区重切 / 仍禁止为门全局重优化） |
+| **2.1.2 ✅** | 同层小 AABB **跨区局部重切**：必连对先共边占位，其余在剩余矩形打包 |
+| **下一步** | 更强跨障碍重切（绕核 / 多矩形 free space）；Phase 2.2 门洞 polish |
 
 示例簇：
 
@@ -188,8 +189,9 @@ StairCore              ← 仅竖向交通，不当作主入口
 - Required connections：用户 `SpaceConnection(required=True)` / `AccessConstraint.requires_exterior`
 - Shared boundary 查询：`shared_boundary_between`（doors）
 - SVG：应连通虚线边（`access_graph=`）
-- **局部几何（✅ 2.1.1）**：`resolve_required_connections` 闭合 ≤1.5m 缝隙 / 加长短共边；远距必连仍 invalid
-- **仍不**全局为连通重跑 Guillotine
+- **局部几何（✅ 2.1.1）**：`resolve_required_connections` 闭合 ≤1.5m 缝隙 / 加长短共边
+- **跨区重切（✅ 2.1.2）**：局部失败后在小 AABB 内重切（≤6 房、≤55% 楼层、距≤8m）；撞楼梯核则放弃
+- **仍不**整层为连通重跑 Guillotine
 
 语义标签硬化可并行：tags 为唯一规则入口（淘汰 Solver 侧中文 name 回退）。
 
@@ -212,8 +214,8 @@ shared_edge_length >= minimum ?
       └─ no  → access.missing_shared_boundary（invalid）
 ```
 
-当前阶段：**geometry → 局部 ConnectionResolver → topology validation → DoorOpening**。  
-更强的 topology drives geometry（跨区重切）仍延后。
+当前阶段：**geometry → ConnectionResolver（缝隙修补 → 局部重切）→ DoorOpening**。  
+绕楼梯核 / 多 free-rect 重切仍延后。
 
 ## Phase 2.2 — Door polish（仍不回改房间）
 

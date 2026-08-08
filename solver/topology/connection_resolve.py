@@ -1,12 +1,13 @@
 """
-ConnectionResolver — topology → 局部几何（Phase 2.1.1）。
+ConnectionResolver — topology → 局部几何（Phase 2.1.1 / 2.1.2）。
 
 原则：
-- **禁止**为必连重跑 Guillotine / 全局重优化
-- 仅对同层 required 开口边做有限局部修补：
-  1) 投影重叠足够且缝隙 ≤ max_nudge → 把分界线拉到中间以闭合缝隙
-  2) 已共边但长度不足 → 沿墙向延伸以加长共边
-- 不动楼梯核；不引入与其它房间的重叠；不越出楼层外框
+- **禁止**整层重跑 Guillotine / 为门全局重优化
+- 同层 required 开口边：
+  1) 投影重叠且缝隙 ≤ max_nudge → 闭合分界
+  2) 已共边但偏短 → 沿墙向加长
+  3) 仍失败 → 小 AABB 内跨区局部重切（强制对端先共边）
+- 不动楼梯核；重切区撞核或过大则放弃
 """
 
 from __future__ import annotations
@@ -279,14 +280,18 @@ def resolve_required_connections(
     module: float | None = None,
     min_wall: float = MIN_ACCESS_WALL,
     max_nudge: float = DEFAULT_MAX_NUDGE,
+    allow_reslice: bool = True,
 ) -> int:
     """
-    对 required 开口连接做局部共边修补。
+    对 required 开口连接做局部共边修补，必要时跨区局部重切。
 
-    返回成功修补次数。远距/无投影重叠的必连不处理（仍由 checker 判 invalid）。
+    返回成功修补次数（含 reslice）。远距过大 / 撞楼梯核的必连不处理。
     """
+    from solver.topology.reslice import try_reslice_required_pair
+
     snap = module if module is not None else program.solver_config.snap_module
     repaired = 0
+    resliced = 0
     for conn in required_opening_connections(program):
         pas = find_placements(candidate, conn.a)
         pbs = find_placements(candidate, conn.b)
@@ -314,10 +319,27 @@ def resolve_required_connections(
                     repaired += 1
                     done = True
                     break
+                if allow_reslice and try_reslice_required_pair(
+                    program,
+                    candidate,
+                    pa,
+                    pb,
+                    module=snap,
+                    min_wall=min_wall,
+                    floor_bounds=bounds,
+                ):
+                    resliced += 1
+                    repaired += 1
+                    done = True
+                    break
             if done:
                 break
     if repaired:
         candidate.metrics["connection_repairs"] = float(
             candidate.metrics.get("connection_repairs", 0)
         ) + repaired
+    if resliced:
+        candidate.metrics["connection_reslices"] = float(
+            candidate.metrics.get("connection_reslices", 0)
+        ) + resliced
     return repaired

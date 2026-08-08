@@ -149,3 +149,92 @@ class TestConnectionResolve:
         n = resolve_required_connections(program, candidate, min_wall=0.9)
         assert n == 1
         assert shared_boundary_between(hall, bed, min_length=0.9) is not None
+
+    def test_reslice_closes_gap_with_intermediary_room(self):
+        """缝隙 > max_nudge 但中间有第三者 → 局部 AABB 重切。"""
+        program = _door_program()
+        hall = RoomPlacement(
+            room_id="hall",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=0, width=3, depth=4),
+            source=PlacementSource.PROGRAM,
+            category="circulation",
+        )
+        filler = RoomPlacement(
+            room_id="store",
+            floor_id="F1",
+            rect=PlacementRect(x=3, y=0, width=2, depth=4),
+            source=PlacementSource.PROGRAM,
+            category="service",
+            name="储藏",
+        )
+        bed = RoomPlacement(
+            room_id="bed",
+            floor_id="F1",
+            rect=PlacementRect(x=5, y=0, width=3, depth=4),
+            source=PlacementSource.PROGRAM,
+            category="private",
+        )
+        program.rooms.append(
+            RoomSpec(
+                id="store",
+                name="储藏",
+                category=RoomCategory.SERVICE,
+                target_area=8,
+                floor_id="F1",
+            )
+        )
+        program.floors[0].room_ids.append("store")
+
+        candidate = LayoutCandidate(
+            id="c",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[hall, filler, bed])],
+        )
+        assert (
+            resolve_required_connections(
+                program, candidate, max_nudge=1.5, allow_reslice=False
+            )
+            == 0
+        )
+        n = resolve_required_connections(program, candidate, max_nudge=1.5)
+        assert n == 1
+        assert candidate.metrics.get("connection_reslices", 0) >= 1
+        assert shared_boundary_between(hall, bed, min_length=0.9) is not None
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not any(
+            v.constraint_id == "access.missing_shared_boundary"
+            for v in validation.hard_violations
+        )
+
+    def test_reslice_aborts_when_stair_in_region(self):
+        program = _door_program()
+        hall = RoomPlacement(
+            room_id="hall",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=0, width=3, depth=4),
+            source=PlacementSource.PROGRAM,
+            category="circulation",
+        )
+        stair = RoomPlacement(
+            room_id="stair-F1",
+            floor_id="F1",
+            rect=PlacementRect(x=3, y=0, width=2, depth=4),
+            source=PlacementSource.GENERATED,
+            category="circulation",
+            name="楼梯",
+        )
+        bed = RoomPlacement(
+            room_id="bed",
+            floor_id="F1",
+            rect=PlacementRect(x=5, y=0, width=3, depth=4),
+            source=PlacementSource.PROGRAM,
+            category="private",
+        )
+        candidate = LayoutCandidate(
+            id="c",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[hall, stair, bed])],
+        )
+        assert resolve_required_connections(program, candidate) == 0
+        assert shared_boundary_between(hall, bed) is None

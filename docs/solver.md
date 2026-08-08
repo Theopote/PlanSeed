@@ -217,10 +217,11 @@ DesignProgram → FloorAssignment → Semantic RoomGraph → AccessGraph
 - **2.0.1**：邻接簇作为 **slicing group** 整组切分（如 K+D+L）；组内可再细分
 - **2.1**：住宅默认 AccessGraph（软边）+ 高连通度打包 + `circulation_score`；硬必连仍显式
 - **2.1.1**：`ConnectionResolver` 局部共边修补（缝隙闭合 / 短边加长）；远距不修
-- **下一步**：更强 topology→geometry（跨区重切）；仍禁止为门全局重优化
+- **2.1.2**：同层小 AABB 跨区重切（必连对先共边）；撞核 / 过大则放弃
+- **下一步**：绕核多矩形重切；Phase 2.2 门洞 polish
 - **2A**：geometry → 共边校验 → `DoorOpening`（禁止为门重优化房间）
 - **ExteriorEntry**：交通起点（`entrance_edge` / `road_edges`）；**≠** StairCore
-- **延后**：跨区 / 全局为连通改切分
+- **延后**：整层 / 全局为连通改切分
 
 门洞：先校验共边再标注；禁止矩形→直接画门。
 
