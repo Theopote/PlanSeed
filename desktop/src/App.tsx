@@ -23,6 +23,7 @@ import {
   mutationLiveMessage,
   mutationRejectMessage,
   mutationWarningMessage,
+  previewAdjustWall,
   previewMove,
   previewResize,
 } from "./lib/geometryMutation";
@@ -32,6 +33,7 @@ import {
   type MutationDragKind,
   type ProposeMoveResult,
   type RoomMovePose,
+  type WallAdjustPose,
 } from "./components/FloorplanView";
 import { Inspector } from "./components/Inspector";
 import { RequirementsPanel } from "./components/RequirementsPanel";
@@ -421,6 +423,142 @@ function App() {
     [runPreview],
   );
 
+  const onLiveWallPreview = useCallback(
+    (pose: WallAdjustPose): LivePreviewResult => {
+      if (!selected?.placements || !program) {
+        return { ok: false, message: "无候选可编辑", conflictRoomIds: [] };
+      }
+      const preview = previewAdjustWall(
+        pose.room_id,
+        pose.partner_room_id,
+        pose.floor_id,
+        pose.wall_axis,
+        pose.wall_coord,
+        {
+          placements: selected.placements,
+          locks,
+          floorWidth: program.site_width,
+          floorDepth: program.site_depth,
+          snapModule: 0.3,
+        },
+      );
+      return {
+        ok: preview.ok,
+        message: mutationLiveMessage(preview),
+        snapped: preview.snapped,
+        snappedPartner: preview.snappedPartner,
+        partnerRoomId: pose.partner_room_id,
+        conflictRoomIds: preview.conflictRoomIds,
+      };
+    },
+    [selected, program, locks],
+  );
+
+  const onProposeWall = useCallback(
+    (pose: WallAdjustPose): ProposeMoveResult => {
+      if (!selected?.placements || !program) {
+        return { ok: false, message: "无候选可编辑", snapped: null };
+      }
+      const preview = previewAdjustWall(
+        pose.room_id,
+        pose.partner_room_id,
+        pose.floor_id,
+        pose.wall_axis,
+        pose.wall_coord,
+        {
+          placements: selected.placements,
+          locks,
+          floorWidth: program.site_width,
+          floorDepth: program.site_depth,
+          snapModule: 0.3,
+        },
+      );
+      if (!preview.ok || !preview.snapped || !preview.snappedPartner) {
+        const msg = mutationRejectMessage(preview);
+        setMutationHint(msg);
+        return {
+          ok: false,
+          message: msg,
+          snapped: preview.snapped,
+          snappedPartner: preview.snappedPartner,
+          partnerRoomId: pose.partner_room_id,
+          conflictRoomIds: preview.conflictRoomIds,
+        };
+      }
+      const sA = preview.snapped;
+      const sB = preview.snappedPartner;
+      const idA = pose.room_id;
+      const idB = pose.partner_room_id;
+      setCandidates((prev) =>
+        prev.map((c) => {
+          if (c.id !== selectedId || !c.placements) return c;
+          return {
+            ...c,
+            placements: c.placements.map((p) => {
+              if (p.room_id === idA) {
+                return {
+                  ...p,
+                  x: sA.x,
+                  y: sA.y,
+                  width: sA.width,
+                  depth: sA.depth,
+                  area: Math.round(sA.width * sA.depth * 100) / 100,
+                };
+              }
+              if (p.room_id === idB) {
+                return {
+                  ...p,
+                  x: sB.x,
+                  y: sB.y,
+                  width: sB.width,
+                  depth: sB.depth,
+                  area: Math.round(sB.width * sB.depth * 100) / 100,
+                };
+              }
+              return p;
+            }),
+          };
+        }),
+      );
+      setLocks((prev) => {
+        const rest = prev.rooms.filter(
+          (r) => r.room_id !== idA && r.room_id !== idB,
+        );
+        const locksNext: LockedRoomRect[] = [
+          ...rest,
+          {
+            room_id: idA,
+            floor_id: pose.floor_id,
+            x: sA.x,
+            y: sA.y,
+            width: sA.width,
+            depth: sA.depth,
+          },
+          {
+            room_id: idB,
+            floor_id: pose.floor_id,
+            x: sB.x,
+            y: sB.y,
+            width: sB.width,
+            depth: sB.depth,
+          },
+        ];
+        return { ...prev, rooms: locksNext };
+      });
+      const warn = mutationWarningMessage(preview);
+      setMutationHint(warn);
+      return {
+        ok: true,
+        snapped: sA,
+        snappedPartner: sB,
+        partnerRoomId: idB,
+        warning: warn,
+        conflictRoomIds: preview.conflictRoomIds,
+      };
+    },
+    [selected, selectedId, program, locks],
+  );
+
   const onProposeMove = useCallback(
     (
       roomId: string,
@@ -637,7 +775,9 @@ function App() {
           snapModule={0.3}
           onSelectRoom={onSelectRoom}
           onProposeMove={program ? onProposeMove : undefined}
+          onProposeWall={program ? onProposeWall : undefined}
           onLivePreview={program ? onLivePreview : undefined}
+          onLiveWallPreview={program ? onLiveWallPreview : undefined}
           mutationHint={mutationHint}
         />
         <Inspector

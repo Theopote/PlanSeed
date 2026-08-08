@@ -7,11 +7,11 @@
 
 ```text
 4.1.2 Lock Semantics Hardening ✅
-4.3 Constraint-aware Direct Manipulation ← 当前（P0–P2 ✅）
-  ├─ GeometryMutation Authority（P0）✅
-  ├─ Move Room（P0）✅
-  ├─ Resize Room（P1）✅
-  └─ Constraint Preview + Snap Back（P0/P2）✅
+4.3 Constraint-aware Direct Manipulation ✅（P0–P2）
+4.3.1 Limited Shared-Wall Edit ✅
+  ├─ ADJUST_WALL Authority
+  ├─ 恰好两房共边 ≥0.9m；拒 T 接 / 楼梯
+  └─ Commit 双侧 placements + upsert 双侧 Room Lock
 ```
 
 ---
@@ -125,13 +125,21 @@ ProposedMutation
 2. ✅ 冲突高亮（重叠 / 楼梯锁房间）  
 3. ✅ AccessImpact 警告条（推断：丢失 ≥0.9m 共边邻居；soft，不挡 Commit）
 
+### 4.3.1 — 有限共墙 ✅
+
+1. ✅ `MutationKind.ADJUST_WALL` + `wall_axis` / `wall_coord` / `partner_room_id`  
+2. ✅ `list_shared_walls`：恰好两房、≥0.9m、拒 T 接与楼梯  
+3. ✅ Authority 双侧几何校验；非法 Snap Back；AccessImpact soft  
+4. ✅ UI 共墙柄拖动；Commit 写两侧 placements 并 upsert 两侧 Room Lock  
+5. ✅ 测：合法挪墙 / min_edge / 第三房重叠 / T 接不可枚举
+
 ---
 
 ## 与 Regenerate / Variant 的关系
 
 | 操作 | 行为 |
 |------|------|
-| Commit MOVE/RESIZE | 通常 **自动 upsert Room Lock**（与现平移 MVP 一致） |
+| Commit MOVE/RESIZE/ADJUST_WALL | 通常 **自动 upsert Room Lock**（共墙 upsert 两侧） |
 | Regenerate unlocked | 尊重 locks；未锁空间重排 |
 | Create Variant | 同 program + **locks 快照**（4.1.2 已有 clone） |
 
@@ -139,11 +147,11 @@ ProposedMutation
 
 ---
 
-## 明确不做（本 Phase）
+## 明确不做（相对自由 CAD）
 
-- 鼠标随便拖墙 / 多房联动推挤  
-- 完全自由 resize（无约束）  
-- 整层 constraint solver 重写  
+- T 接 / 三房以上联动推挤  
+- 斜墙、整层 constraint solver 重写  
+- 无约束自由 resize  
 - LLM、Persistence、CAD/BIM  
 - 绕过 Authority 的第二条写路径
 
@@ -151,11 +159,11 @@ ProposedMutation
 
 ## Definition of Done
 
-1. ✅ 不存在「pointer → 直接写 PlacementRect」旁路（拖拽经 `onProposeMove` → Authority）  
-2. ✅ MOVE / RESIZE 经 LockGuard → GeometryChecker → Commit  
-3. ✅ 非法 mutation：Snap Back + 可见原因；RESIZE soft 提示不挡 Commit  
-4. ✅ 不得侵入其它 locked room/stair；zone member（无 Room Lock）不出 envelope；本房锁可经 MOVE/RESIZE 更新  
+1. ✅ 不存在「pointer → 直接写 PlacementRect」旁路（拖拽经 Authority）  
+2. ✅ MOVE / RESIZE / ADJUST_WALL 经 LockGuard → GeometryChecker → Commit  
+3. ✅ 非法 mutation：Snap Back + 可见原因；soft 提示不挡 Commit  
+4. ✅ 不得侵入其它 locked room/stair；zone member（无 Room Lock）不出 envelope；本房锁可经编辑更新  
 5. same seed + same locks 仍 deterministic；lock invariant 仍绿  
 6. 文档与 UI 文案写清：受控编辑 ≠ 自由 CAD  
 
-**P0–P2 已满足。** 下一产品步可为有限墙编辑（仍须走 Authority），或 Phase 5 血缘持久化。
+**4.3 / 4.3.1 已满足。** 下一产品步为 **Phase 5 血缘持久化**。

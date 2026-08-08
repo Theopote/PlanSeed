@@ -268,3 +268,117 @@ def test_preview_move_overlap_reports_conflict_id():
     )
     assert not result.ok
     assert "b" in result.conflict_room_ids
+
+
+def test_list_shared_walls_rejects_t_junction():
+    from solver.mutation.walls import list_shared_walls
+
+    fid = "F1"
+    # a|b 共竖墙；c 贴在共墙线上形成 T
+    placements = [
+        _pl("a", fid, 0, 0, 3, 4),
+        _pl("b", fid, 3, 0, 3, 4),
+        _pl("c", fid, 2, 4, 2, 2),  # 顶在 y=4，与 a/b 底边；另压 x=3 竖线
+    ]
+    # 调整 c 使其贴在 x=3 竖墙上（右侧贴 a 右缘）
+    placements[2] = _pl("c", fid, 3, 1, 2, 2)
+    walls = list_shared_walls(placements, floor_id=fid)
+    ab = [w for w in walls if {w.room_a, w.room_b} == {"a", "b"}]
+    assert ab == []
+
+
+def test_list_shared_walls_two_rooms_ok():
+    from solver.mutation.walls import list_shared_walls
+
+    fid = "F1"
+    placements = [
+        _pl("a", fid, 0, 0, 3, 3),
+        _pl("b", fid, 3, 0, 3, 3),
+    ]
+    walls = list_shared_walls(placements, floor_id=fid)
+    assert len(walls) == 1
+    assert walls[0].axis == "x"
+    assert walls[0].coord == 3.0
+
+
+def test_preview_adjust_wall_ok():
+    program = benchmark_program()
+    fid = program.floors[0].id
+    placements = [
+        _pl("a", fid, 0, 0, 3, 3),
+        _pl("b", fid, 3, 0, 3, 3),
+    ]
+    mut = GeometryMutation(
+        kind=MutationKind.ADJUST_WALL,
+        room_id="a",
+        partner_room_id="b",
+        floor_id=fid,
+        wall_axis="x",
+        wall_coord=3.6,
+    )
+    result = preview_mutation(
+        program=program,
+        placements=placements,
+        locks=LayoutLocks(),
+        mutation=mut,
+        snap_module=0.3,
+    )
+    assert result.ok
+    assert result.snapped is not None
+    assert result.snapped_partner is not None
+    assert abs(result.snapped.width - 3.6) < 1e-9
+    assert abs(result.snapped_partner.x - 3.6) < 1e-9
+
+
+def test_preview_adjust_wall_min_edge_rejected():
+    program = benchmark_program()
+    fid = program.floors[0].id
+    placements = [
+        _pl("a", fid, 0, 0, 3, 3),
+        _pl("b", fid, 3, 0, 3, 3),
+    ]
+    mut = GeometryMutation(
+        kind=MutationKind.ADJUST_WALL,
+        room_id="a",
+        partner_room_id="b",
+        floor_id=fid,
+        wall_axis="x",
+        wall_coord=0.3,  # a 宽仅 0.3
+    )
+    result = preview_mutation(
+        program=program,
+        placements=placements,
+        locks=LayoutLocks(),
+        mutation=mut,
+        snap_module=0.3,
+    )
+    assert not result.ok
+    assert any(r.code == "mutation.min_edge" for r in result.reasons)
+
+
+def test_preview_adjust_wall_third_overlap_rejected():
+    program = benchmark_program()
+    fid = program.floors[0].id
+    # c 位于 b 内部空档；墙右移后 a 吞并该区与 c 重叠
+    placements = [
+        _pl("a", fid, 0, 0, 3, 3),
+        _pl("b", fid, 3, 0, 3, 3),
+        _pl("c", fid, 3.5, 0.5, 1.0, 2.0),
+    ]
+    mut = GeometryMutation(
+        kind=MutationKind.ADJUST_WALL,
+        room_id="a",
+        partner_room_id="b",
+        floor_id=fid,
+        wall_axis="x",
+        wall_coord=4.5,
+    )
+    result = preview_mutation(
+        program=program,
+        placements=placements,
+        locks=LayoutLocks(),
+        mutation=mut,
+        snap_module=0.3,
+    )
+    assert not result.ok
+    assert any(r.code == "mutation.overlap" for r in result.reasons)

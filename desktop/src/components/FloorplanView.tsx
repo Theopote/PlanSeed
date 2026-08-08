@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { RoomPlacementPayload } from "../api/client";
-import { HARD_MIN_EDGE } from "../lib/geometryMutation";
+import {
+  HARD_MIN_EDGE,
+  applyWallCoord,
+  listSharedWalls,
+  type WallAxis,
+} from "../lib/geometryMutation";
 
 const FLOOR_GAP = 1.0;
 const DEFAULT_SNAP = 0.3;
 /** 屏幕像素：超过才算拖拽，避免误触取消 click */
 const DRAG_THRESHOLD_PX = 4;
 const HANDLE_R = 0.18;
+const WALL_GRIP = 0.22;
 
 export type RoomMovePose = {
   x: number;
@@ -16,13 +22,23 @@ export type RoomMovePose = {
   depth: number;
 };
 
-export type MutationDragKind = "move" | "resize";
+export type WallAdjustPose = {
+  floor_id: string;
+  room_id: string;
+  partner_room_id: string;
+  wall_axis: WallAxis;
+  wall_coord: number;
+};
+
+export type MutationDragKind = "move" | "resize" | "adjust_wall";
 
 export type ProposeMoveResult = {
   ok: boolean;
   message?: string;
   warning?: string | null;
   snapped?: { x: number; y: number; width: number; depth: number } | null;
+  snappedPartner?: { x: number; y: number; width: number; depth: number } | null;
+  partnerRoomId?: string | null;
   conflictRoomIds?: string[];
 };
 
@@ -30,6 +46,8 @@ export type LivePreviewResult = {
   ok: boolean;
   message?: string | null;
   snapped?: { x: number; y: number; width: number; depth: number } | null;
+  snappedPartner?: { x: number; y: number; width: number; depth: number } | null;
+  partnerRoomId?: string | null;
   conflictRoomIds?: string[];
 };
 
@@ -42,24 +60,23 @@ type Props = {
   selectedRoomId: string | null;
   lockedRoomIds: string[];
   placements?: RoomPlacementPayload[];
-  /** 与 SVG 堆叠顺序一致的楼层 id */
   floorIds?: string[];
   floorWidth?: number;
   floorDepth?: number;
   snapModule?: number;
   onSelectRoom: (roomId: string | null) => void;
-  /** Geometry Mutation Authority：预览+提交；失败则 Snap Back */
   onProposeMove?: (
     roomId: string,
     pose: RoomMovePose,
     kind?: MutationDragKind,
   ) => ProposeMoveResult;
-  /** 拖动中实时预览（虚线 / 冲突 / AccessImpact） */
+  onProposeWall?: (pose: WallAdjustPose) => ProposeMoveResult;
   onLivePreview?: (
     roomId: string,
     pose: RoomMovePose,
     kind: MutationDragKind,
   ) => LivePreviewResult;
+  onLiveWallPreview?: (pose: WallAdjustPose) => LivePreviewResult;
   mutationHint?: string | null;
 };
 
@@ -76,6 +93,9 @@ type DragState = {
   kind: MutationDragKind;
   edge: ResizeEdge | null;
   roomId: string;
+  partnerRoomId: string | null;
+  wallAxis: WallAxis | null;
+  originWallCoord: number;
   pointerId: number;
   startClientX: number;
   startClientY: number;
@@ -189,7 +209,9 @@ export function FloorplanView({
   snapModule = DEFAULT_SNAP,
   onSelectRoom,
   onProposeMove,
+  onProposeWall,
   onLivePreview,
+  onLiveWallPreview,
   mutationHint = null,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -303,7 +325,65 @@ export function FloorplanView({
       svgEl.appendChild(layer);
     }
     layer.replaceChildren();
-    if (!selectedRoomId || !onProposeMove || floorDepth <= 0) return;
+    if ((!onProposeMove && !onProposeWall) || floorDepth <= 0) return;
+
+    // 共墙柄（始终可拖，不依赖选中）
+    if (onProposeWall && placements.length) {
+      const walls = listSharedWalls(placements);
+      for (const w of walls) {
+        const fi = floorIndexOf(w.floor_id, 0);
+        const oy = floorOffset(fi, floorDepth);
+        const mid = (w.along0 + w.along1) / 2;
+        const line = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "line",
+        );
+        line.setAttribute("class", "wall-handle");
+        line.setAttribute("data-room-a", w.room_a);
+        line.setAttribute("data-room-b", w.room_b);
+        line.setAttribute("data-wall-axis", w.axis);
+        line.setAttribute("data-wall-coord", String(w.coord));
+        line.setAttribute("data-floor-id", w.floor_id);
+        if (w.axis === "x") {
+          line.setAttribute("x1", String(w.coord));
+          line.setAttribute("y1", String(oy + mid - WALL_GRIP));
+          line.setAttribute("x2", String(w.coord));
+          line.setAttribute("y2", String(oy + mid + WALL_GRIP));
+          line.style.cursor = "ew-resize";
+        } else {
+          line.setAttribute("x1", String(mid - WALL_GRIP));
+          line.setAttribute("y1", String(oy + w.coord));
+          line.setAttribute("x2", String(mid + WALL_GRIP));
+          line.setAttribute("y2", String(oy + w.coord));
+          line.style.cursor = "ns-resize";
+        }
+        line.setAttribute("stroke-width", "0.16");
+        layer.appendChild(line);
+        const c = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "circle",
+        );
+        c.setAttribute("class", "wall-handle-knob");
+        c.setAttribute("data-room-a", w.room_a);
+        c.setAttribute("data-room-b", w.room_b);
+        c.setAttribute("data-wall-axis", w.axis);
+        c.setAttribute("data-wall-coord", String(w.coord));
+        c.setAttribute("data-floor-id", w.floor_id);
+        if (w.axis === "x") {
+          c.setAttribute("cx", String(w.coord));
+          c.setAttribute("cy", String(oy + mid));
+          c.style.cursor = "ew-resize";
+        } else {
+          c.setAttribute("cx", String(mid));
+          c.setAttribute("cy", String(oy + w.coord));
+          c.style.cursor = "ns-resize";
+        }
+        c.setAttribute("r", String(HANDLE_R * 0.85));
+        layer.appendChild(c);
+      }
+    }
+
+    if (!selectedRoomId || !onProposeMove) return;
     if (selectedRoomId.startsWith("stair-")) return;
 
     const pl = placementById(selectedRoomId);
@@ -358,6 +438,12 @@ export function FloorplanView({
     ok: boolean,
     hasWarning: boolean,
     conflictIds: string[],
+    snappedPartner: {
+      x: number;
+      y: number;
+      width: number;
+      depth: number;
+    } | null = null,
   ) => {
     const root = stageRef.current;
     if (!root) return;
@@ -384,18 +470,26 @@ export function FloorplanView({
         .querySelector(`.room-shape[data-room-id="${CSS.escape(id)}"]`)
         ?.classList.add("is-conflict");
     }
-    if (!snapped) return;
     const oy = floorOffset(floorIndex, floorDepth);
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("class", "proposed-rect");
-    rect.classList.toggle("is-invalid", !ok);
-    rect.classList.toggle("is-warn", ok && hasWarning);
-    rect.setAttribute("x", String(snapped.x));
-    rect.setAttribute("y", String(oy + snapped.y));
-    rect.setAttribute("width", String(snapped.width));
-    rect.setAttribute("height", String(snapped.depth));
-    rect.setAttribute("fill", "none");
-    layer.appendChild(rect);
+    const addRect = (
+      s: { x: number; y: number; width: number; depth: number },
+    ) => {
+      const rect = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "rect",
+      );
+      rect.setAttribute("class", "proposed-rect");
+      rect.classList.toggle("is-invalid", !ok);
+      rect.classList.toggle("is-warn", ok && hasWarning);
+      rect.setAttribute("x", String(s.x));
+      rect.setAttribute("y", String(oy + s.y));
+      rect.setAttribute("width", String(s.width));
+      rect.setAttribute("height", String(s.depth));
+      rect.setAttribute("fill", "none");
+      layer!.appendChild(rect);
+    };
+    if (snapped) addRect(snapped);
+    if (snappedPartner) addRect(snappedPartner);
   };
 
   useEffect(() => {
@@ -429,7 +523,7 @@ export function FloorplanView({
     syncFromPlacements();
     syncHandles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placements, floorDepth, floorIds, svg, selectedRoomId, onProposeMove]);
+  }, [placements, floorDepth, floorIds, svg, selectedRoomId, onProposeMove, onProposeWall]);
 
   useEffect(() => {
     const root = stageRef.current;
@@ -459,6 +553,59 @@ export function FloorplanView({
       const fw = floorWidth > 0 ? floorWidth : Number.POSITIVE_INFINITY;
       const fd = floorDepth > 0 ? floorDepth : Number.POSITIVE_INFINITY;
       const svgEl = root?.querySelector("svg");
+
+      if (drag.kind === "adjust_wall" && drag.partnerRoomId && drag.wallAxis) {
+        let coord = drag.originWallCoord;
+        if (svgEl) {
+          const pt = clientToSvg(svgEl, ev.clientX, ev.clientY);
+          const startPt = clientToSvg(
+            svgEl,
+            drag.startClientX,
+            drag.startClientY,
+          );
+          if (pt && startPt) {
+            coord =
+              drag.wallAxis === "x"
+                ? drag.originWallCoord + (pt.x - startPt.x)
+                : drag.originWallCoord + (pt.y - startPt.y);
+          }
+        }
+        const wallPose: WallAdjustPose = {
+          floor_id: drag.floorId,
+          room_id: drag.roomId,
+          partner_room_id: drag.partnerRoomId,
+          wall_axis: drag.wallAxis,
+          wall_coord: coord,
+        };
+        const result = onProposeWall?.(wallPose);
+        clearLiveFeedback();
+        if (!result?.ok) {
+          syncFromPlacements();
+          syncHandles();
+          return;
+        }
+        if (result.snapped) {
+          applyNodeGeometry(
+            drag.roomId,
+            result.snapped.x,
+            result.snapped.y,
+            result.snapped.width,
+            result.snapped.depth,
+          );
+        }
+        if (result.snappedPartner && drag.partnerRoomId) {
+          applyNodeGeometry(
+            drag.partnerRoomId,
+            result.snappedPartner.x,
+            result.snappedPartner.y,
+            result.snappedPartner.width,
+            result.snappedPartner.depth,
+          );
+        }
+        syncHandles();
+        return;
+      }
+
       let pose = {
         x: drag.originModelX,
         y: drag.originModelY,
@@ -532,6 +679,43 @@ export function FloorplanView({
       const t = ev.target as Element | null;
       if (!t) return;
 
+      const wallEl = t.closest(
+        ".wall-handle[data-wall-axis], .wall-handle-knob[data-wall-axis]",
+      );
+      if (wallEl && onProposeWall && floorDepth > 0) {
+        const roomA = wallEl.getAttribute("data-room-a");
+        const roomB = wallEl.getAttribute("data-room-b");
+        const axis = wallEl.getAttribute("data-wall-axis") as WallAxis | null;
+        const coord = Number(wallEl.getAttribute("data-wall-coord"));
+        const floorId = wallEl.getAttribute("data-floor-id") ?? "";
+        if (!roomA || !roomB || !axis || Number.isNaN(coord)) return;
+        onSelectRoom(roomA);
+        const base = basesRef.current.get(roomA);
+        dragRef.current = {
+          kind: "adjust_wall",
+          edge: null,
+          roomId: roomA,
+          partnerRoomId: roomB,
+          wallAxis: axis,
+          originWallCoord: coord,
+          pointerId: ev.pointerId,
+          startClientX: ev.clientX,
+          startClientY: ev.clientY,
+          originModelX: 0,
+          originModelY: 0,
+          originWidth: 0,
+          originDepth: 0,
+          floorId,
+          floorIndex: base?.floorIndex ?? floorIndexOf(floorId, 0),
+          moved: false,
+          siblingIds: [],
+        };
+        (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+
       const handle = t.closest(".resize-handle[data-edge]");
       if (handle && onProposeMove && floorDepth > 0) {
         const roomId = handle.getAttribute("data-room-id");
@@ -545,6 +729,9 @@ export function FloorplanView({
           kind: "resize",
           edge,
           roomId,
+          partnerRoomId: null,
+          wallAxis: null,
+          originWallCoord: 0,
           pointerId: ev.pointerId,
           startClientX: ev.clientX,
           startClientY: ev.clientY,
@@ -591,6 +778,9 @@ export function FloorplanView({
         kind: "move",
         edge: null,
         roomId,
+        partnerRoomId: null,
+        wallAxis: null,
+        originWallCoord: 0,
         pointerId: ev.pointerId,
         startClientX: ev.clientX,
         startClientY: ev.clientY,
@@ -626,6 +816,85 @@ export function FloorplanView({
         drag.startClientY,
       );
       if (!pt || !startPt) return;
+
+      if (drag.kind === "adjust_wall" && drag.partnerRoomId && drag.wallAxis) {
+        const coord =
+          drag.wallAxis === "x"
+            ? drag.originWallCoord + (pt.x - startPt.x)
+            : drag.originWallCoord + (pt.y - startPt.y);
+        const plA = placementById(drag.roomId);
+        const plB = placementById(drag.partnerRoomId);
+        if (plA && plB) {
+          // room_a left/top — match listSharedWalls order via applyWallCoord on ordered pair
+          const walls = listSharedWalls(placements, drag.floorId);
+          const match = walls.find(
+            (w) =>
+              w.axis === drag.wallAxis &&
+              new Set([w.room_a, w.room_b, drag.roomId, drag.partnerRoomId!])
+                .size === 2,
+          );
+          if (match) {
+            const a = placementById(match.room_a);
+            const b = placementById(match.room_b);
+            if (a && b) {
+              const applied = applyWallCoord(
+                { x: a.x, y: a.y, width: a.width, depth: a.depth },
+                { x: b.x, y: b.y, width: b.width, depth: b.depth },
+                drag.wallAxis,
+                coord,
+              );
+              if (!("error" in applied)) {
+                applyNodeGeometry(
+                  match.room_a,
+                  applied.a.x,
+                  applied.a.y,
+                  applied.a.width,
+                  applied.a.depth,
+                );
+                applyNodeGeometry(
+                  match.room_b,
+                  applied.b.x,
+                  applied.b.y,
+                  applied.b.width,
+                  applied.b.depth,
+                );
+                root
+                  .querySelector(
+                    `g.room-node[data-room-id="${CSS.escape(match.room_a)}"]`,
+                  )
+                  ?.classList.add("is-dragging");
+                root
+                  .querySelector(
+                    `g.room-node[data-room-id="${CSS.escape(match.room_b)}"]`,
+                  )
+                  ?.classList.add("is-dragging");
+              }
+            }
+          }
+        }
+        const wallPose: WallAdjustPose = {
+          floor_id: drag.floorId,
+          room_id: drag.roomId,
+          partner_room_id: drag.partnerRoomId,
+          wall_axis: drag.wallAxis,
+          wall_coord: coord,
+        };
+        const live = onLiveWallPreview?.(wallPose);
+        if (live) {
+          const msg = live.message ?? null;
+          setLiveHint(msg);
+          setLiveConflict(!live.ok);
+          syncPreviewOverlay(
+            drag.floorIndex,
+            live.snapped ?? null,
+            live.ok,
+            !!(live.ok && msg),
+            live.conflictRoomIds ?? [],
+            live.snappedPartner ?? null,
+          );
+        }
+        return;
+      }
 
       const fw = floorWidth > 0 ? floorWidth : Number.POSITIVE_INFINITY;
       const fd = floorDepth > 0 ? floorDepth : Number.POSITIVE_INFINITY;
@@ -721,10 +990,12 @@ export function FloorplanView({
     snapModule,
     onSelectRoom,
     onProposeMove,
+    onProposeWall,
     onLivePreview,
+    onLiveWallPreview,
   ]);
 
-  const canEdit = !!onProposeMove && floorDepth > 0;
+  const canEdit = (!!onProposeMove || !!onProposeWall) && floorDepth > 0;
   const headerHint = liveHint ?? mutationHint;
 
   return (
@@ -748,14 +1019,14 @@ export function FloorplanView({
             {canEdit
               ? selectedRoomId.startsWith("stair-")
                 ? "受控平移楼梯 · 手柄缩放仅房间"
-                : "拖移房间 · 手柄缩放 · 拖动中预览冲突"
+                : "拖移 · 手柄缩放 · 拖共墙联动两侧"
               : "已选 · 可锁定后 Regenerate unlocked"}
           </p>
         ) : lockedRoomIds.length > 0 ? (
           <p className="muted">已锁 {lockedRoomIds.length} 处</p>
         ) : (
           <p className="muted">
-            {canEdit ? "点击选中 · 拖移或拉手柄" : "点击房间或楼梯"}
+            {canEdit ? "拖房间 / 拉手柄 / 拖共墙" : "点击房间或楼梯"}
           </p>
         )}
       </header>

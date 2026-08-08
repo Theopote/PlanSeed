@@ -531,6 +531,23 @@ button.secondary {
   fill: #c5d4c0;
 }
 
+.floorplan-svg .wall-handle {
+  stroke: #1a3d28;
+  stroke-linecap: round;
+  pointer-events: stroke;
+}
+
+.floorplan-svg .wall-handle-knob {
+  fill: #f7f3ea;
+  stroke: #1a3d28;
+  stroke-width: 0.05;
+  pointer-events: all;
+}
+
+.floorplan-svg .wall-handle-knob:hover {
+  fill: #c5d4c0;
+}
+
 .floorplan-svg .room-shape.is-conflict {
   stroke: #9b2c2c !important;
   stroke-width: 0.2 !important;

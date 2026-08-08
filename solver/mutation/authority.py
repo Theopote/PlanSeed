@@ -14,6 +14,11 @@ from packages.schema.program import DesignProgram
 from solver.geometry.rect import Rect, from_placement, intersects
 from solver.geometry.snap import snap_value
 from solver.locks.envelopes import build_zone_member_envelopes, rect_in_envelope
+from solver.mutation.walls import (
+    apply_wall_coord,
+    list_shared_walls,
+    order_pair,
+)
 from solver.topology.constants import MIN_ACCESS_WALL
 from solver.topology.doors import shared_boundary_between
 
@@ -32,8 +37,7 @@ def preview_mutation(
     """
     LockGuard + GeometryConstraintChecker；AccessImpact 仅 soft warning。
 
-    MOVE：平移原点 snap；RESIZE：四边 snap + 最小边硬拒 / min_width·area soft。
-    Commit 侧通常 upsert Room/Stair Lock。
+    MOVE / RESIZE / ADJUST_WALL；Commit 侧通常 upsert Room/Stair Lock。
     """
     module = (
         snap_module
@@ -50,6 +54,14 @@ def preview_mutation(
         )
     if mutation.kind == MutationKind.RESIZE:
         return _preview_resize(
+            program=program,
+            placements=placements,
+            locks=locks,
+            mutation=mutation,
+            module=module,
+        )
+    if mutation.kind == MutationKind.ADJUST_WALL:
+        return _preview_adjust_wall(
             program=program,
             placements=placements,
             locks=locks,
@@ -125,7 +137,6 @@ def _preview_resize(
     snapped = _snap_rect_edges(prop, module)
     reasons: list[MutationReject] = []
     warnings: list[MutationReject] = []
-    conflicts: list[str] = []
 
     if snapped.width < _HARD_MIN_EDGE - 1e-9 or snapped.depth < _HARD_MIN_EDGE - 1e-9:
         reasons.append(
@@ -190,6 +201,173 @@ def _preview_resize(
     )
 
 
+def _preview_adjust_wall(
+    *,
+    program: DesignProgram,
+    placements: list,
+    locks: LayoutLocks,
+    mutation: GeometryMutation,
+    module: float,
+) -> MutationPreviewResult:
+    rid = mutation.room_id
+    pid = mutation.partner_room_id
+    axis = mutation.wall_axis
+    if not rid or not pid or axis is None or mutation.wall_coord is None:
+        return MutationPreviewResult(
+            ok=False,
+            reasons=[
+                MutationReject(
+                    code="mutation.missing_target",
+                    message="ADJUST_WALL 需要 room_id、partner_room_id、wall_axis、wall_coord",
+                )
+            ],
+        )
+
+    pa = next((p for p in placements if p.room_id == rid), None)
+    pb = next((p for p in placements if p.room_id == pid), None)
+    if pa is None or pb is None:
+        return MutationPreviewResult(
+            ok=False,
+            reasons=[
+                MutationReject(
+                    code="mutation.unknown_room",
+                    message="共墙两侧房间不存在",
+                )
+            ],
+        )
+    if pa.floor_id != pb.floor_id or pa.floor_id != mutation.floor_id:
+        return MutationPreviewResult(
+            ok=False,
+            reasons=[
+                MutationReject(
+                    code="mutation.wall_floor",
+                    message="共墙两侧须同层",
+                )
+            ],
+        )
+
+    editable = list_shared_walls(placements, floor_id=mutation.floor_id)
+    match = next(
+        (
+            w
+            for w in editable
+            if w.axis == axis
+            and {w.room_a, w.room_b} == {rid, pid}
+        ),
+        None,
+    )
+    if match is None:
+        return MutationPreviewResult(
+            ok=False,
+            reasons=[
+                MutationReject(
+                    code="mutation.wall_not_editable",
+                    message="该共墙不可编辑（须恰好两房贴边且无 T 接）",
+                )
+            ],
+        )
+
+    id_a, rect_a, id_b, rect_b = order_pair(
+        rid,
+        pa.rect if isinstance(pa.rect, PlacementRect) else PlacementRect(
+            x=pa.rect.x, y=pa.rect.y, width=pa.rect.width, depth=pa.rect.depth
+        ),
+        pid,
+        pb.rect if isinstance(pb.rect, PlacementRect) else PlacementRect(
+            x=pb.rect.x, y=pb.rect.y, width=pb.rect.width, depth=pb.rect.depth
+        ),
+        axis,
+    )
+    # 与 match 的 left/top 对齐
+    if id_a != match.room_a:
+        id_a, rect_a, id_b, rect_b = match.room_a, rect_b, match.room_b, rect_a
+        # re-fetch correct rects
+        ra_pl = next(p for p in placements if p.room_id == match.room_a)
+        rb_pl = next(p for p in placements if p.room_id == match.room_b)
+        rect_a = ra_pl.rect if isinstance(ra_pl.rect, PlacementRect) else PlacementRect(
+            x=ra_pl.rect.x, y=ra_pl.rect.y, width=ra_pl.rect.width, depth=ra_pl.rect.depth
+        )
+        rect_b = rb_pl.rect if isinstance(rb_pl.rect, PlacementRect) else PlacementRect(
+            x=rb_pl.rect.x, y=rb_pl.rect.y, width=rb_pl.rect.width, depth=rb_pl.rect.depth
+        )
+        id_a, id_b = match.room_a, match.room_b
+
+    coord = snap_value(mutation.wall_coord, module)
+    new_a, new_b, err = apply_wall_coord(
+        rect_a, rect_b, axis=axis, coord=coord, hard_min=_HARD_MIN_EDGE
+    )
+    if err or new_a is None or new_b is None:
+        code = err or "mutation.min_edge"
+        msg = (
+            f"边长不可小于 {_HARD_MIN_EDGE:g} m"
+            if code == "mutation.min_edge"
+            else "共墙坐标越出两侧房间"
+        )
+        return MutationPreviewResult(
+            ok=False,
+            reasons=[MutationReject(code=code, message=msg)],
+            snapped=None,
+            snapped_partner=None,
+        )
+
+    pair_ignore = {id_a, id_b}
+    reasons: list[MutationReject] = []
+    conflicts: list[str] = []
+    for side_id, snapped in ((id_a, new_a), (id_b, new_b)):
+        geo, conf = _geometry_check(
+            program=program,
+            placements=placements,
+            locks=locks,
+            room_id=side_id,
+            floor_id=mutation.floor_id,
+            current_floor_id=mutation.floor_id,
+            snapped=snapped,
+            ignore_room_ids=pair_ignore,
+        )
+        reasons.extend(geo)
+        for c in conf:
+            if c not in conflicts:
+                conflicts.append(c)
+
+    warnings: list[MutationReject] = []
+    for side_id, snapped, before_pl in (
+        (id_a, new_a, next(p for p in placements if p.room_id == id_a)),
+        (id_b, new_b, next(p for p in placements if p.room_id == id_b)),
+    ):
+        warnings.extend(
+            _access_impact_warnings(
+                current=before_pl,
+                snapped=snapped,
+                placements=placements,
+                # 共墙对端仍应保持共边；排除对端以免误报
+                ignore_room_ids={id_a, id_b} - {side_id},
+            )
+        )
+    # 去重 warning messages
+    seen: set[str] = set()
+    uniq_warnings: list[MutationReject] = []
+    for w in warnings:
+        if w.message in seen:
+            continue
+        seen.add(w.message)
+        uniq_warnings.append(w)
+
+    # snapped = mutation.room_id 侧；snapped_partner = partner
+    if rid == id_a:
+        snapped, snapped_partner = new_a, new_b
+    else:
+        snapped, snapped_partner = new_b, new_a
+
+    return MutationPreviewResult(
+        ok=len(reasons) == 0,
+        reasons=reasons,
+        warnings=uniq_warnings,
+        snapped=snapped,
+        snapped_partner=snapped_partner,
+        conflict_room_ids=conflicts,
+    )
+
+
 def _resolve_target(
     placements: list,
     mutation: GeometryMutation,
@@ -249,7 +427,9 @@ def _geometry_check(
     floor_id: str,
     current_floor_id: str,
     snapped: PlacementRect,
+    ignore_room_ids: set[str] | None = None,
 ) -> tuple[list[MutationReject], list[str]]:
+    ignore = ignore_room_ids or set()
     reasons: list[MutationReject] = []
     conflicts: list[str] = []
     buildable = Rect(
@@ -296,7 +476,7 @@ def _geometry_check(
             conflicts.append("__stair__")
 
     for p in placements:
-        if p.room_id == room_id:
+        if p.room_id == room_id or p.room_id in ignore:
             continue
         if room_id.startswith("stair-"):
             if p.room_id.startswith("stair-"):
@@ -316,7 +496,7 @@ def _geometry_check(
             break
 
     for lr in locks.rooms:
-        if lr.room_id == room_id:
+        if lr.room_id == room_id or lr.room_id in ignore:
             continue
         if lr.floor_id != floor_id:
             continue
@@ -340,15 +520,18 @@ def _access_impact_warnings(
     current: object,
     snapped: PlacementRect,
     placements: list,
+    ignore_room_ids: set[str] | None = None,
 ) -> list[MutationReject]:
     """推断：原与本房共边≥MIN_ACCESS_WALL 的邻居，变更后丢失共边 → soft。"""
     before = _as_room_placement(current)
     if before is None:
         return []
+    ignore = ignore_room_ids or set()
     after = before.model_copy(update={"rect": snapped})
     lost: list[str] = []
     for p in placements:
-        if getattr(p, "room_id", None) == before.room_id:
+        rid = getattr(p, "room_id", None)
+        if rid == before.room_id or rid in ignore:
             continue
         other = _as_room_placement(p)
         if other is None or other.floor_id != before.floor_id:
