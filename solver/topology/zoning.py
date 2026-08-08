@@ -52,9 +52,9 @@ def zone_for_room(room: RoomSpec) -> ArchitecturalZone:
 
 class ZonePlanner:
     """
-    第一版：按面积权重把剩余矩形分配给 day/night/service。
-
-    circulation 通常已由 StairCore 占据，不参与房间分区切分。
+    分区策略：
+    - SERVICE：整栋共享一条带（湿区跨层对齐）
+    - DAY / NIGHT：按层在剩余空间内切分；本层无房间的 zone 不占位（空区回收）
     """
 
     def group_rooms(self, rooms: list[RoomSpec]) -> list[ZoneRoomGroup]:
@@ -135,34 +135,143 @@ class ZonePlanner:
         rng: random.Random | None = None,
     ) -> dict[str, FloorZonePlan]:
         """
-        整栋共享分区几何，再按层绑定房间。
+        整栋共享 SERVICE 带；各层在剩余区内只切本层有房间的 day/night。
 
-        跨层湿区/服务区对齐依赖同一套 SERVICE 矩形；
-        面积权重取各层房间合计，使 day（多为 F1）与 night（多为 F2）
-        同时进入切分，避免每层各自切出不同 service 带。
+        空区回收：F1 无 night 房间时，night 不占 residual；空间归 day（反之亦然）。
         """
+        rng = rng or random.Random(0)
         all_rooms = [r for _, rooms in floors for r in rooms]
-        shared = self.plan_geometry(
-            rooms=all_rooms,
-            free_rects=free_rects,
+        service_weight = sum(
+            r.target_area for r in all_rooms if zone_for_room(r) == ArchitecturalZone.SERVICE
+        )
+        other_weight = sum(
+            r.target_area
+            for r in all_rooms
+            if zone_for_room(r)
+            in (ArchitecturalZone.DAY, ArchitecturalZone.NIGHT)
+        )
+
+        service_rects, residual = self._carve_service_band(
+            free_rects,
+            service_weight=service_weight,
+            other_weight=other_weight,
             snap_module=snap_module,
             rng=rng,
-            floor_id="_shared",
         )
+
         plans: dict[str, FloorZonePlan] = {}
         for floor_id, rooms in floors:
-            room_ids = {r.id for r in rooms}
-            zones = [
-                ZoneGeometry(
-                    zone=zg.zone,
-                    floor_id=floor_id,
-                    rect=zg.rect.model_copy(),
-                    room_ids=[rid for rid in zg.room_ids if rid in room_ids],
-                )
-                for zg in shared
+            zones: list[ZoneGeometry] = []
+            service_ids = [
+                r.id for r in rooms if zone_for_room(r) == ArchitecturalZone.SERVICE
             ]
+            for i, pr in enumerate(service_rects):
+                zones.append(
+                    ZoneGeometry(
+                        zone=ArchitecturalZone.SERVICE,
+                        floor_id=floor_id,
+                        rect=pr.model_copy(),
+                        room_ids=list(service_ids) if i == 0 else [],
+                    )
+                )
+
+            local_rooms = [
+                r
+                for r in rooms
+                if zone_for_room(r)
+                in (ArchitecturalZone.DAY, ArchitecturalZone.NIGHT)
+            ]
+            if local_rooms and residual:
+                zones.extend(
+                    self.plan_geometry(
+                        rooms=local_rooms,
+                        free_rects=residual,
+                        snap_module=snap_module,
+                        rng=rng,
+                        floor_id=floor_id,
+                    )
+                )
+            elif local_rooms and not residual and service_rects:
+                # 极端：无 residual 时把 day/night 并入 service 几何（仍可放置）
+                zones[0].room_ids = list(service_ids) + [r.id for r in local_rooms]
+
             plans[floor_id] = FloorZonePlan(floor_id=floor_id, zones=zones)
         return plans
+
+    def _carve_service_band(
+        self,
+        free_rects: list[Rect],
+        *,
+        service_weight: float,
+        other_weight: float,
+        snap_module: float,
+        rng: random.Random,
+    ) -> tuple[list[PlacementRect], list[Rect]]:
+        """
+        从最大剩余矩形切出共享 SERVICE 条带；其余矩形 + 切余 → residual。
+
+        无 service 权重时：不切带，全部 residual。
+        """
+        if not free_rects:
+            return [], []
+
+        free_rects = sorted(free_rects, key=lambda r: r.area, reverse=True)
+        if service_weight <= 1e-9:
+            return [], list(free_rects)
+
+        total_w = service_weight + other_weight
+        frac = service_weight / total_w if total_w > 1e-9 else 0.25
+        # 夹紧：service 至少约占 12%，至多 45%，避免挤死或吃光
+        frac = max(0.12, min(0.45, frac))
+
+        primary = free_rects[0]
+        others = free_rects[1:]
+        total_free = sum(r.area for r in free_rects)
+        target_area = frac * total_free
+
+        # 优先切竖直条带（跨层 x 对齐更稳）；近似方块时由 rng 决定
+        vertical_band = primary.width >= primary.depth
+        if abs(primary.width - primary.depth) < 1e-6:
+            vertical_band = rng.random() < 0.5
+
+        min_span = snap_module * 2
+        if vertical_band:
+            raw_w = target_area / max(primary.depth, 1e-9)
+            band = snap_value(raw_w, snap_module)
+            band = max(min_span, min(primary.width - min_span, band))
+            # 条带贴右缘（湿区常见靠端）
+            service = PlacementRect(
+                x=primary.right - band,
+                y=primary.y,
+                width=band,
+                depth=primary.depth,
+            )
+            rem = Rect(
+                x=primary.x,
+                y=primary.y,
+                width=max(snap_module, primary.width - band),
+                depth=primary.depth,
+            )
+        else:
+            raw_d = target_area / max(primary.width, 1e-9)
+            band = snap_value(raw_d, snap_module)
+            band = max(min_span, min(primary.depth - min_span, band))
+            service = PlacementRect(
+                x=primary.x,
+                y=primary.bottom - band,
+                width=primary.width,
+                depth=band,
+            )
+            rem = Rect(
+                x=primary.x,
+                y=primary.y,
+                width=primary.width,
+                depth=max(snap_module, primary.depth - band),
+            )
+
+        residual = [rem] + list(others)
+        residual = [r for r in residual if r.width > 1e-9 and r.depth > 1e-9]
+        return [service], residual
 
     def _split_rect_into_zones(
         self,
@@ -224,7 +333,6 @@ class ZonePlanner:
             if not rects:
                 break
             if i == len(groups) - 1:
-                # 剩余矩形全部给最后一个 zone（合并为多条 ZoneGeometry 或取最大）
                 for r in rects:
                     geometries.append(
                         ZoneGeometry(
@@ -234,7 +342,6 @@ class ZonePlanner:
                             room_ids=list(group.room_ids) if r is rects[0] else [],
                         )
                     )
-                # 房间只挂在第一块上，其余块仍属同 zone 供布局合并
                 if len(rects) > 1:
                     geometries[-len(rects)].room_ids = list(group.room_ids)
                     for g in geometries[-len(rects) + 1 :]:

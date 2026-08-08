@@ -40,7 +40,7 @@ class GuillotineGenerator:
     Generator #1 — Baseline Guillotine（RoomLayout strategy）。
 
     流水线：
-      StairCore → free rects → ZonePlanner(整栋共享几何) → Guillotine within zones
+      StairCore → free rects → ZonePlanner(共享 SERVICE + 按层回收空区) → Guillotine
     """
 
     def __init__(self) -> None:

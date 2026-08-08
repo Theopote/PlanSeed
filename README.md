@@ -18,6 +18,9 @@ uv run pytest
 
 # 运行 solver demo
 uv run python -m solver.demo
+
+# 导出 Top 候选 SVG 调试图 → debug/
+uv run python -m solver.visualize
 ```
 
 ## 领域术语

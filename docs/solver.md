@@ -80,7 +80,7 @@ Top K candidates
 ## Architectural Zones（Phase 1.5 P3）
 
 ```text
-StairCore → free rects → ZonePlanner 整栋共享 (day/night/service) → Guillotine within zones
+StairCore → free rects → ZonePlanner（共享 SERVICE + 按层空区回收）→ Guillotine within zones
 ```
 
 | Zone | 房间来源 |
@@ -192,7 +192,7 @@ floor.room_ids + RoomSpec.floor_id
 
 1. **StairCore（非整层条带）**：默认约 `1.8 × 4.2`，区位 `N/S/E/W/center` 由 seed 选择，跨层对齐完整 AABB
 2. **剩余矩形**：从 footprint 挖去核心后做正交分解
-3. **ZonePlanner（整栋共享）**：按全楼 day/night/service 面积权重切分一次；各层只绑定本层房间。SERVICE 矩形跨层一致 → `wet_zone_*` 对齐
+3. **ZonePlanner**：整栋共享 SERVICE 条带（`wet_zone_*` 对齐）；各层在 residual 内只切本层有房间的 day/night（空区回收）
 4. **Guillotine within zones**：在各 zone 矩形内递归切分
 5. **确定性**：`rng = random.Random(seed)`；相同 program+seed → 相同 candidate
 

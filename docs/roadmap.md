@@ -12,7 +12,7 @@
 | **1.5** | **Solver Reliability** | **← 现在** |
 | 2 | Spatial Topology + Circulation（门 / AccessGraph） | 未开始 |
 | 3 | Architectural Evaluation | 未开始 |
-| 4 | Minimal Visual Debugger（SVG debug） | 未开始 |
+| 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
 | 5 | FastAPI | 延后 |
 | 6 | LLM Requirement Parsing | 延后 |
 | 7 | Tauri UX | 延后 |
@@ -109,11 +109,12 @@ Guillotine **保留**，但不再决定整栋住宅组织。
 
 ---
 
-## Phase 4 预告：SVG Debug
+## Phase 4：SVG Debug（✅ 初版）
 
 ```bash
 uv run python -m solver.visualize
+# 或：uv run python -m solver.visualize --out debug --top 5
 ```
 
-输出 `debug/candidate_0N.svg`（房间、面积、category、core、violation、score）。  
-非正式 UI，供 generator 回归目视检查。
+输出 `debug/candidate_0N_seedXX.svg`（房间名/面积、category 色、core、wet 虚线框、score/metrics、hard violations）。  
+非正式 UI，供 generator 回归目视检查。后续可加门洞、violation 高亮、对齐轴。

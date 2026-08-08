@@ -77,8 +77,8 @@ class TestZonePlanner:
         # 条带面积之和 ≈ 原矩形
         assert abs(sum(z.rect.area for z in plan.zones) - free[0].area) < 0.5
 
-    def test_plan_building_shares_service_rect_across_floors(self):
-        """F1 日区+服务、F2 夜区+服务 → SERVICE 几何必须一致。"""
+    def test_plan_building_shares_service_and_reclaims_empty_zones(self):
+        """SERVICE 跨层一致；F1 无 night 时 night 不占 residual。"""
         f1 = [
             RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=24),
             RoomSpec(id="kitchen", name="厨房", category=RoomCategory.WET, target_area=10),
@@ -102,8 +102,31 @@ class TestZonePlanner:
         assert s1.rect.depth == pytest.approx(s2.rect.depth)
         assert set(s1.room_ids) == {"kitchen", "bath1"}
         assert set(s2.room_ids) == {"bath2"}
-        # 空 zone 仍保留几何（本层无 night 房间的 F1 等）
-        assert any(z.zone == ArchitecturalZone.NIGHT for z in plans["F1"].zones)
+
+        f1_zones = {z.zone for z in plans["F1"].zones}
+        f2_zones = {z.zone for z in plans["F2"].zones}
+        assert ArchitecturalZone.NIGHT not in f1_zones
+        assert ArchitecturalZone.DAY in f1_zones
+        assert ArchitecturalZone.DAY not in f2_zones
+        assert ArchitecturalZone.NIGHT in f2_zones
+
+        day = next(z for z in plans["F1"].zones if z.zone == ArchitecturalZone.DAY)
+        # residual 应远大于 service（空 night 已回收）
+        assert day.rect.area > s1.rect.area
+
+    def test_f1_rooms_fill_depth_after_reclaim(self):
+        """空区回收后一层公共区不再挤在楼梯旁窄条。"""
+        program = benchmark_program()
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        f1 = candidate.floors[0]
+        living = next(p for p in f1.placements if p.name and "客厅" in p.name)
+        assert living.rect.area >= 15.0
+        bottoms = [
+            p.rect.bottom
+            for p in f1.placements
+            if p.source.value == "program"
+        ]
+        assert max(bottoms) >= program.buildable.depth * 0.65
 
     def test_guillotine_uses_zones_and_still_places_all_rooms(self):
         program = benchmark_program()
