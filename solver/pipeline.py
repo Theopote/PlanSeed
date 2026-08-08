@@ -88,6 +88,7 @@ def run_pipeline(
         validation = checker.check(program, candidate)
         if has_locks:
             inv = check_lock_invariants(candidate, locks)
+            candidate.metrics["lock_invariant_ok"] = not bool(inv.hard_violations)
             if inv.hard_violations or inv.soft_violations or inv.warnings:
                 merged = ConstraintEvaluationResult(
                     hard_violations=list(validation.hard_violations),
@@ -96,6 +97,8 @@ def run_pipeline(
                 )
                 merged.extend(inv)
                 validation = merged.to_candidate_validation()
+        else:
+            candidate.metrics["lock_invariant_ok"] = True
         candidate.validation = validation
 
         if candidate.validation.valid:

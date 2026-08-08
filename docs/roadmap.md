@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4.1.2 — Lock Semantics Hardening**  
-> 暂停拖拽/resize 深化 · 详案：[phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)  
+> **当前焦点：Phase 4.3 — Constraint-aware Direct Manipulation（前置）**  
+> **4.1.2 Lock Semantics ✅** · 暂停自由拖拽深化 · 详案：[phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)  
 > 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -11,7 +11,7 @@
 | 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
 | **3.5** | **Core Consolidation** | **✅** |
 | **3.6** | **Desktop Runtime Reliability** | **✅**（勿再扩 runtime 主线） |
-| **4** | **Interactive Design Workbench** | **← 当前（4.1.2）** |
+| **4** | **Interactive Design Workbench** | **← 当前（4.1.2 ✅ → 4.3）** |
 | **5** | **Project Persistence** | 未开始 |
 | **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
@@ -115,7 +115,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 4 — Interactive Design Workbench（← 当前：4.1.2）
+## Phase 4 — Interactive Design Workbench（← 当前：4.3 前置）
 
 **围绕加深，禁止推倒重做。** UI = 观察/控制 solver 的窗口，不是功能堆场。
 
@@ -137,7 +137,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] Lock Zone（钉死功能区 envelope；区内仍可重排）
 - [x] FunctionalZoneGroup（同 floor + kind 全部组件）
 
-### Phase 4.1.2 — Lock Semantics Hardening（← 当前）
+### Phase 4.1.2 — Lock Semantics Hardening（✅）
 
 详案：[phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)
 
@@ -149,11 +149,13 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 | **P1** | lock request validation（422） | ✅ |
 | **P1** | Room > Zone > Free | ✅ |
 | **P1** | zone identity（`id` / `kind`） | ✅ |
-| **P1** | zone member 过程护栏（不得修出 envelope） | 🟡 |
-| **P2** | Variant locks 快照 · `lock_invariant_ok` · 补测 | 🟡 |
+| **P1** | zone member 过程护栏（不得修出 envelope） | ✅ |
+| **P2** | Variant locks 快照 · `lock_invariant_ok` · 补测 | ✅ |
 
 **暂停：** 拖房间深化、拖墙、自由 resize。  
 已有平移 MVP 可留；扩编辑必须等 **Geometry Mutation Authority**（见 4.3）。
+
+**4.1.2 收口完成** → 下一产品步 **4.3**（有限编辑 + Mutation Authority）。
 
 ### Phase 4.2 — Create Variant + Compare（✅）
 
@@ -317,7 +319,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 4.1.2** Lock Semantics Hardening → 其后 **4.3** Mutation Authority |
+| **当前主线** | **Phase 4.3** Constraint-aware Direct Manipulation（4.1.2 Lock ✅） |
 
 ---
 

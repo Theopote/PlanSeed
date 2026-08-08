@@ -467,12 +467,14 @@ def try_reslice_required_pair(
     min_wall: float = MIN_ACCESS_WALL,
     floor_bounds: Rect | None = None,
     protected_room_ids: set[str] | None = None,
+    zone_envelopes: dict[str, Rect] | None = None,
 ) -> bool:
     """
     在局部 AABB（可绕核扩边）内重切，使 pa—pb 必连共边。
 
     成功则已写入 placements；失败则恢复原矩形。楼梯核不动。
     含 LayoutLocks protected 成员时直接放弃（禁止偷偷解锁）。
+    Zone Lock 成员不得被重切到 envelope 外。
     """
     if pa.floor_id != pb.floor_id:
         return False
@@ -552,31 +554,36 @@ def try_reslice_required_pair(
         min_wall=min_wall,
     )
 
-    if not ok:
+    def _restore() -> None:
         for p in members:
             p.rect = backup[p.room_id]
+
+    if not ok:
+        _restore()
         return False
 
     # 最终校验：对端共边 + 成员互不重叠 + 不撞障碍 + 在 bounds 内
     if shared_boundary_between(pa, pb, min_length=min_wall) is None:
-        for p in members:
-            p.rect = backup[p.room_id]
+        _restore()
         return False
 
     rects = [(p, from_placement(p.rect)) for p in members]
     for i, (_pi, ri) in enumerate(rects):
         if not contains(bounds, ri):
-            for p in members:
-                p.rect = backup[p.room_id]
+            _restore()
             return False
         for obs in obstacles:
             if intersects(ri, obs):
-                for p in members:
-                    p.rect = backup[p.room_id]
+                _restore()
                 return False
         for _pj, rj in rects[i + 1 :]:
             if intersects(ri, rj):
-                for p in members:
-                    p.rect = backup[p.room_id]
+                _restore()
                 return False
+
+    from solver.locks.envelopes import placements_respect_zone_envelopes
+
+    if not placements_respect_zone_envelopes(members, zone_envelopes or {}):
+        _restore()
+        return False
     return True

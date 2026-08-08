@@ -37,6 +37,18 @@ const DEFAULT_FORM: RequirementForm = {
   prefer_south_facing_living: true,
 };
 
+/** 发 Generate 前冻结 locks，避免请求过程中 UI 改锁改变语义 */
+function cloneLayoutLocks(locks: LayoutLocks): LayoutLocks {
+  return {
+    rooms: locks.rooms.map((r) => ({ ...r })),
+    stair: locks.stair ? { ...locks.stair } : null,
+    zones: locks.zones.map((z) => ({
+      ...z,
+      room_ids: z.room_ids ? [...z.room_ids] : [],
+    })),
+  };
+}
+
 type EngineStatusPayload = {
   status: EngineLifecycle;
   url: string;
@@ -226,7 +238,7 @@ function App() {
           const prevSelected = selectedId;
           const maxSeed = candidates.reduce((m, c) => Math.max(m, c.seed), -1);
           const data = await generateFromProgram(form, program, {
-            locks,
+            locks: cloneLayoutLocks(locks),
             base_seed: maxSeed + 1,
             candidate_count: 8,
             return_top_k: 3,
@@ -263,7 +275,9 @@ function App() {
           data = await generateBenchmark();
         } else if (mode === "program") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
-          data = await generateFromProgram(form, program, { locks });
+          data = await generateFromProgram(form, program, {
+            locks: cloneLayoutLocks(locks),
+          });
         } else {
           setLocks({ rooms: [], stair: null, zones: [] });
           data = await generateFromForm(form);

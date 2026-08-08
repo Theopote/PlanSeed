@@ -1,6 +1,6 @@
 # Phase 4.1.2 — Lock Semantics Hardening
 
-> **当前焦点（Phase 4 子阶段）。**  
+> **状态：✅ 收口完成**（剩余产品步见 Phase 4.3）。  
 > 目标：Lock 从「Generator 尽量尊重的提示」升级为贯穿几何流水线的**不可变设计契约**。  
 > **禁止本阶段：** 自由拖拽深化、拖墙、resize、LLM、Persistence、CAD/BIM。  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
@@ -9,9 +9,9 @@
 4.0 Select/Edit ✅
 4.1 Room/Stair Lock ✅ MVP
 4.1.1 Zone Lock ✅ MVP
-4.1.2 Lock Semantics Hardening ← 当前
+4.1.2 Lock Semantics Hardening ✅
 4.2 Variant/Compare ✅
-4.3 Constraint-aware Direct Manipulation（其后）
+4.3 Constraint-aware Direct Manipulation ← 下一
 ```
 
 ---
@@ -48,10 +48,10 @@ MutationRequest
 | **P1** | zone `room_ids` 校验；冲突/重叠 → invalid request | ✅ |
 | **P1** | Room > Zone > Free 文档与 UI 文案 | ✅ |
 | **P1** | `ZonePlacement.id` + `kind`；Lock = FunctionalZoneGroup | ✅ |
-| **P1** | Resolver 禁止把 zone member **修到 envelope 外**（过程约束，不止最终 checker） | 🟡 最终 invariant 已有；过程护栏待补 |
-| **P2** | Variant 发请求前 **locks 不可变快照** | 🟡 |
-| **P2** | metrics：`lock_invariant_ok`（debug；不进七轴） | 🟡 |
-| **P2** | UI polish / 更多回归（重叠锁、确定性、precedence 专测） | 🟡 |
+| **P1** | Resolver 禁止把 zone member **修到 envelope 外**（过程约束，不止最终 checker） | ✅ |
+| **P2** | Variant 发请求前 **locks 不可变快照** | ✅ |
+| **P2** | metrics：`lock_invariant_ok`（debug；不进七轴） | ✅ |
+| **P2** | UI polish / 更多回归（重叠锁、确定性、precedence 专测） | ✅ |
 
 详案条目（1–24）见下；已 ✅ 者不重复开工。
 
@@ -70,13 +70,12 @@ MutationRequest
 
 ## 本阶段剩余（收口后停止）
 
-1. Zone envelope **过程护栏**（repair 不得把 member 推出 envelope）  
-2. Variant：`JSON`/`structuredClone` locks 快照再请求  
-3. `lock_invariant_ok` metric  
-4. 补测：zone member outside repair、overlapping locks、Room>Zone precedence、same seed+locks deterministic  
-5. 文档：明确 **暂停拖拽深化**，下一产品步是 4.3
+**已完成。** 勿在本阶段扩拖拽。
 
-**不做：** free drag 深化、wall drag、resize handles、constraint solver 重写。
+下一阶段：
+
+**Phase 4.3 — Constraint-aware Direct Manipulation**  
+（有限编辑 + Geometry Mutation Authority；非自由 CAD）
 
 ---
 

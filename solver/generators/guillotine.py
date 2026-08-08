@@ -301,6 +301,8 @@ class GuillotineGenerator:
             metrics=metrics,
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
+        from solver.locks.envelopes import build_zone_member_envelopes
+
         protected = set(locks.locked_room_ids)
         if locks.stair is not None:
             protected.update(
@@ -309,11 +311,13 @@ class GuillotineGenerator:
                 for p in fl.placements
                 if p.room_id.startswith("stair-")
             )
+        zone_envelopes = build_zone_member_envelopes(locks)
         resolve_required_connections(
             program,
             candidate,
             module=module,
             protected_room_ids=protected,
+            zone_envelopes=zone_envelopes,
         )
         place_door_openings(program, candidate)
         build_realized_connections(program, candidate)

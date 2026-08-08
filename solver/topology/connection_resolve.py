@@ -247,6 +247,7 @@ def repair_connection_pair(
     min_wall: float = MIN_ACCESS_WALL,
     max_nudge: float = DEFAULT_MAX_NUDGE,
     protected_room_ids: set[str] | None = None,
+    zone_envelopes: dict[str, Rect] | None = None,
 ) -> bool:
     """尝试局部修补一对放置；成功返回 True。"""
     if _is_stair(pa) or _is_stair(pb):
@@ -257,7 +258,10 @@ def repair_connection_pair(
         return False
     if shared_boundary_between(pa, pb, min_length=min_wall) is not None:
         return False
-    if _try_close_axis_gap(
+
+    before_a = pa.rect.model_copy()
+    before_b = pb.rect.model_copy()
+    ok = _try_close_axis_gap(
         pa,
         pb,
         bounds=bounds,
@@ -265,9 +269,7 @@ def repair_connection_pair(
         module=module,
         min_wall=min_wall,
         max_nudge=max_nudge,
-    ):
-        return True
-    return _try_lengthen_shared_edge(
+    ) or _try_lengthen_shared_edge(
         pa,
         pb,
         bounds=bounds,
@@ -276,6 +278,28 @@ def repair_connection_pair(
         min_wall=min_wall,
         max_nudge=max_nudge,
     )
+    if not ok:
+        return False
+    envelopes = zone_envelopes or {}
+    if not _pair_respects_zone_envelopes(pa, pb, envelopes):
+        pa.rect = before_a
+        pb.rect = before_b
+        return False
+    return True
+
+
+def _pair_respects_zone_envelopes(
+    pa: RoomPlacement,
+    pb: RoomPlacement,
+    envelopes: dict[str, Rect],
+) -> bool:
+    from solver.locks.envelopes import placement_in_envelope
+
+    for p in (pa, pb):
+        env = envelopes.get(p.room_id)
+        if env is not None and not placement_in_envelope(p, env):
+            return False
+    return True
 
 
 def resolve_required_connections(
@@ -288,12 +312,14 @@ def resolve_required_connections(
     allow_reslice: bool = True,
     include_preferred: bool = True,
     protected_room_ids: set[str] | None = None,
+    zone_envelopes: dict[str, Rect] | None = None,
 ) -> int:
     """
     对开口类 AccessIntent 做局部共边修补（required 优先，再 preferred）。
 
     写入 RepairRecord；遵守 SolverConfig repair budget。
     protected_room_ids：LayoutLocks 钉死的房间（及楼梯核），禁止 nudge/reslice。
+    zone_envelopes：Zone Lock 成员不得被修出 envelope。
     """
     from packages.schema.layout import RepairRecord
     from solver.topology.derive_access import ensure_access_graph
@@ -306,6 +332,7 @@ def resolve_required_connections(
     max_repairs = cfg.max_connection_repairs
     max_reslices = cfg.max_connection_reslices
     protected = set(protected_room_ids or ())
+    envelopes = dict(zone_envelopes or {})
 
     conns = sorted(
         opening_connections(program),
@@ -352,6 +379,7 @@ def resolve_required_connections(
                     min_wall=min_wall,
                     max_nudge=max_nudge,
                     protected_room_ids=protected,
+                    zone_envelopes=envelopes,
                 ):
                     kind = "gap_close_or_lengthen"
                     repaired += 1
@@ -367,6 +395,7 @@ def resolve_required_connections(
                         min_wall=min_wall,
                         floor_bounds=bounds,
                         protected_room_ids=protected,
+                        zone_envelopes=envelopes,
                     )
                 ):
                     kind = "reslice"
