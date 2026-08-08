@@ -19,7 +19,13 @@ class FindingSeverity(StrEnum):
 
 
 class EvaluationAxis(StrEnum):
-    """用户可理解的评价轴（Phase 3.5）。"""
+    """
+    用户可理解的评价轴（冻结名，至少 Phase 3.6–4 内不改）。
+
+    标识符 / JSON / API / Desktop / Compare / docs / tests 共用这七个小写名。
+    允许加深轴内底层 metric 与 ownership；禁止改轴名、禁止再拆成
+    geometry/efficiency 等旧式并列分数名。
+    """
 
     PROGRAM = "program"
     SPATIAL = "spatial"
@@ -82,7 +88,7 @@ class DesignMetrics(BaseModel):
 
 class DesignScore(BaseModel):
     """
-    七轴建筑评价（用户层）。
+    七轴建筑评价（用户层）。轴名冻结，见 EvaluationAxis。
 
     Program / Spatial / Circulation / Privacy / Environment / Technical / Robustness
     """

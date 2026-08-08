@@ -2,6 +2,7 @@
 Metric Ownership — 映射到七轴评价层。
 
 原始 metric → primary EvaluationAxis；禁止同一 metric 进入多个轴的计分。
+轴名冻结（EvaluationAxis / docs/scoring.md）；只改 ownership 映射，不改轴名。
 
 | Metric                 | Axis          |
 |------------------------|---------------|

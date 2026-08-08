@@ -8,6 +8,19 @@
 
 ## DesignScore 七轴（用户层）
 
+**冻结（至少两个阶段：3.6–4）：** 轴的英文标识与用户显示名不再改动。  
+API / Desktop / docs / tests / Compare 全部对齐下列七名；只允许轴内加深 metric 与 ownership，禁止改名或退回 `geometry_score` / `efficiency_score` 等旧并列名。
+
+```text
+Program      = Program Fit + Adjacency
+Spatial      = Proportion + Compactness
+Circulation  = Reachability + Depth + Through-room …
+Privacy      = Transition + Through-bedroom …
+Environment  = Orientation (+ daylight 后续)
+Technical    = Vertical + Site（入口 / 临路）
+Robustness   = Layout stability / repair
+```
+
 ```python
 DesignScore
 ├── program_score       # 空间清单 / 面积份额 / 邻接
@@ -24,14 +37,14 @@ DesignScore
 └── violations[]
 ```
 
-| 轴 | 回答的问题 | 底层来源（不重复加权） |
+| 轴（冻结名） | 回答的问题 | 底层来源（不重复加权） |
 |----|------------|------------------------|
-| Program | 房间有没有？面积份额？邻接？ | coverage + area_accuracy + adjacency |
-| Spatial | 比例？紧凑？形状？ | aspect/slender + compactness |
+| Program | 房间有没有？面积份额？邻接？ | Program Fit + Adjacency |
+| Spatial | 比例？紧凑？形状？ | Proportion + Compactness |
 | Circulation | 可达？深度？穿堂？ | realized + access intent |
 | Privacy | 动静过渡？穿卧？ | privacy path |
 | Environment | 朝向？ | orientation（daylight 后续） |
-| Technical | 楼梯/湿区/入口/路？ | vertical + site |
+| Technical | 楼梯/湿区/入口/路？ | Vertical + Site |
 | Robustness | 是否靠修补硬撑？ | layout_stability |
 
 ### DesignFinding

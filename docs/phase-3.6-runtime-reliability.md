@@ -16,7 +16,8 @@ generate → validate → evaluate → candidate.evaluation → rank
 ```
 
 - API **禁止**重评 / 自创评分架构；只序列化 `evaluation`
-- 七轴：Program / Spatial / Circulation / Privacy / Environment / Technical / Robustness
+- 七轴（**名称冻结至 Phase 4**）：Program / Spatial / Circulation / Privacy / Environment / Technical / Robustness  
+  （例：Program = Fit+Adjacency；Spatial = Proportion+Compactness；Technical = Vertical+Site）
 - Metric Ownership：原始 metric 单主归属
 - DesignFinding：severity / room_ids / metric / recommended_action
 
