@@ -69,6 +69,7 @@ class DefaultConstraintChecker:
 
         result.extend(self._check_access_reachability(program, candidate))
         result.extend(self._check_required_connection_boundaries(program, candidate))
+        result.extend(self._check_door_clear_width(candidate))
 
         return result.to_candidate_validation()
 
@@ -444,6 +445,16 @@ class DefaultConstraintChecker:
             # 仅在必连共边均满足时标注开口；绝不回改 placements
             place_door_openings(program, candidate)
         return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_door_clear_width(
+        self, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """Phase 2.2：门洞净宽 soft 校验（不改几何）。"""
+        from solver.topology.doors import door_clear_width_violations
+
+        return ConstraintEvaluationResult.from_violations(
+            door_clear_width_violations(candidate)
+        )
 
     def _check_wet_alignment(self, candidate: LayoutCandidate) -> ConstraintEvaluationResult:
         """[deprecated] 请用 _check_wet_stack_alignment。"""

@@ -91,7 +91,16 @@ room_id, floor_id, x, y, width, depth
 ### LayoutCandidate
 
 ```python
-id, seed, floors[], validation, score, metrics
+id, seed, floors[], wet_stacks[], door_openings[], exterior_entry,
+validation, score, metrics
+```
+
+### DoorOpening（2A + 2.2）
+
+```python
+id, connection_id, room_a/b, floor_id, x, y, width, axis, connection_type
+clear_width, swing_room_id, hinge_side, hinge_x, hinge_y
+# 只标注共边；不回改 RoomPlacement
 ```
 
 ### CandidateValidation

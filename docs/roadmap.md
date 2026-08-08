@@ -13,7 +13,7 @@
 | **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
 | **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
 | **2.1** | **AccessGraph + connections** | **✅ 主线**（unreachable；软边；2A Door；SVG；局部修补；**跨区重切**） |
-| **2.2** | **Door placement polish** | 未开始（铰链/净宽/SVG；**仍不回改房间几何**） |
+| **2.2** | **Door placement polish** | **✅**（铰链/净宽 soft / SVG 门扇；**仍不回改房间几何**） |
 | 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
@@ -126,7 +126,7 @@ Evaluator
 | **2.1 ✅ 软驱动** | 默认 AccessGraph + 高连通度打包加权；硬必连仍显式 `required=True` |
 | **2.1.1 ✅** | ConnectionResolver：必连小缝 / 短共边 **局部修补**（不全局重排） |
 | **2.1.2 ✅** | 同层小 AABB **跨区局部重切**：必连对先共边占位，其余在剩余矩形打包 |
-| **下一步** | 更强跨障碍重切（绕核 / 多矩形 free space）；Phase 2.2 门洞 polish |
+| **下一步** | 更强跨障碍重切（绕核 / 多矩形 free space）；Phase 3 建筑评价 |
 
 示例簇：
 
@@ -217,12 +217,14 @@ shared_edge_length >= minimum ?
 当前阶段：**geometry → ConnectionResolver（缝隙修补 → 局部重切）→ DoorOpening**。  
 绕楼梯核 / 多 free-rect 重切仍延后。
 
-## Phase 2.2 — Door polish（仍不回改房间）
+## Phase 2.2 — Door polish（✅；仍不回改房间）
 
 在 2A 共边开口之上：
 
-- 门宽、侧铰、净宽校验
-- SVG 画门洞
+- **门宽 / 净宽**：`DoorOpening.clear_width`；`< 0.8m` → soft `door.clear_width`
+- **开启方向**：优先开入 private（避免堵走廊）→ `swing_room_id`
+- **侧铰**：`hinge_side` / `hinge_x|y`（面门约定 left/right）
+- **SVG**：洞口粗线 + 铰链点 + 90° 开启弧
 
 无共边仍禁止凭空戳门；**仍禁止**为门重跑 Guillotine。
 
@@ -235,5 +237,5 @@ uv run python -m solver.visualize
 # 或：uv run python -m solver.visualize --out debug --top 5
 ```
 
-输出 `debug/candidate_0N_seedXX.svg`（房间名/面积、category 色、core、wet 虚线框、score/metrics、hard violations）。  
-非正式 UI，供 generator 回归目视检查。后续可加 AccessGraph 边、violation 高亮、对齐轴；门洞在 2.2。
+输出 `debug/candidate_0N_seedXX.svg`（房间名/面积、category 色、core、wet、entry、access 虚线、**门洞/开启弧**、score/metrics、hard violations）。  
+非正式 UI，供 generator 回归目视检查。

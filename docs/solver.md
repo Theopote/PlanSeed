@@ -218,7 +218,8 @@ DesignProgram → FloorAssignment → Semantic RoomGraph → AccessGraph
 - **2.1**：住宅默认 AccessGraph（软边）+ 高连通度打包 + `circulation_score`；硬必连仍显式
 - **2.1.1**：`ConnectionResolver` 局部共边修补（缝隙闭合 / 短边加长）；远距不修
 - **2.1.2**：同层小 AABB 跨区重切（必连对先共边）；撞核 / 过大则放弃
-- **下一步**：绕核多矩形重切；Phase 2.2 门洞 polish
+- **2.2**：门洞 polish — 铰链 / 净宽 soft / SVG 门扇弧；仍不回改房间
+- **下一步**：绕核多矩形重切；Phase 3 建筑评价
 - **2A**：geometry → 共边校验 → `DoorOpening`（禁止为门重优化房间）
 - **ExteriorEntry**：交通起点（`entrance_edge` / `road_edges`）；**≠** StairCore
 - **延后**：整层 / 全局为连通改切分

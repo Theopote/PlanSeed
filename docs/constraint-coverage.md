@@ -41,10 +41,11 @@
 | geometry.core_size | ✓ | ✓ |
 | access.unreachable_room | ✓ | ✓ |
 | access.missing_shared_boundary | ✓ | ✓ |
+| door.clear_width | ✓ soft | ✓ |
 
 ## 结论
 
 - Separation：未接线
-- Door：2A 标注不回改；2.1.1 缝隙修补；2.1.2 小 AABB 重切（仍非全局）
+- Door：2A 共边标注；2.2 铰链/净宽 soft/SVG；2.1.x 局部修补/重切（仍非全局重跑）
 - FloorConstraint：FloorAssignmentSolver 消费
 - Generator 不「理解」约束语义；靠 zone/core + checker/evaluator 闭环

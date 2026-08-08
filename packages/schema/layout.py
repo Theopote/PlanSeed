@@ -114,7 +114,7 @@ class CandidateValidation(BaseModel):
 
 class DoorOpening(BaseModel):
     """
-    门洞 / 开口标注 — Phase 2A。
+    门洞 / 开口标注 — Phase 2A 几何 + Phase 2.2 polish。
 
     只写在已有 shared boundary 上，**不修改** RoomPlacement 几何。
     """
@@ -126,11 +126,26 @@ class DoorOpening(BaseModel):
     floor_id: str
     x: float = Field(description="开口中心 x（模型坐标）")
     y: float = Field(description="开口中心 y（模型坐标）")
-    width: float = Field(gt=0, description="沿墙方向开口宽度（米）")
+    width: float = Field(gt=0, description="门扇/洞口沿墙宽度（米）")
     axis: Literal["x", "y"] = Field(
         description="墙走向：x=水平墙（南北向分隔），y=竖向墙（东西向分隔）"
     )
     connection_type: str = Field(default="door", description="对应 SpaceConnectionType")
+    clear_width: float = Field(
+        default=0.9,
+        gt=0,
+        description="通行净宽（米）；单扇门通常等于 width",
+    )
+    swing_room_id: str | None = Field(
+        default=None,
+        description="门扇开启所入房间；OPEN 类型可为空",
+    )
+    hinge_side: Literal["left", "right"] | None = Field(
+        default=None,
+        description="在 swing 房间内面对门洞时的铰链侧",
+    )
+    hinge_x: float | None = Field(default=None, description="铰链点 x")
+    hinge_y: float | None = Field(default=None, description="铰链点 y")
 
 
 class LayoutCandidate(BaseModel):

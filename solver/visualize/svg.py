@@ -10,7 +10,7 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from packages.schema.layout import FloorLayout, LayoutCandidate, RoomPlacement
+from packages.schema.layout import DoorOpening, FloorLayout, LayoutCandidate, RoomPlacement
 from packages.schema.site import CardinalEdge, SiteSpec
 from packages.schema.topology import AccessGraph, SpaceConnectionType
 
@@ -29,6 +29,7 @@ _ENTRY = "#C45C26"
 _ROAD = "#4A6FA5"
 _STAIR = "#333333"
 _ACCESS = "#6B4C9A"
+_DOOR = "#8B4513"
 _BG = "#F7F5F0"
 
 
@@ -218,6 +219,85 @@ def _access_overlays(
     return "\n".join(parts)
 
 
+def _door_overlays(floor: FloorLayout, oy: float, openings: list[DoorOpening]) -> str:
+    """Phase 2.2：门洞线段 + 开启弧（不改几何）。"""
+    parts: list[str] = []
+    for op in openings:
+        if op.floor_id != floor.floor_id:
+            continue
+        half = op.width / 2
+        if op.axis == "y":
+            # 竖墙：洞口沿 y
+            x = op.x
+            y0 = oy + op.y - half
+            y1 = oy + op.y + half
+            parts.append(
+                f'<line x1="{x:.3f}" y1="{y0:.3f}" x2="{x:.3f}" y2="{y1:.3f}" '
+                f'stroke="{_DOOR}" stroke-width="0.12"/>'
+            )
+        else:
+            y = oy + op.y
+            x0 = op.x - half
+            x1 = op.x + half
+            parts.append(
+                f'<line x1="{x0:.3f}" y1="{y:.3f}" x2="{x1:.3f}" y2="{y:.3f}" '
+                f'stroke="{_DOOR}" stroke-width="0.12"/>'
+            )
+
+        if op.connection_type == "open":
+            continue
+        if op.hinge_x is None or op.hinge_y is None or op.swing_room_id is None:
+            continue
+
+        hx, hy = op.hinge_x, oy + op.hinge_y
+        # 门扇：从铰链到洞口另一端
+        if op.axis == "y":
+            other_y = oy + op.y + (half if op.hinge_y <= op.y else -half)
+            leaf_x2, leaf_y2 = hx, other_y
+        else:
+            other_x = op.x + (half if op.hinge_x <= op.x else -half)
+            leaf_x2, leaf_y2 = other_x, hy
+
+        # 开启 90°：门扇端点绕铰链旋入 swing 侧
+        swing_p = next(
+            (p for p in floor.placements if p.room_id == op.swing_room_id), None
+        )
+        if swing_p is None:
+            continue
+        scx = swing_p.rect.x + swing_p.rect.width / 2
+        scy = oy + swing_p.rect.y + swing_p.rect.depth / 2
+
+        # 关闭位置向量 → 旋向 swing 中心的一侧
+        dx = leaf_x2 - hx
+        dy = leaf_y2 - hy
+        # 两个垂直方向
+        px, py = -dy, dx
+        qx, qy = dy, -dx
+        # 选更靠近 swing 中心的法向作为开启方向
+        to_s = (scx - hx, scy - hy)
+        if px * to_s[0] + py * to_s[1] >= qx * to_s[0] + qy * to_s[1]:
+            open_x, open_y = hx + px, hy + py
+        else:
+            open_x, open_y = hx + qx, hy + qy
+
+        parts.append(
+            f'<line x1="{hx:.3f}" y1="{hy:.3f}" x2="{open_x:.3f}" y2="{open_y:.3f}" '
+            f'stroke="{_DOOR}" stroke-width="0.06"/>'
+        )
+        # 简易四分之一弧：用二次近似 path
+        r = op.width
+        parts.append(
+            f'<path d="M {leaf_x2:.3f} {leaf_y2:.3f} '
+            f'A {r:.3f} {r:.3f} 0 0 1 {open_x:.3f} {open_y:.3f}" '
+            f'fill="none" stroke="{_DOOR}" stroke-width="0.04" '
+            f'stroke-dasharray="0.08 0.06" opacity="0.75"/>'
+        )
+        parts.append(
+            f'<circle cx="{hx:.3f}" cy="{hy:.3f}" r="0.06" fill="{_DOOR}"/>'
+        )
+    return "\n".join(parts)
+
+
 def _north_arrow(
     *,
     x: float,
@@ -312,6 +392,8 @@ def render_candidate_svg(
             f"access_edges={len(access_graph.connections)}  "
             f"required={len(access_graph.required_connections())}"
         )
+    if candidate.door_openings:
+        header_lines.append(f"doors={len(candidate.door_openings)}")
     if candidate.metrics:
         bits = []
         for key in (
@@ -388,6 +470,7 @@ def render_candidate_svg(
             )
         )
         body.append(_access_overlays(floor, oy, access_graph))
+        body.append(_door_overlays(floor, oy, candidate.door_openings))
 
     body.append(_legend(floor_width + 0.4, 1.6))
 
