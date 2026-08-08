@@ -24,6 +24,7 @@ from packages.schema.identity import (
     solver_identity,
 )
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
+from packages.schema.lineage import lineage_label, locks_fingerprint
 from packages.schema.mutation import (
     GeometryMutation,
     MutationKind,
@@ -101,6 +102,8 @@ __all__ = [
     "HouseholdSpec",
     "LayoutCandidate",
     "LayoutLocks",
+    "lineage_label",
+    "locks_fingerprint",
     "LockedRoomRect",
     "LockedStairCore",
     "LockedZoneRect",

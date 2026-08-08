@@ -32,6 +32,7 @@
 |------|------|
 | `GenerateResponse` | `backend/schemas/api.py` |
 | `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`） |
+| `CandidatePayload` · 血缘 | Phase 5 additive：`variant_parent_id` / `variant_generation` / `lock_snapshot_id` |
 | `GenerateRequest` · `locks` | Phase 4.1：`LayoutLocks`（rooms + stair + zones）；生成前 `validate_layout_locks`，非法 → **422** |
 | `GenerateRequest` · `base_seed` | Phase 4.2 additive：变体批次种子起点 |
 | `CandidatePayload` · `zones` | Phase 4：`id` + `kind` + `zone`（兼容）；同 floor+kind 多块 = FunctionalZoneGroup |
@@ -39,6 +40,7 @@
 | `CandidateProvenance` | solver / generator / evaluation_version |
 | `solver_identity` | generate / health 响应 |
 | `CompareRequest` / `CompareResponse` | `POST /api/compare` |
+| Projects CRUD | Phase 5：`GET/POST /api/projects`、`GET/DELETE /api/projects/{id}`；详见 [phase-5-persistence.md](phase-5-persistence.md) |
 
 ### SolverIdentity（算法契约，≠ engine_version）
 

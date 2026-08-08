@@ -98,6 +98,15 @@ class CandidatePayload(BaseModel):
     validation: dict[str, Any] | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
     provenance: CandidateProvenance | None = None
+    variant_parent_id: str | None = Field(
+        default=None,
+        description="Phase 5：父候选 id",
+    )
+    variant_generation: int = Field(default=0, ge=0, description="Phase 5：相对根代数")
+    lock_snapshot_id: str | None = Field(
+        default=None,
+        description="Phase 5：生成时 locks 指纹",
+    )
     placements: list[RoomPlacementPayload] = Field(
         default_factory=list,
         description="RoomPlacement 摘要；前端点选房间用",

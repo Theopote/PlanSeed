@@ -1,4 +1,5 @@
 import type { CandidatePayload } from "../api/client";
+import { lineageLabel } from "../lib/lineage";
 
 type Props = {
   candidates: CandidatePayload[];
@@ -37,7 +38,8 @@ export function CandidateStrip({
         )}
         {canCompare && (
           <span className="strip-compare-badge">
-            {a.label} vs {b.label}
+            {lineageLabel(a.label, a.variant_generation ?? 0)} vs{" "}
+            {lineageLabel(b.label, b.variant_generation ?? 0)}
           </span>
         )}
       </div>
@@ -53,12 +55,22 @@ export function CandidateStrip({
               : c.design_score
                 ? Math.round(c.design_score.total_score)
                 : "—";
+          const gen = c.variant_generation ?? 0;
+          const display = lineageLabel(c.label, gen);
+          const tipParts = [
+            "点击选中；Alt+点击设为比较对象",
+            gen > 0 && c.variant_parent_id
+              ? `父：${c.variant_parent_id}`
+              : null,
+            c.lock_snapshot_id ? `锁指纹：${c.lock_snapshot_id}` : null,
+          ].filter(Boolean);
           return (
             <button
               key={c.id}
               type="button"
-              className={`strip-item ${active ? "active" : ""} ${comparing ? "compare" : ""}`}
-              title="点击选中；Alt+点击设为比较对象"
+              className={`strip-item ${active ? "active" : ""} ${comparing ? "compare" : ""} ${gen > 0 ? "is-variant" : ""}`}
+              style={gen > 0 ? { marginLeft: Math.min(gen, 4) * 6 } : undefined}
+              title={tipParts.join(" · ")}
               onClick={(e) => {
                 if (e.altKey || e.metaKey) {
                   onComparePick(c.id);
@@ -67,7 +79,7 @@ export function CandidateStrip({
                 }
               }}
             >
-              <span className="strip-label">{c.label}</span>
+              <span className="strip-label">{display}</span>
               <span className="strip-score">{score}</span>
               <span className="strip-seed">s{c.seed}</span>
             </button>

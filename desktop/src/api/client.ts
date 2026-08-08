@@ -144,6 +144,10 @@ export type CandidatePayload = {
   } | null;
   metrics: Record<string, unknown>;
   provenance?: CandidateProvenance | null;
+  /** Phase 5 血缘 */
+  variant_parent_id?: string | null;
+  variant_generation?: number;
+  lock_snapshot_id?: string | null;
   placements?: RoomPlacementPayload[];
   zones?: ZonePlacementPayload[];
 };
@@ -388,4 +392,81 @@ export async function generateFromProgram(
     throw new Error(msg);
   }
   return r.json() as Promise<GenerateResponse>;
+}
+
+export type ProjectSummary = {
+  id: string;
+  name: string;
+  updated_at: string;
+};
+
+export type ProjectPayload = {
+  form: RequirementForm | Record<string, unknown>;
+  program: ProgramSummary | null;
+  locks: LayoutLocks;
+  candidates: CandidatePayload[];
+  selected_id: string | null;
+  compare_id?: string | null;
+  schema_versions?: {
+    solver_version: string;
+    generator_version: string;
+    evaluation_version: string;
+  };
+};
+
+export type ProjectDetail = {
+  id: string;
+  name: string;
+  updated_at: string;
+  payload: ProjectPayload;
+  evaluation_version_mismatch: boolean;
+  current_evaluation_version: string;
+};
+
+export async function listProjects(): Promise<ProjectSummary[]> {
+  const r = await fetch(`${_apiBase}/api/projects`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json() as Promise<ProjectSummary[]>;
+}
+
+export async function saveProject(opts: {
+  name: string;
+  id?: string | null;
+  payload: ProjectPayload;
+}): Promise<ProjectDetail> {
+  const r = await fetch(`${_apiBase}/api/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: opts.name,
+      id: opts.id ?? null,
+      payload: opts.payload,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: string };
+      if (typeof body.detail === "string") msg = body.detail;
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<ProjectDetail>;
+}
+
+export async function loadProject(id: string): Promise<ProjectDetail> {
+  const r = await fetch(`${_apiBase}/api/projects/${encodeURIComponent(id)}`);
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: string };
+      if (typeof body.detail === "string") msg = body.detail;
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<ProjectDetail>;
 }

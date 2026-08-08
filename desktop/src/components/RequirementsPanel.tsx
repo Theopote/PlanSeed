@@ -19,6 +19,12 @@ type Props = {
   stats: { generated: number; valid: number; rejected: number } | null;
   rejectedCandidates: RejectedCandidatePayload[];
   violationSummary: Record<string, number>;
+  projectName: string;
+  onProjectNameChange: (name: string) => void;
+  onSaveProject: () => void;
+  onOpenProjects: () => void;
+  projectBusy?: boolean;
+  versionHint?: string | null;
 };
 
 function topViolationEntries(
@@ -56,6 +62,12 @@ export function RequirementsPanel({
   stats,
   rejectedCandidates,
   violationSummary,
+  projectName,
+  onProjectNameChange,
+  onSaveProject,
+  onOpenProjects,
+  projectBusy = false,
+  versionHint = null,
 }: Props) {
   const [rejectedOpen, setRejectedOpen] = useState(true);
   const [retryBusy, setRetryBusy] = useState(false);
@@ -115,6 +127,38 @@ export function RequirementsPanel({
           </button>
         )}
       </header>
+
+      <div className="project-bar">
+        <label className="project-name">
+          项目名
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => onProjectNameChange(e.target.value)}
+            placeholder="未命名项目"
+            disabled={!engineReady}
+          />
+        </label>
+        <div className="project-actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={!engineReady || projectBusy || !program}
+            onClick={onSaveProject}
+          >
+            {projectBusy ? "…" : "保存"}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!engineReady || projectBusy}
+            onClick={onOpenProjects}
+          >
+            打开…
+          </button>
+        </div>
+      </div>
+      {versionHint ? <p className="warn-hint version-hint">{versionHint}</p> : null}
 
       <form className="req-form" onSubmit={handleSubmit}>
         <label>

@@ -4,8 +4,11 @@ import {
   generateBenchmark,
   generateFromForm,
   generateFromProgram,
+  listProjects,
+  loadProject,
   resolveEngineBase,
   retryEngine,
+  saveProject,
   setApiBase,
   type CandidatePayload,
   type EngineLifecycle,
@@ -15,10 +18,12 @@ import {
   type LockedStairCore,
   type LockedZoneRect,
   type ProgramSummary,
+  type ProjectSummary,
   type RejectedCandidatePayload,
   type RequirementForm,
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
+import { locksFingerprint } from "./lib/lineage";
 import {
   mutationLiveMessage,
   mutationRejectMessage,
@@ -85,6 +90,13 @@ function App() {
     zones: [],
   });
   const [mutationHint, setMutationHint] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("未命名项目");
+  const [projectBusy, setProjectBusy] = useState(false);
+  const [versionHint, setVersionHint] = useState<string | null>(null);
+  const [projectPicker, setProjectPicker] = useState<ProjectSummary[] | null>(
+    null,
+  );
   const [rejectedCandidates, setRejectedCandidates] = useState<
     RejectedCandidatePayload[]
   >([]);
@@ -220,10 +232,22 @@ function App() {
     }));
   }, []);
 
+  const stampRootLineage = useCallback(
+    (list: CandidatePayload[], lockSnap: string): CandidatePayload[] =>
+      list.map((c) => ({
+        ...c,
+        variant_parent_id: c.variant_parent_id ?? null,
+        variant_generation: c.variant_generation ?? 0,
+        lock_snapshot_id: c.lock_snapshot_id ?? lockSnap,
+      })),
+    [],
+  );
+
   const applyResult = useCallback(
     (data: GenerateResponse) => {
       setProgram(data.program_summary);
-      setCandidates(relabel(data.candidates));
+      const fp = locksFingerprint(locks);
+      setCandidates(stampRootLineage(relabel(data.candidates), fp));
       setStats({
         generated: data.generated,
         valid: data.valid,
@@ -235,10 +259,9 @@ function App() {
       setCompareId(null);
       setHighlightRoomIds([]);
       setSelectedRoomId(null);
-      // 锁跨 regenerate 保留；整案 Generate / Benchmark 在 run 里清
       setError(null);
     },
-    [relabel],
+    [relabel, stampRootLineage, locks],
   );
 
   const run = useCallback(
@@ -249,6 +272,9 @@ function App() {
         if (mode === "variant") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
           const prevSelected = selectedId;
+          const parent = candidates.find((c) => c.id === prevSelected) ?? null;
+          const parentGen = parent?.variant_generation ?? 0;
+          const fp = locksFingerprint(locks);
           const maxSeed = candidates.reduce((m, c) => Math.max(m, c.seed), -1);
           const data = await generateFromProgram(form, program, {
             locks: cloneLayoutLocks(locks),
@@ -257,9 +283,14 @@ function App() {
             return_top_k: 3,
           });
           setProgram(data.program_summary);
-          const fresh = data.candidates.filter(
-            (c) => !candidates.some((e) => e.id === c.id),
-          );
+          const fresh = data.candidates
+            .filter((c) => !candidates.some((e) => e.id === c.id))
+            .map((c) => ({
+              ...c,
+              variant_parent_id: prevSelected,
+              variant_generation: parentGen + 1,
+              lock_snapshot_id: fp,
+            }));
           const merged = relabel([...candidates, ...fresh]).slice(-16);
           setCandidates(merged);
           setStats({
@@ -286,6 +317,22 @@ function App() {
         if (mode === "benchmark") {
           setLocks({ rooms: [], stair: null, zones: [] });
           data = await generateBenchmark();
+          const fp = locksFingerprint({ rooms: [], stair: null, zones: [] });
+          setProgram(data.program_summary);
+          setCandidates(stampRootLineage(relabel(data.candidates), fp));
+          setStats({
+            generated: data.generated,
+            valid: data.valid,
+            rejected: data.rejected,
+          });
+          setRejectedCandidates(data.rejected_candidates ?? []);
+          setViolationSummary(data.violation_summary ?? {});
+          setSelectedId(data.candidates[0]?.id ?? null);
+          setCompareId(null);
+          setHighlightRoomIds([]);
+          setSelectedRoomId(null);
+          setError(null);
+          return;
         } else if (mode === "program") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
           data = await generateFromProgram(form, program, {
@@ -294,6 +341,22 @@ function App() {
         } else {
           setLocks({ rooms: [], stair: null, zones: [] });
           data = await generateFromForm(form);
+          const fp = locksFingerprint({ rooms: [], stair: null, zones: [] });
+          setProgram(data.program_summary);
+          setCandidates(stampRootLineage(relabel(data.candidates), fp));
+          setStats({
+            generated: data.generated,
+            valid: data.valid,
+            rejected: data.rejected,
+          });
+          setRejectedCandidates(data.rejected_candidates ?? []);
+          setViolationSummary(data.violation_summary ?? {});
+          setSelectedId(data.candidates[0]?.id ?? null);
+          setCompareId(null);
+          setHighlightRoomIds([]);
+          setSelectedRoomId(null);
+          setError(null);
+          return;
         }
         applyResult(data);
       } catch (e) {
@@ -302,7 +365,16 @@ function App() {
         setLoading(false);
       }
     },
-    [applyResult, form, program, locks, candidates, selectedId, relabel],
+    [
+      applyResult,
+      form,
+      program,
+      locks,
+      candidates,
+      selectedId,
+      relabel,
+      stampRootLineage,
+    ],
   );
 
   const onUpdateRoomTargetArea = useCallback((roomId: string, targetArea: number) => {
@@ -717,6 +789,98 @@ function App() {
     [selectedId],
   );
 
+  const onSaveProject = useCallback(async () => {
+    if (!program) {
+      setError("请先 Generate 再保存");
+      return;
+    }
+    setProjectBusy(true);
+    setError(null);
+    try {
+      const saved = await saveProject({
+        name: projectName.trim() || "未命名项目",
+        id: projectId,
+        payload: {
+          form,
+          program,
+          locks: cloneLayoutLocks(locks),
+          candidates,
+          selected_id: selectedId,
+          compare_id: compareId,
+        },
+      });
+      setProjectId(saved.id);
+      setProjectName(saved.name);
+      setVersionHint(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProjectBusy(false);
+    }
+  }, [
+    program,
+    projectName,
+    projectId,
+    form,
+    locks,
+    candidates,
+    selectedId,
+    compareId,
+  ]);
+
+  const onOpenProjects = useCallback(async () => {
+    setProjectBusy(true);
+    setError(null);
+    try {
+      const list = await listProjects();
+      setProjectPicker(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProjectBusy(false);
+    }
+  }, []);
+
+  const onLoadProject = useCallback(async (id: string) => {
+    setProjectBusy(true);
+    setError(null);
+    try {
+      const detail = await loadProject(id);
+      const p = detail.payload;
+      setProjectId(detail.id);
+      setProjectName(detail.name);
+      if (p.form && typeof p.form === "object") {
+        setForm({ ...DEFAULT_FORM, ...(p.form as RequirementForm) });
+      }
+      setProgram((p.program as ProgramSummary) ?? null);
+      setLocks({
+        rooms: p.locks?.rooms ?? [],
+        stair: p.locks?.stair ?? null,
+        zones: p.locks?.zones ?? [],
+      });
+      setCandidates(p.candidates ?? []);
+      setSelectedId(p.selected_id ?? p.candidates?.[0]?.id ?? null);
+      setCompareId(p.compare_id ?? null);
+      setHighlightRoomIds([]);
+      setSelectedRoomId(null);
+      setStats(null);
+      setRejectedCandidates([]);
+      setViolationSummary({});
+      setProjectPicker(null);
+      if (detail.evaluation_version_mismatch) {
+        setVersionHint(
+          `评价版本已变（快照 ${p.schema_versions?.evaluation_version ?? "?"} → 当前 ${detail.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
+        );
+      } else {
+        setVersionHint(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProjectBusy(false);
+    }
+  }, []);
+
   const onSelectCandidate = useCallback((id: string) => {
     setSelectedId(id);
     setHighlightRoomIds([]);
@@ -739,6 +903,43 @@ function App() {
 
   return (
     <div className="app-shell">
+      {projectPicker !== null && (
+        <div className="project-picker-backdrop" role="presentation">
+          <div className="project-picker" role="dialog" aria-label="打开项目">
+            <header className="project-picker-head">
+              <h3>打开项目</h3>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setProjectPicker(null)}
+              >
+                关闭
+              </button>
+            </header>
+            {projectPicker.length === 0 ? (
+              <p className="muted">尚无已保存项目</p>
+            ) : (
+              <ul className="project-picker-list">
+                {projectPicker.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className="project-picker-item"
+                      disabled={projectBusy}
+                      onClick={() => void onLoadProject(p.id)}
+                    >
+                      <span className="project-picker-name">{p.name}</span>
+                      <span className="muted project-picker-time">
+                        {p.updated_at.slice(0, 19).replace("T", " ")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
       <div className="app-main">
         <RequirementsPanel
           form={form}
@@ -753,6 +954,12 @@ function App() {
           stats={stats}
           rejectedCandidates={rejectedCandidates}
           violationSummary={violationSummary}
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          onSaveProject={() => void onSaveProject()}
+          onOpenProjects={() => void onOpenProjects()}
+          projectBusy={projectBusy}
+          versionHint={versionHint}
         />
         <FloorplanView
           svg={selected?.svg ?? null}

@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4.3.1 有限共墙 ✅** · 下一：Phase 5 血缘持久化  
-> **4.1.2 Lock ✅** · Move/Resize/共墙 + 拖动预览 · 详案：[phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)  
+> **当前焦点：Phase 5 — 血缘持久化 ✅（P0/P1）** · 下一：Phase 6 LLM 或深化交互  
+> **4.3 受控编辑 ✅** · 详案：[phase-5-persistence.md](phase-5-persistence.md) · [phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)  
 > 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -11,9 +11,9 @@
 | 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
 | **3.5** | **Core Consolidation** | **✅** |
 | **3.6** | **Desktop Runtime Reliability** | **✅**（勿再扩 runtime 主线） |
-| **4** | **Interactive Design Workbench** | **← 当前（4.3）** |
-| **5** | **Project Persistence** | 未开始 |
-| **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
+| **4** | **Interactive Design Workbench** | **✅ 4.3 / 4.3.1** |
+| **5** | **Project Persistence** | **✅ P0/P1** |
+| **6** | **Local LLM Requirement Parsing** | **← 下一（禁止插队过早）** |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -208,24 +208,17 @@ LockGuard → GeometryConstraintChecker → AccessImpactChecker → Commit → R
 
 ---
 
-## Phase 5 — Project Persistence（未开始）
+## Phase 5 — Project Persistence（✅ P0/P1）
 
-- [ ] 本地项目 / 候选快照（含 provenance）  
-- [ ] 重开可解释：布局变了 vs `evaluation_version` 变了
-- [ ] **Variant 血缘（设计过程树）** — additive，当前会话 Strip 仍可用扁平列表：
+详案：[phase-5-persistence.md](phase-5-persistence.md)
+
+- [x] 本地项目 / 候选快照（含 provenance + 血缘）  
+- [x] 重开可解释：`evaluation_version_mismatch` 提示  
+- [x] **Variant 血缘（设计过程树）** — additive；Strip 仍扁平列表 + 代数标签：
   - `variant_parent_id`：从哪个候选点的 Create Variant
-  - `variant_generation`：相对根的代数（A → A1 → A1.1）
-  - `lock_snapshot_id`：当时 locks 指纹/快照，解释「同锁不同种子」
-
-```text
-A
- ├─ A1
- ├─ A2
- │   ├─ A2.1
- │   └─ A2.2
-```
-
-Packaging 硬化（CSP、签名、其后 macOS）并入 **7+**，**禁止**与 Alpha / Phase 4 并行跨平台。
+  - `variant_generation`：相对根的代数（A → A·1 → A·2）
+  - `lock_snapshot_id`：当时 locks 指纹
+- [x] SQLite `~/.planseed/projects.db`（`PLANSEED_DB` 可覆盖）+ `/api/projects` CRUD
 
 ---
 
@@ -335,7 +328,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 4.3** Constraint-aware Direct Manipulation（Lock 已硬化） |
+| **当前主线** | **Phase 5 ✅** 血缘持久化；下一 Phase 6 LLM 或交互深化 |
 
 ---
 

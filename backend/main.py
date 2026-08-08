@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes import compare as compare_routes
 from backend.routes import generate as generate_routes
 from backend.routes import health as health_routes
+from backend.routes import projects as projects_routes
 from backend.routes import requirements as requirements_routes
 
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(generate_routes.router)
     app.include_router(requirements_routes.router)
     app.include_router(compare_routes.router)
+    app.include_router(projects_routes.router)
     return app
 
 

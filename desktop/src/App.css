@@ -117,6 +117,116 @@ body,
   color: var(--bad);
 }
 
+.project-bar {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.project-name {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.project-name input {
+  font: inherit;
+  color: var(--ink);
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+}
+
+.project-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.version-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #8a4b2a;
+  max-width: 100%;
+}
+
+.project-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(28, 26, 22, 0.35);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.project-picker {
+  width: min(28rem, 100%);
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  padding: 0.85rem 1rem 1rem;
+  box-shadow: 0 12px 40px rgba(28, 26, 22, 0.18);
+}
+
+.project-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.project-picker-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.project-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.project-picker-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.project-picker-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.project-picker-name {
+  font-weight: 600;
+}
+
+.project-picker-time {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+.candidate-strip .strip-item.is-variant .strip-label {
+  opacity: 0.95;
+}
+
 .engine-retry {
   margin-top: 0.4rem;
   width: 100%;

@@ -89,6 +89,9 @@ def serialize_candidate(
         validation=validation,
         metrics=dict(cand.metrics),
         provenance=_provenance_payload(cand),
+        variant_parent_id=cand.variant_parent_id,
+        variant_generation=cand.variant_generation,
+        lock_snapshot_id=cand.lock_snapshot_id,
         placements=_placements_payload(cand),
         zones=_zones_payload(cand),
     )

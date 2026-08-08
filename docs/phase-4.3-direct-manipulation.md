@@ -166,4 +166,4 @@ ProposedMutation
 5. same seed + same locks 仍 deterministic；lock invariant 仍绿  
 6. 文档与 UI 文案写清：受控编辑 ≠ 自由 CAD  
 
-**4.3 / 4.3.1 已满足。** 下一产品步为 **Phase 5 血缘持久化**。
+**4.3 / 4.3.1 已满足。** 下一产品步为 **Phase 5 血缘持久化**（见 [phase-5-persistence.md](phase-5-persistence.md)）。

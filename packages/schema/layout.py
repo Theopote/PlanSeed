@@ -245,4 +245,18 @@ class LayoutCandidate(BaseModel):
         default=None,
         description="solver / generator / evaluation 版本；解释历史分数",
     )
+    # Phase 5 — Variant 血缘（additive；会话 Create Variant 写入）
+    variant_parent_id: str | None = Field(
+        default=None,
+        description="Create Variant 时的父候选 id；根为 None",
+    )
+    variant_generation: int = Field(
+        default=0,
+        ge=0,
+        description="相对根的代数：0=根，1=A1，2=A1.1…",
+    )
+    lock_snapshot_id: str | None = Field(
+        default=None,
+        description="生成时 LayoutLocks 指纹；解释同锁不同种子",
+    )
     metrics: dict[str, float | int | str | bool] = Field(default_factory=dict)
