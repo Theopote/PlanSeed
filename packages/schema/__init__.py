@@ -12,7 +12,11 @@ from packages.schema.constraints import (
     SeparationConstraint,
     WidthConstraint,
 )
-from packages.schema.entry import ExteriorEntry
+from packages.schema.entry import (
+    ExteriorEntry,
+    ExteriorEntryPlacement,
+    ExteriorEntrySpec,
+)
 from packages.schema.layout import (
     CandidateValidation,
     DoorOpening,
@@ -24,7 +28,7 @@ from packages.schema.layout import (
 )
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
-from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
+from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
 from packages.schema.scoring import DesignMetrics, DesignScore
 from packages.schema.site import (
     CardinalEdge,
@@ -55,6 +59,8 @@ __all__ = [
     "DesignScore",
     "DoorOpening",
     "ExteriorEntry",
+    "ExteriorEntryPlacement",
+    "ExteriorEntrySpec",
     "FloorConstraint",
     "FloorLayout",
     "FloorSpec",
@@ -66,6 +72,7 @@ __all__ = [
     "RoomCategory",
     "RoomPlacement",
     "RoomSpec",
+    "SemanticRole",
     "SeparationConstraint",
     "SetbackSpec",
     "SiteSpec",

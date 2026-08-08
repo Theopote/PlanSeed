@@ -1,7 +1,8 @@
 """
 将 LayoutCandidate 渲染为 SVG（米坐标 = SVG 用户单位）。
 
-y=0 为北（图上方），与 solver 几何一致。
+y=0 为 model north（图上方），与 solver 几何一致。
+Debug 叠加：north_angle、入口、临路、StairCore、WetStack。
 """
 
 from __future__ import annotations
@@ -10,8 +11,8 @@ import html
 from pathlib import Path
 
 from packages.schema.layout import FloorLayout, LayoutCandidate, RoomPlacement
+from packages.schema.site import CardinalEdge, SiteSpec
 
-# 浅色调试色板（按 category）
 _CATEGORY_FILL: dict[str, str] = {
     "public": "#E8D5B5",
     "private": "#C5D4E8",
@@ -23,6 +24,9 @@ _CATEGORY_FILL: dict[str, str] = {
 _INK = "#1A1A1A"
 _MUTED = "#5A5A5A"
 _WET_GUIDE = "#2A7A72"
+_ENTRY = "#C45C26"
+_ROAD = "#4A6FA5"
+_STAIR = "#333333"
 _BG = "#F7F5F0"
 
 
@@ -43,6 +47,11 @@ def _render_room(
 ) -> str:
     r = placement.rect
     fill = _fill_for(placement)
+    is_stair = placement.room_id.startswith("stair-") or (
+        (placement.category or "") == "circulation" and "楼梯" in (placement.name or "")
+    )
+    stroke = _STAIR if is_stair else _INK
+    sw = 0.08 if is_stair else 0.04
     cx = r.x + r.width / 2
     cy = oy + r.y + r.depth / 2
     name = _esc(placement.name or placement.room_id)
@@ -54,7 +63,7 @@ def _render_room(
     lines = [
         f'<rect x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
         f'height="{r.depth:.3f}" fill="{fill}" fill-opacity="0.9" '
-        f'stroke="{_INK}" stroke-width="0.04"/>',
+        f'stroke="{stroke}" stroke-width="{sw:.3f}"/>',
         f'<text x="{cx:.3f}" y="{cy - (0.28 if show_detail else 0):.3f}" '
         f'font-size="0.30" fill="{_INK}" text-anchor="middle" '
         f'font-family="Segoe UI, sans-serif">{name}</text>',
@@ -79,7 +88,6 @@ def _wet_overlay(
     *,
     stacks: list | None = None,
 ) -> str:
-    """优先用 WetStack.anchor_rect；否则回退 floor.wet_zone_*。"""
     x0 = x1 = y0 = y1 = None
     if stacks:
         a = stacks[0].anchor_rect
@@ -99,19 +107,114 @@ def _wet_overlay(
         f'<rect x="{x0:.3f}" y="{oy + y0:.3f}" width="{w:.3f}" height="{d:.3f}" '
         f'fill="none" stroke="{_WET_GUIDE}" stroke-width="0.05" '
         f'stroke-dasharray="0.2 0.12"/>'
+        f'<text x="{x0 + 0.1:.3f}" y="{oy + y0 + 0.35:.3f}" font-size="0.22" '
+        f'fill="{_WET_GUIDE}" font-family="Consolas, monospace">WS</text>'
+    )
+
+
+def _edge_segment(
+    edge: CardinalEdge | str,
+    *,
+    w: float,
+    d: float,
+    oy: float,
+    inset: float = 0.0,
+) -> tuple[float, float, float, float]:
+    """返回贴边线段 (x1,y1,x2,y2)，y 含楼层偏移 oy。"""
+    key = edge.value if isinstance(edge, CardinalEdge) else str(edge).lower()
+    if key == "north":
+        return inset, oy + inset, w - inset, oy + inset
+    if key == "south":
+        return inset, oy + d - inset, w - inset, oy + d - inset
+    if key == "west":
+        return inset, oy + inset, inset, oy + d - inset
+    return w - inset, oy + inset, w - inset, oy + d - inset
+
+
+def _site_overlays(
+    candidate: LayoutCandidate,
+    *,
+    floor_width: float,
+    floor_depth: float,
+    oy: float,
+    site: SiteSpec | None,
+    floor_index: int,
+) -> str:
+    parts: list[str] = []
+    if site is not None:
+        # 临路边
+        for edge in site.road_edges or []:
+            x1, y1, x2, y2 = _edge_segment(
+                edge, w=floor_width, d=floor_depth, oy=oy, inset=0.12
+            )
+            parts.append(
+                f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
+                f'stroke="{_ROAD}" stroke-width="0.14" stroke-dasharray="0.25 0.12"/>'
+            )
+        # 入口边高亮（仅地面层）
+        if floor_index == 0:
+            edge = (
+                candidate.exterior_entry.edge
+                if candidate.exterior_entry is not None
+                else site.entrance_edge
+            )
+            x1, y1, x2, y2 = _edge_segment(
+                edge, w=floor_width, d=floor_depth, oy=oy, inset=0.05
+            )
+            parts.append(
+                f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
+                f'stroke="{_ENTRY}" stroke-width="0.18"/>'
+            )
+
+    entry = candidate.exterior_entry
+    if entry is not None and floor_index == 0:
+        parts.append(
+            f'<circle cx="{entry.x:.3f}" cy="{oy + entry.y:.3f}" r="0.22" '
+            f'fill="{_ENTRY}" stroke="{_INK}" stroke-width="0.03"/>'
+        )
+        parts.append(
+            f'<text x="{entry.x + 0.3:.3f}" y="{oy + entry.y + 0.08:.3f}" '
+            f'font-size="0.24" fill="{_ENTRY}" '
+            f'font-family="Consolas, monospace">ENTRY</text>'
+        )
+    return "\n".join(parts)
+
+
+def _north_arrow(
+    *,
+    x: float,
+    y: float,
+    north_angle: float,
+) -> str:
+    """
+    指北针：箭头默认朝 model -Y（图上方 = model north）。
+    标注 north_angle；世界北相对 model north 的旋转。
+    """
+    # 箭头指向图上方（model north）
+    return (
+        f'<g transform="translate({x:.3f},{y:.3f})">'
+        f'<line x1="0" y1="0.25" x2="0" y2="-0.45" stroke="{_INK}" stroke-width="0.05"/>'
+        f'<polygon points="0,{-0.55:.3f} -0.18,-0.28 0.18,-0.28" fill="{_INK}"/>'
+        f'<text x="0.28" y="-0.35" font-size="0.28" fill="{_INK}" '
+        f'font-family="Consolas, monospace">N</text>'
+        f'<text x="-0.1" y="0.55" font-size="0.22" fill="{_MUTED}" '
+        f'font-family="Consolas, monospace">∠{north_angle:.0f}°</text>'
+        f"</g>"
     )
 
 
 def _legend(x: float, y: float) -> str:
     items = [
-        ("public", "公共"),
-        ("private", "私密"),
+        ("public", "公共/DAY"),
+        ("private", "私密/NIGHT"),
         ("wet", "湿区"),
         ("service", "服务"),
-        ("circulation", "交通"),
+        ("circulation", "交通/楼梯"),
     ]
-    parts = [f'<text x="{x:.3f}" y="{y:.3f}" font-size="0.32" fill="{_MUTED}" '
-             f'font-family="Segoe UI, sans-serif">图例</text>']
+    parts = [
+        f'<text x="{x:.3f}" y="{y:.3f}" font-size="0.32" fill="{_MUTED}" '
+        f'font-family="Segoe UI, sans-serif">图例</text>'
+    ]
     for i, (cat, label) in enumerate(items):
         yy = y + 0.45 + i * 0.4
         fill = _CATEGORY_FILL[cat]
@@ -133,8 +236,9 @@ def render_candidate_svg(
     floor_depth: float,
     floor_labels: dict[str, str] | None = None,
     target_areas: dict[str, float] | None = None,
+    site: SiteSpec | None = None,
 ) -> str:
-    """渲染单个候选：各层纵向堆叠 + 元数据页眉。"""
+    """渲染单个候选：各层纵向堆叠 + 场地/入口 debug 叠加。"""
     labels = floor_labels or {}
     targets = target_areas or {}
     gap = 1.0
@@ -151,17 +255,27 @@ def render_candidate_svg(
     score = candidate.score
     score_s = f"{score:.1f}" if score is not None else "—"
     valid_s = "valid" if valid else ("invalid" if valid is False else "unchecked")
+    north_angle = float(getattr(site, "north_angle", 0.0) or 0.0) if site else 0.0
 
     header_lines = [
         f"seed={candidate.seed}  score={score_s}  {valid_s}",
         f"hard={hard_n}  soft={soft_n}  id={candidate.id}",
+        f"north_angle={north_angle:.0f}°",
     ]
+    if candidate.exterior_entry is not None:
+        e = candidate.exterior_entry
+        header_lines.append(
+            f"entry={e.edge.value}  on_road={e.on_road_edge}  "
+            f"@({e.x:.1f},{e.y:.1f})"
+        )
     if candidate.metrics:
         bits = []
         for key in (
             "area_accuracy",
             "stair_alignment",
             "wet_stack_alignment",
+            "entry_on_road",
+            "garage_on_road",
             "compactness",
         ):
             if key in candidate.metrics:
@@ -177,7 +291,7 @@ def render_candidate_svg(
         for v in candidate.validation.hard_violations[:6]:
             header_lines.append(f"! {_esc(v.constraint_id)}: {_esc(v.message)}")
 
-    margin_l, margin_r, margin_t, margin_b = 1.2, 3.2, 1.6, 0.6
+    margin_l, margin_r, margin_t, margin_b = 1.2, 3.5, 1.6, 0.8
     header_h = 0.4 * len(header_lines) + 0.2
     margin_t = max(margin_t, header_h + 0.4)
 
@@ -194,6 +308,10 @@ def render_candidate_svg(
             f'<text x="0" y="{-margin_t + 0.35 + i * 0.4:.3f}" font-size="0.32" '
             f'fill="{_INK}" font-family="Consolas, monospace">{line}</text>'
         )
+
+    body.append(
+        _north_arrow(x=floor_width + 1.4, y=0.9, north_angle=north_angle)
+    )
 
     for i, floor in enumerate(candidate.floors):
         oy = i * (floor_depth + gap)
@@ -214,10 +332,19 @@ def render_candidate_svg(
                 _render_room(p, oy, target_area=targets.get(p.room_id))
             )
         body.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
+        body.append(
+            _site_overlays(
+                candidate,
+                floor_width=floor_width,
+                floor_depth=floor_depth,
+                oy=oy,
+                site=site,
+                floor_index=i,
+            )
+        )
 
-    body.append(_legend(floor_width + 0.4, 0.2))
+    body.append(_legend(floor_width + 0.4, 1.6))
 
-    # 尺寸标注
     body.append(
         f'<text x="{floor_width / 2:.3f}" y="{stack_h + 0.4:.3f}" '
         f'font-size="0.28" fill="{_MUTED}" text-anchor="middle" '
@@ -241,6 +368,7 @@ def write_candidate_svg(
     floor_depth: float,
     floor_labels: dict[str, str] | None = None,
     target_areas: dict[str, float] | None = None,
+    site: SiteSpec | None = None,
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -250,6 +378,7 @@ def write_candidate_svg(
         floor_depth=floor_depth,
         floor_labels=floor_labels,
         target_areas=target_areas,
+        site=site,
     )
     path.write_text(svg, encoding="utf-8")
     return path

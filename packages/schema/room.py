@@ -26,6 +26,29 @@ class PrivacyLevel(StrEnum):
     PRIVATE = "private"
 
 
+class SemanticRole(StrEnum):
+    """
+    语义角色 — Solver 主判定依据（先于 tags / category / name）。
+
+    name 仅 UI；NLP → semantic_role 由 normalize / LLM 负责。
+    """
+
+    LIVING = "living"
+    DINING = "dining"
+    KITCHEN = "kitchen"
+    BEDROOM = "bedroom"
+    MASTER_BEDROOM = "master_bedroom"
+    ELDERLY_BEDROOM = "elderly_bedroom"
+    BATHROOM = "bathroom"
+    MASTER_BATHROOM = "master_bathroom"
+    STUDY = "study"
+    GARAGE = "garage"
+    STORAGE = "storage"
+    LAUNDRY = "laundry"
+    FOYER = "foyer"
+    HALL = "hall"
+
+
 class RoomSpec(BaseModel):
     """
     单个房间的设计需求。
@@ -58,13 +81,15 @@ class RoomSpec(BaseModel):
     privacy_level: PrivacyLevel = PrivacyLevel.PUBLIC
     exterior_access: bool = False
 
+    semantic_role: SemanticRole | None = Field(
+        default=None,
+        description="语义角色（优先于 tags）；如 master_bedroom / kitchen",
+    )
     tags: list[str] = Field(
         default_factory=list,
-        description=(
-            "语义标签（semantic role），如 kitchen / bedroom / master / elderly_accessible；"
-            "Solver 以此判定规则，name 仅作 UI 文本"
-        ),
+        description="附加语义标签；Solver 判定顺序：semantic_role → tags → category → name",
     )
+
 
     def resolved_min_area(self) -> float:
         return self.min_area if self.min_area is not None else self.target_area * 0.85

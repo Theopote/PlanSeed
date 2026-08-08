@@ -1,12 +1,14 @@
 """
 ExteriorEntry 解析 — Entrance ≠ Stair。
 
-入口贴 buildable 外缘（SiteSpec.entrance_edge），优先连厅/门厅，不把楼梯当入口。
+边优先级：ExteriorEntrySpec.preferred_edge → SiteSpec.entrance_edge
+→ road_edges[0] → 默认 SOUTH。
+入口优先连厅/门厅，不把楼梯当入口。
 """
 
 from __future__ import annotations
 
-from packages.schema.entry import ExteriorEntry
+from packages.schema.entry import ExteriorEntryPlacement, ExteriorEntrySpec
 from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge
@@ -14,9 +16,8 @@ from solver.evaluation.orientation import exterior_world_orientations
 from solver.geometry.rect import Rect, from_placement
 from solver.geometry.site_coords import SiteCoordinateSystem
 
-# 入口优先连接的房间类别（厅 / 门厅 / 公共），楼梯垫底
 _ENTRY_CATEGORY_RANK = {
-    "circulation": 2,  # foyer/hall 若标 circulation
+    "circulation": 2,
     "public": 0,
     "wet": 3,
     "private": 4,
@@ -31,20 +32,40 @@ def _is_stair(p: RoomPlacement) -> bool:
     )
 
 
+def resolve_entry_edge(
+    program: DesignProgram,
+    spec: ExteriorEntrySpec | None = None,
+) -> CardinalEdge:
+    """
+    入口边解析：
+    preferred_edge → entrance_edge → road_edges[0] → SOUTH
+    """
+    if spec is None:
+        spec = getattr(program, "exterior_entry_spec", None)
+    if spec is not None and spec.preferred_edge is not None:
+        return spec.preferred_edge
+    site = program.site
+    if site.entrance_edge is not None:
+        return site.entrance_edge
+    roads = list(site.road_edges or [])
+    if roads:
+        return roads[0]
+    return CardinalEdge.SOUTH
+
+
 def resolve_exterior_entry(
     program: DesignProgram,
     candidate: LayoutCandidate,
     *,
-    entry_width: float = 1.2,
-) -> ExteriorEntry:
-    """
-    在 entrance_edge 上放置 ExteriorEntry，并列出贴边相连房间（排除楼梯优先）。
-    """
-    edge = program.site.entrance_edge
+    entry_width: float | None = None,
+    spec: ExteriorEntrySpec | None = None,
+) -> ExteriorEntryPlacement:
+    """在选定边上放置 ExteriorEntryPlacement，并列出贴边房间（排除楼梯优先）。"""
+    spec = spec or getattr(program, "exterior_entry_spec", None) or ExteriorEntrySpec()
+    edge = resolve_entry_edge(program, spec)
+    width = entry_width if entry_width is not None else spec.width
     road = list(program.site.road_edges or [])
     on_road = edge in road
-    # 若指定了临路且入口不在临路：仍用 entrance_edge，但标记 on_road=False
-    # 未来可 soft 提示应对齐 road_edges
 
     buildable = Rect(
         x=program.buildable.x,
@@ -56,7 +77,7 @@ def resolve_exterior_entry(
     ground = candidate.floors[0].floor_id if candidate.floors else "F1"
 
     cs = SiteCoordinateSystem(getattr(program.site, "north_angle", 0.0) or 0.0)
-    edge_val = edge.value if isinstance(edge, CardinalEdge) else str(edge)
+    edge_val = edge.value
 
     touching: list[RoomPlacement] = []
     if candidate.floors:
@@ -67,16 +88,13 @@ def resolve_exterior_entry(
             if edge_val in worlds:
                 touching.append(p)
 
-    # 排序：非楼梯优先，再按类别
     def rank(p: RoomPlacement) -> tuple[int, int, str]:
         stair_pen = 10 if _is_stair(p) else 0
         cat = (p.category or "other").lower()
         return (stair_pen, _ENTRY_CATEGORY_RANK.get(cat, 5), p.room_id)
 
-    touching_sorted = sorted(touching, key=rank)
-    connected = [p.room_id for p in touching_sorted]
+    connected = [p.room_id for p in sorted(touching, key=rank)]
 
-    # 回退：入口边无贴房时，取地面层任意外墙房间（仍排除楼梯优先）
     if not connected and candidate.floors:
         any_ext: list[RoomPlacement] = []
         for p in candidate.floors[0].placements:
@@ -87,20 +105,19 @@ def resolve_exterior_entry(
                 any_ext.append(p)
         connected = [p.room_id for p in sorted(any_ext, key=rank)]
 
-    return ExteriorEntry(
-        id="exterior-entry",
-        edge=edge if isinstance(edge, CardinalEdge) else CardinalEdge(edge_val),
+    return ExteriorEntryPlacement(
+        id=spec.id,
+        edge=edge,
         floor_id=ground,
         x=cx,
         y=cy,
-        width=entry_width,
+        width=width,
         on_road_edge=on_road,
         connected_room_ids=connected,
     )
 
 
 def _point_on_buildable_edge(buildable: Rect, edge: CardinalEdge) -> tuple[float, float]:
-    """入口中心落在 buildable 对应边中点（模型坐标）。"""
     mid_x = buildable.x + buildable.width / 2
     mid_y = buildable.y + buildable.depth / 2
     if edge == CardinalEdge.NORTH:

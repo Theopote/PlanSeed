@@ -1,4 +1,4 @@
-# Constraint Coverage Audit（Phase 1.5）
+# Constraint Coverage Audit（Phase 1.6）
 
 > 标记定义了但未闭环的约束，避免「schema 存在 = 已生效」的幻觉。
 
@@ -6,15 +6,27 @@
 |---|---|---|---|---|---|---|---|
 | AdjacencyConstraint | ✓ | 部分（偏好） | — | ✓ hard/soft | ✓ soft sat | ✓ | hard 邻接已闭环 |
 | SeparationConstraint | ✓ | — | — | — | — | — | **未接线** |
-| OrientationConstraint | ✓ | ✓ 偏好 | — | ✓ hard | ✓ soft score | ✓ | 轴对齐外墙；非日照分析 |
+| OrientationConstraint | ✓ | ✓ 偏好 | — | ✓ hard | ✓ soft score | ✓ | **north_angle 感知** |
 | FloorConstraint | ✓ | ✓ FloorAssignment | — | 归属阶段 | — | ✓ | 不在 checker 再验 |
 | AlignmentConstraint | ✓ | ✓ wet_stack | ✓ WetStack anchor | ✓ | ✓ vertical | ✓ | stair/wet |
 | AreaConstraint | ✓ | — | — | ✓ hard/soft | area_accuracy | ✓ | soft 不再丢弃 |
 | WidthConstraint | ✓ | — | — | ✓ hard/soft | — | ✓ | soft 不再丢弃 |
-| AccessConstraint | ✓ | — | — | — | — | — | 遗留；**2.1 以 SpaceConnection/AccessGraph 为主** |
-| SpaceConnection / AccessGraph | ✓ schema | — | — | — | — | ✓ schema | **Phase 2.1**；邻接≠通行 |
+| AccessConstraint | ✓ | — | — | — | — | — | 遗留；2.1 AccessGraph |
+| SpaceConnection / AccessGraph | ✓ | — | — | ✓ unreachable / 共边 | — | ✓ | Phase 2 抢跑；邻接≠通行 |
 
-## 系统级几何校验（非 Constraint 联合体成员）
+## 系统级 / 语义（Phase 1.6）
+
+| 能力 | Schema | Generate | Validate | Evaluate | Tests | 备注 |
+|---|---|---|---|---|---|---|
+| StairCore / core unfit | ✓ | ✓ 禁止缩小 | ✓ geometry.core_* | — | ✓ | 放不下 → invalid |
+| WetStack ≠ Functional Zone | ✓ | ✓ WS1 锚 | ✓ 对齐 | ✓ wet_stack_alignment | ✓ | wet_zone_* legacy |
+| SiteCoordinateSystem / north_angle | ✓ | — | ✓ orient hard | ✓ orient score | ✓ | `site_coords.py` |
+| ExteriorEntrySpec / Placement | ✓ | ✓ | — | soft entry_on_road | ✓ | ≠ Stair；SVG 标注 |
+| semantic_role / tags | ✓ | FloorAssign / Zone | — | — | ✓ | role→tags→name |
+| Road soft preference | site.road_edges | entry 标记 | — | entry/garage_on_road | ✓ | **非 hard** |
+| RoomGraph helpers | ✓ | — | — | — | ✓ | degree/components/… |
+
+## 系统级几何校验
 
 | ID | Validate | Tests |
 |---|---|---|
@@ -24,16 +36,15 @@
 | geometry.duplicate_room | ✓ | ✓ |
 | geometry.wrong_floor | ✓ | ✓ |
 | geometry.unknown_room | ✓ | ✓ |
-| geometry.core_unfit | ✓ | ✓ | 规定尺寸放不下 → invalid，禁止缩小 |
-| geometry.core_missing | ✓ | ✓ | |
-| geometry.core_size | ✓ | ✓ | 尺寸必须等于 StairCoreSpec |
-| access.unreachable_room | ✓ | ✓ | Entry BFS；occupied 不可达 → invalid |
-| access.missing_shared_boundary | ✓ | ✓ | Phase 2A：必连无足够共边 → invalid；有则标 DoorOpening |
+| geometry.core_unfit | ✓ | ✓ |
+| geometry.core_missing | ✓ | ✓ |
+| geometry.core_size | ✓ | ✓ |
+| access.unreachable_room | ✓ | ✓ |
+| access.missing_shared_boundary | ✓ | ✓ |
 
 ## 结论
 
-- Separation：**定义了但完全不起作用**（刻意留给后续）
-- AccessConstraint / SpaceConnection：**Phase 2.1 AccessGraph** 闭环后再接线；**2.2** 才 Door placement
-- 区分：`AdjacencyConstraint` = 几何邻接；`SpaceConnection` = 可通行连接
-- FloorConstraint：由 FloorAssignmentSolver 消费，不重复进 layout checker
+- Separation：未接线
+- Door 不回改房间几何（2A）；topology drives geometry 延后
+- FloorConstraint：FloorAssignmentSolver 消费
 - Generator 不「理解」约束语义；靠 zone/core + checker/evaluator 闭环

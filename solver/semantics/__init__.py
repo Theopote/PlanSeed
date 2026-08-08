@@ -2,12 +2,16 @@
 
 from solver.semantics.roles import (
     has_any_tag,
+    has_role,
     is_dining,
     is_elderly_bedroom,
+    is_foyer,
     is_garage,
     is_guest_bath,
+    is_hall,
     is_kitchen,
     is_laundry,
+    is_living,
     is_master_bath,
     is_master_bedroom,
     is_storage,
@@ -17,12 +21,16 @@ from solver.semantics.roles import (
 
 __all__ = [
     "has_any_tag",
+    "has_role",
     "is_dining",
     "is_elderly_bedroom",
+    "is_foyer",
     "is_garage",
     "is_guest_bath",
+    "is_hall",
     "is_kitchen",
     "is_laundry",
+    "is_living",
     "is_master_bath",
     "is_master_bedroom",
     "is_storage",

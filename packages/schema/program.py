@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from packages.schema.constraints import Constraint
+from packages.schema.entry import ExteriorEntrySpec
 from packages.schema.floor_assignment import FloorAssignment
 from packages.schema.project import ProjectSpec
 from packages.schema.requirements import Assumption, UnknownRequirement
@@ -53,6 +54,10 @@ class DesignProgram(BaseModel):
     access_graph: AccessGraph | None = Field(
         default=None,
         description="可达图（SpaceConnection）；Phase 2.1 填充，先于 Door",
+    )
+    exterior_entry_spec: ExteriorEntrySpec | None = Field(
+        default=None,
+        description="对外入口需求；空则用 SiteSpec.entrance_edge / road_edges",
     )
     floor_assignment: FloorAssignment | None = Field(
         default=None,

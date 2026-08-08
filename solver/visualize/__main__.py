@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
             floor_depth=d,
             floor_labels=labels,
             target_areas=targets,
+            site=program.site,
         )
         written.append(path)
 
