@@ -5,6 +5,7 @@ from backend.schemas.api import (
     GenerateRequest,
     GenerateResponse,
     ProgramSummary,
+    RejectedCandidatePayload,
     RoomSummary,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "GenerateRequest",
     "GenerateResponse",
     "ProgramSummary",
+    "RejectedCandidatePayload",
     "RoomSummary",
 ]

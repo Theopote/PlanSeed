@@ -1,5 +1,9 @@
-import type { FormEvent } from "react";
-import type { ProgramSummary, RequirementForm } from "../api/client";
+import { useState, type FormEvent } from "react";
+import type {
+  ProgramSummary,
+  RejectedCandidatePayload,
+  RequirementForm,
+} from "../api/client";
 
 type Props = {
   form: RequirementForm;
@@ -11,7 +15,18 @@ type Props = {
   program: ProgramSummary | null;
   error: string | null;
   stats: { generated: number; valid: number; rejected: number } | null;
+  rejectedCandidates: RejectedCandidatePayload[];
+  violationSummary: Record<string, number>;
 };
+
+function topViolationEntries(
+  summary: Record<string, number>,
+  limit = 5,
+): Array<[string, number]> {
+  return Object.entries(summary)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit);
+}
 
 export function RequirementsPanel({
   form,
@@ -23,7 +38,11 @@ export function RequirementsPanel({
   program,
   error,
   stats,
+  rejectedCandidates,
+  violationSummary,
 }: Props) {
+  const [rejectedOpen, setRejectedOpen] = useState(true);
+
   function set<K extends keyof RequirementForm>(key: K, value: RequirementForm[K]) {
     onChange({ ...form, [key]: value });
   }
@@ -32,6 +51,11 @@ export function RequirementsPanel({
     e.preventDefault();
     onGenerate();
   }
+
+  const hasRejected =
+    (stats?.rejected ?? 0) > 0 &&
+    (rejectedCandidates.length > 0 || Object.keys(violationSummary).length > 0);
+  const topViolations = topViolationEntries(violationSummary);
 
   return (
     <aside className="panel panel-left">
@@ -135,6 +159,53 @@ export function RequirementsPanel({
         <p className="muted stats">
           生成 {stats.generated} · 有效 {stats.valid} · 拒绝 {stats.rejected}
         </p>
+      )}
+
+      {hasRejected && (
+        <section className="rejected-block">
+          <button
+            type="button"
+            className="rejected-toggle"
+            aria-expanded={rejectedOpen}
+            onClick={() => setRejectedOpen((o) => !o)}
+          >
+            被淘汰（硬性失败 {stats?.rejected ?? rejectedCandidates.length}）
+            <span className="muted">{rejectedOpen ? "▾" : "▸"}</span>
+          </button>
+          {rejectedOpen && (
+            <div className="rejected-body">
+              {topViolations.length > 0 && (
+                <p className="rejected-summary muted">
+                  汇总：{" "}
+                  {topViolations
+                    .map(([id, n]) => `${id} ×${n}`)
+                    .join(" · ")}
+                </p>
+              )}
+              <ul className="rejected-list">
+                {rejectedCandidates.map((r) => (
+                  <li key={r.id}>
+                    <div className="rejected-seed">Seed {r.seed}</div>
+                    {r.reasons.length > 0 ? (
+                      <ul className="rejected-reasons">
+                        {r.reasons.map((msg, i) => (
+                          <li key={`${r.id}-${i}`}>{msg}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted">无硬性违规说明</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {(stats?.rejected ?? 0) > rejectedCandidates.length && (
+                <p className="muted tiny">
+                  仅展示前 {rejectedCandidates.length} 条样例
+                </p>
+              )}
+            </div>
+          )}
+        </section>
       )}
 
       {program && (

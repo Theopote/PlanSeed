@@ -48,9 +48,24 @@ class CandidatePayload(BaseModel):
     metrics: dict[str, Any] = Field(default_factory=dict)
 
 
+class RejectedCandidatePayload(BaseModel):
+    """Hard-fail 无效候选摘要（≠ 有效但未进 Top-K）。"""
+
+    id: str
+    seed: int
+    reasons: list[str] = Field(default_factory=list)
+    constraint_ids: list[str] = Field(default_factory=list)
+
+
+# 响应中最多带回多少条淘汰样例（调试 / Inspector）
+MAX_REJECTED_SAMPLES = 8
+
+
 class GenerateResponse(BaseModel):
     generated: int
     valid: int
     rejected: int
     program_summary: ProgramSummary
     candidates: list[CandidatePayload]
+    violation_summary: dict[str, int] = Field(default_factory=dict)
+    rejected_candidates: list[RejectedCandidatePayload] = Field(default_factory=list)

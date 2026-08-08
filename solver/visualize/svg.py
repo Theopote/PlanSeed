@@ -64,7 +64,7 @@ def _render_room(
         area = f"{r.area:.1f}/{target_area:.0f}㎡"
     show_detail = r.width >= 1.4 and r.depth >= 1.2
     lines = [
-        f'<rect x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
+        f'<rect class="room-shape" data-room-id="{rid}" x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
         f'height="{r.depth:.3f}" fill="{fill}" fill-opacity="0.9" '
         f'stroke="{stroke}" stroke-width="{sw:.3f}"/>',
         f'<text x="{cx:.3f}" y="{cy - (0.28 if show_detail else 0):.3f}" '

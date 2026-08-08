@@ -51,10 +51,10 @@ Evaluator 只评分，不改几何。用户层七轴：
 | 级 | 主题 | 状态 |
 |----|------|------|
 | **P0** | DesignEvaluation / Finding、Metric ownership、去重评、roadmap | ✅ |
-| **P0** | **Tauri sidecar runtime**（本地独立工具能否成立） | 🟡 onedir 脚本已切；真装包验收未完成 |
+| **P0** | **Tauri sidecar runtime**（本地独立工具能否成立） | ✅（见 3.6 Windows 装包验收） |
 | **P1** | API layering | ✅ |
-| **P1** | Inspector findings 人话 + **Candidate Compare** | 加深中 / Compare ✅ |
-| **P2** | Rejected Candidates（为何被淘汰） | 规划 |
+| **P1** | Inspector findings 人话 + **Candidate Compare** | ✅（房间/度量/平面高亮 + Compare） |
+| **P2** | Rejected Candidates（为何被淘汰） | ✅ MVP（仅 hard-fail；≠ 未进 Top-K） |
 | **P2** | Local LLM | **不做本阶段** |
 
 ### Desktop Alpha 里程碑（本阶段完成定义）
@@ -73,10 +73,10 @@ Evaluator 只评分，不改几何。用户层七轴：
 
 不只点击切换 A…E；支持 **Compare A vs B**：七轴对照表 + 双方优势列表（由 findings/分数差分生成）。
 
-### Rejected Candidates（后续）
+### Rejected Candidates（P2 MVP）
 
-开发模式展示未入选 / invalid：`seed` + hard violations / core failure / 缺失开口等。  
-让系统显得「有判断依据」，而非随机吐方案。
+左侧「被淘汰」展示 **hard-fail** 样例：`seed` + hard violation 人话原因 + `violation_summary`。  
+**`rejected` ≠ 有效但未进 Top-K**（后者本轮不做）。
 
 ---
 
@@ -109,7 +109,7 @@ Evaluator 只评分，不改几何。用户层七轴：
 ```
 
 - [x] 四区壳 + `pnpm dev` + 引擎就绪文案  
-- [ ] Compare / Rejected / Constraints·Preferences 分区 → 在 **3.5 / 本 Phase 加深**，不另起布局  
+- [x] Compare / Rejected（hard-fail）加深；Constraints·Preferences 分区仍待后续
 
 开发工具：`uv run python -m solver.visualize`。
 

@@ -62,7 +62,7 @@ uv run mypy packages solver backend   # 宽松基线，后续收紧
 | `pnpm dev` 一键引擎 + UI | ✅ |
 | Tauri spawn / kill；**setup 不阻塞**，`engine-ready` 异步通知 | ✅ |
 | **PyInstaller `--onedir`** + `bundle.resources`（非 onefile / 非 externalBin） | ✅ 脚本与路径已切 |
-| Windows 真装包验收（零系统 Python） | ❌ **仍为关键缺口**（需本机跑 build 脚本 + `tauri:build`） |
+| Windows 真装包验收（零系统 Python） | ✅（见 Phase 3.6） |
 | 动态/预留端口；前端 `get_engine_url` | ✅ |
 | 端口占用 / 超时 UI 提示 | 🟡 |
 
@@ -71,14 +71,14 @@ uv run mypy packages solver backend   # 宽松基线，后续收紧
 | 项 | 状态 |
 |----|------|
 | API layering（routes / schemas / services） | ✅ |
-| **Inspector findings 人话解释**（七轴「为什么」） | **并行加深**；禁止用「少加按钮」无限推迟 |
+| **Inspector findings 人话解释**（七轴「为什么」） | ✅（中文轴标签 / 房间名 / 度量；点击高亮平面） |
 | **Candidate Compare（A vs B）** | ✅ MVP（Strip Alt+点击；Inspector 对照表 + 优势差分） |
 
 ### P2
 
 | 项 | 状态 |
 |----|------|
-| Rejected Candidates（为何被淘汰） | ❌ 规划中；先服务 solver 调试，后可对建筑师开放 |
+| Rejected Candidates（为何被淘汰） | ✅ MVP：仅 hard-fail + violation_summary；≠ 未进 Top-K |
 | Local LLM Requirement Parser | ❌ **本阶段不做** |
 
 ---
@@ -118,20 +118,21 @@ B 的优势
 
 ---
 
-## Rejected Candidates（后续）
+## Rejected Candidates（P2 MVP）
 
-Inspector / 开发模式可看未进 Top-K 或 invalid 候选：
+左侧面板可看 **hard-fail** 无效候选（与 `rejected` 计数一致）：
 
 ```text
 Seed 47
 Rejected because:
 • Bedroom 2 unreachable
 • Required Kitchen–Dining opening unavailable
-• Stair core placement failed
 ```
 
-价值：solver 可调试；对用户体现「有判断依据，而非随机吐方案」。  
-正式产品可隐藏高级 debug 细节。
+另附 `violation_summary` 聚合。  
+**不做：** 有效但未进 Top-K 的「未入选」列表（避免与 hard-fail 语义混淆）。
+
+价值：solver 可调试；对用户体现「有判断依据，而非随机吐方案」。
 
 ---
 

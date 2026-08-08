@@ -95,6 +95,16 @@ export type GenerateResponse = {
   rejected: number;
   program_summary: ProgramSummary;
   candidates: CandidatePayload[];
+  violation_summary?: Record<string, number>;
+  rejected_candidates?: RejectedCandidatePayload[];
+};
+
+/** Hard-fail 无效候选（≠ 有效但未进 Top-K）。 */
+export type RejectedCandidatePayload = {
+  id: string;
+  seed: number;
+  reasons: string[];
+  constraint_ids: string[];
 };
 
 export type RequirementForm = {

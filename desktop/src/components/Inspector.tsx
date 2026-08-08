@@ -1,9 +1,12 @@
-import type { CandidatePayload, DesignFinding } from "../api/client";
+import type { CandidatePayload, DesignFinding, ProgramSummary } from "../api/client";
 import { ComparePanel } from "./ComparePanel";
 
 type Props = {
   candidate: CandidatePayload | null;
   compareWith: CandidatePayload | null;
+  program: ProgramSummary | null;
+  highlightRoomIds: string[];
+  onHighlightRooms: (roomIds: string[]) => void;
   onClearCompare: () => void;
 };
 
@@ -30,6 +33,16 @@ const SEV_LABEL: Record<string, string> = {
   info: "说明",
 };
 
+const CATEGORY_ZH: Record<string, string> = {
+  program: "空间程序",
+  spatial: "空间形态",
+  circulation: "交通流线",
+  privacy: "私密分区",
+  environment: "环境朝向",
+  technical: "技术体系",
+  robustness: "稳健性",
+};
+
 function groupFindings(findings: DesignFinding[]) {
   const groups: Record<string, DesignFinding[]> = {
     problem: [],
@@ -44,7 +57,35 @@ function groupFindings(findings: DesignFinding[]) {
   return groups;
 }
 
-export function Inspector({ candidate, compareWith, onClearCompare }: Props) {
+function roomLabel(program: ProgramSummary | null, id: string): string {
+  const name = program?.rooms.find((r) => r.id === id)?.name;
+  return name || id;
+}
+
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort().join("\0");
+  const sb = [...b].sort().join("\0");
+  return sa === sb;
+}
+
+function formatMeasured(metric: string | null, value: number | null): string | null {
+  if (metric == null && value == null) return null;
+  if (metric != null && value != null) {
+    return `${metric} = ${Number.isInteger(value) ? value : value.toFixed(2)}`;
+  }
+  if (metric != null) return metric;
+  return String(value);
+}
+
+export function Inspector({
+  candidate,
+  compareWith,
+  program,
+  highlightRoomIds,
+  onHighlightRooms,
+  onClearCompare,
+}: Props) {
   if (candidate && compareWith && candidate.id !== compareWith.id) {
     return (
       <aside className="panel panel-right">
@@ -62,6 +103,18 @@ export function Inspector({ candidate, compareWith, onClearCompare }: Props) {
   const soft = candidate?.validation?.soft_violations ?? [];
   const findings = ds?.findings ?? [];
   const groups = groupFindings(findings);
+
+  function toggleFinding(f: DesignFinding) {
+    if (!f.room_ids.length) {
+      onHighlightRooms([]);
+      return;
+    }
+    if (sameIds(highlightRoomIds, f.room_ids)) {
+      onHighlightRooms([]);
+    } else {
+      onHighlightRooms(f.room_ids);
+    }
+  }
 
   return (
     <aside className="panel panel-right">
@@ -112,18 +165,44 @@ export function Inspector({ candidate, compareWith, onClearCompare }: Props) {
                   <section key={sev} className={`finding-block sev-${sev}`}>
                     <h3>{SEV_LABEL[sev]}</h3>
                     <ul className="finding-list">
-                      {list.map((f) => (
-                        <li key={f.id}>
-                          <div className="finding-title">
-                            <span className="finding-cat">{f.category}</span>
-                            {f.title}
-                          </div>
-                          <p className="finding-msg">{f.message}</p>
-                          {f.recommended_action && (
-                            <p className="finding-action">→ {f.recommended_action}</p>
-                          )}
-                        </li>
-                      ))}
+                      {list.map((f) => {
+                        const active =
+                          f.room_ids.length > 0 &&
+                          sameIds(highlightRoomIds, f.room_ids);
+                        const measured = formatMeasured(f.metric, f.measured_value);
+                        const rooms = f.room_ids
+                          .map((id) => roomLabel(program, id))
+                          .join("、");
+                        const catZh = CATEGORY_ZH[f.category] ?? f.category;
+                        return (
+                          <li key={f.id}>
+                            <button
+                              type="button"
+                              className={`finding-item ${active ? "active" : ""} ${f.room_ids.length ? "clickable" : ""}`}
+                              onClick={() => toggleFinding(f)}
+                              disabled={!f.room_ids.length}
+                            >
+                              <div className="finding-title">
+                                <span className="finding-cat">{catZh}</span>
+                                {f.title}
+                              </div>
+                              <p className="finding-msg">{f.message}</p>
+                              {(rooms || measured) && (
+                                <p className="finding-meta">
+                                  {rooms && <span>房间：{rooms}</span>}
+                                  {rooms && measured && <span> · </span>}
+                                  {measured && <span>{measured}</span>}
+                                </p>
+                              )}
+                              {f.recommended_action && (
+                                <p className="finding-action">
+                                  → {f.recommended_action}
+                                </p>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </section>
                 );
@@ -133,11 +212,12 @@ export function Inspector({ candidate, compareWith, onClearCompare }: Props) {
 
           {hard.length > 0 && (
             <>
-              <h3>Hard violations</h3>
+              <h3>硬性违规</h3>
               <ul className="tiny-list bad">
                 {hard.map((v, i) => (
                   <li key={`${v.constraint_id}-${i}`}>
-                    <code>{v.constraint_id}</code> {v.message}
+                    <span>{v.message}</span>
+                    <code className="violation-id">{v.constraint_id}</code>
                   </li>
                 ))}
               </ul>
@@ -145,11 +225,12 @@ export function Inspector({ candidate, compareWith, onClearCompare }: Props) {
           )}
           {soft.length > 0 && (
             <>
-              <h3>Soft violations</h3>
+              <h3>软性约束</h3>
               <ul className="tiny-list">
                 {soft.map((v, i) => (
                   <li key={`${v.constraint_id}-${i}`}>
-                    <code>{v.constraint_id}</code> {v.message}
+                    <span>{v.message}</span>
+                    <code className="violation-id">{v.constraint_id}</code>
                   </li>
                 ))}
               </ul>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.services.form_requirements import ensure_spaces_for_solve
 from packages.schema.requirements import (
     HouseholdRequirements,
     RequirementSpec,
@@ -9,8 +10,6 @@ from packages.schema.requirements import (
     SpaceRequirement,
 )
 from solver.program.requirements_normalize import normalize_requirements_to_program
-
-from backend.services.form_requirements import ensure_spaces_for_solve
 
 
 def test_ensure_spaces_noop_when_spaces_present():

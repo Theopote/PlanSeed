@@ -20,6 +20,8 @@ def test_render_candidate_svg_contains_rooms_and_meta(tmp_path: Path):
     )
     assert 'xmlns="http://www.w3.org/2000/svg"' in svg
     assert "seed=0" in svg
+    assert 'class="room-shape"' in svg
+    assert "data-room-id=" in svg
     assert "客厅" in svg or "主卧" in svg
     assert "wet" in svg.lower() or "湿" in svg or "stroke-dasharray" in svg
 

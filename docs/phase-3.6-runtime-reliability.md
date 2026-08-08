@@ -75,6 +75,10 @@ Rust 三态：
 | 确定性 | 同 program + seed → 同 geometry + 同 evaluation（含 findings 序） |
 | Compare | 只吃 evaluation 差分；禁止 LLM |
 | API | 响应 `design_score` 来自 evaluation，次数 = valid |
+| Findings 人话 | Inspector：中文轴 / 房间名 / metric；点击高亮平面 ✅ |
+| Rejected | hard-fail 样例 + `violation_summary`（≠ 未进 Top-K）✅ |
+
+本轮评价可解释性收口见上；**runtime 主线仍以 P0/P2 装包为准**。
 
 ---
 

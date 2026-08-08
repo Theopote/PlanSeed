@@ -8,6 +8,7 @@ import {
   type CandidatePayload,
   type GenerateResponse,
   type ProgramSummary,
+  type RejectedCandidatePayload,
   type RequirementForm,
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
@@ -42,6 +43,13 @@ function App() {
   const [candidates, setCandidates] = useState<CandidatePayload[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareId, setCompareId] = useState<string | null>(null);
+  const [highlightRoomIds, setHighlightRoomIds] = useState<string[]>([]);
+  const [rejectedCandidates, setRejectedCandidates] = useState<
+    RejectedCandidatePayload[]
+  >([]);
+  const [violationSummary, setViolationSummary] = useState<Record<string, number>>(
+    {},
+  );
   const [stats, setStats] = useState<{
     generated: number;
     valid: number;
@@ -122,8 +130,11 @@ function App() {
       valid: data.valid,
       rejected: data.rejected,
     });
+    setRejectedCandidates(data.rejected_candidates ?? []);
+    setViolationSummary(data.violation_summary ?? {});
     setSelectedId(data.candidates[0]?.id ?? null);
     setCompareId(null);
+    setHighlightRoomIds([]);
     setError(null);
   }, []);
 
@@ -150,9 +161,15 @@ function App() {
     (id: string) => {
       if (id === selectedId) return;
       setCompareId(id);
+      setHighlightRoomIds([]);
     },
     [selectedId],
   );
+
+  const onSelectCandidate = useCallback((id: string) => {
+    setSelectedId(id);
+    setHighlightRoomIds([]);
+  }, []);
 
   const emptyHint =
     apiOk === false
@@ -174,11 +191,20 @@ function App() {
           program={program}
           error={error ?? engineHint}
           stats={stats}
+          rejectedCandidates={rejectedCandidates}
+          violationSummary={violationSummary}
         />
-        <FloorplanView svg={selected?.svg ?? null} emptyHint={emptyHint} />
+        <FloorplanView
+          svg={selected?.svg ?? null}
+          emptyHint={emptyHint}
+          highlightRoomIds={highlightRoomIds}
+        />
         <Inspector
           candidate={selected}
           compareWith={compareWith}
+          program={program}
+          highlightRoomIds={highlightRoomIds}
+          onHighlightRooms={setHighlightRoomIds}
           onClearCompare={() => setCompareId(null)}
         />
       </div>
@@ -186,7 +212,7 @@ function App() {
         candidates={candidates}
         selectedId={selectedId}
         compareId={compareId}
-        onSelect={setSelectedId}
+        onSelect={onSelectCandidate}
         onComparePick={onComparePick}
         onClearCompare={() => setCompareId(null)}
       />

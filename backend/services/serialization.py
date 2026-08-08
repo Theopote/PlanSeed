@@ -6,7 +6,12 @@ from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
 from solver.visualize.svg import render_candidate_svg
 
-from backend.schemas.api import CandidatePayload, ProgramSummary, RoomSummary
+from backend.schemas.api import (
+    CandidatePayload,
+    ProgramSummary,
+    RejectedCandidatePayload,
+    RoomSummary,
+)
 
 
 def _label_for(index: int) -> str:
@@ -75,4 +80,22 @@ def serialize_candidate(
         design_score=cand.evaluation,
         validation=validation,
         metrics=dict(cand.metrics),
+    )
+
+
+def serialize_rejected(cand: LayoutCandidate) -> RejectedCandidatePayload:
+    """仅 hard-fail 摘要；不渲染 SVG、不评价。"""
+    reasons: list[str] = []
+    constraint_ids: list[str] = []
+    if cand.validation is not None:
+        for v in cand.validation.hard_violations:
+            if v.message:
+                reasons.append(v.message)
+            if v.constraint_id:
+                constraint_ids.append(v.constraint_id)
+    return RejectedCandidatePayload(
+        id=cand.id,
+        seed=cand.seed,
+        reasons=reasons,
+        constraint_ids=constraint_ids,
     )
