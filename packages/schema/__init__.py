@@ -34,6 +34,7 @@ from packages.schema.layout import (
     Violation,
     WetStack,
 )
+from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
@@ -90,6 +91,9 @@ __all__ = [
     "GENERATOR_VERSION",
     "HouseholdSpec",
     "LayoutCandidate",
+    "LayoutLocks",
+    "LockedRoomRect",
+    "LockedStairCore",
     "CandidateProvenance",
     "OrientationConstraint",
     "PreferencesSpec",

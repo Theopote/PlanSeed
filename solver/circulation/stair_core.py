@@ -78,6 +78,33 @@ def footprint_for_orientation(spec: StairCoreSpec, orientation: Orientation) -> 
     return spec.depth, spec.width
 
 
+def core_from_locked_rect(
+    *,
+    x: float,
+    y: float,
+    width: float,
+    depth: float,
+    core_placement: str | None = None,
+) -> CorePlacementResult:
+    """Phase 4.1：用户锁定的楼梯核 → 固定 CorePlacementResult（无 fallback）。"""
+    try:
+        placement = (
+            CorePlacement(core_placement)
+            if core_placement
+            else CorePlacement.CENTER
+        )
+    except ValueError:
+        placement = CorePlacement.CENTER
+    orientation: Orientation = "ns" if depth >= width else "ew"
+    short, long = (width, depth) if orientation == "ns" else (depth, width)
+    return CorePlacementResult(
+        placement=placement,
+        rect=PlacementRect(x=x, y=y, width=width, depth=depth),
+        orientation=orientation,
+        width=short,
+        depth=long,
+    )
+
 def core_fits(
     *,
     floor_width: float,

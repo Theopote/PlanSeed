@@ -81,6 +81,29 @@ export type RoomPlacementPayload = {
   area: number;
 };
 
+/** Phase 4.1 — 会话锁（不进 RequirementSpec）。 */
+export type LockedRoomRect = {
+  room_id: string;
+  floor_id: string;
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+};
+
+export type LockedStairCore = {
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  core_placement?: string | null;
+};
+
+export type LayoutLocks = {
+  rooms: LockedRoomRect[];
+  stair?: LockedStairCore | null;
+};
+
 export type CandidatePayload = {
   id: string;
   seed: number;
@@ -275,48 +298,63 @@ export async function generateFromForm(
   return r.json() as Promise<GenerateResponse>;
 }
 
-/** 用当前 Program 房间清单（含已改 target_area）重生成 — Phase 4.0。 */
+/** 用当前 Program 房间清单（含已改 target_area）重生成 — Phase 4.0/4.1/4.2。 */
 export async function generateFromProgram(
   form: RequirementForm,
   program: ProgramSummary,
-  opts?: { candidate_count?: number; return_top_k?: number },
+  opts?: {
+    candidate_count?: number;
+    return_top_k?: number;
+    base_seed?: number;
+    locks?: LayoutLocks | null;
+  },
 ): Promise<GenerateResponse> {
+  const body: Record<string, unknown> = {
+    use_benchmark: false,
+    candidate_count: opts?.candidate_count ?? 16,
+    return_top_k: opts?.return_top_k ?? 5,
+    requirements: {
+      site: {
+        width: program.site_width,
+        depth: program.site_depth,
+      },
+      household: {
+        bedrooms: form.bedrooms,
+        bathrooms: form.bathrooms,
+        has_garage: form.has_garage,
+      },
+      preferences: {
+        prefer_south_facing_living: form.prefer_south_facing_living,
+      },
+      floor_count: program.floor_count,
+      spaces: program.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        category: room.category,
+        target_area: room.target_area,
+        floor_preference: room.floor_id ? [room.floor_id] : [],
+      })),
+    },
+  };
+  if (opts?.base_seed != null) {
+    body.base_seed = opts.base_seed;
+  }
+  if (opts?.locks && (opts.locks.rooms.length > 0 || opts.locks.stair)) {
+    body.locks = {
+      rooms: opts.locks.rooms,
+      stair: opts.locks.stair ?? null,
+    };
+  }
   const r = await fetch(`${_apiBase}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      use_benchmark: false,
-      candidate_count: opts?.candidate_count ?? 16,
-      return_top_k: opts?.return_top_k ?? 5,
-      requirements: {
-        site: {
-          width: program.site_width,
-          depth: program.site_depth,
-        },
-        household: {
-          bedrooms: form.bedrooms,
-          bathrooms: form.bathrooms,
-          has_garage: form.has_garage,
-        },
-        preferences: {
-          prefer_south_facing_living: form.prefer_south_facing_living,
-        },
-        floor_count: program.floor_count,
-        spaces: program.rooms.map((room) => ({
-          id: room.id,
-          name: room.name,
-          category: room.category,
-          target_area: room.target_area,
-          floor_preference: room.floor_id ? [room.floor_id] : [],
-        })),
-      },
-    }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) {
     let msg = `HTTP ${r.status}`;
     try {
-      const body = (await r.json()) as { detail?: string };
-      if (body.detail) msg = body.detail;
+      const errBody = (await r.json()) as { detail?: string };
+      if (errBody.detail) msg = errBody.detail;
     } catch {
       /* keep */
     }

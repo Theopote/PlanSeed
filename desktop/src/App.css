@@ -485,6 +485,30 @@ button.secondary {
   filter: brightness(0.97);
 }
 
+.floorplan-svg .room-shape.is-locked {
+  stroke: #8a5a2b !important;
+  stroke-width: 0.18 !important;
+  stroke-dasharray: 0.25 0.12;
+}
+
+.room-lock-actions {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.lock-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  background: #f3ebe0;
+  border-radius: 2px;
+}
+
 .room-detail {
   margin-bottom: 1rem;
   padding-bottom: 0.85rem;
@@ -553,8 +577,19 @@ button.secondary {
 }
 
 .room-regen {
-  margin-top: 0.65rem;
   width: 100%;
+}
+
+.session-actions {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.session-actions .room-regen {
+  margin-top: 0;
 }
 
 .candidate-strip {

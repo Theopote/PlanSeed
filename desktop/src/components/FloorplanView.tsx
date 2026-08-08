@@ -5,6 +5,7 @@ type Props = {
   emptyHint: string;
   highlightRoomIds: string[];
   selectedRoomId: string | null;
+  lockedRoomIds: string[];
   onSelectRoom: (roomId: string | null) => void;
 };
 
@@ -13,6 +14,7 @@ export function FloorplanView({
   emptyHint,
   highlightRoomIds,
   selectedRoomId,
+  lockedRoomIds,
   onSelectRoom,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -22,13 +24,15 @@ export function FloorplanView({
     if (!root) return;
     const shapes = root.querySelectorAll<SVGElement>(".room-shape[data-room-id]");
     const want = new Set(highlightRoomIds);
+    const locked = new Set(lockedRoomIds);
     shapes.forEach((el) => {
       const id = el.getAttribute("data-room-id");
       el.classList.toggle("is-hl", !!(id && want.has(id)));
       el.classList.toggle("is-selected", !!(id && id === selectedRoomId));
+      el.classList.toggle("is-locked", !!(id && locked.has(id)));
       el.style.cursor = "pointer";
     });
-  }, [svg, highlightRoomIds, selectedRoomId]);
+  }, [svg, highlightRoomIds, selectedRoomId, lockedRoomIds]);
 
   useEffect(() => {
     const root = stageRef.current;
@@ -56,11 +60,11 @@ export function FloorplanView({
       <header className="panel-head compact">
         <h2>Floorplan</h2>
         {selectedRoomId ? (
-          <p className="muted">已选房间 · 点击空白取消</p>
-        ) : highlightRoomIds.length > 0 ? (
-          <p className="muted">高亮 {highlightRoomIds.length} 个房间</p>
+          <p className="muted">已选 · 可锁定后 Regenerate unlocked</p>
+        ) : lockedRoomIds.length > 0 ? (
+          <p className="muted">已锁 {lockedRoomIds.length} 处</p>
         ) : (
-          <p className="muted">点击房间查看详情</p>
+          <p className="muted">点击房间或楼梯</p>
         )}
       </header>
       <div className="floorplan-stage">

@@ -16,6 +16,7 @@ from packages.schema.layout import (
     RoomPlacement,
     WetStack,
 )
+from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
 from packages.schema.topology import TopologyPlan
@@ -23,10 +24,11 @@ from packages.schema.zoning import ArchitecturalZone, FloorZonePlan
 from solver.circulation.stair_core import (
     CorePlacementFailure,
     choose_core_placement,
+    core_from_locked_rect,
     place_stair_core_resolving,
     resolve_stair_core_spec,
 )
-from solver.geometry.free_rects import subtract_rect
+from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 from solver.program.floor_assignment import assert_all_rooms_placed
@@ -77,60 +79,87 @@ class GuillotineGenerator:
         self._zone_planner = ZonePlanner()
         self._topology_planner = TopologyPlanner()
 
-    def generate(self, program: DesignProgram, seed: int) -> LayoutCandidate:
+    def generate(
+        self,
+        program: DesignProgram,
+        seed: int,
+        locks: LayoutLocks | None = None,
+    ) -> LayoutCandidate:
         assert_all_rooms_placed(program.rooms, program.floors)
         rng = random.Random(seed)
         module = program.solver_config.snap_module
         buildable = program.buildable
         w = buildable.width
         d = buildable.depth
+        locks = locks or LayoutLocks()
+        locked_ids = locks.locked_room_ids
 
         ensure_access_graph(program)
         topology = self._topology_planner.plan(program)
 
-        core_spec = resolve_stair_core_spec(
-            stair_width=program.site.stair_width,
-            stair_depth=getattr(program.site, "stair_depth", 4.2),
-        )
-        placement = choose_core_placement(
-            rng,
-            preferred=core_spec.preferred_placement,
-            entrance_edge=program.site.entrance_edge,
-        )
-        try:
-            core = place_stair_core_resolving(
-                floor_width=w,
-                floor_depth=d,
-                spec=core_spec,
-                primary_placement=placement,
-                snap_module=module,
-                rng=rng,
+        if locks.stair is not None:
+            core = core_from_locked_rect(
+                x=locks.stair.x,
+                y=locks.stair.y,
+                width=locks.stair.width,
+                depth=locks.stair.depth,
+                core_placement=locks.stair.core_placement,
             )
-        except CorePlacementFailure as err:
-            return LayoutCandidate(
-                id=f"candidate-{seed}",
-                seed=seed,
-                floors=[FloorLayout(floor_id=fl.id, placements=[]) for fl in program.floors],
-                provenance=CandidateProvenance(
-                    solver_version=SOLVER_VERSION,
-                    generator_version=GENERATOR_VERSION,
-                ),
-                metrics={
-                    "core_unfit": True,
-                    "core_unfit_reason": str(err),
-                    "generator_version": GENERATOR_VERSION,
-                    "solver_version": SOLVER_VERSION,
-                },
+        else:
+            core_spec = resolve_stair_core_spec(
+                stair_width=program.site.stair_width,
+                stair_depth=getattr(program.site, "stair_depth", 4.2),
             )
+            placement = choose_core_placement(
+                rng,
+                preferred=core_spec.preferred_placement,
+                entrance_edge=program.site.entrance_edge,
+            )
+            try:
+                core = place_stair_core_resolving(
+                    floor_width=w,
+                    floor_depth=d,
+                    spec=core_spec,
+                    primary_placement=placement,
+                    snap_module=module,
+                    rng=rng,
+                )
+            except CorePlacementFailure as err:
+                return LayoutCandidate(
+                    id=f"candidate-{seed}",
+                    seed=seed,
+                    floors=[
+                        FloorLayout(floor_id=fl.id, placements=[])
+                        for fl in program.floors
+                    ],
+                    provenance=CandidateProvenance(
+                        solver_version=SOLVER_VERSION,
+                        generator_version=GENERATOR_VERSION,
+                    ),
+                    metrics={
+                        "core_unfit": True,
+                        "core_unfit_reason": str(err),
+                        "generator_version": GENERATOR_VERSION,
+                        "solver_version": SOLVER_VERSION,
+                    },
+                )
 
         floor_rect = Rect(x=0, y=0, width=w, depth=d)
         core_rect = Rect(
             x=core.rect.x, y=core.rect.y, width=core.rect.width, depth=core.rect.depth
         )
-        free_rects = subtract_rect(floor_rect, core_rect)
+        lock_holes = [
+            Rect(x=r.x, y=r.y, width=r.width, depth=r.depth) for r in locks.rooms
+        ]
+        free_rects = subtract_rects([floor_rect], [core_rect, *lock_holes])
 
+        # 未锁定房间才参与 Zone / Guillotine
         floor_room_lists = [
-            (floor.id, program.rooms_on_floor(floor.id)) for floor in program.floors
+            (
+                floor.id,
+                [r for r in program.rooms_on_floor(floor.id) if r.id not in locked_ids],
+            )
+            for floor in program.floors
         ]
         building_zones = self._zone_planner.plan_building(
             floors=floor_room_lists,
@@ -143,7 +172,9 @@ class GuillotineGenerator:
 
         floor_layouts: list[FloorLayout] = []
         for idx, floor in enumerate(program.floors):
-            floor_rooms = program.rooms_on_floor(floor.id)
+            floor_rooms = [
+                r for r in program.rooms_on_floor(floor.id) if r.id not in locked_ids
+            ]
             layout = self._layout_floor_with_zones(
                 floor=floor,
                 floor_rooms=floor_rooms,
@@ -155,6 +186,35 @@ class GuillotineGenerator:
                 topology=topology,
                 access_graph=program.access_graph,
             )
+            # 合并锁定房间放置
+            locked_on_floor = locks.rooms_on_floor(floor.id)
+            if locked_on_floor:
+                extra = [
+                    RoomPlacement(
+                        room_id=lr.room_id,
+                        floor_id=lr.floor_id,
+                        rect=PlacementRect(
+                            x=lr.x, y=lr.y, width=lr.width, depth=lr.depth
+                        ),
+                        source=PlacementSource.PROGRAM,
+                        name=next(
+                            (r.name for r in program.rooms if r.id == lr.room_id),
+                            lr.room_id,
+                        ),
+                        category=next(
+                            (
+                                r.category.value
+                                for r in program.rooms
+                                if r.id == lr.room_id
+                            ),
+                            "other",
+                        ),
+                    )
+                    for lr in locked_on_floor
+                ]
+                layout = layout.model_copy(
+                    update={"placements": list(layout.placements) + extra}
+                )
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
 
         from solver.circulation.exterior_entry import resolve_exterior_entry
@@ -162,6 +222,12 @@ class GuillotineGenerator:
         from solver.topology.connection_resolve import resolve_required_connections
         from solver.topology.doors import place_door_openings
 
+        metrics: dict[str, float | int | str | bool] = {
+            "generator_version": GENERATOR_VERSION,
+            "solver_version": SOLVER_VERSION,
+            "locked_room_count": len(locks.rooms),
+            "stair_locked": locks.stair is not None,
+        }
         candidate = LayoutCandidate(
             id=f"candidate-{seed}",
             seed=seed,
@@ -171,10 +237,7 @@ class GuillotineGenerator:
                 solver_version=SOLVER_VERSION,
                 generator_version=GENERATOR_VERSION,
             ),
-            metrics={
-                "generator_version": GENERATOR_VERSION,
-                "solver_version": SOLVER_VERSION,
-            },
+            metrics=metrics,
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         resolve_required_connections(program, candidate, module=module)

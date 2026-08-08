@@ -23,7 +23,7 @@ router = APIRouter(tags=["generate"])
 @router.post("/api/generate", response_model=GenerateResponse)
 def generate(body: GenerateRequest) -> GenerateResponse:
     program = resolve_program(body)
-    result = generate_layouts(program)
+    result = generate_layouts(program, locks=body.locks)
     candidates = [
         serialize_candidate(program, cand, i)
         for i, cand in enumerate(result.top_candidates)

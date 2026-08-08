@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type {
   CandidatePayload,
   DesignFinding,
+  LayoutLocks,
   ProgramSummary,
   RoomPlacementPayload,
 } from "../api/client";
@@ -14,11 +15,16 @@ type Props = {
   program: ProgramSummary | null;
   selectedRoomId: string | null;
   highlightRoomIds: string[];
+  locks: LayoutLocks;
+  lockCount: number;
   onHighlightRooms: (roomIds: string[]) => void;
   onSelectRoom: (roomId: string | null) => void;
   onClearCompare: () => void;
   onUpdateRoomTargetArea: (roomId: string, targetArea: number) => void;
+  onToggleRoomLock: (roomId: string) => void;
+  onClearLocks: () => void;
   onRegenerate: () => void;
+  onCreateVariant: () => void;
   regenerating: boolean;
   canRegenerate: boolean;
 };
@@ -103,42 +109,31 @@ function RoomDetail({
   program,
   placement,
   roomId,
+  isLocked,
   onUpdateTargetArea,
-  onRegenerate,
-  regenerating,
-  canRegenerate,
+  onToggleLock,
   onClear,
 }: {
-  program: ProgramSummary;
+  program: ProgramSummary | null;
   placement: RoomPlacementPayload | null;
   roomId: string;
+  isLocked: boolean;
   onUpdateTargetArea: (roomId: string, targetArea: number) => void;
-  onRegenerate: () => void;
-  regenerating: boolean;
-  canRegenerate: boolean;
+  onToggleLock: (roomId: string) => void;
   onClear: () => void;
 }) {
-  const spec = program.rooms.find((r) => r.id === roomId);
+  const isStair = roomId.startsWith("stair-");
+  const spec = program?.rooms.find((r) => r.id === roomId);
+  const title = isStair ? "楼梯核" : (spec?.name ?? roomId);
   const [draft, setDraft] = useState(String(spec?.target_area ?? ""));
 
   useEffect(() => {
     setDraft(String(spec?.target_area ?? ""));
   }, [roomId, spec?.target_area]);
 
-  if (!spec) {
-    return (
-      <section className="room-detail">
-        <h3>房间</h3>
-        <p className="muted">未在 Program 中找到 {roomId}</p>
-        <button type="button" className="btn-ghost" onClick={onClear}>
-          清除选择
-        </button>
-      </section>
-    );
-  }
-
   function submitArea(e: FormEvent) {
     e.preventDefault();
+    if (isStair) return;
     const n = Number(draft);
     if (!Number.isFinite(n) || n <= 0) return;
     onUpdateTargetArea(roomId, n);
@@ -147,46 +142,58 @@ function RoomDetail({
   return (
     <section className="room-detail">
       <div className="room-detail-head">
-        <h3>{spec.name}</h3>
+        <h3>
+          {title}
+          {isLocked ? " · 已锁" : ""}
+        </h3>
         <button type="button" className="btn-ghost" onClick={onClear}>
           清除
         </button>
       </div>
 
-      <h4>RoomSpec</h4>
-      <ul className="room-meta">
-        <li>
-          <span>id</span>
-          <code>{spec.id}</code>
-        </li>
-        <li>
-          <span>category</span>
-          <span>{spec.category}</span>
-        </li>
-        <li>
-          <span>floor</span>
-          <span>{spec.floor_id ?? "—"}</span>
-        </li>
-      </ul>
+      {!isStair && spec && (
+        <>
+          <h4>RoomSpec</h4>
+          <ul className="room-meta">
+            <li>
+              <span>id</span>
+              <code>{spec.id}</code>
+            </li>
+            <li>
+              <span>category</span>
+              <span>{spec.category}</span>
+            </li>
+            <li>
+              <span>floor</span>
+              <span>{spec.floor_id ?? "—"}</span>
+            </li>
+          </ul>
 
-      <form className="room-area-form" onSubmit={submitArea}>
-        <label>
-          target area (㎡)
-          <input
-            type="number"
-            min={1}
-            max={200}
-            step={0.5}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-        </label>
-        <button type="submit" className="secondary">
-          应用面积
-        </button>
-      </form>
+          <form className="room-area-form" onSubmit={submitArea}>
+            <label>
+              target area (㎡)
+              <input
+                type="number"
+                min={1}
+                max={200}
+                step={0.5}
+                value={draft}
+                disabled={isLocked}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+            </label>
+            <button type="submit" className="secondary" disabled={isLocked}>
+              应用面积
+            </button>
+          </form>
+        </>
+      )}
 
-      <h4>RoomPlacement</h4>
+      {isStair && (
+        <p className="muted tiny">锁定楼梯核后，重生成保持核位与尺寸不变</p>
+      )}
+
+      <h4>Placement</h4>
       {placement ? (
         <ul className="room-meta">
           <li>
@@ -206,23 +213,29 @@ function RoomDetail({
             </span>
           </li>
           <li>
-            <span>realized area</span>
+            <span>area</span>
             <span>{placement.area.toFixed(1)} ㎡</span>
           </li>
         </ul>
       ) : (
-        <p className="muted tiny">当前候选无此房间放置</p>
+        <p className="muted tiny">当前候选无此放置</p>
       )}
 
-      <button
-        type="button"
-        className="room-regen"
-        disabled={!canRegenerate || regenerating}
-        onClick={onRegenerate}
-      >
-        {regenerating ? "重新生成中…" : "Regenerate"}
-      </button>
-      <p className="muted tiny">按当前 Program（含已改面积）整案重生成</p>
+      <div className="room-lock-actions">
+        <button
+          type="button"
+          className="secondary"
+          disabled={!placement}
+          onClick={() => onToggleLock(roomId)}
+        >
+          {isLocked ? "解锁" : isStair ? "锁定楼梯" : "锁定房间"}
+        </button>
+      </div>
+      <p className="muted tiny">
+        {isLocked
+          ? "已锁定几何；Create Variant 会保留此钉死位置"
+          : "锁定后 Regenerate / Variant 只动未锁空间"}
+      </p>
     </section>
   );
 }
@@ -233,11 +246,16 @@ export function Inspector({
   program,
   selectedRoomId,
   highlightRoomIds,
+  locks,
+  lockCount,
   onHighlightRooms,
   onSelectRoom,
   onClearCompare,
   onUpdateRoomTargetArea,
+  onToggleRoomLock,
+  onClearLocks,
   onRegenerate,
+  onCreateVariant,
   regenerating,
   canRegenerate,
 }: Props) {
@@ -262,6 +280,11 @@ export function Inspector({
     selectedRoomId && candidate
       ? (candidate.placements?.find((p) => p.room_id === selectedRoomId) ?? null)
       : null;
+  const selectedLocked = selectedRoomId
+    ? selectedRoomId.startsWith("stair-")
+      ? !!locks.stair
+      : locks.rooms.some((r) => r.room_id === selectedRoomId)
+    : false;
 
   function toggleFinding(f: DesignFinding) {
     if (!f.room_ids.length) {
@@ -284,30 +307,62 @@ export function Inspector({
           <p className="muted">
             {candidate.label} · seed {candidate.seed}
             {candidate.score != null ? ` · ${candidate.score.toFixed(1)}` : ""}
-            {ds?.evaluation_version
-              ? ` · eval ${ds.evaluation_version}`
-              : ""}
+            {lockCount > 0 ? ` · 锁 ${lockCount}` : ""}
           </p>
         )}
       </header>
 
       {!candidate && (
         <p className="empty-hint">
-          选择下方候选查看评价；点击平面房间可编辑面积
+          选择下方候选；锁定后可 Regenerate / Create Variant；Alt+点击比较
         </p>
       )}
 
       {candidate && (
         <div className="inspector-body">
-          {selectedRoomId && program && (
+          {lockCount > 0 && (
+            <p className="lock-banner">
+              已锁 {lockCount} 处
+              <button type="button" className="btn-ghost" onClick={onClearLocks}>
+                全部解锁
+              </button>
+            </p>
+          )}
+
+          <div className="session-actions">
+            <button
+              type="button"
+              className="room-regen"
+              disabled={!canRegenerate || regenerating}
+              onClick={onRegenerate}
+            >
+              {regenerating
+                ? "生成中…"
+                : lockCount > 0
+                  ? "Regenerate unlocked"
+                  : "Regenerate"}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={!canRegenerate || regenerating}
+              onClick={onCreateVariant}
+            >
+              Create Variant
+            </button>
+            <p className="muted tiny">
+              Regenerate 替换条带；Variant 追加并自动进入比较
+            </p>
+          </div>
+
+          {selectedRoomId && (
             <RoomDetail
               program={program}
               placement={placement}
               roomId={selectedRoomId}
+              isLocked={selectedLocked}
               onUpdateTargetArea={onUpdateRoomTargetArea}
-              onRegenerate={onRegenerate}
-              regenerating={regenerating}
-              canRegenerate={canRegenerate}
+              onToggleLock={onToggleRoomLock}
               onClear={() => onSelectRoom(null)}
             />
           )}

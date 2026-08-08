@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from packages.schema.locks import LayoutLocks
 from packages.schema.requirements import RequirementSpec
 from packages.schema.scoring import DesignScore
 from pydantic import BaseModel, Field
@@ -22,6 +23,16 @@ class GenerateRequest(BaseModel):
     requirements: RequirementSpec | None = None
     candidate_count: int | None = Field(default=None, ge=1, le=64)
     return_top_k: int | None = Field(default=None, ge=1, le=16)
+    base_seed: int | None = Field(
+        default=None,
+        ge=0,
+        le=1_000_000,
+        description="Phase 4.2：候选种子起点；默认沿用 SolverConfig.base_seed",
+    )
+    locks: LayoutLocks | None = Field(
+        default=None,
+        description="Phase 4.1：锁定房间/楼梯后只重生成其余空间",
+    )
 
 
 class RoomSummary(BaseModel):

@@ -247,7 +247,7 @@ environment 0.10 | technical 0.16 | robustness 0.14
 | 字段 | 当前值 | 含义 |
 |------|--------|------|
 | `solver_version` | `0.4` | Solver 管线总签名 |
-| `generator_version` | `guillotine-topology-v2` | 当前主生成器 |
+| `generator_version` | `guillotine-lock-v1` | 当前主生成器（含 room/stair lock） |
 | `evaluation_version` | `residential-alpha-v1` | 七轴权重 / Finding 规则包 |
 
 持久化示例：
@@ -257,7 +257,7 @@ environment 0.10 | technical 0.16 | robustness 0.14
   "evaluation_version": "residential-alpha-v1",
   "total_score": 87.2,
   "solver_version": "0.4",
-  "generator_version": "guillotine-topology-v2"
+  "generator_version": "guillotine-lock-v1"
 }
 ```
 

@@ -10,6 +10,9 @@ import {
   type CandidatePayload,
   type EngineLifecycle,
   type GenerateResponse,
+  type LayoutLocks,
+  type LockedRoomRect,
+  type LockedStairCore,
   type ProgramSummary,
   type RejectedCandidatePayload,
   type RequirementForm,
@@ -48,6 +51,7 @@ function App() {
   const [compareId, setCompareId] = useState<string | null>(null);
   const [highlightRoomIds, setHighlightRoomIds] = useState<string[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [locks, setLocks] = useState<LayoutLocks>({ rooms: [], stair: null });
   const [rejectedCandidates, setRejectedCandidates] = useState<
     RejectedCandidatePayload[]
   >([]);
@@ -176,35 +180,84 @@ function App() {
     }
   }, [applyEngineStatus]);
 
-  const applyResult = useCallback((data: GenerateResponse) => {
-    setProgram(data.program_summary);
-    setCandidates(data.candidates);
-    setStats({
-      generated: data.generated,
-      valid: data.valid,
-      rejected: data.rejected,
-    });
-    setRejectedCandidates(data.rejected_candidates ?? []);
-    setViolationSummary(data.violation_summary ?? {});
-    setSelectedId(data.candidates[0]?.id ?? null);
-    setCompareId(null);
-    setHighlightRoomIds([]);
-    setSelectedRoomId(null);
-    setError(null);
+  const relabel = useCallback((list: CandidatePayload[]) => {
+    return list.map((c, i) => ({
+      ...c,
+      label: i < 26 ? String.fromCharCode(65 + i) : `C${i}`,
+    }));
   }, []);
 
+  const applyResult = useCallback(
+    (data: GenerateResponse) => {
+      setProgram(data.program_summary);
+      setCandidates(relabel(data.candidates));
+      setStats({
+        generated: data.generated,
+        valid: data.valid,
+        rejected: data.rejected,
+      });
+      setRejectedCandidates(data.rejected_candidates ?? []);
+      setViolationSummary(data.violation_summary ?? {});
+      setSelectedId(data.candidates[0]?.id ?? null);
+      setCompareId(null);
+      setHighlightRoomIds([]);
+      setSelectedRoomId(null);
+      // 锁跨 regenerate 保留；整案 Generate / Benchmark 在 run 里清
+      setError(null);
+    },
+    [relabel],
+  );
+
   const run = useCallback(
-    async (mode: "form" | "benchmark" | "program") => {
+    async (mode: "form" | "benchmark" | "program" | "variant") => {
       setLoading(true);
       setError(null);
       try {
+        if (mode === "variant") {
+          if (!program) throw new Error("尚无 Program，请先 Generate");
+          const prevSelected = selectedId;
+          const maxSeed = candidates.reduce((m, c) => Math.max(m, c.seed), -1);
+          const data = await generateFromProgram(form, program, {
+            locks,
+            base_seed: maxSeed + 1,
+            candidate_count: 8,
+            return_top_k: 3,
+          });
+          setProgram(data.program_summary);
+          const fresh = data.candidates.filter(
+            (c) => !candidates.some((e) => e.id === c.id),
+          );
+          const merged = relabel([...candidates, ...fresh]).slice(-16);
+          setCandidates(merged);
+          setStats({
+            generated: data.generated,
+            valid: data.valid,
+            rejected: data.rejected,
+          });
+          setRejectedCandidates(data.rejected_candidates ?? []);
+          setViolationSummary(data.violation_summary ?? {});
+          const pick = fresh[0] ?? merged[merged.length - 1];
+          if (pick) {
+            setSelectedId(pick.id);
+            if (prevSelected && prevSelected !== pick.id) {
+              setCompareId(prevSelected);
+            }
+          }
+          setHighlightRoomIds([]);
+          setSelectedRoomId(null);
+          setError(null);
+          return;
+        }
+
         let data: GenerateResponse;
         if (mode === "benchmark") {
+          setLocks({ rooms: [], stair: null });
           data = await generateBenchmark();
         } else if (mode === "program") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
-          data = await generateFromProgram(form, program);
+          data = await generateFromProgram(form, program, { locks });
         } else {
+          setLocks({ rooms: [], stair: null });
           data = await generateFromForm(form);
         }
         applyResult(data);
@@ -214,7 +267,7 @@ function App() {
         setLoading(false);
       }
     },
-    [applyResult, form, program],
+    [applyResult, form, program, locks, candidates, selectedId, relabel],
   );
 
   const onUpdateRoomTargetArea = useCallback((roomId: string, targetArea: number) => {
@@ -227,6 +280,60 @@ function App() {
         ),
       };
     });
+    // 改面积后解除该房间锁（避免面积与钉死几何冲突）
+    setLocks((prev) => ({
+      ...prev,
+      rooms: prev.rooms.filter((r) => r.room_id !== roomId),
+    }));
+  }, []);
+
+  const onToggleRoomLock = useCallback(
+    (roomId: string) => {
+      if (!selected) return;
+      const isStair = roomId.startsWith("stair-");
+      if (isStair) {
+        setLocks((prev) => {
+          if (prev.stair) {
+            return { ...prev, stair: null };
+          }
+          const pl = selected.placements?.find((p) => p.room_id === roomId);
+          if (!pl) return prev;
+          const stair: LockedStairCore = {
+            x: pl.x,
+            y: pl.y,
+            width: pl.width,
+            depth: pl.depth,
+          };
+          return { ...prev, stair };
+        });
+        return;
+      }
+      setLocks((prev) => {
+        const exists = prev.rooms.some((r) => r.room_id === roomId);
+        if (exists) {
+          return {
+            ...prev,
+            rooms: prev.rooms.filter((r) => r.room_id !== roomId),
+          };
+        }
+        const pl = selected.placements?.find((p) => p.room_id === roomId);
+        if (!pl) return prev;
+        const next: LockedRoomRect = {
+          room_id: pl.room_id,
+          floor_id: pl.floor_id,
+          x: pl.x,
+          y: pl.y,
+          width: pl.width,
+          depth: pl.depth,
+        };
+        return { ...prev, rooms: [...prev.rooms, next] };
+      });
+    },
+    [selected],
+  );
+
+  const onClearLocks = useCallback(() => {
+    setLocks({ rooms: [], stair: null });
   }, []);
 
   const onSelectRoom = useCallback((roomId: string | null) => {
@@ -249,6 +356,8 @@ function App() {
     setSelectedRoomId(null);
   }, []);
 
+  const lockCount =
+    locks.rooms.length + (locks.stair ? 1 : 0);
   const emptyHint =
     engineStatus === "ERROR"
       ? engineHint || "本地引擎异常，请重试"
@@ -256,7 +365,7 @@ function App() {
         ? "正在连接本地引擎…"
         : engineStatus === "STOPPED"
           ? "引擎已停止"
-          : "点击 Generate 或「基准案例」生成平面；再点房间可改面积并 Regenerate";
+          : "Generate → 锁定 → Regenerate unlocked / Create Variant → Alt+点比较";
 
   return (
     <div className="app-shell">
@@ -280,6 +389,14 @@ function App() {
           emptyHint={emptyHint}
           highlightRoomIds={highlightRoomIds}
           selectedRoomId={selectedRoomId}
+          lockedRoomIds={[
+            ...locks.rooms.map((r) => r.room_id),
+            ...(locks.stair
+              ? (selected?.placements
+                  ?.filter((p) => p.room_id.startsWith("stair-"))
+                  .map((p) => p.room_id) ?? [])
+              : []),
+          ]}
           onSelectRoom={onSelectRoom}
         />
         <Inspector
@@ -288,11 +405,16 @@ function App() {
           program={program}
           selectedRoomId={selectedRoomId}
           highlightRoomIds={highlightRoomIds}
+          locks={locks}
+          lockCount={lockCount}
           onHighlightRooms={setHighlightRoomIds}
           onSelectRoom={onSelectRoom}
           onClearCompare={() => setCompareId(null)}
           onUpdateRoomTargetArea={onUpdateRoomTargetArea}
+          onToggleRoomLock={onToggleRoomLock}
+          onClearLocks={onClearLocks}
           onRegenerate={() => void run("program")}
+          onCreateVariant={() => void run("variant")}
           regenerating={loading}
           canRegenerate={!!program && engineStatus === "READY"}
         />

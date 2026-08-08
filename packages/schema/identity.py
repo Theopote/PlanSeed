@@ -8,7 +8,7 @@ from __future__ import annotations
 
 # 独立于 pyproject package version；刻意手工 bump。
 SOLVER_VERSION = "0.4"
-GENERATOR_VERSION = "guillotine-topology-v2"
+GENERATOR_VERSION = "guillotine-lock-v1"
 EVALUATION_VERSION = "residential-alpha-v1"
 
 

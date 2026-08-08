@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import HTTPException
+from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from solver.fixtures.benchmark import benchmark_program
 from solver.pipeline import PipelineResult, run_pipeline
@@ -39,9 +40,14 @@ def resolve_program(body: GenerateRequest) -> DesignProgram:
         program.solver_config.candidate_count = body.candidate_count
     if body.return_top_k is not None:
         program.solver_config.return_top_k = body.return_top_k
+    if body.base_seed is not None:
+        program.solver_config.base_seed = body.base_seed
     return program
 
 
-def generate_layouts(program: DesignProgram) -> PipelineResult:
+def generate_layouts(
+    program: DesignProgram,
+    locks: LayoutLocks | None = None,
+) -> PipelineResult:
     """单次评价在 pipeline 内完成；此处不调用 CompositeEvaluator。"""
-    return run_pipeline(program)
+    return run_pipeline(program, locks=locks)

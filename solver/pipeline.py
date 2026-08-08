@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from packages.schema.layout import LayoutCandidate
+from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 
 from solver.constraints.checker_impl import DefaultConstraintChecker
@@ -61,7 +62,10 @@ class PipelineResult:
         )
 
 
-def run_pipeline(program: DesignProgram) -> PipelineResult:
+def run_pipeline(
+    program: DesignProgram,
+    locks: LayoutLocks | None = None,
+) -> PipelineResult:
     generator = GuillotineGenerator()
     checker = DefaultConstraintChecker()
     evaluator = CompositeEvaluator()
@@ -72,7 +76,7 @@ def run_pipeline(program: DesignProgram) -> PipelineResult:
 
     for i in range(cfg.candidate_count):
         seed = cfg.base_seed + i
-        candidate = generator.generate(program, seed)
+        candidate = generator.generate(program, seed, locks=locks)
         candidate.validation = checker.check(program, candidate)
 
         if candidate.validation.valid:

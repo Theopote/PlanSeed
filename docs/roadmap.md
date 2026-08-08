@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4.0 Interactive Workbench（选房 → 改面积 → Regenerate）**  
-> 3.6 Runtime Reliability 已收口。**不再开 Phase 3.7+。**  
+> **当前焦点：Phase 4.2 Create Variant + Compare**  
+> 4.1 Lock MVP 已落地。Zone lock / 拖拽后置。  
 > 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -55,7 +55,7 @@ Evaluator 只评分，不改几何。用户层七轴：
 `DesignScore`：七轴（**名称冻结至 Phase 4**，见 [scoring.md](scoring.md)）+ `findings[]`；`explanations` / `warnings` 由 findings 派生。  
 `DesignEvaluation`：当前为 **temporary compatibility alias**（`= DesignScore`）；长期再拆成真正 Evaluation 模型（非 P0，见 [scoring.md](scoring.md)）。  
 Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止合规语气）。  
-版本签名：`solver=0.4` / `generator=guillotine-topology-v2` / `evaluation=residential-alpha-v1`（见 [scoring.md](scoring.md)）。  
+版本签名：`solver=0.4` / `generator=guillotine-lock-v1` / `evaluation=residential-alpha-v1`（见 [scoring.md](scoring.md)）。  
 **不做（本 Phase）**：daylight；LLM；房间拖拽编辑。
 
 ---
@@ -125,7 +125,20 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] 修改 target_area（session Program）
 - [x] Regenerate（按当前 spaces 整案重生成）
 
-下一刀 **4.1**：Lock Room / Stair / Zone → Regenerate unlocked（不做拖拽）。
+### Phase 4.1 — Lock → Regenerate unlocked（✅ MVP）
+
+- [x] Lock Room / Lock Stair（钉死当前候选几何）
+- [x] `GenerateRequest.locks` → Guillotine 挖洞 + 合并锁定放置
+- [x] Regenerate unlocked（未锁空间重排）
+- [ ] Lock Zone（后置；湿区/分区算法另开）
+- [ ] 拖拽几何（后置）
+
+### Phase 4.2 — Create Variant + Compare（← 当前）
+
+- [x] `GenerateRequest.base_seed`（additive）→ 新种子批次
+- [x] Create Variant：同 program/locks，**追加**候选条带（不替换）
+- [x] 自动设比较对象（旧选中 vs 新 Top）
+- [x] 沿用 `POST /api/compare`（React 不自算分）
 
 ```text
 ┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
