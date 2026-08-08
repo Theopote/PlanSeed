@@ -93,9 +93,13 @@ def compute_geometry_metrics(
 
 
 def geometry_score(metrics: dict[str, float]) -> float:
-    base = (
-        metrics.get("area_accuracy", 0) * 40
-        + metrics.get("compactness", 0) * 40
-        - metrics.get("aspect_ratio_penalty", 0)
-    )
+    """
+    房间比例质量（Metric Ownership：aspect / slender）。
+
+    不计入 area_accuracy / compactness（分属 program_fit / space_efficiency）。
+    """
+    penalty = float(metrics.get("aspect_ratio_penalty", 0.0))
+    slender = float(metrics.get("slender_room_count", 0.0))
+    # 基准 100；细长惩罚 + 房间数轻度扣分
+    base = 100.0 - min(45.0, penalty) - slender * 3.0
     return max(0.0, min(100.0, base))

@@ -281,6 +281,7 @@ DesignFinding
 - `CompositeEvaluator` 聚合 circulation / privacy / program_fit / stability 等 findings
 - `explanations` / `warnings` 由 findings 派生（兼容旧字段）
 - Desktop Inspector 按 **优势 / 注意 / 问题 / 说明** 分组展示
+- **Metric Ownership**：`area_accuracy`→program_fit；`aspect/slender`→geometry；`compactness`→space_efficiency（禁止重复扣分）
 
 仍收紧中：API 仅编排、Evaluator 不改几何、Renderer 只渲染。
 

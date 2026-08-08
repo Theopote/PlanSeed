@@ -1,4 +1,4 @@
-"""ProgramFit / SpaceEfficiency — Phase 3 分数 + Phase 3.5 findings。"""
+"""ProgramFit / SpaceEfficiency — Phase 3 + Metric Ownership（3.5）。"""
 
 from __future__ import annotations
 
@@ -15,7 +15,11 @@ def compute_program_fit_metrics(
     candidate: LayoutCandidate,
     weights: ScoreWeights = DEFAULT_WEIGHTS,
 ) -> dict[str, float]:
-    """程序符合度：面积份额 + 房间是否都落下。"""
+    """
+    程序符合度（owner：coverage + area_accuracy）。
+
+    area_accuracy 只在此计入总分，不再进入 geometry_score。
+    """
     geo = compute_geometry_metrics(program, candidate, weights)
     placed = {
         p.room_id
@@ -42,16 +46,20 @@ def compute_space_efficiency_metrics(
     candidate: LayoutCandidate,
     weights: ScoreWeights = DEFAULT_WEIGHTS,
 ) -> dict[str, float]:
+    """
+    空间效率（owner：compactness / perimeter efficiency）。
+
+    slender 只读展示，不计分（owner = geometry）。
+    """
     geo = compute_geometry_metrics(program, candidate, weights)
     compactness = float(geo.get("compactness", 1.0))
     slender = float(geo.get("slender_room_count", 0))
     n = max(1, len(program.rooms))
     slender_ratio = slender / n
-    eff = compactness * (1.0 - 0.5 * slender_ratio)
     return {
         "space_compactness": round(compactness, 4),
-        "slender_room_ratio": round(slender_ratio, 4),
-        "space_efficiency": round(max(0.0, min(1.0, eff)), 4),
+        "slender_room_ratio": round(slender_ratio, 4),  # 只读；不计 space_efficiency
+        "space_efficiency": round(max(0.0, min(1.0, compactness)), 4),
     }
 
 
@@ -146,17 +154,30 @@ def program_fit_findings(
             )
         )
 
-    eff = float(eff_m.get("space_efficiency", 1.0))
-    if eff >= 0.75:
+    compact = float(eff_m.get("space_compactness", eff_m.get("space_efficiency", 1.0)))
+    if compact >= 0.75:
         out.append(
             finding(
                 id="space_efficiency.compact",
                 category="space_efficiency",
                 severity=FindingSeverity.POSITIVE,
-                title="平面较紧凑",
-                message=f"空间效率指标 {eff:.0%}（紧凑度与细长比综合）。",
-                metric="space_efficiency",
-                measured_value=eff,
+                title="平面外轮廓较紧凑",
+                message=f"场地周长效率（compactness）{compact:.0%}。",
+                metric="compactness",
+                measured_value=compact,
+            )
+        )
+    elif compact < 0.55:
+        out.append(
+            finding(
+                id="space_efficiency.sprawling",
+                category="space_efficiency",
+                severity=FindingSeverity.WARNING,
+                title="平面外轮廓偏松散",
+                message=f"compactness={compact:.0%}，外墙周长相对占地效率偏低。",
+                metric="compactness",
+                measured_value=compact,
+                recommended_action="收紧 footprint 或减少凹凸。",
             )
         )
     return out

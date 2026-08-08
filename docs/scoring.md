@@ -43,13 +43,13 @@ DesignScore
 
 ### Geometry (`evaluation/geometry.py`)
 
-| Metric | 说明 |
-|--------|------|
-| `area_accuracy` | 面积**份额**与目标权重的一致性（非绝对 m²） |
-| `aspect_ratio_penalty` | 长宽比 > 2.2 惩罚 |
-| `compactness` | 紧凑度（perimeter efficiency） |
-| `perimeter_efficiency_pct` | compactness × 100 |
-| `slender_room_count` | 狭长房间数 |
+| Metric | Owner | 说明 |
+|--------|------|------|
+| `aspect_ratio_penalty` / `slender_room_count` | **geometry** | 房间比例 |
+| `area_accuracy` | program_fit（只计算，geometry 不计分） | 份额一致性 |
+| `compactness` | space_efficiency（只计算） | 周长效率 |
+
+`geometry_score` **仅**反映比例质量（aspect / slender），不再加权 area / compactness。
 
 #### area_accuracy 语义
 
@@ -135,11 +135,17 @@ Model：`y=0` = model north，`x=0` = model west（绘图坐标）。
 
 ### Program Fit / Space Efficiency (`evaluation/program_fit.py`)
 
-| Metric | 说明 |
-|--------|------|
-| `program_coverage` | 程序房间是否都落下 |
-| `program_fit` | coverage + area_accuracy |
-| `space_efficiency` | compactness × (1 − 0.5×细长比) |
+| Metric | Owner | 说明 |
+|--------|------|------|
+| `program_coverage` | **program_fit** | 房间是否都落下 |
+| `program_area_accuracy` / `area_accuracy` | **program_fit** | 面积份额（总分只在此计） |
+| `compactness` | **space_efficiency** | 外轮廓周长效率 |
+| `slender_room_ratio` | geometry（只读） | 不计 space_efficiency 分 |
+
+### Metric Ownership（Phase 3.5）
+
+每个原始 metric **只属于一个 primary score**。其他 evaluator 可引用 metric 写 findings，但不得重复加权进 `total_score`。  
+权威表：`solver/evaluation/ownership.py`。
 
 ### Circulation（续）
 
@@ -170,10 +176,12 @@ Phase 1 将这些逻辑拆分迁移：
 ```text
 total = Σ (score_i × w_i) / Σ w_i
 
-geometry 0.20 | adjacency 0.12 | vertical 0.12 | site 0.08
+geometry 0.12 | adjacency 0.12 | vertical 0.12 | site 0.08
 orientation 0.10 | circulation 0.12 | privacy 0.10
-program_fit 0.08 | space_efficiency 0.04 | layout_stability 0.04
+program_fit 0.12 | space_efficiency 0.08 | layout_stability 0.04
 ```
+
+（geometry / program_fit / space_efficiency 已按 Metric Ownership 去重加权。）
 
 权重见 `solver/evaluation/weights.py`（`ScoreWeights`）。
 
