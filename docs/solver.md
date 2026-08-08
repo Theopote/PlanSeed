@@ -77,7 +77,51 @@ LayoutCandidate[]
 Top K candidates
 ```
 
-## GuillotineGenerator 算法要点（Phase 1 迁移）
+## RequirementSpec uncertainty（Phase 1.5）
+
+`normalize_requirements()` 必须真正使用 `assumptions` / `unknowns`：
+
+| 情况 | 行为 |
+|------|------|
+| 未指定 `household.bedrooms` 等 | 应用住宅默认，**写入 assumption** |
+| 未指定 `site.width` / `site.depth` | **写入 unknown**，不默认 11×13，`can_solve=False` |
+| 未指定房间面积 | 默认面积 + assumption |
+| 未提供空间清单 | 基准程序 + assumption `spaces.program` |
+
+返回 `RequirementsNormalizeResult`；需要 program 时用 `normalize_requirements_to_program()`（缺地块则抛 `IncompleteRequirementsError`）。
+
+决策痕迹同步挂到 `DesignProgram.assumptions` / `unknowns`。
+
+## FloorAssignment（Phase 1.5）
+
+
+楼层归属由独立 `FloorAssignmentSolver` 完成，**不在 Generator 内猜测**。
+
+```text
+rooms + floors + constraints
+        ↓
+explicit FloorConstraint / room_ids / floor_id / preference
+        ↓
+implicit residential rules（可解释 rule_id）
+        ↓
+FloorAssignment
+        ↓
+floor.room_ids + RoomSpec.floor_id
+```
+
+住宅默认规则（第一版）：
+
+| 规则 | 楼层 |
+|------|------|
+| PUBLIC / kitchen / dining / garage / elderly bedroom | F1 |
+| PRIVATE / master bedroom / study | F2（上层） |
+| 主卫 | 跟随主卧 |
+| 其他卫浴 | wet stacking / 跟随私密区 |
+
+每条决策含 `source` / `source_key` / `rule_id` / `reason`，写入 `DesignProgram.floor_assignment`。
+
+## GuillotineGenerator
+
 
 来自 `reference/floorplan-generator.html`：
 

@@ -6,7 +6,7 @@ import json
 
 from packages.schema.requirements import RequirementSpec, SiteRequirements
 from solver.pipeline import run_pipeline
-from solver.program.requirements_normalize import normalize_requirements
+from solver.program.requirements_normalize import normalize_requirements_to_program
 
 
 def build_benchmark_program():
@@ -14,7 +14,7 @@ def build_benchmark_program():
         site=SiteRequirements(width=11, depth=13),
         floor_count=2,
     )
-    return normalize_requirements(req)
+    return normalize_requirements_to_program(req)
 
 
 def main() -> None:

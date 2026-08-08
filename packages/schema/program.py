@@ -5,7 +5,9 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from packages.schema.constraints import Constraint
+from packages.schema.floor_assignment import FloorAssignment
 from packages.schema.project import ProjectSpec
+from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import Rect2D, SiteSpec
 from packages.schema.topology import RoomGraph
@@ -38,6 +40,18 @@ class DesignProgram(BaseModel):
     rooms: list[RoomSpec]
     constraints: list[Constraint]
     room_graph: RoomGraph | None = None
+    floor_assignment: FloorAssignment | None = Field(
+        default=None,
+        description="楼层归属决策（可解释）；由 FloorAssignmentSolver 产出",
+    )
+    assumptions: list[Assumption] = Field(
+        default_factory=list,
+        description="规范化时采用的可解释假设",
+    )
+    unknowns: list[UnknownRequirement] = Field(
+        default_factory=list,
+        description="用户未提供且未推断的信息",
+    )
     solver_config: SolverConfig = Field(default_factory=SolverConfig)
 
     def rooms_on_floor(self, floor_id: str) -> list[RoomSpec]:

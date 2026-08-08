@@ -5,7 +5,7 @@ from __future__ import annotations
 from packages.schema.requirements import RequirementSpec, SiteRequirements
 from solver.optimization.rank import layout_similarity
 from solver.pipeline import run_pipeline
-from solver.program.requirements_normalize import normalize_requirements
+from solver.program.requirements_normalize import normalize_requirements_to_program
 from solver.tests.test_guillotine import benchmark_program
 
 
@@ -37,7 +37,7 @@ class TestPipeline:
 
     def test_requirement_spec_normalize(self):
         req = RequirementSpec(site=SiteRequirements(width=11, depth=13), floor_count=2)
-        program = normalize_requirements(req)
+        program = normalize_requirements_to_program(req)
         assert program.buildable.width == 11
         assert len(program.floors) == 2
         assert len(program.rooms) == 10

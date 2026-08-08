@@ -21,13 +21,14 @@ def normalize(spec: ProjectSpec, config: SolverConfig | None = None) -> DesignPr
     """
     将 ProjectSpec 规范化为 DesignProgram。
 
-    - 保证每个房间归属恰好一层（防“凭空消失”）
+    - FloorAssignmentSolver：显式约束 → 住宅规则 → floor.room_ids
     - 推导 buildable envelope
     - 从 RoomSpec 字段生成 implicit constraints（若未显式提供）
     - 构建初始 RoomGraph
     """
-    ensure_floor_assignment(spec.rooms, spec.floors)
+    assignment = ensure_floor_assignment(spec.rooms, spec.floors, spec.constraints)
     program = DesignProgram.from_project(spec, config)
+    program.floor_assignment = assignment
     program.constraints = _merge_implicit_constraints(spec, program.constraints)
     program.room_graph = build_room_graph(spec)
     return program
