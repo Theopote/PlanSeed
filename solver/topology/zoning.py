@@ -1,13 +1,8 @@
 """
 ZonePlanner — envelope/core 之后、房间切分之前的分区层。
 
-DesignProgram rooms
-      ↓
-zone assignment (day/night/service)
-      ↓
-zone geometry in free rects
-      ↓
-RoomLayout (Guillotine) within each zone
+Functional Zone（DAY/NIGHT/SERVICE）决定平面打包；
+WetStackGroup（WS1…）决定跨层技术叠置条带，二者分离。
 """
 
 from __future__ import annotations
@@ -19,6 +14,8 @@ from packages.schema.room import RoomCategory, RoomSpec
 from packages.schema.zoning import (
     ArchitecturalZone,
     FloorZonePlan,
+    RoomZoning,
+    WetStackGroup,
     ZoneGeometry,
     ZoneRoomGroup,
 )
@@ -26,43 +23,96 @@ from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 
 
-def zone_for_room(room: RoomSpec) -> ArchitecturalZone:
-    """房间 → 建筑分区（可解释默认映射）。"""
+def classify_room(room: RoomSpec) -> RoomZoning:
+    """
+    房间 → 功能分区 + 可选湿区技术叠组。
+
+    例：厨房 Functional=DAY, Stack=WS1；主卫 Functional=NIGHT, Stack=WS1。
+    """
     tags = {t.lower() for t in room.tags}
     name = room.name
 
     if room.category == RoomCategory.CIRCULATION:
-        return ArchitecturalZone.CIRCULATION
-    if room.category == RoomCategory.PUBLIC:
-        return ArchitecturalZone.DAY
-    if room.category == RoomCategory.PRIVATE:
-        return ArchitecturalZone.NIGHT
-    if room.category == RoomCategory.SERVICE:
-        return ArchitecturalZone.SERVICE
+        return RoomZoning(functional_zone=ArchitecturalZone.CIRCULATION)
+
+    # --- 湿区细分：功能与技术栈分离 ---
+    is_kitchen = (
+        "kitchen" in tags
+        or "厨" in name
+        or ("餐" in name and "厨" in name)
+        or name in ("餐厅+厨房",)
+    )
+    is_master_bath = (
+        "主卫" in name
+        or "ensuite" in tags
+        or "master_bath" in tags
+        or "master-bath" in tags
+    )
+    is_laundry = "洗衣" in name or "laundry" in tags
+    is_guest_wc = (
+        room.category == RoomCategory.WET
+        and not is_kitchen
+        and not is_master_bath
+        and not is_laundry
+    )
+
+    if is_kitchen:
+        return RoomZoning(
+            functional_zone=ArchitecturalZone.DAY,
+            wet_stack_group=WetStackGroup.WS1,
+        )
+    if is_master_bath:
+        return RoomZoning(
+            functional_zone=ArchitecturalZone.NIGHT,
+            wet_stack_group=WetStackGroup.WS1,
+        )
+    if is_laundry:
+        return RoomZoning(
+            functional_zone=ArchitecturalZone.SERVICE,
+            wet_stack_group=WetStackGroup.WS1,
+        )
+    if is_guest_wc or (
+        room.category == RoomCategory.WET and "卫" in name
+    ):
+        return RoomZoning(
+            functional_zone=ArchitecturalZone.SERVICE,
+            wet_stack_group=WetStackGroup.WS1,
+        )
     if room.category == RoomCategory.WET:
-        # 主卫属于 private suite，不并入整栋 service/wet 带
-        if (
-            "主卫" in name
-            or "ensuite" in tags
-            or "master_bath" in tags
-            or "master-bath" in tags
-        ):
-            return ArchitecturalZone.NIGHT
-        return ArchitecturalZone.SERVICE
+        return RoomZoning(
+            functional_zone=ArchitecturalZone.SERVICE,
+            wet_stack_group=WetStackGroup.WS1,
+        )
+
+    if room.category == RoomCategory.PUBLIC:
+        return RoomZoning(functional_zone=ArchitecturalZone.DAY)
+    if room.category == RoomCategory.PRIVATE:
+        return RoomZoning(functional_zone=ArchitecturalZone.NIGHT)
+    if room.category == RoomCategory.SERVICE:
+        return RoomZoning(functional_zone=ArchitecturalZone.SERVICE)
     if "garage" in tags or "车库" in name or "储藏" in name:
-        return ArchitecturalZone.SERVICE
+        return RoomZoning(functional_zone=ArchitecturalZone.SERVICE)
     if "书房" in name or "study" in tags:
-        return ArchitecturalZone.NIGHT
+        return RoomZoning(functional_zone=ArchitecturalZone.NIGHT)
     if room.category == RoomCategory.OTHER:
-        return ArchitecturalZone.DAY
-    return ArchitecturalZone.DAY
+        return RoomZoning(functional_zone=ArchitecturalZone.DAY)
+    return RoomZoning(functional_zone=ArchitecturalZone.DAY)
+
+
+def zone_for_room(room: RoomSpec) -> ArchitecturalZone:
+    """兼容入口：仅返回功能分区。"""
+    return classify_room(room).functional_zone
+
+
+def wet_stack_group_for_room(room: RoomSpec) -> WetStackGroup | None:
+    return classify_room(room).wet_stack_group
 
 
 class ZonePlanner:
     """
     分区策略：
-    - SERVICE：整栋共享一条带（湿区跨层对齐）
-    - DAY / NIGHT：按层在剩余空间内切分；本层无房间的 zone 不占位（空区回收）
+    - 功能区 DAY/NIGHT/SERVICE：按层在 free_rects 内切分（空区回收）
+    - 技术湿区条带：整栋共享几何，仅写入 wet_stack_band（不对功能打包抢空间）
     """
 
     def group_rooms(self, rooms: list[RoomSpec]) -> list[ZoneRoomGroup]:
@@ -94,14 +144,6 @@ class ZonePlanner:
         rng: random.Random | None = None,
         floor_id: str = "_shared",
     ) -> list[ZoneGeometry]:
-        """
-        将 free_rects 切成各 zone 的几何容器（不含楼层绑定）。
-
-        策略：
-        1. 按 zone 面积权重排序
-        2. 若仅一块剩余矩形且多 zone → 按权重切分成条带
-        3. 若多块剩余矩形 → 贪心把矩形分给 zone
-        """
         rng = rng or random.Random(0)
         groups = [g for g in self.group_rooms(rooms) if g.room_ids]
         if not groups or not free_rects:
@@ -143,101 +185,98 @@ class ZonePlanner:
         rng: random.Random | None = None,
     ) -> dict[str, FloorZonePlan]:
         """
-        整栋共享 SERVICE 带；各层在剩余区内只切本层有房间的 day/night。
+        各层按功能区打包（空区回收）；整栋共享 wet_stack_band 作技术对齐参考。
 
-        空区回收：F1 无 night 房间时，night 不占 residual；空间归 day（反之亦然）。
+        厨房进 DAY、主卫进 NIGHT、客卫进 SERVICE — 不再因 WET 挤进同一功能条带。
         """
         rng = rng or random.Random(0)
         all_rooms = [r for _, rooms in floors for r in rooms]
-        service_weight = sum(
-            r.target_area for r in all_rooms if zone_for_room(r) == ArchitecturalZone.SERVICE
-        )
-        other_weight = sum(
-            r.target_area
-            for r in all_rooms
-            if zone_for_room(r)
-            in (ArchitecturalZone.DAY, ArchitecturalZone.NIGHT)
-        )
 
-        service_rects, residual = self._carve_service_band(
+        stack_band = self._compute_wet_stack_band(
             free_rects,
-            service_weight=service_weight,
-            other_weight=other_weight,
+            all_rooms=all_rooms,
             snap_module=snap_module,
             rng=rng,
         )
 
         plans: dict[str, FloorZonePlan] = {}
         for floor_id, rooms in floors:
-            zones: list[ZoneGeometry] = []
-            service_ids = [
-                r.id for r in rooms if zone_for_room(r) == ArchitecturalZone.SERVICE
-            ]
-            for i, pr in enumerate(service_rects):
-                zones.append(
-                    ZoneGeometry(
-                        zone=ArchitecturalZone.SERVICE,
-                        floor_id=floor_id,
-                        rect=pr.model_copy(),
-                        room_ids=list(service_ids) if i == 0 else [],
-                    )
-                )
-
-            local_rooms = [
-                r
-                for r in rooms
-                if zone_for_room(r)
-                in (ArchitecturalZone.DAY, ArchitecturalZone.NIGHT)
-            ]
-            if local_rooms and residual:
-                zones.extend(
-                    self.plan_geometry(
-                        rooms=local_rooms,
-                        free_rects=residual,
-                        snap_module=snap_module,
-                        rng=rng,
-                        floor_id=floor_id,
-                    )
-                )
-            elif local_rooms and not residual and service_rects:
-                # 极端：无 residual 时把 day/night 并入 service 几何（仍可放置）
-                zones[0].room_ids = list(service_ids) + [r.id for r in local_rooms]
-
-            plans[floor_id] = FloorZonePlan(floor_id=floor_id, zones=zones)
+            zones = self.plan_geometry(
+                rooms=rooms,
+                free_rects=free_rects,
+                snap_module=snap_module,
+                rng=rng,
+                floor_id=floor_id,
+            )
+            plans[floor_id] = FloorZonePlan(
+                floor_id=floor_id,
+                zones=zones,
+                wet_stack_band=stack_band.model_copy() if stack_band else None,
+                wet_stack_group=WetStackGroup.WS1 if stack_band else None,
+            )
         return plans
 
-    def _carve_service_band(
+    def _compute_wet_stack_band(
         self,
         free_rects: list[Rect],
         *,
-        service_weight: float,
+        all_rooms: list[RoomSpec],
+        snap_module: float,
+        rng: random.Random,
+    ) -> PlacementRect | None:
+        """
+        技术湿区条带：按 WS 成员面积占比切出共享 AABB。
+
+        不从功能打包空间扣除 — 叠置语义与功能邻接解耦（Phase 2 再做 shaft 路由）。
+        """
+        ws_weight = sum(
+            r.target_area for r in all_rooms if wet_stack_group_for_room(r) is not None
+        )
+        if ws_weight <= 1e-9 or not free_rects:
+            return None
+
+        other_weight = sum(
+            r.target_area for r in all_rooms if wet_stack_group_for_room(r) is None
+        )
+        bands, _ = self._carve_band(
+            free_rects,
+            band_weight=ws_weight,
+            other_weight=other_weight,
+            snap_module=snap_module,
+            rng=rng,
+            min_frac=0.10,
+            max_frac=0.35,
+        )
+        return bands[0] if bands else None
+
+    def _carve_band(
+        self,
+        free_rects: list[Rect],
+        *,
+        band_weight: float,
         other_weight: float,
         snap_module: float,
         rng: random.Random,
+        min_frac: float = 0.12,
+        max_frac: float = 0.45,
     ) -> tuple[list[PlacementRect], list[Rect]]:
-        """
-        从最大剩余矩形切出共享 SERVICE 条带；其余矩形 + 切余 → residual。
-
-        无 service 权重时：不切带，全部 residual。
-        """
+        """从最大剩余矩形切出一条带；返回 (band_rects, residual)。"""
         if not free_rects:
             return [], []
 
         free_rects = sorted(free_rects, key=lambda r: r.area, reverse=True)
-        if service_weight <= 1e-9:
+        if band_weight <= 1e-9:
             return [], list(free_rects)
 
-        total_w = service_weight + other_weight
-        frac = service_weight / total_w if total_w > 1e-9 else 0.25
-        # 夹紧：service 至少约占 12%，至多 45%，避免挤死或吃光
-        frac = max(0.12, min(0.45, frac))
+        total_w = band_weight + other_weight
+        frac = band_weight / total_w if total_w > 1e-9 else 0.25
+        frac = max(min_frac, min(max_frac, frac))
 
         primary = free_rects[0]
         others = free_rects[1:]
         total_free = sum(r.area for r in free_rects)
         target_area = frac * total_free
 
-        # 优先切竖直条带（跨层 x 对齐更稳）；近似方块时由 rng 决定
         vertical_band = primary.width >= primary.depth
         if abs(primary.width - primary.depth) < 1e-6:
             vertical_band = rng.random() < 0.5
@@ -247,7 +286,6 @@ class ZonePlanner:
             raw_w = target_area / max(primary.depth, 1e-9)
             band = snap_value(raw_w, snap_module)
             band = max(min_span, min(primary.width - min_span, band))
-            # 条带贴右缘（湿区常见靠端）
             service = PlacementRect(
                 x=primary.right - band,
                 y=primary.y,

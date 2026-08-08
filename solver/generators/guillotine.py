@@ -41,7 +41,7 @@ class GuillotineGenerator:
     Generator #1 — Baseline Guillotine（RoomLayout strategy）。
 
     流水线：
-      StairCore → free rects → ZonePlanner(共享 SERVICE + 按层回收空区) → Guillotine
+      StairCore → free rects → ZonePlanner(功能区 + 技术湿区条带) → Guillotine
     """
 
     def __init__(self) -> None:
@@ -141,11 +141,11 @@ class GuillotineGenerator:
             if zg.room_ids:
                 zone_room_ids[zg.zone] = list(zg.room_ids)
 
-        # 共享 SERVICE 几何写入湿区 AABB（即使本层无 service 房间也保留，保证跨层对齐）
+        # 技术湿区条带（WetStack）写入对齐 AABB — 独立于功能 SERVICE 区
         wet_zone_rect: Rect | None = None
-        service_rects = zone_rects.get(ArchitecturalZone.SERVICE)
-        if service_rects:
-            wet_zone_rect = service_rects[0]
+        if zone_plan.wet_stack_band is not None:
+            b = zone_plan.wet_stack_band
+            wet_zone_rect = Rect(x=b.x, y=b.y, width=b.width, depth=b.depth)
 
         for zone, room_ids in zone_room_ids.items():
             rects = zone_rects.get(zone, [])
