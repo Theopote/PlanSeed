@@ -16,7 +16,7 @@ from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.requirements import RequirementSpec, SpaceRequirement
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
 from packages.schema.site import SetbackSpec, SiteSpec
-from packages.schema.topology import RoomEdge, RoomEdgeKind, RoomGraph
+from solver.program.floor_assign import ensure_floor_assignment
 from solver.program.normalize import build_room_graph, normalize as normalize_project
 
 
@@ -136,16 +136,8 @@ def _spaces_to_rooms_and_floors(
         )
         rooms.append(room)
 
-        assigned = floor_id or _auto_assign_floor(rid, category, floor_count)
-        if assigned:
-            for fl in floors:
-                if fl.id == assigned:
-                    fl.room_ids.append(rid)
-
-    for fl in floors:
-        if not fl.room_ids:
-            fl.room_ids = [r.id for r in rooms if r.floor_id == fl.id or fl.id in r.floor_preference]
-
+    # 统一楼层归属：永不留下未分配房间
+    ensure_floor_assignment(rooms, floors)
     return rooms, floors
 
 
@@ -172,12 +164,6 @@ def _default_area(space: SpaceRequirement, category: RoomCategory) -> float:
         if tag in DEFAULT_AREA_BY_TAG:
             return DEFAULT_AREA_BY_TAG[tag]
     return DEFAULT_AREA_BY_CATEGORY.get(category, 10.0)
-
-
-def _auto_assign_floor(rid: str, category: RoomCategory, floor_count: int) -> str | None:
-    if floor_count == 1:
-        return "F1"
-    return None
 
 
 def _default_benchmark_rooms(floor_count: int) -> tuple[list[RoomSpec], list[FloorSpec]]:

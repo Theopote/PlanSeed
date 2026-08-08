@@ -47,11 +47,22 @@ class DesignProgram(BaseModel):
         if floor.room_ids:
             id_set = set(floor.room_ids)
             return [r for r in self.rooms if r.id in id_set]
+        # room_ids 为空时退化为 floor_id / preference（normalize 后不应走到这里）
         return [
             r
             for r in self.rooms
             if r.floor_id == floor_id or floor_id in r.floor_preference
         ]
+
+    def assigned_room_ids(self) -> set[str]:
+        ids = {rid for fl in self.floors for rid in fl.room_ids}
+        if ids:
+            return ids
+        return {r.id for r in self.rooms if r.floor_id}
+
+    def unassigned_rooms(self) -> list[RoomSpec]:
+        covered = self.assigned_room_ids()
+        return [r for r in self.rooms if r.id not in covered]
 
     def room_by_id(self, room_id: str) -> RoomSpec | None:
         return next((r for r in self.rooms if r.id == room_id), None)

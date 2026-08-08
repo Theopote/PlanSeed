@@ -15,7 +15,7 @@ from packages.schema.layout import (
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory, RoomSpec
 from solver.geometry.snap import snap_value
-from solver.generators.base import CandidateGenerator
+from solver.program.floor_assign import assert_all_rooms_placed
 
 
 @dataclass
@@ -36,6 +36,7 @@ class GuillotineGenerator:
     """递归面积切分 + 楼梯/湿区条带对齐。"""
 
     def generate(self, program: DesignProgram, seed: int) -> LayoutCandidate:
+        assert_all_rooms_placed(program.rooms, program.floors)
         rng = random.Random(seed)
         module = program.solver_config.snap_module
         buildable = program.buildable

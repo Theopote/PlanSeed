@@ -14,16 +14,19 @@ from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import ProjectSpec
 from packages.schema.room import RoomCategory
 from packages.schema.topology import RoomEdge, RoomEdgeKind, RoomGraph
+from solver.program.floor_assign import ensure_floor_assignment
 
 
 def normalize(spec: ProjectSpec, config: SolverConfig | None = None) -> DesignProgram:
     """
     将 ProjectSpec 规范化为 DesignProgram。
 
+    - 保证每个房间归属恰好一层（防“凭空消失”）
     - 推导 buildable envelope
     - 从 RoomSpec 字段生成 implicit constraints（若未显式提供）
     - 构建初始 RoomGraph
     """
+    ensure_floor_assignment(spec.rooms, spec.floors)
     program = DesignProgram.from_project(spec, config)
     program.constraints = _merge_implicit_constraints(spec, program.constraints)
     program.room_graph = build_room_graph(spec)
