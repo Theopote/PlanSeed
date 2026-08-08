@@ -169,6 +169,61 @@ class TestFloorAssignmentSolver:
         }
         assert placed == {r.id for r in program.rooms}
 
+    def test_tags_drive_rules_without_chinese_name(self):
+        """Solver 读 tags；name 可为任意 UI 文案。"""
+        rooms = [
+            RoomSpec(
+                id="parents",
+                name="父母房",
+                category=RoomCategory.PRIVATE,
+                target_area=14,
+                tags=["bedroom", "elderly_accessible"],
+            ),
+            RoomSpec(
+                id="suite",
+                name="套房",
+                category=RoomCategory.PRIVATE,
+                target_area=20,
+                tags=["bedroom", "master"],
+            ),
+            RoomSpec(
+                id="west_kitchen",
+                name="西厨",
+                category=RoomCategory.WET,
+                target_area=8,
+                tags=["kitchen"],
+            ),
+            RoomSpec(
+                id="ensuite",
+                name="套房卫浴",
+                category=RoomCategory.WET,
+                target_area=5,
+                tags=["master_bath"],
+            ),
+        ]
+        floors = _two_empty_floors()
+        assignment = FloorAssignmentSolver().solve(rooms, floors)
+        assert assignment.floor_id_for("parents") == "F1"
+        assert assignment.decision_for("parents").rule_id == "elderly_bedroom.ground"
+        assert assignment.floor_id_for("suite") == "F2"
+        assert assignment.decision_for("suite").rule_id == "master_bedroom.upper"
+        assert assignment.floor_id_for("west_kitchen") == "F1"
+        assert assignment.floor_id_for("ensuite") == "F2"
+        assert assignment.decision_for("ensuite").rule_id == "wet.master_bath_follows_master"
+
+    def test_parents_room_without_tags_is_not_elderly_by_name(self):
+        """禁止靠「父母」子串推断；无 tags 时按普通 PRIVATE → 上层。"""
+        room = RoomSpec(
+            id="parents",
+            name="父母房",
+            category=RoomCategory.PRIVATE,
+            target_area=14,
+        )
+        floors = _two_empty_floors()
+        assignment = FloorAssignmentSolver().solve([room], floors)
+        assert assignment.floor_id_for("parents") == "F2"
+        assert assignment.decision_for("parents").rule_id == "private.upper"
+
     def test_assert_raises_when_rooms_missing(self):
         rooms = [RoomSpec(id="ghost", name="幽灵", category=RoomCategory.OTHER, target_area=10)]
         floors = [FloorSpec(id="F1", label="一层", room_ids=[])]

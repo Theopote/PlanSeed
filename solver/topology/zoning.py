@@ -22,64 +22,48 @@ from packages.schema.zoning import (
 )
 from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
+from solver.semantics.roles import (
+    is_garage,
+    is_guest_bath,
+    is_kitchen,
+    is_laundry,
+    is_master_bath,
+    is_storage,
+    is_study,
+)
 
 
 def classify_room(room: RoomSpec) -> RoomZoning:
     """
     房间 → 功能分区 + 可选湿区技术叠组。
 
-    例：厨房 Functional=DAY, Stack=WS1；主卫 Functional=NIGHT, Stack=WS1。
+    判定依据：category + semantic tags（见 solver.semantics.roles）；
+    name 仅作 MVP 冻结回退，不在此扩展中文子串。
     """
-    tags = {t.lower() for t in room.tags}
-    name = room.name
-
     if room.category == RoomCategory.CIRCULATION:
         return RoomZoning(functional_zone=ArchitecturalZone.CIRCULATION)
 
-    # --- 湿区细分：功能与技术栈分离 ---
-    is_kitchen = (
-        "kitchen" in tags
-        or "厨" in name
-        or ("餐" in name and "厨" in name)
-        or name in ("餐厅+厨房",)
-    )
-    is_master_bath = (
-        "主卫" in name
-        or "ensuite" in tags
-        or "master_bath" in tags
-        or "master-bath" in tags
-    )
-    is_laundry = "洗衣" in name or "laundry" in tags
-    is_guest_wc = (
-        room.category == RoomCategory.WET
-        and not is_kitchen
-        and not is_master_bath
-        and not is_laundry
-    )
-
-    if is_kitchen:
+    if is_kitchen(room):
         return RoomZoning(
             functional_zone=ArchitecturalZone.DAY,
             wet_stack_group=WetStackGroup.WS1,
         )
-    if is_master_bath:
+    if is_master_bath(room):
         return RoomZoning(
             functional_zone=ArchitecturalZone.NIGHT,
             wet_stack_group=WetStackGroup.WS1,
         )
-    if is_laundry:
+    if is_laundry(room):
         return RoomZoning(
             functional_zone=ArchitecturalZone.SERVICE,
             wet_stack_group=WetStackGroup.WS1,
         )
-    if is_guest_wc or (
-        room.category == RoomCategory.WET and "卫" in name
+    if is_guest_bath(room) or (
+        room.category == RoomCategory.WET
+        and not is_kitchen(room)
+        and not is_master_bath(room)
+        and not is_laundry(room)
     ):
-        return RoomZoning(
-            functional_zone=ArchitecturalZone.SERVICE,
-            wet_stack_group=WetStackGroup.WS1,
-        )
-    if room.category == RoomCategory.WET:
         return RoomZoning(
             functional_zone=ArchitecturalZone.SERVICE,
             wet_stack_group=WetStackGroup.WS1,
@@ -91,9 +75,9 @@ def classify_room(room: RoomSpec) -> RoomZoning:
         return RoomZoning(functional_zone=ArchitecturalZone.NIGHT)
     if room.category == RoomCategory.SERVICE:
         return RoomZoning(functional_zone=ArchitecturalZone.SERVICE)
-    if "garage" in tags or "车库" in name or "储藏" in name:
+    if is_garage(room) or is_storage(room):
         return RoomZoning(functional_zone=ArchitecturalZone.SERVICE)
-    if "书房" in name or "study" in tags:
+    if is_study(room):
         return RoomZoning(functional_zone=ArchitecturalZone.NIGHT)
     if room.category == RoomCategory.OTHER:
         return RoomZoning(functional_zone=ArchitecturalZone.DAY)

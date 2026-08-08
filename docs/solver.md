@@ -177,7 +177,7 @@ FloorAssignment
 floor.room_ids + RoomSpec.floor_id
 ```
 
-住宅默认规则（第一版）：
+住宅默认规则（第一版；**判定看 tags，不看 name NLP**）：
 
 | 规则 | 楼层 |
 |------|------|
@@ -185,6 +185,9 @@ floor.room_ids + RoomSpec.floor_id
 | PRIVATE / master bedroom / study | F2（上层） |
 | 主卫 | 跟随主卧 |
 | 其他卫浴 | wet stacking / 跟随私密区 |
+
+语义入口：`solver/semantics/roles.py`（tags 优先；中文 name 回退为冻结 MVP）。  
+例：`name="父母房"` + `tags=[bedroom, elderly_accessible]` → 地面层；无 tags 时不靠「父母」二字推断。
 
 每条决策含 `source` / `source_key` / `rule_id` / `reason`，写入 `DesignProgram.floor_assignment`。
 

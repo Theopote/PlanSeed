@@ -48,7 +48,7 @@ ProjectSpec
 | `preferred_orientation` | 朝向偏好 |
 | `privacy_level` | 私密等级 |
 | `exterior_access` | 是否需要对外出口 |
-| `tags` | 自由标签（kitchen, garage 等） |
+| `tags` | **语义角色**（`kitchen`, `bedroom`, `master`, `elderly_accessible`…）；Solver 主判定依据。`name` 仅为 UI 文本 |
 
 `category` 枚举：`public | private | wet | service | circulation | other`
 

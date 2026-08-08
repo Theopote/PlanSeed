@@ -44,13 +44,19 @@ Visual Debugger（Phase 4）安排在 FastAPI 之前：纯 JSON 已难以判断�
 - [x] Quality regression 门槛 + demo 指标
 - [x] SVG debug（room id / target·actual area）
 
-### P1 Floor Assignment（✅ 已完成）
+### P1 Floor Assignment（✅ 已完成；语义边界见下）
 
 ```text
 Rooms → FloorAssignmentSolver → floor.room_ids
 ```
 
 Generator 不猜楼层。
+
+**语义边界（Phase 1.6 / 2）：** 住宅规则以 `RoomSpec.tags` 为准；`name` 是 UI 文本。  
+中文 name 子串回退冻结在 `solver/semantics/roles.py`，**禁止**再为「父母房 / 西厨 / 影音室」等加 `in name`。  
+自然语言 → tags 由 normalize / Phase 6 LLM 负责；Solver 不承担 NLP。
+
+---
 
 ### P2 StairCore（✅ 已完成；1.6 加固：禁止缩小）
 
@@ -105,14 +111,22 @@ Guillotine **保留**，但不再决定整栋住宅组织。
 
 ---
 
-## Phase 2 预告：门与可达性
+## Phase 2 预告：门与可达性 + 语义标签硬化
 
 矩形堆砌不是住宅。Phase 2 引入：
 
 - Door / Opening / Connection / AccessGraph
 - `unreachable room` 作为 hard validation
+- **tags / semantic role 成为唯一规则入口**（淘汰 Solver 侧中文 name 回退）
 
 可达性比「客厅是否 24㎡」更重要。
+
+示例：
+
+```text
+「父母房」  →  tags=[bedroom, elderly_accessible]   # LLM / normalize
+FloorAssignment / ZonePlanner 只读 tags，不读 name
+```
 
 ---
 

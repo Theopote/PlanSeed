@@ -58,7 +58,13 @@ class RoomSpec(BaseModel):
     privacy_level: PrivacyLevel = PrivacyLevel.PUBLIC
     exterior_access: bool = False
 
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "语义标签（semantic role），如 kitchen / bedroom / master / elderly_accessible；"
+            "Solver 以此判定规则，name 仅作 UI 文本"
+        ),
+    )
 
     def resolved_min_area(self) -> float:
         return self.min_area if self.min_area is not None else self.target_area * 0.85

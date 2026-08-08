@@ -6,13 +6,14 @@ FloorAssignmentSolver — 楼层归属独立求解。
         ↓
   explicit floor constraints / floor_id / room_ids / preference
         ↓
-  implicit residential rules
+  implicit residential rules（基于 tags / category，非 NLP）
         ↓
   FloorAssignment
         ↓
   floor.room_ids
 
 Generator 不得自行猜测楼层。
+住宅规则以 semantic tags 为准；中文 name 回退见 solver.semantics.roles（冻结 MVP）。
 """
 
 from __future__ import annotations
@@ -24,7 +25,14 @@ from packages.schema.floor_assignment import (
     RoomFloorDecision,
 )
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
-
+from solver.semantics.roles import (
+    is_dining,
+    is_elderly_bedroom,
+    is_garage,
+    is_kitchen,
+    is_master_bath,
+    is_master_bedroom,
+)
 
 class UnassignedRoomError(ValueError):
     """规范化后仍有房间未归属楼层。"""
@@ -228,9 +236,6 @@ class FloorAssignmentSolver:
         upper: str,
     ) -> tuple[str, str, str] | None:
         """返回 (floor_id, rule_id, reason)；浴室留给湿区第二遍。"""
-        tags = {t.lower() for t in room.tags}
-        name = room.name
-
         if room.category == RoomCategory.PUBLIC:
             return ground, "public.ground", "公共空间优先地面层"
 
@@ -240,25 +245,25 @@ class FloorAssignmentSolver:
         if room.category == RoomCategory.CIRCULATION:
             return ground, "circulation.ground", "交通空间默认地面层入口侧"
 
-        if "garage" in tags or "车库" in name:
+        if is_garage(room):
             return ground, "garage.ground", "车库必须地面层"
 
-        if self._is_kitchen(room):
+        if is_kitchen(room):
             return ground, "kitchen.ground", "厨房优先地面层"
 
-        if self._is_dining(room):
+        if is_dining(room):
             return ground, "dining.ground", "餐厅优先地面层"
 
-        if self._is_elderly_bedroom(room):
+        if is_elderly_bedroom(room):
             return ground, "elderly_bedroom.ground", "老人房优先地面层"
 
-        if self._is_master_bedroom(room):
+        if is_master_bedroom(room):
             return upper, "master_bedroom.upper", "主卧优先上层"
 
         if room.category == RoomCategory.PRIVATE:
             return upper, "private.upper", "私密卧室优先上层"
 
-        if room.category == RoomCategory.WET and (self._is_kitchen(room) or self._is_dining(room)):
+        if room.category == RoomCategory.WET and (is_kitchen(room) or is_dining(room)):
             return ground, "wet_kitchen_dining.ground", "厨餐湿区优先地面层"
 
         if room.category == RoomCategory.WET:
@@ -281,8 +286,8 @@ class FloorAssignmentSolver:
         floor_ids: list[str],
     ) -> tuple[str, str, str]:
         # 主卫 → 跟随主卧
-        if self._is_master_bath(room):
-            master = next((r for r in all_rooms if self._is_master_bedroom(r)), None)
+        if is_master_bath(room):
+            master = next((r for r in all_rooms if is_master_bedroom(r)), None)
             if master and master.id in decided:
                 return (
                     decided[master.id].floor_id,
@@ -298,11 +303,9 @@ class FloorAssignmentSolver:
             if r.id in decided and r.category == RoomCategory.WET
         ]
         if wet_floors:
-            # 若上层已有湿区则叠置上层；否则取众数
             preferred = upper if upper in wet_floors else wet_floors[0]
             return preferred, "wet.stacking", f"湿区叠置到已有湿区层 {preferred}"
 
-        # 跟随已分配的私密卧室层
         private_floors = [
             decided[r.id].floor_id
             for r in all_rooms
@@ -316,46 +319,6 @@ class FloorAssignmentSolver:
             )
 
         return upper, "wet.bathroom_upper", "卫浴默认上层"
-
-    @staticmethod
-    def _is_kitchen(room: RoomSpec) -> bool:
-        tags = {t.lower() for t in room.tags}
-        return "kitchen" in tags or "厨" in room.name
-
-    @staticmethod
-    def _is_dining(room: RoomSpec) -> bool:
-        tags = {t.lower() for t in room.tags}
-        return "dining" in tags or "餐厅" in room.name or (
-            "餐" in room.name and "厨" not in room.name
-        )
-
-    @staticmethod
-    def _is_elderly_bedroom(room: RoomSpec) -> bool:
-        tags = {t.lower() for t in room.tags}
-        return (
-            "elderly" in tags
-            or "elder" in tags
-            or "老人" in room.name
-            or "长辈" in room.name
-        )
-
-    @staticmethod
-    def _is_master_bedroom(room: RoomSpec) -> bool:
-        tags = {t.lower() for t in room.tags}
-        return (
-            "master_bedroom" in tags
-            or "master" in tags
-            or "主卧" in room.name
-        )
-
-    @staticmethod
-    def _is_master_bath(room: RoomSpec) -> bool:
-        tags = {t.lower() for t in room.tags}
-        return (
-            "master_bath" in tags
-            or "master_bathroom" in tags
-            or "主卫" in room.name
-        )
 
 
 def ensure_floor_assignment(
