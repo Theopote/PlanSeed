@@ -28,6 +28,45 @@ from solver.locks import check_lock_invariants
 from solver.topology.derive_access import ensure_access_graph
 
 
+def is_stair_placement(p: RoomPlacement) -> bool:
+    return p.room_id.startswith("stair-") or (
+        p.category == "circulation" and p.name is not None and "楼梯" in p.name
+    )
+
+
+def derive_stair_core_from_placements(
+    floors: list[FloorLayout],
+    *,
+    core_placement: str | None = None,
+) -> list[FloorLayout]:
+    """
+    从 stair-* placements 回填 FloorLayout.stair_*（评价当前几何）。
+
+    core_placement 可来自 locks.stair；无则保持 None。
+    """
+    out: list[FloorLayout] = []
+    for fl in floors:
+        stair = next((p for p in fl.placements if is_stair_placement(p)), None)
+        if stair is None:
+            out.append(fl)
+            continue
+        r = stair.rect
+        out.append(
+            fl.model_copy(
+                update={
+                    "stair_x0": r.x,
+                    "stair_y0": r.y,
+                    "stair_x1": r.x + r.width,
+                    "stair_y1": r.y + r.depth,
+                    "core_placement": core_placement
+                    if core_placement is not None
+                    else fl.core_placement,
+                }
+            )
+        )
+    return out
+
+
 def hydrate_candidate_from_placements(
     *,
     program: DesignProgram,
@@ -38,11 +77,11 @@ def hydrate_candidate_from_placements(
     variant_parent_id: str | None = None,
     variant_generation: int = 0,
     lock_snapshot_id: str | None = None,
+    core_placement: str | None = None,
 ) -> LayoutCandidate:
-    """由会话 placements 重建 LayoutCandidate；清空派生态。"""
+    """由会话 placements 重建 LayoutCandidate；清空门洞/评价派生态，推导楼梯 metadata。"""
     by_floor: dict[str, list[RoomPlacement]] = {}
     for p in placements:
-        # 用 program 补全 name/category
         room = program.room_by_id(p.room_id)
         enriched = p.model_copy(
             update={
@@ -61,10 +100,13 @@ def hydrate_candidate_from_placements(
                 placements=list(by_floor.get(fl.id, [])),
             )
         )
-    # 程序未列出的楼层（防御）
     for fid, pls in by_floor.items():
         if not any(f.floor_id == fid for f in floors):
             floors.append(FloorLayout(floor_id=fid, placements=list(pls)))
+
+    floors = derive_stair_core_from_placements(
+        floors, core_placement=core_placement
+    )
 
     return LayoutCandidate(
         id=candidate_id,
@@ -100,11 +142,12 @@ def revalidate_candidate(
     """
     用户编辑几何后的权威重算：
 
-    hydrate → exterior entry → checker（门洞 + realized access）
-    → optional lock invariants → evaluate（仅 valid）
+    hydrate（含 stair 推导）→ exterior entry → checker
+    → lock invariants → evaluate（仅 valid）
 
     **不**调用 resolve_required_connections（避免回改用户几何）。
     """
+    locks = locks or LayoutLocks()
     ensure_access_graph(program)
     candidate = hydrate_candidate_from_placements(
         program=program,
@@ -115,6 +158,7 @@ def revalidate_candidate(
         variant_parent_id=variant_parent_id,
         variant_generation=variant_generation,
         lock_snapshot_id=lock_snapshot_id,
+        core_placement=locks.stair.core_placement if locks.stair else None,
     )
 
     resolve_exterior_entry(program, candidate)
@@ -122,7 +166,6 @@ def revalidate_candidate(
     checker = DefaultConstraintChecker()
     validation = checker.check(program, candidate)
 
-    locks = locks or LayoutLocks()
     if locks.rooms or locks.stair or locks.zones:
         inv = check_lock_invariants(candidate, locks)
         if inv.hard_violations or inv.soft_violations or inv.warnings:

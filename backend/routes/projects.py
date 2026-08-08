@@ -46,6 +46,10 @@ class ProjectMeta(BaseModel):
 class ProjectPayload(BaseModel):
     form: dict[str, Any] = Field(default_factory=dict)
     program: dict[str, Any] | None = None
+    requirement_spec: dict[str, Any] | None = Field(
+        default=None,
+        description="Phase 5.1.1：canonical RequirementSpec；不可用 ProgramSummary 替代",
+    )
     locks: dict[str, Any] = Field(default_factory=dict)
     candidates: list[dict[str, Any]] = Field(default_factory=list)
     selected_id: str | None = None

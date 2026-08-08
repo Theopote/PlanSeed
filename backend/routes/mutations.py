@@ -22,7 +22,7 @@ from backend.schemas.api import (
     RoomPlacementPayload,
     ZonePlacementPayload,
 )
-from backend.services.generation import resolve_program
+from backend.services.generation import resolve_solve_input
 from backend.services.serialization import serialize_candidate
 
 router = APIRouter(tags=["mutations"])
@@ -105,12 +105,12 @@ def _to_zone_placements(rows: list[ZonePlacementPayload]) -> list[ZonePlacement]
 def mutations_preview(body: MutationPreviewRequest) -> MutationPreviewResult:
     if not body.placements:
         raise HTTPException(status_code=400, detail="placements 不能为空")
-    program = resolve_program(
+    program = resolve_solve_input(
         GenerateRequest(
             use_benchmark=body.use_benchmark,
             requirements=body.requirements,
         )
-    )
+    ).program
     return preview_mutation(
         program=program,
         placements=_to_room_placements(body.placements),
@@ -124,12 +124,12 @@ def mutations_preview(body: MutationPreviewRequest) -> MutationPreviewResult:
 def mutations_revalidate(body: MutationRevalidateRequest) -> CandidatePayload:
     if not body.placements:
         raise HTTPException(status_code=400, detail="placements 不能为空")
-    program = resolve_program(
+    program = resolve_solve_input(
         GenerateRequest(
             use_benchmark=body.use_benchmark,
             requirements=body.requirements,
         )
-    )
+    ).program
     cand = revalidate_candidate(
         program=program,
         placements=_to_room_placements(body.placements),

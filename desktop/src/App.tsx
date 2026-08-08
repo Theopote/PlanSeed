@@ -12,6 +12,8 @@ import {
   retryEngine,
   saveProject,
   setApiBase,
+  syncRequirementSpacesFromProgram,
+  fallbackRequirementFromForm,
   type CandidatePayload,
   type EngineLifecycle,
   type GenerateResponse,
@@ -25,6 +27,7 @@ import {
   type ProjectSummary,
   type RejectedCandidatePayload,
   type RequirementForm,
+  type RequirementSpecPayload,
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
 import { locksFingerprint } from "./lib/lineage";
@@ -112,6 +115,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [program, setProgram] = useState<ProgramSummary | null>(null);
+  const [requirementSpec, setRequirementSpec] =
+    useState<RequirementSpecPayload | null>(null);
   const [candidates, setCandidates] = useState<CandidatePayload[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareId, setCompareId] = useState<string | null>(null);
@@ -288,6 +293,9 @@ function App() {
   const applyResult = useCallback(
     (data: GenerateResponse) => {
       setProgram(data.program_summary);
+      if (data.requirement_spec) {
+        setRequirementSpec(data.requirement_spec);
+      }
       if (data.solver_identity) {
         setSolverIdentity(data.solver_identity);
       }
@@ -310,6 +318,15 @@ function App() {
     [relabel, stampRootLineage, locks],
   );
 
+  /** 会话求解用的 RequirementSpec：canonical + Program 面积补丁。 */
+  const resolveCanonicalSpec = useCallback((): RequirementSpecPayload | null => {
+    if (!program) return null;
+    if (requirementSpec) {
+      return syncRequirementSpacesFromProgram(requirementSpec, program);
+    }
+    return fallbackRequirementFromForm(form, program);
+  }, [program, requirementSpec, form]);
+
   const run = useCallback(
     async (mode: "form" | "benchmark" | "program" | "variant") => {
       setLoading(true);
@@ -317,18 +334,22 @@ function App() {
       try {
         if (mode === "variant") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
+          const spec = resolveCanonicalSpec();
+          if (!spec) throw new Error("缺少 RequirementSpec");
           const prevSelected = selectedId;
           const parent = candidates.find((c) => c.id === prevSelected) ?? null;
           const parentGen = parent?.variant_generation ?? 0;
           const fp = locksFingerprint(locks);
           const maxSeed = candidates.reduce((m, c) => Math.max(m, c.seed), -1);
-          const data = await generateFromProgram(form, program, {
+          const data = await generateFromProgram(spec, {
             locks: cloneLayoutLocks(locks),
             base_seed: maxSeed + 1,
             candidate_count: 8,
             return_top_k: 3,
           });
+          if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
           setProgram(data.program_summary);
+          if (data.solver_identity) setSolverIdentity(data.solver_identity);
           const fresh = data.candidates
             .filter((c) => !candidates.some((e) => e.id === c.id))
             .map((c) => ({
@@ -336,6 +357,8 @@ function App() {
               variant_parent_id: prevSelected,
               variant_generation: parentGen + 1,
               lock_snapshot_id: fp,
+              revision_status: c.revision_status ?? "generated",
+              mutations: c.mutations ?? [],
             }));
           const merged = relabel([...candidates, ...fresh]).slice(-16);
           setCandidates(merged);
@@ -359,52 +382,24 @@ function App() {
           return;
         }
 
-        let data: GenerateResponse;
         if (mode === "benchmark") {
           setLocks({ rooms: [], stair: null, zones: [] });
-          data = await generateBenchmark();
-          const fp = locksFingerprint({ rooms: [], stair: null, zones: [] });
-          setProgram(data.program_summary);
-          setCandidates(stampRootLineage(relabel(data.candidates), fp));
-          setStats({
-            generated: data.generated,
-            valid: data.valid,
-            rejected: data.rejected,
-          });
-          setRejectedCandidates(data.rejected_candidates ?? []);
-          setViolationSummary(data.violation_summary ?? {});
-          setSelectedId(data.candidates[0]?.id ?? null);
-          setCompareId(null);
-          setHighlightRoomIds([]);
-          setSelectedRoomId(null);
-          setError(null);
-          return;
-        } else if (mode === "program") {
-          if (!program) throw new Error("尚无 Program，请先 Generate");
-          data = await generateFromProgram(form, program, {
-            locks: cloneLayoutLocks(locks),
-          });
-        } else {
-          setLocks({ rooms: [], stair: null, zones: [] });
-          data = await generateFromForm(form);
-          const fp = locksFingerprint({ rooms: [], stair: null, zones: [] });
-          setProgram(data.program_summary);
-          setCandidates(stampRootLineage(relabel(data.candidates), fp));
-          setStats({
-            generated: data.generated,
-            valid: data.valid,
-            rejected: data.rejected,
-          });
-          setRejectedCandidates(data.rejected_candidates ?? []);
-          setViolationSummary(data.violation_summary ?? {});
-          setSelectedId(data.candidates[0]?.id ?? null);
-          setCompareId(null);
-          setHighlightRoomIds([]);
-          setSelectedRoomId(null);
-          setError(null);
+          applyResult(await generateBenchmark());
           return;
         }
-        applyResult(data);
+        if (mode === "program") {
+          if (!program) throw new Error("尚无 Program，请先 Generate");
+          const spec = resolveCanonicalSpec();
+          if (!spec) throw new Error("缺少 RequirementSpec");
+          applyResult(
+            await generateFromProgram(spec, {
+              locks: cloneLayoutLocks(locks),
+            }),
+          );
+          return;
+        }
+        setLocks({ rooms: [], stair: null, zones: [] });
+        applyResult(await generateFromForm(form));
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -419,26 +414,37 @@ function App() {
       candidates,
       selectedId,
       relabel,
-      stampRootLineage,
+      resolveCanonicalSpec,
     ],
   );
 
-  const onUpdateRoomTargetArea = useCallback((roomId: string, targetArea: number) => {
-    setProgram((prev) => {
-      if (!prev) return prev;
-      return {
+  const onUpdateRoomTargetArea = useCallback(
+    (roomId: string, targetArea: number) => {
+      setProgram((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          rooms: prev.rooms.map((r) =>
+            r.id === roomId ? { ...r, target_area: targetArea } : r,
+          ),
+        };
+      });
+      setRequirementSpec((prev) => {
+        if (!prev?.spaces) return prev;
+        return {
+          ...prev,
+          spaces: prev.spaces.map((s) =>
+            s.id === roomId ? { ...s, target_area: targetArea } : s,
+          ),
+        };
+      });
+      setLocks((prev) => ({
         ...prev,
-        rooms: prev.rooms.map((r) =>
-          r.id === roomId ? { ...r, target_area: targetArea } : r,
-        ),
-      };
-    });
-    // 改面积后解除该房间锁（避免面积与钉死几何冲突）
-    setLocks((prev) => ({
-      ...prev,
-      rooms: prev.rooms.filter((r) => r.room_id !== roomId),
-    }));
-  }, []);
+        rooms: prev.rooms.filter((r) => r.room_id !== roomId),
+      }));
+    },
+    [],
+  );
 
   const onToggleRoomLock = useCallback(
     (roomId: string) => {
@@ -495,10 +501,14 @@ function App() {
       mutation: Parameters<typeof previewMutation>[0]["mutation"],
     ): Promise<MutationPreviewResult | null> => {
       if (!selected?.placements || !program) return null;
+      const spec = resolveCanonicalSpec();
+      if (!spec) {
+        setMutationHint("缺少 RequirementSpec");
+        return null;
+      }
       try {
         const raw = await previewMutation({
-          form,
-          program,
+          requirementSpec: spec,
           placements: selected.placements,
           locks,
           mutation,
@@ -518,7 +528,7 @@ function App() {
         };
       }
     },
-    [selected, program, form, locks],
+    [selected, program, locks, resolveCanonicalSpec],
   );
 
   const scheduleAuthorityLiveHint = useCallback(
@@ -933,6 +943,7 @@ function App() {
         payload: {
           form,
           program,
+          requirement_spec: resolveCanonicalSpec(),
           locks: cloneLayoutLocks(locks),
           candidates,
           selected_id: selectedId,
@@ -963,6 +974,7 @@ function App() {
     selectedId,
     compareId,
     solverIdentity,
+    resolveCanonicalSpec,
   ]);
 
   const onOpenProjects = useCallback(async () => {
@@ -990,6 +1002,18 @@ function App() {
         setForm({ ...DEFAULT_FORM, ...(p.form as RequirementForm) });
       }
       setProgram((p.program as ProgramSummary) ?? null);
+      if (p.requirement_spec) {
+        setRequirementSpec(p.requirement_spec as RequirementSpecPayload);
+      } else if (p.program) {
+        setRequirementSpec(
+          fallbackRequirementFromForm(
+            { ...DEFAULT_FORM, ...(p.form as RequirementForm) },
+            p.program as ProgramSummary,
+          ),
+        );
+      } else {
+        setRequirementSpec(null);
+      }
       setLocks({
         rooms: p.locks?.rooms ?? [],
         stair: p.locks?.stair ?? null,
@@ -1018,6 +1042,7 @@ function App() {
       const dirty = (p.candidates ?? []).some(
         (c) => c.revision_status === "dirty",
       );
+      const missingSpec = !p.requirement_spec;
       if (detail.evaluation_version_mismatch) {
         setVersionHint(
           `评价版本已变（快照 ${p.schema_versions?.evaluation_version ?? "?"} → 当前 ${detail.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
@@ -1025,6 +1050,10 @@ function App() {
       } else if (dirty) {
         setVersionHint(
           "项目含已编辑草稿（Evaluation outdated）；评分非当前几何。",
+        );
+      } else if (missingSpec) {
+        setVersionHint(
+          "旧项目缺少 RequirementSpec，已用 form+program 降级重建；请重新 Generate 以固化意图。",
         );
       } else {
         setVersionHint(null);
@@ -1054,13 +1083,14 @@ function App() {
     setRevalidating(true);
     setError(null);
     try {
+      const spec = resolveCanonicalSpec();
+      if (!spec) throw new Error("缺少 RequirementSpec");
       const labelIndex = Math.max(
         0,
         candidates.findIndex((c) => c.id === selected.id),
       );
       const next = await revalidateMutation({
-        form,
-        program,
+        requirementSpec: spec,
         placements: selected.placements,
         locks: cloneLayoutLocks(locks),
         zones: selected.zones ?? [],
@@ -1100,7 +1130,7 @@ function App() {
     } finally {
       setRevalidating(false);
     }
-  }, [selected, program, form, locks, candidates]);
+  }, [selected, program, locks, candidates, resolveCanonicalSpec]);
 
   const lockCount =
     locks.rooms.length +

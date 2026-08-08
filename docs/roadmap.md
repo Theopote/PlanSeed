@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 5.1 ✅** · 下一：Phase 6 Local LLM  
-> **5 血缘持久化 ✅** · **4.3 受控编辑 ✅** · 详案：[phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md)  
+> **当前焦点：Phase 5.1.1 ✅** · 下一：Phase 6 Local LLM  
+> **5.1 Revision Integrity ✅** · 详案：[phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)  
 > 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -14,12 +14,13 @@
 | **4** | **Interactive Design Workbench** | **✅ 4.3 / 4.3.1** |
 | **5** | **Project Persistence** | **✅ P0/P1** |
 | **5.1** | **Revision Integrity & Mutation Single Source** | **✅ P0** |
-| **6** | **Local LLM Requirement Parsing** | 未开始（等 5.1 Done） |
+| **5.1.1** | **Program Fidelity Gate** | **✅ P0** |
+| **6** | **Local LLM Requirement Parsing** | **← 下一** |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
 | — | SVG Debug | ✅ 开发工具 |
 
 **平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
-**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；把 LLM 插队到 **5.1 完整性闸门**之前；runtime 与 solver **同时快速改**。
+**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；runtime 与 solver **同时快速改**。Phase 6 前须保持 RequirementSpec 为意图事实源。
 
 ### Desktop Alpha v0.1 — 契约冻结（至少到 v0.1 发布）
 
@@ -236,17 +237,32 @@ LockGuard → GeometryConstraintChecker → AccessImpactChecker → Commit → R
 - [x] 测试覆盖 mutation API + version preserve
 - [x] `POST /api/mutations/revalidate`（openings + evaluation；不经 Guillotine）
 
-**Phase 5.1 P0 已收口；可进入 Phase 6。**
+**Phase 5.1 P0 已收口。**
 
 ---
 
-## Phase 6 — Local LLM Requirement Parsing（未开始）
+## Phase 5.1.1 — Program Fidelity Gate（✅ P0）
+
+详案：[phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)
+
+LLM 前极短闸门：canonical `RequirementSpec` 往返 + revalidate 楼梯 metadata 推导。
+
+- [x] `GenerateResponse.requirement_spec` + `ProjectPayload.requirement_spec`
+- [x] Desktop 会话以 RequirementSpec 为事实源（禁止 ProgramSummary 反推）
+- [x] hydrate 从 `stair-*` placements 填 `stair_x0…` / `core_placement`
+- [x] 测试：spec 持久化往返；stair 对齐可测
+
+**已收口；可进入 Phase 6。**
+
+---
+
+## Phase 6 — Local LLM Requirement Parsing（← 下一）
 
 ```text
 Natural Language → (Ollama) → RequirementSpec → normalize → Solver
 ```
 
-禁止 LLM 输出坐标 / SVG / DesignProgram。**晚于 Phase 5.1 Revision Integrity。**
+禁止 LLM 输出坐标 / SVG / DesignProgram。LLM 写出的 `RequirementSpec` 必须进入会话事实源并随项目保存。
 
 ---
 
@@ -346,7 +362,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 5.1 ✅**；下一 Phase 6 Local LLM |
+| **当前主线** | **Phase 6** Local LLM（5.1.1 Program Fidelity ✅） |
 
 ---
 

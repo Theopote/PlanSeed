@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from fastapi import HTTPException
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
-from solver.fixtures.benchmark import benchmark_program
+from packages.schema.requirements import RequirementSpec
+from solver.fixtures.benchmark import benchmark_program, benchmark_requirement_spec
 from solver.pipeline import PipelineResult, run_pipeline
 from solver.program.requirements_normalize import (
     IncompleteRequirementsError,
@@ -16,14 +19,23 @@ from backend.schemas.api import GenerateRequest
 from backend.services.form_requirements import ensure_spaces_for_solve
 
 
-def resolve_program(body: GenerateRequest) -> DesignProgram:
-    """从请求体得到 DesignProgram；错误转为 HTTPException。"""
+@dataclass(frozen=True)
+class ResolvedSolveInput:
+    """求解输入：DesignProgram + 可追踪的 RequirementSpec（ensure_spaces 后）。"""
+
+    program: DesignProgram
+    requirement_spec: RequirementSpec | None
+
+
+def resolve_solve_input(body: GenerateRequest) -> ResolvedSolveInput:
+    """从请求体得到 DesignProgram 与 canonical RequirementSpec。"""
     try:
         if body.use_benchmark:
+            spec = benchmark_requirement_spec()
             program = benchmark_program()
         elif body.requirements is not None:
-            requirements = ensure_spaces_for_solve(body.requirements)
-            program = normalize_requirements_to_program(requirements)
+            spec = ensure_spaces_for_solve(body.requirements)
+            program = normalize_requirements_to_program(spec)
         else:
             raise HTTPException(
                 status_code=400,
@@ -36,13 +48,22 @@ def resolve_program(body: GenerateRequest) -> DesignProgram:
     except Exception as exc:  # noqa: BLE001 — 表单/规范化错误回给 UI
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    apply_solver_overrides(program, body)
+    return ResolvedSolveInput(program=program, requirement_spec=spec)
+
+
+def apply_solver_overrides(program: DesignProgram, body: GenerateRequest) -> None:
     if body.candidate_count is not None:
         program.solver_config.candidate_count = body.candidate_count
     if body.return_top_k is not None:
         program.solver_config.return_top_k = body.return_top_k
     if body.base_seed is not None:
         program.solver_config.base_seed = body.base_seed
-    return program
+
+
+def resolve_program(body: GenerateRequest) -> DesignProgram:
+    """兼容旧调用；新代码请用 resolve_solve_input。"""
+    return resolve_solve_input(body).program
 
 
 def generate_layouts(

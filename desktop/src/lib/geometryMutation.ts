@@ -1,8 +1,9 @@
 /**
- * Phase 5.1 — 会话侧几何 UI 辅助（非权威）。
+ * NON-AUTHORITATIVE CLIENT PREVIEW — Phase 5.1 / 5.1.1
  *
- * 裁决规则在 solver.mutation.authority / POST /api/mutations/preview。
- * 此处仅：visual snap、共墙手柄检测、预览文案。
+ * 本文件仅服务指针跟随、粗 snap、共墙手柄与文案。
+ * 几何合法性裁决在 solver.mutation.authority / POST /api/mutations/preview。
+ * 禁止在此添加 HARD_MIN_EDGE / zone lock / access 等 solver 规则复制。
  */
 
 import type { RoomPlacementPayload } from "../api/client";

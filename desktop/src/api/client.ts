@@ -191,6 +191,8 @@ export type GenerateResponse = {
   valid: number;
   rejected: number;
   program_summary: ProgramSummary;
+  /** Phase 5.1.1：求解用 canonical RequirementSpec */
+  requirement_spec?: RequirementSpecPayload | null;
   candidates: CandidatePayload[];
   violation_summary?: Record<string, number>;
   rejected_candidates?: RejectedCandidatePayload[];
@@ -218,6 +220,131 @@ export type RequirementForm = {
   has_garage: boolean;
   prefer_south_facing_living: boolean;
 };
+
+/** Phase 5.1.1 — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。 */
+export type RequirementSpecPayload = {
+  raw_text?: string | null;
+  site?: {
+    width?: number | null;
+    depth?: number | null;
+    north_angle?: number | null;
+    entrance_edge?: string | null;
+    road_edges?: string[];
+    setbacks?: Record<string, unknown> | null;
+  };
+  household?: {
+    occupants?: number | null;
+    bedrooms?: number | null;
+    bathrooms?: number | null;
+    has_garage?: boolean | null;
+    notes?: string;
+  };
+  spaces?: Array<{
+    id?: string | null;
+    name: string;
+    category?: string | null;
+    target_area?: number | null;
+    floor_preference?: string[];
+    tags?: string[];
+    preferred_orientation?: string | null;
+    min_width?: number | null;
+  }>;
+  preferences?: {
+    prefer_south_facing_living?: boolean | null;
+    prefer_open_kitchen_dining?: boolean | null;
+    prefer_compact_footprint?: boolean | null;
+    prefer_short_corridor?: boolean | null;
+    quiet_zone_away_from_entry?: boolean | null;
+    wet_stack_preference?: boolean | null;
+  };
+  floor_count?: number | null;
+  assumptions?: Array<{ key: string; value: unknown; reason?: string }>;
+  unknowns?: Array<{ key: string; description?: string }>;
+};
+
+/** 用 ProgramSummary 房间面积/楼层补丁 spaces（Inspector 改面积后保持 spec 同步）。 */
+export function syncRequirementSpacesFromProgram(
+  spec: RequirementSpecPayload,
+  program: ProgramSummary,
+): RequirementSpecPayload {
+  const byId = new Map(program.rooms.map((r) => [r.id, r]));
+  const spaces = (spec.spaces ?? []).map((s) => {
+    const id = s.id ?? null;
+    if (!id || !byId.has(id)) return s;
+    const room = byId.get(id)!;
+    return {
+      ...s,
+      name: room.name || s.name,
+      category: room.category ?? s.category,
+      target_area: room.target_area,
+      floor_preference: room.floor_id
+        ? [room.floor_id]
+        : (s.floor_preference ?? []),
+    };
+  });
+  // 程序有、spec 无的房间（少见）追加
+  const known = new Set(spaces.map((s) => s.id).filter(Boolean));
+  for (const room of program.rooms) {
+    if (known.has(room.id)) continue;
+    spaces.push({
+      id: room.id,
+      name: room.name,
+      category: room.category,
+      target_area: room.target_area,
+      floor_preference: room.floor_id ? [room.floor_id] : [],
+    });
+  }
+  return {
+    ...spec,
+    site: {
+      ...(spec.site ?? {}),
+      width: program.site_width,
+      depth: program.site_depth,
+    },
+    floor_count: program.floor_count,
+    spaces,
+  };
+}
+
+/** 仅在尚无 canonical spec 时的降级（旧项目）；新会话禁止依赖此路径。 */
+export function fallbackRequirementFromForm(
+  form: RequirementForm,
+  program?: ProgramSummary | null,
+): RequirementSpecPayload {
+  if (program) {
+    return {
+      site: { width: program.site_width, depth: program.site_depth },
+      household: {
+        bedrooms: form.bedrooms,
+        bathrooms: form.bathrooms,
+        has_garage: form.has_garage,
+      },
+      preferences: {
+        prefer_south_facing_living: form.prefer_south_facing_living,
+      },
+      floor_count: program.floor_count,
+      spaces: program.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        category: room.category,
+        target_area: room.target_area,
+        floor_preference: room.floor_id ? [room.floor_id] : [],
+      })),
+    };
+  }
+  return {
+    site: { width: form.width, depth: form.depth },
+    household: {
+      bedrooms: form.bedrooms,
+      bathrooms: form.bathrooms,
+      has_garage: form.has_garage,
+    },
+    preferences: {
+      prefer_south_facing_living: form.prefer_south_facing_living,
+    },
+    floor_count: form.floor_count,
+  };
+}
 
 export type AxisCompareRow = {
   key: string;
@@ -345,10 +472,9 @@ export async function generateFromForm(
   return r.json() as Promise<GenerateResponse>;
 }
 
-/** 用当前 Program 房间清单（含已改 target_area）重生成 — Phase 4.0/4.1/4.2。 */
+/** 用 canonical RequirementSpec（spaces 已与 Program 同步）重生成。 */
 export async function generateFromProgram(
-  form: RequirementForm,
-  program: ProgramSummary,
+  requirementSpec: RequirementSpecPayload,
   opts?: {
     candidate_count?: number;
     return_top_k?: number;
@@ -360,33 +486,17 @@ export async function generateFromProgram(
     use_benchmark: false,
     candidate_count: opts?.candidate_count ?? 16,
     return_top_k: opts?.return_top_k ?? 5,
-    requirements: {
-      site: {
-        width: program.site_width,
-        depth: program.site_depth,
-      },
-      household: {
-        bedrooms: form.bedrooms,
-        bathrooms: form.bathrooms,
-        has_garage: form.has_garage,
-      },
-      preferences: {
-        prefer_south_facing_living: form.prefer_south_facing_living,
-      },
-      floor_count: program.floor_count,
-      spaces: program.rooms.map((room) => ({
-        id: room.id,
-        name: room.name,
-        category: room.category,
-        target_area: room.target_area,
-        floor_preference: room.floor_id ? [room.floor_id] : [],
-      })),
-    },
+    requirements: requirementSpec,
   };
   if (opts?.base_seed != null) {
     body.base_seed = opts.base_seed;
   }
-  if (opts?.locks && (opts.locks.rooms.length > 0 || opts.locks.stair || (opts.locks.zones?.length ?? 0) > 0)) {
+  if (
+    opts?.locks &&
+    (opts.locks.rooms.length > 0 ||
+      opts.locks.stair ||
+      (opts.locks.zones?.length ?? 0) > 0)
+  ) {
     body.locks = {
       rooms: opts.locks.rooms,
       stair: opts.locks.stair ?? null,
@@ -420,6 +530,7 @@ export type ProjectSummary = {
 export type ProjectPayload = {
   form: RequirementForm | Record<string, unknown>;
   program: ProgramSummary | null;
+  requirement_spec?: RequirementSpecPayload | null;
   locks: LayoutLocks;
   candidates: CandidatePayload[];
   selected_id: string | null;
@@ -536,8 +647,7 @@ export type MutationPreviewApiResult = {
 /** Phase 5.1 — Python Geometry Mutation Authority。 */
 export async function previewMutation(opts: {
   useBenchmark?: boolean;
-  form: RequirementForm;
-  program: ProgramSummary;
+  requirementSpec?: RequirementSpecPayload | null;
   placements: RoomPlacementPayload[];
   locks: LayoutLocks;
   mutation: GeometryMutationRequest;
@@ -555,28 +665,10 @@ export async function previewMutation(opts: {
     snap_module: opts.snapModule ?? 0.3,
   };
   if (!opts.useBenchmark) {
-    body.requirements = {
-      site: {
-        width: opts.program.site_width,
-        depth: opts.program.site_depth,
-      },
-      household: {
-        bedrooms: opts.form.bedrooms,
-        bathrooms: opts.form.bathrooms,
-        has_garage: opts.form.has_garage,
-      },
-      preferences: {
-        prefer_south_facing_living: opts.form.prefer_south_facing_living,
-      },
-      floor_count: opts.program.floor_count,
-      spaces: opts.program.rooms.map((room) => ({
-        id: room.id,
-        name: room.name,
-        category: room.category,
-        target_area: room.target_area,
-        floor_preference: room.floor_id ? [room.floor_id] : [],
-      })),
-    };
+    if (!opts.requirementSpec) {
+      throw new Error("缺少 requirement_spec，无法预览 mutation");
+    }
+    body.requirements = opts.requirementSpec;
   }
   const r = await fetch(`${_apiBase}/api/mutations/preview`, {
     method: "POST",
@@ -599,8 +691,7 @@ export async function previewMutation(opts: {
 /** Phase 5.1 — 重算 openings / access / evaluation（不改几何）。 */
 export async function revalidateMutation(opts: {
   useBenchmark?: boolean;
-  form: RequirementForm;
-  program: ProgramSummary;
+  requirementSpec?: RequirementSpecPayload | null;
   placements: RoomPlacementPayload[];
   locks: LayoutLocks;
   zones?: ZonePlacementPayload[];
@@ -632,28 +723,10 @@ export async function revalidateMutation(opts: {
     revision_parent_id: opts.revisionParentId ?? opts.candidateId,
   };
   if (!opts.useBenchmark) {
-    body.requirements = {
-      site: {
-        width: opts.program.site_width,
-        depth: opts.program.site_depth,
-      },
-      household: {
-        bedrooms: opts.form.bedrooms,
-        bathrooms: opts.form.bathrooms,
-        has_garage: opts.form.has_garage,
-      },
-      preferences: {
-        prefer_south_facing_living: opts.form.prefer_south_facing_living,
-      },
-      floor_count: opts.program.floor_count,
-      spaces: opts.program.rooms.map((room) => ({
-        id: room.id,
-        name: room.name,
-        category: room.category,
-        target_area: room.target_area,
-        floor_preference: room.floor_id ? [room.floor_id] : [],
-      })),
-    };
+    if (!opts.requirementSpec) {
+      throw new Error("缺少 requirement_spec，无法 Revalidate");
+    }
+    body.requirements = opts.requirementSpec;
   }
   const r = await fetch(`${_apiBase}/api/mutations/revalidate`, {
     method: "POST",

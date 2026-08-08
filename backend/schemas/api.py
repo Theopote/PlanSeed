@@ -186,6 +186,10 @@ class GenerateResponse(BaseModel):
     valid: int
     rejected: int
     program_summary: ProgramSummary
+    requirement_spec: RequirementSpec | None = Field(
+        default=None,
+        description="Phase 5.1.1：求解用 canonical RequirementSpec（UI ProgramSummary 不可替代）",
+    )
     candidates: list[CandidatePayload]
     violation_summary: dict[str, int] = Field(default_factory=dict)
     rejected_candidates: list[RejectedCandidatePayload] = Field(default_factory=list)

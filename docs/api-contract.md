@@ -40,7 +40,7 @@
 | `CandidateProvenance` | solver / generator / evaluation_version |
 | `solver_identity` | generate / health 响应 |
 | `CompareRequest` / `CompareResponse` | `POST /api/compare` |
-| Projects CRUD | Phase 5：`GET/POST /api/projects`、`GET/DELETE /api/projects/{id}`；详见 [phase-5-persistence.md](phase-5-persistence.md) |
+| Projects CRUD | Phase 5 / 5.1.1：`GET/POST /api/projects`；payload 含 `requirement_spec`；详见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md) |
 | Mutation preview / revalidate | Phase 5.1：`POST /api/mutations/preview`、`POST /api/mutations/revalidate`；详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md) |
 
 ### SolverIdentity（算法契约，≠ engine_version）
