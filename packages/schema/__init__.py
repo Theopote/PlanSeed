@@ -23,15 +23,6 @@ from packages.schema.identity import (
     SOLVER_VERSION,
     solver_identity,
 )
-from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
-from packages.schema.lineage import lineage_label, locks_fingerprint
-from packages.schema.mutation import (
-    GeometryMutation,
-    MutationKind,
-    MutationPreviewResult,
-    MutationReject,
-    MutationSource,
-)
 from packages.schema.layout import (
     CandidateProvenance,
     CandidateValidation,
@@ -43,6 +34,15 @@ from packages.schema.layout import (
     Violation,
     WetStack,
     ZonePlacement,
+)
+from packages.schema.lineage import lineage_label, locks_fingerprint
+from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
+from packages.schema.mutation import (
+    GeometryMutation,
+    MutationKind,
+    MutationPreviewResult,
+    MutationReject,
+    MutationSource,
 )
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec

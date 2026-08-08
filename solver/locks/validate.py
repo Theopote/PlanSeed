@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.zoning import ArchitecturalZone
+
 from solver.geometry.rect import Rect, intersects
 from solver.topology.zoning import zone_for_room
 

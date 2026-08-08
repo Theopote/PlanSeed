@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from packages.schema.layout import LayoutCandidate, Violation
 from packages.schema.locks import LayoutLocks
+
 from solver.constraints.checker import ConstraintEvaluationResult
 from solver.geometry.rect import Rect
-
 
 _TOL = 1e-4
 

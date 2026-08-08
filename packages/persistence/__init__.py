@@ -7,7 +7,7 @@ import os
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +87,7 @@ class ProjectStore:
         project_id: str | None = None,
     ) -> dict[str, Any]:
         pid = project_id or str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         blob = json.dumps(payload, ensure_ascii=False)
         with self._connect() as conn:
             conn.execute(

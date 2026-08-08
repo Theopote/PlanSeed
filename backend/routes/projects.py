@@ -5,14 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-
 from packages.persistence import ProjectStore
 from packages.schema.identity import (
     EVALUATION_VERSION,
     GENERATOR_VERSION,
     SOLVER_VERSION,
 )
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 

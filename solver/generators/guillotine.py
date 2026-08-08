@@ -43,6 +43,7 @@ from solver.topology.plan import (
 )
 from solver.topology.zoning import ZonePlanner, zone_for_room
 
+
 def _mirror_wet_stack_onto_floor(
     floor: FloorLayout, stack: WetStack | None
 ) -> FloorLayout:

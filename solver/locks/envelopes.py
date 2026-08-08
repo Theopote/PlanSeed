@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from packages.schema.layout import RoomPlacement
 from packages.schema.locks import LayoutLocks
-from solver.geometry.rect import Rect, from_placement
 
+from solver.geometry.rect import Rect, from_placement
 
 _TOL = 1e-4
 

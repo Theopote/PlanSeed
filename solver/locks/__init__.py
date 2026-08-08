@@ -1,11 +1,11 @@
 """LayoutLocks 管线契约：校验 + 不变式。"""
 
-from solver.locks.invariants import check_lock_invariants
 from solver.locks.envelopes import (
     build_zone_member_envelopes,
     placement_in_envelope,
     placements_respect_zone_envelopes,
 )
+from solver.locks.invariants import check_lock_invariants
 from solver.locks.validate import (
     LockValidationError,
     LockValidationIssue,

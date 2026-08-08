@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from packages.schema.layout import PlacementRect
+
 from solver.geometry.rect import from_placement, shared_edge_length
 from solver.topology.constants import MIN_ACCESS_WALL
 
@@ -186,7 +187,7 @@ def _shared_wall_between(
         return None
     tol = 1e-6
     # 竖向共边（左右）→ axis=x
-    for left, right, lid, rid, lrect, rrect in (
+    for left, right, lid, rid, _lrect, _rrect in (
         (aa, bb, id_a, id_b, ra, rb),
         (bb, aa, id_b, id_a, rb, ra),
     ):

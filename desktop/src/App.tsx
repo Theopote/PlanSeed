@@ -728,7 +728,8 @@ function App() {
 
   const onToggleZoneLock = useCallback(
     (zone: string, floorId: string) => {
-      if (!selected?.zones) return;
+      const zones = selected?.zones;
+      if (!zones) return;
       setLocks((prev) => {
         const exists = prev.zones.some(
           (z) => z.zone === zone && z.floor_id === floorId,
@@ -741,7 +742,7 @@ function App() {
             ),
           };
         }
-        const matches = selected.zones.filter(
+        const matches = zones.filter(
           (z) => z.zone === zone && z.floor_id === floorId,
         );
         if (!matches.length) return prev;

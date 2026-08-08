@@ -275,7 +275,7 @@ export function FloorplanView({
   const syncFromPlacements = () => {
     const root = stageRef.current;
     if (!root || floorDepth <= 0) return;
-    for (const [roomId, base] of basesRef.current) {
+    for (const [roomId] of basesRef.current) {
       const pl = placementById(roomId);
       if (!pl) {
         const node = root.querySelector<SVGGElement>(
@@ -526,8 +526,9 @@ export function FloorplanView({
   }, [placements, floorDepth, floorIds, svg, selectedRoomId, onProposeMove, onProposeWall]);
 
   useEffect(() => {
-    const root = stageRef.current;
-    if (!root || !svg) return;
+    const maybeRoot = stageRef.current;
+    if (!maybeRoot || !svg) return;
+    const stageRoot: HTMLElement = maybeRoot;
 
     function finishDrag(ev: PointerEvent, commit: boolean) {
       const drag = dragRef.current;
@@ -539,8 +540,8 @@ export function FloorplanView({
       } catch {
         /* already released */
       }
-      root
-        ?.querySelectorAll(".room-node.is-dragging")
+      stageRoot
+        .querySelectorAll(".room-node.is-dragging")
         .forEach((el) => el.classList.remove("is-dragging"));
 
       if (!commit || !drag.moved) {
@@ -552,7 +553,7 @@ export function FloorplanView({
 
       const fw = floorWidth > 0 ? floorWidth : Number.POSITIVE_INFINITY;
       const fd = floorDepth > 0 ? floorDepth : Number.POSITIVE_INFINITY;
-      const svgEl = root?.querySelector("svg");
+      const svgEl = stageRoot.querySelector("svg");
 
       if (drag.kind === "adjust_wall" && drag.partnerRoomId && drag.wallAxis) {
         let coord = drag.originWallCoord;
@@ -807,7 +808,7 @@ export function FloorplanView({
       if (!drag.moved && dist < DRAG_THRESHOLD_PX) return;
       drag.moved = true;
 
-      const svgEl = root.querySelector("svg");
+      const svgEl = stageRoot.querySelector("svg");
       if (!svgEl) return;
       const pt = clientToSvg(svgEl, ev.clientX, ev.clientY);
       const startPt = clientToSvg(
@@ -858,12 +859,12 @@ export function FloorplanView({
                   applied.b.width,
                   applied.b.depth,
                 );
-                root
+                stageRoot
                   .querySelector(
                     `g.room-node[data-room-id="${CSS.escape(match.room_a)}"]`,
                   )
                   ?.classList.add("is-dragging");
-                root
+                stageRoot
                   .querySelector(
                     `g.room-node[data-room-id="${CSS.escape(match.room_b)}"]`,
                   )
@@ -937,7 +938,7 @@ export function FloorplanView({
 
       const ids = [drag.roomId, ...drag.siblingIds];
       for (const id of ids) {
-        const node = root.querySelector(
+        const node = stageRoot.querySelector(
           `g.room-node[data-room-id="${CSS.escape(id)}"]`,
         );
         node?.classList.add("is-dragging");
@@ -971,15 +972,15 @@ export function FloorplanView({
       finishDrag(ev, false);
     }
 
-    root.addEventListener("pointerdown", onPointerDown);
-    root.addEventListener("pointermove", onPointerMove);
-    root.addEventListener("pointerup", onPointerUp);
-    root.addEventListener("pointercancel", onPointerCancel);
+    stageRoot.addEventListener("pointerdown", onPointerDown);
+    stageRoot.addEventListener("pointermove", onPointerMove);
+    stageRoot.addEventListener("pointerup", onPointerUp);
+    stageRoot.addEventListener("pointercancel", onPointerCancel);
     return () => {
-      root.removeEventListener("pointerdown", onPointerDown);
-      root.removeEventListener("pointermove", onPointerMove);
-      root.removeEventListener("pointerup", onPointerUp);
-      root.removeEventListener("pointercancel", onPointerCancel);
+      stageRoot.removeEventListener("pointerdown", onPointerDown);
+      stageRoot.removeEventListener("pointermove", onPointerMove);
+      stageRoot.removeEventListener("pointerup", onPointerUp);
+      stageRoot.removeEventListener("pointercancel", onPointerCancel);
     };
   }, [
     svg,

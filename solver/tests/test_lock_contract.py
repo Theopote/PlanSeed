@@ -9,6 +9,7 @@ from packages.schema.layout import (
     RoomPlacement,
 )
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedZoneRect
+from pydantic import ValidationError
 from solver.fixtures.benchmark import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.rect import Rect
@@ -22,7 +23,7 @@ from solver.topology.connection_resolve import repair_connection_pair
 
 
 def test_illegal_zone_rejected_by_schema():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         LockedZoneRect(
             zone="banana",
             floor_id="F1",
