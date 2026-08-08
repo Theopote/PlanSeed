@@ -31,6 +31,9 @@ def test_generator_stamps_version():
     program = benchmark_program()
     cand = GuillotineGenerator().generate(program, seed=0)
     assert cand.metrics.get("generator_version") == GENERATOR_VERSION
+    assert cand.provenance is not None
+    assert cand.provenance.generator_version == GENERATOR_VERSION
+    assert cand.provenance.solver_version == SOLVER_VERSION
 
 
 def test_pipeline_evaluation_version():
@@ -46,6 +49,9 @@ def test_pipeline_evaluation_version():
         assert c.metrics.get("evaluation_version") == EVALUATION_VERSION
         assert c.metrics.get("solver_version") == SOLVER_VERSION
         assert c.metrics.get("generator_version") == GENERATOR_VERSION
+        assert c.provenance is not None
+        assert c.provenance.evaluation_version == EVALUATION_VERSION
+        assert c.provenance.solver_version == SOLVER_VERSION
 
 
 def test_health_and_generate_expose_identity():
@@ -68,3 +74,7 @@ def test_health_and_generate_expose_identity():
     assert body["solver_identity"] == solver_identity()
     top = body["candidates"][0]
     assert top["design_score"]["evaluation_version"] == EVALUATION_VERSION
+    prov = top["provenance"]
+    assert prov["solver_version"] == SOLVER_VERSION
+    assert prov["generator_version"] == GENERATOR_VERSION
+    assert prov["evaluation_version"] == EVALUATION_VERSION

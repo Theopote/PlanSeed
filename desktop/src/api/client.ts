@@ -11,6 +11,8 @@ export function setApiBase(url: string): void {
   _apiBase = url.replace(/\/$/, "");
 }
 
+export type EngineLifecycle = "STARTING" | "READY" | "ERROR" | "STOPPED";
+
 /** 浏览器用默认端口；Tauri 内从 get_engine_url 覆盖。 */
 export async function resolveEngineBase(): Promise<string> {
   try {
@@ -23,6 +25,12 @@ export async function resolveEngineBase(): Promise<string> {
     /* 非 Tauri / 命令未就绪 → 保留默认 */
   }
   return _apiBase;
+}
+
+/** Tauri：杀掉托管子进程并重新 spawn（浏览器需自行处理）。 */
+export async function retryEngine(): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("retry_engine");
 }
 
 export type DesignFinding = {
@@ -57,6 +65,12 @@ export type DesignScore = {
   }>;
 };
 
+export type CandidateProvenance = {
+  solver_version: string;
+  generator_version: string;
+  evaluation_version?: string | null;
+};
+
 export type CandidatePayload = {
   id: string;
   seed: number;
@@ -71,6 +85,7 @@ export type CandidatePayload = {
     warnings: string[];
   } | null;
   metrics: Record<string, unknown>;
+  provenance?: CandidateProvenance | null;
 };
 
 export type ProgramSummary = {
@@ -123,6 +138,21 @@ export type RequirementForm = {
   prefer_south_facing_living: boolean;
 };
 
+export type AxisCompareRow = {
+  key: string;
+  label: string;
+  score_a: number;
+  score_b: number;
+};
+
+export type CompareResponse = {
+  label_a: string;
+  label_b: string;
+  rows: AxisCompareRow[];
+  advantages_a: string[];
+  advantages_b: string[];
+};
+
 export async function checkHealth(): Promise<boolean> {
   try {
     const r = await fetch(`${_apiBase}/api/health`);
@@ -143,6 +173,35 @@ export async function checkHealth(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function compareCandidates(
+  evaluationA: DesignScore,
+  evaluationB: DesignScore,
+  labelA = "A",
+  labelB = "B",
+): Promise<CompareResponse> {
+  const r = await fetch(`${_apiBase}/api/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      evaluation_a: evaluationA,
+      evaluation_b: evaluationB,
+      label_a: labelA,
+      label_b: labelB,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: string };
+      if (body.detail) msg = body.detail;
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<CompareResponse>;
 }
 
 export async function generateBenchmark(

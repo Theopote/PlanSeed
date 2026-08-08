@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type {
+  EngineLifecycle,
   ProgramSummary,
   RejectedCandidatePayload,
   RequirementForm,
@@ -11,7 +12,8 @@ type Props = {
   onGenerate: () => void;
   onBenchmark: () => void;
   loading: boolean;
-  apiOk: boolean | null;
+  engineStatus: EngineLifecycle;
+  onRetryEngine: () => void;
   program: ProgramSummary | null;
   error: string | null;
   stats: { generated: number; valid: number; rejected: number } | null;
@@ -28,13 +30,27 @@ function topViolationEntries(
     .slice(0, limit);
 }
 
+function statusLabel(status: EngineLifecycle): string {
+  switch (status) {
+    case "READY":
+      return "已就绪";
+    case "STARTING":
+      return "启动中…";
+    case "ERROR":
+      return "异常";
+    case "STOPPED":
+      return "已停止";
+  }
+}
+
 export function RequirementsPanel({
   form,
   onChange,
   onGenerate,
   onBenchmark,
   loading,
-  apiOk,
+  engineStatus,
+  onRetryEngine,
   program,
   error,
   stats,
@@ -42,6 +58,7 @@ export function RequirementsPanel({
   violationSummary,
 }: Props) {
   const [rejectedOpen, setRejectedOpen] = useState(true);
+  const engineReady = engineStatus === "READY";
 
   function set<K extends keyof RequirementForm>(key: K, value: RequirementForm[K]) {
     onChange({ ...form, [key]: value });
@@ -62,10 +79,26 @@ export function RequirementsPanel({
       <header className="panel-head">
         <h1 className="brand">PlanSeed</h1>
         <p className="muted">需求 → 生成 → 评价</p>
-        <p className={`api-status ${apiOk === true ? "ok" : apiOk === false ? "bad" : ""}`}>
-          引擎{" "}
-          {apiOk === null ? "启动中…" : apiOk ? "已就绪" : "未就绪"}
+        <p
+          className={`api-status ${
+            engineStatus === "READY"
+              ? "ok"
+              : engineStatus === "ERROR" || engineStatus === "STOPPED"
+                ? "bad"
+                : ""
+          }`}
+        >
+          引擎 {statusLabel(engineStatus)}
         </p>
+        {(engineStatus === "ERROR" || engineStatus === "STOPPED") && (
+          <button
+            type="button"
+            className="secondary engine-retry"
+            onClick={onRetryEngine}
+          >
+            重试引擎
+          </button>
+        )}
       </header>
 
       <form className="req-form" onSubmit={handleSubmit}>
@@ -139,13 +172,13 @@ export function RequirementsPanel({
         </label>
 
         <div className="actions">
-          <button type="submit" disabled={loading || apiOk === false}>
+          <button type="submit" disabled={loading || !engineReady}>
             {loading ? "生成中…" : "Generate"}
           </button>
           <button
             type="button"
             className="secondary"
-            disabled={loading || apiOk === false}
+            disabled={loading || !engineReady}
             onClick={onBenchmark}
           >
             基准案例

@@ -1,4 +1,9 @@
 [[permission]]
 identifier = "allow-get-engine-url"
-description = "允许前端读取本地引擎 URL"
+description = "允许读取本地引擎 URL"
 commands.allow = ["get_engine_url"]
+
+[[permission]]
+identifier = "allow-retry-engine"
+description = "允许用户重试启动本地引擎"
+commands.allow = ["retry_engine"]

@@ -67,7 +67,12 @@ Rust 三态：
 | FOREIGN → 换端口自启 | ✅ |
 | `probe_engine` / `wait_for_engine`（非 port_open / wait_for_port） | ✅ |
 | spawn 失败 / health 超时 → 换端口重试 | ✅ |
-| setup 不阻塞；`engine-ready` 异步通知 | ✅ |
+| setup 不阻塞；`engine-status` / `engine-ready` 异步通知 | ✅ |
+| 状态机 STARTING / READY / ERROR / STOPPED + Retry | ✅ |
+| release `engine.log`（startup / port / fatal） | ✅ |
+| `POST /api/compare`（前端只展示） | ✅ |
+| `LayoutCandidate.provenance` first-class | ✅ |
+| Windows Alpha smoke 脚本 / 文档 | ✅ `scripts/windows_alpha_smoke.ps1` · [windows-alpha-smoke.md](windows-alpha-smoke.md) |
 | Windows onedir 真装包验收 | ✅ NSIS 安装于 `%LocalAppData%\PlanSeed`；自启引擎；表单/基准 Generate + Compare 通过 |
 ---
 

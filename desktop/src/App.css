@@ -104,6 +104,11 @@ body,
   color: var(--bad);
 }
 
+.engine-retry {
+  margin-top: 0.4rem;
+  width: 100%;
+}
+
 .req-form {
   display: grid;
   gap: 0.65rem;

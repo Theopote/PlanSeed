@@ -6,11 +6,14 @@
 //! - FOREIGN_SERVICE → 换端口 + spawn PlanSeed
 //!
 //! 就绪判定：poll /api/health + identity/version（应用级），不是 TCP listen。
+//! 状态：STARTING | READY | ERROR | STOPPED；崩溃 emit ERROR，用户可 Retry。
 
+use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -29,6 +32,25 @@ struct BackendChild(Mutex<Option<Child>>);
 
 struct EngineMeta {
     url: Mutex<String>,
+    /// 防止并发 spawn / retry 叠成 restart loop
+    spawning: AtomicBool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum EngineLifecycle {
+    Starting,
+    Ready,
+    Error,
+    Stopped,
+}
+
+#[derive(Clone, Serialize)]
+struct EngineStatusPayload {
+    status: EngineLifecycle,
+    url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -63,6 +85,22 @@ fn preferred_port() -> u16 {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8787)
+}
+
+fn engine_log_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_log_dir().ok()?;
+    let _ = fs::create_dir_all(&dir);
+    Some(dir.join("engine.log"))
+}
+
+fn append_engine_log(app: &tauri::AppHandle, line: &str) {
+    let Some(path) = engine_log_path(app) else {
+        return;
+    };
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{}", line);
+    }
+    log::info!("[engine] {line}");
 }
 
 fn tcp_connectable(host: &str, port: u16) -> bool {
@@ -128,7 +166,6 @@ fn probe_engine(host: &str, port: u16) -> PortIdentity {
     }
 }
 
-/// 建议候选端口（不长期持有 bind；真正可用性由 spawn + health 确认）。
 fn suggest_port(host: &str, preferred: u16, attempt: u32) -> u16 {
     if attempt == 0 {
         match probe_engine(host, preferred) {
@@ -145,14 +182,12 @@ fn suggest_port(host: &str, preferred: u16, attempt: u32) -> u16 {
 }
 
 fn suggest_ephemeral(host: &str) -> Option<u16> {
-    // bind→读 port→立即 drop：存在极小竞态，由 spawn 失败 / health 超时后重试消化
     TcpListener::bind((host, 0))
         .ok()
         .and_then(|l| l.local_addr().ok())
         .map(|a| a.port())
 }
 
-/// 应用级就绪：poll health 身份；子进程提前退出则失败。
 fn wait_for_engine(host: &str, port: u16, child: &mut Child, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
@@ -187,9 +222,6 @@ fn spawn_dev_backend(root: &Path, host: &str, port: u16) -> Result<Child, String
         .map_err(|e| format!("failed to spawn uv backend: {e}"))
 }
 
-/// 正式路径（唯一契约）：
-///   `{resource_dir}/planseed-backend/planseed-backend(.exe)`
-/// debug 才允许少量兼容探测，避免安装器结构变化时无限加 fallback。
 fn sidecar_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let exe_name = if cfg!(windows) {
         "planseed-backend.exe"
@@ -209,7 +241,6 @@ fn sidecar_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
     #[cfg(debug_assertions)]
     {
-        // 仅开发兼容：扁平资源 / 旁路 resources（正式包禁止依赖这些）
         let flat = resource_dir.join(exe_name);
         if flat.exists() {
             log::warn!("using debug-only flat sidecar path: {:?}", flat);
@@ -235,17 +266,21 @@ fn sidecar_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     ))
 }
 
-fn spawn_release_backend(app: &tauri::AppHandle, host: &str, port: u16) -> Result<Child, String> {
+fn spawn_release_backend(
+    app: &tauri::AppHandle,
+    host: &str,
+    port: u16,
+) -> Result<Child, String> {
     let path = sidecar_path(app)?;
     let workdir = path.parent().map(Path::to_path_buf);
     let mut cmd = Command::new(&path);
     cmd.env("PLANSEED_HOST", host)
-        .env("PLANSEED_PORT", port.to_string())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .env("PLANSEED_PORT", port.to_string());
     if let Some(dir) = workdir {
         cmd.current_dir(dir);
     }
+    // 进程 stdout/stderr 丢弃；启动/端口/fatal 写 app_log_dir/engine.log（结构化）
+    cmd.stdout(Stdio::null()).stderr(Stdio::null());
     cmd.spawn()
         .map_err(|e| format!("failed to spawn sidecar: {e}"))
 }
@@ -263,16 +298,69 @@ fn kill_backend(state: &BackendChild) {
     }
 }
 
-fn emit_ready(handle: &tauri::AppHandle, payload: EngineReadyPayload) {
-    if let Err(e) = handle.emit("engine-ready", payload) {
-        log::warn!("emit engine-ready failed: {e}");
+fn emit_status(handle: &tauri::AppHandle, payload: EngineStatusPayload) {
+    if let Err(e) = handle.emit("engine-status", &payload) {
+        log::warn!("emit engine-status failed: {e}");
     }
+    // 兼容旧监听
+    let ready = matches!(payload.status, EngineLifecycle::Ready);
+    let _ = handle.emit(
+        "engine-ready",
+        EngineReadyPayload {
+            url: payload.url.clone(),
+            ready,
+            error: payload.error.clone(),
+        },
+    );
 }
 
 fn set_engine_url(meta: &EngineMeta, url: &str) {
     if let Ok(mut g) = meta.url.lock() {
         *g = url.to_string();
     }
+}
+
+fn watch_child_exit(handle: tauri::AppHandle, url: String) {
+    thread::spawn(move || {
+        loop {
+            thread::sleep(Duration::from_millis(800));
+            let exited = {
+                let state = handle.state::<BackendChild>();
+                let Ok(mut guard) = state.0.lock() else {
+                    continue;
+                };
+                match guard.as_mut() {
+                    Some(child) => match child.try_wait() {
+                        Ok(Some(status)) => {
+                            let _ = guard.take();
+                            Some(format!("engine process exited ({status})"))
+                        }
+                        Ok(None) => None,
+                        Err(e) => {
+                            let _ = guard.take();
+                            Some(format!("engine wait error: {e}"))
+                        }
+                    },
+                    None => {
+                        // 无托管子进程（reuse 外部引擎）则不监视
+                        return;
+                    }
+                }
+            };
+            if let Some(msg) = exited {
+                append_engine_log(&handle, &format!("fatal: {msg}"));
+                emit_status(
+                    &handle,
+                    EngineStatusPayload {
+                        status: EngineLifecycle::Error,
+                        url: url.clone(),
+                        error: Some(msg),
+                    },
+                );
+                return;
+            }
+        }
+    });
 }
 
 /// 选 port → 立即 spawn → health 失败 / 进程退出 → 换 port 重试。
@@ -282,35 +370,62 @@ fn spawn_engine_with_retry(
     preferred: u16,
     root: &Path,
 ) {
+    let meta = handle.state::<EngineMeta>();
+    if meta
+        .spawning
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        log::warn!("spawn already in progress; ignore");
+        return;
+    }
+
     let h = handle.clone();
     let host = host.to_string();
     let root = root.to_path_buf();
     let debug = cfg!(debug_assertions);
 
     thread::spawn(move || {
+        let preferred_url = format!("http://{host}:{preferred}");
+        emit_status(
+            &h,
+            EngineStatusPayload {
+                status: EngineLifecycle::Starting,
+                url: preferred_url.clone(),
+                error: None,
+            },
+        );
+        append_engine_log(
+            &h,
+            &format!("startup host={host} preferred_port={preferred} debug={debug}"),
+        );
+
         let mut last_error = String::from("engine failed to start");
 
         for attempt in 0..MAX_SPAWN_ATTEMPTS {
             let port = suggest_port(&host, preferred, attempt);
 
-            // 竞态下可能已被别人占成 FOREIGN，或意外已是 PlanSeed
             match probe_engine(&host, port) {
                 PortIdentity::PlanseedEngine => {
                     let url = format!("http://{host}:{port}");
                     set_engine_url(h.state::<EngineMeta>().inner(), &url);
-                    log::info!("found PLANSEED_ENGINE at {url} (attempt {attempt})");
-                    emit_ready(
+                    append_engine_log(&h, &format!("reuse PLANSEED_ENGINE at {url}"));
+                    emit_status(
                         &h,
-                        EngineReadyPayload {
+                        EngineStatusPayload {
+                            status: EngineLifecycle::Ready,
                             url,
-                            ready: true,
                             error: None,
                         },
                     );
+                    h.state::<EngineMeta>()
+                        .spawning
+                        .store(false, Ordering::SeqCst);
                     return;
                 }
                 PortIdentity::ForeignService => {
                     log::warn!("port {port} FOREIGN_SERVICE; skip attempt {attempt}");
+                    append_engine_log(&h, &format!("skip FOREIGN port={port} attempt={attempt}"));
                     continue;
                 }
                 PortIdentity::PortFree => {}
@@ -318,7 +433,7 @@ fn spawn_engine_with_retry(
 
             let url = format!("http://{host}:{port}");
             set_engine_url(h.state::<EngineMeta>().inner(), &url);
-            log::info!("spawn attempt {attempt} → {url}");
+            append_engine_log(&h, &format!("spawn attempt={attempt} port={port}"));
 
             let spawned = if debug {
                 spawn_dev_backend(&root, &host, port)
@@ -332,45 +447,76 @@ fn spawn_engine_with_retry(
                         wait_for_engine(&host, port, &mut child, ATTEMPT_HEALTH_TIMEOUT);
                     if ready {
                         *h.state::<BackendChild>().0.lock().expect("child") = Some(child);
-                        log::info!("engine ready via health probe at {url}");
-                        emit_ready(
+                        append_engine_log(&h, &format!("ready port={port} url={url}"));
+                        emit_status(
                             &h,
-                            EngineReadyPayload {
-                                url,
-                                ready: true,
+                            EngineStatusPayload {
+                                status: EngineLifecycle::Ready,
+                                url: url.clone(),
                                 error: None,
                             },
                         );
+                        watch_child_exit(h.clone(), url);
+                        h.state::<EngineMeta>()
+                            .spawning
+                            .store(false, Ordering::SeqCst);
                         return;
                     }
                     last_error = format!(
                         "port {port}: backend exited or /api/health identity not ready"
                     );
-                    log::warn!("{last_error}; retrying");
+                    append_engine_log(&h, &format!("fatal: {last_error}"));
                     kill_child(&mut child);
                 }
                 Err(e) => {
                     last_error = e;
-                    log::warn!("spawn failed: {last_error}; retrying");
+                    append_engine_log(&h, &format!("fatal: spawn failed: {last_error}"));
                 }
             }
         }
 
-        let url = format!("http://{host}:{preferred}");
-        emit_ready(
+        emit_status(
             &h,
-            EngineReadyPayload {
-                url,
-                ready: false,
+            EngineStatusPayload {
+                status: EngineLifecycle::Error,
+                url: preferred_url,
                 error: Some(last_error),
             },
         );
+        h.state::<EngineMeta>()
+            .spawning
+            .store(false, Ordering::SeqCst);
     });
 }
 
 #[tauri::command]
 fn get_engine_url(meta: State<'_, EngineMeta>) -> String {
     meta.url.lock().expect("engine url").clone()
+}
+
+#[tauri::command]
+fn retry_engine(app: tauri::AppHandle) -> Result<(), String> {
+    let host = engine_host();
+    let preferred = preferred_port();
+    kill_backend(app.state::<BackendChild>().inner());
+    let root = repo_root_from_manifest();
+    append_engine_log(&app, "user retry_engine");
+    spawn_engine_with_retry(&app, &host, preferred, &root);
+    Ok(())
+}
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_non_planseed_json() {
+        assert!(!is_planseed_health_json(r#"{"ok":true}"#));
+        assert!(!is_planseed_health_json(r#"{"ok":true,"service":"other","api_version":"1","engine_version":"1"}"#));
+        assert!(is_planseed_health_json(
+            r#"{"ok":true,"service":"planseed","api_version":"1","engine_version":"0.1.0"}"#
+        ));
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -383,8 +529,9 @@ pub fn run() {
         .manage(BackendChild(Mutex::new(None)))
         .manage(EngineMeta {
             url: Mutex::new(initial_url.clone()),
+            spawning: AtomicBool::new(false),
         })
-        .invoke_handler(tauri::generate_handler![get_engine_url])
+        .invoke_handler(tauri::generate_handler![get_engine_url, retry_engine])
         .setup(move |app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -395,18 +542,25 @@ pub fn run() {
             }
 
             let handle = app.handle().clone();
+            emit_status(
+                &handle,
+                EngineStatusPayload {
+                    status: EngineLifecycle::Starting,
+                    url: initial_url.clone(),
+                    error: None,
+                },
+            );
 
-            // 仅 PLANSEED_ENGINE 才 reuse；否则后台 spawn+health 重试（不预占端口）
             match probe_engine(&host, preferred) {
                 PortIdentity::PlanseedEngine => {
                     let url = format!("http://{host}:{preferred}");
                     set_engine_url(handle.state::<EngineMeta>().inner(), &url);
-                    log::info!("reusing PLANSEED_ENGINE at {url}");
-                    emit_ready(
+                    append_engine_log(&handle, &format!("reuse existing PLANSEED at {url}"));
+                    emit_status(
                         &handle,
-                        EngineReadyPayload {
+                        EngineStatusPayload {
+                            status: EngineLifecycle::Ready,
                             url,
-                            ready: true,
                             error: None,
                         },
                     );
@@ -424,6 +578,20 @@ pub fn run() {
         .run(|app_handle, event| {
             if let RunEvent::Exit = event {
                 kill_backend(app_handle.state::<BackendChild>().inner());
+                let url = app_handle
+                    .state::<EngineMeta>()
+                    .url
+                    .lock()
+                    .map(|u| u.clone())
+                    .unwrap_or_default();
+                emit_status(
+                    app_handle,
+                    EngineStatusPayload {
+                        status: EngineLifecycle::Stopped,
+                        url,
+                        error: None,
+                    },
+                );
             }
         });
 }

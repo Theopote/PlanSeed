@@ -16,6 +16,17 @@ class PlacementSource(StrEnum):
     GENERATED = "generated"
 
 
+class CandidateProvenance(BaseModel):
+    """候选算法契约版本（first-class；metrics 中保留镜像供旧读法）。"""
+
+    solver_version: str
+    generator_version: str
+    evaluation_version: str | None = Field(
+        default=None,
+        description="评价完成后写入；生成瞬间可为 None",
+    )
+
+
 class PlacementRect(BaseModel):
     x: float = Field(ge=0)
     y: float = Field(ge=0)
@@ -199,5 +210,9 @@ class LayoutCandidate(BaseModel):
     score: float | None = Field(
         default=None,
         description="[compat] 与 evaluation.total_score 同步，供 rank/demo",
+    )
+    provenance: CandidateProvenance | None = Field(
+        default=None,
+        description="solver / generator / evaluation 版本；解释历史分数",
     )
     metrics: dict[str, float | int | str | bool] = Field(default_factory=dict)

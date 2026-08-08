@@ -24,6 +24,7 @@ from packages.schema.identity import (
     solver_identity,
 )
 from packages.schema.layout import (
+    CandidateProvenance,
     CandidateValidation,
     DoorOpening,
     FloorLayout,
@@ -89,6 +90,7 @@ __all__ = [
     "GENERATOR_VERSION",
     "HouseholdSpec",
     "LayoutCandidate",
+    "CandidateProvenance",
     "OrientationConstraint",
     "PreferencesSpec",
     "ProjectSpec",

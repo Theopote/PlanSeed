@@ -2,6 +2,9 @@
 
 from backend.schemas.api import (
     CandidatePayload,
+    CandidateProvenance,
+    CompareRequest,
+    CompareResponse,
     GenerateRequest,
     GenerateResponse,
     ProgramSummary,
@@ -11,6 +14,9 @@ from backend.schemas.api import (
 
 __all__ = [
     "CandidatePayload",
+    "CandidateProvenance",
+    "CompareRequest",
+    "CompareResponse",
     "GenerateRequest",
     "GenerateResponse",
     "ProgramSummary",

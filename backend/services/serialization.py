@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from packages.schema.identity import (
+    EVALUATION_VERSION,
+    GENERATOR_VERSION,
+    SOLVER_VERSION,
+)
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
 from solver.visualize.svg import render_candidate_svg
 
 from backend.schemas.api import (
     CandidatePayload,
+    CandidateProvenance,
     ProgramSummary,
     RejectedCandidatePayload,
     RoomSummary,
@@ -80,6 +86,26 @@ def serialize_candidate(
         design_score=cand.evaluation,
         validation=validation,
         metrics=dict(cand.metrics),
+        provenance=_provenance_payload(cand),
+    )
+
+
+def _provenance_payload(cand: LayoutCandidate) -> CandidateProvenance | None:
+    if cand.provenance is not None:
+        return CandidateProvenance(
+            solver_version=cand.provenance.solver_version,
+            generator_version=cand.provenance.generator_version,
+            evaluation_version=cand.provenance.evaluation_version
+            or str(cand.metrics.get("evaluation_version") or EVALUATION_VERSION),
+        )
+    # 兼容旧候选：从 metrics 回填
+    sv = cand.metrics.get("solver_version") or SOLVER_VERSION
+    gv = cand.metrics.get("generator_version") or GENERATOR_VERSION
+    ev = cand.metrics.get("evaluation_version") or EVALUATION_VERSION
+    return CandidateProvenance(
+        solver_version=str(sv),
+        generator_version=str(gv),
+        evaluation_version=str(ev),
     )
 
 

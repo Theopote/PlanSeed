@@ -37,6 +37,14 @@ class ProgramSummary(BaseModel):
     unknowns: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class CandidateProvenance(BaseModel):
+    """算法契约版本；与 LayoutCandidate.provenance / metrics 对齐。"""
+
+    solver_version: str
+    generator_version: str
+    evaluation_version: str
+
+
 class CandidatePayload(BaseModel):
     id: str
     seed: int
@@ -46,6 +54,31 @@ class CandidatePayload(BaseModel):
     design_score: DesignScore | None = None
     validation: dict[str, Any] | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)
+    provenance: CandidateProvenance | None = None
+
+
+class CompareRequest(BaseModel):
+    """比较请求：只传两侧 evaluation，API 不做重评。"""
+
+    evaluation_a: DesignScore
+    evaluation_b: DesignScore
+    label_a: str = "A"
+    label_b: str = "B"
+
+
+class AxisCompareRowPayload(BaseModel):
+    key: str
+    label: str
+    score_a: float
+    score_b: float
+
+
+class CompareResponse(BaseModel):
+    label_a: str
+    label_b: str
+    rows: list[AxisCompareRowPayload]
+    advantages_a: list[str] = Field(default_factory=list)
+    advantages_b: list[str] = Field(default_factory=list)
 
 
 class RejectedCandidatePayload(BaseModel):
