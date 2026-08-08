@@ -10,24 +10,31 @@ from packages.schema.layout import (
     PlacementSource,
     RoomPlacement,
 )
-from packages.schema.program import DesignProgram
-from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
-from packages.schema.site import Rect2D, SiteSpec
+from packages.schema.site import CardinalEdge, CardinalOrientation
 from solver.evaluation.orientation import (
     compute_orientation_metrics,
+    exterior_model_edges,
     exterior_orientations,
+    exterior_world_orientations,
     orientation_score,
     orientation_soft_violations,
 )
 from solver.evaluation.score import CompositeEvaluator
 from solver.evaluation.site import compute_site_metrics, site_score
 from solver.geometry.rect import Rect
+from solver.geometry.site_coords import SiteCoordinateSystem, azimuth_to_cardinal
 from solver.tests.test_guillotine import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator
+from packages.schema.program import DesignProgram
 
 
-def _program_with_orientation(preferred: str = "south") -> DesignProgram:
+def _program_with_orientation(
+    preferred: str = "south",
+    *,
+    north_angle: float = 0.0,
+) -> DesignProgram:
     program = benchmark_program()
+    program.site.north_angle = north_angle
     program.constraints.append(
         OrientationConstraint(
             id="orient-living-south",
@@ -44,7 +51,7 @@ def _program_with_orientation(preferred: str = "south") -> DesignProgram:
 
 
 def _candidate_living_on_edge(edge: str) -> LayoutCandidate:
-    """手工放置客厅贴某外墙。buildable 11×13，y=0 北。"""
+    """手工放置客厅贴某 model 外墙。buildable 11×13，y=0 = model north。"""
     if edge == "south":
         rect = PlacementRect(x=2, y=10, width=4, depth=3)  # bottom=13
     elif edge == "north":
@@ -69,14 +76,50 @@ def _candidate_living_on_edge(edge: str) -> LayoutCandidate:
     )
 
 
+class TestSiteCoordinateSystem:
+    def test_edge_azimuth_zero(self):
+        cs = SiteCoordinateSystem(north_angle=0)
+        assert cs.edge_azimuth(CardinalEdge.NORTH) == 0
+        assert cs.edge_azimuth(CardinalEdge.EAST) == 90
+        assert cs.edge_azimuth(CardinalEdge.SOUTH) == 180
+        assert cs.edge_azimuth(CardinalEdge.WEST) == 270
+
+    def test_edge_azimuth_rotated_90(self):
+        cs = SiteCoordinateSystem(north_angle=90)
+        assert cs.edge_azimuth("north") == 90
+        assert cs.edge_azimuth("east") == 180
+        assert cs.edge_azimuth("south") == 270
+        assert cs.edge_azimuth("west") == 0
+        assert cs.world_orientation_for_edge("north") == CardinalOrientation.EAST
+        assert cs.world_orientation_for_edge("east") == CardinalOrientation.SOUTH
+        assert cs.model_edges_facing("south") == {"east"}
+
+    def test_azimuth_to_cardinal_sectors(self):
+        assert azimuth_to_cardinal(0) == CardinalOrientation.NORTH
+        assert azimuth_to_cardinal(44) == CardinalOrientation.NORTH
+        assert azimuth_to_cardinal(45) == CardinalOrientation.EAST
+        assert azimuth_to_cardinal(180) == CardinalOrientation.SOUTH
+
+
 class TestOrientationEvaluator:
-    def test_exterior_orientations_south(self):
+    def test_exterior_orientations_south_when_north_angle_zero(self):
         buildable = Rect(x=0, y=0, width=11, depth=13)
         room = Rect(x=2, y=10, width=4, depth=3)
-        assert "south" in exterior_orientations(room, buildable)
+        assert "south" in exterior_orientations(room, buildable, north_angle=0)
+        assert exterior_model_edges(room, buildable) == {"south"}
+
+    def test_north_angle_90_maps_model_east_to_world_south(self):
+        buildable = Rect(x=0, y=0, width=11, depth=13)
+        # 贴 model 东边
+        room = Rect(x=8, y=4, width=3, depth=4)
+        cs = SiteCoordinateSystem(north_angle=90)
+        assert "east" in exterior_model_edges(room, buildable)
+        worlds = exterior_world_orientations(room, buildable, cs)
+        assert "south" in worlds
+        assert "east" not in worlds  # model east ≠ world east when rotated
 
     def test_south_facing_living_scores_higher_than_north(self):
-        program = _program_with_orientation("south")
+        program = _program_with_orientation("south", north_angle=0)
         south = _candidate_living_on_edge("south")
         north = _candidate_living_on_edge("north")
         m_south = compute_orientation_metrics(program, south)
@@ -85,8 +128,19 @@ class TestOrientationEvaluator:
         assert m_north["orientation_satisfaction"] == 0.0
         assert orientation_score(m_south) > orientation_score(m_north)
 
+    def test_preferred_south_with_north_angle_90_uses_model_east(self):
+        """世界南 ≠ SVG 下边：north_angle=90 时应对齐 model 东边。"""
+        program = _program_with_orientation("south", north_angle=90)
+        on_model_east = _candidate_living_on_edge("east")
+        on_model_south = _candidate_living_on_edge("south")
+        m_east = compute_orientation_metrics(program, on_model_east)
+        m_south = compute_orientation_metrics(program, on_model_south)
+        assert m_east["orientation_satisfaction"] == 1.0
+        assert m_south["orientation_satisfaction"] == 0.0
+        assert m_east["north_angle"] == 90.0
+
     def test_soft_violation_explainable(self):
-        program = _program_with_orientation("south")
+        program = _program_with_orientation("south", north_angle=0)
         north = _candidate_living_on_edge("north")
         viols = orientation_soft_violations(program, north)
         assert len(viols) == 1
@@ -95,16 +149,9 @@ class TestOrientationEvaluator:
         assert "south" in viols[0].message
 
     def test_composite_includes_orientation_in_total(self):
-        program = _program_with_orientation("south")
-        # 用真实 generator：有的 seed 客厅可能贴南
+        program = _program_with_orientation("south", north_angle=0)
         evaluator = CompositeEvaluator()
-        scores = []
-        for seed in range(16):
-            c = GuillotineGenerator().generate(program, seed)
-            # 仅评 orientation 相关：把客厅强制移到南/北再比
-            pass
         south_c = GuillotineGenerator().generate(program, 0)
-        # 覆盖 r1 矩形到南缘
         for fl in south_c.floors:
             for p in fl.placements:
                 if p.room_id == "r1":
@@ -134,7 +181,6 @@ class TestSiteEvaluator:
         program = benchmark_program()
         program.site.setback_source = "user"
         program.site.setbacks.north = 1.0
-        # rebuild envelope would need re-normalize; just flag
         candidate = GuillotineGenerator().generate(program, seed=0)
         metrics = compute_site_metrics(program, candidate)
         assert metrics["setback_info_provided"] is True

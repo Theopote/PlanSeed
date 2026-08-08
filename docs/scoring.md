@@ -62,10 +62,19 @@ min_diversity_threshold = 0.85
 
 | Metric | 说明 |
 |--------|------|
-| `orientation_satisfaction` | 加权朝向满足率（贴 buildable 外墙） |
+| `orientation_satisfaction` | 加权朝向满足率（**世界** cardinal，经 `north_angle`） |
+| `north_angle` | 写入 metrics，便于调试 |
 | soft violations | 未满足的 soft OrientationConstraint |
 
-坐标系：`y=0` 北，`y` 增大向南；`x=0` 西。
+`SiteCoordinateSystem`（`solver/geometry/site_coords.py`）：
+
+```text
+model edge (N/S/E/W) → edge_azimuth(north_angle) → world orientation
+```
+
+Model：`y=0` = model north，`x=0` = model west（绘图坐标）。  
+`preferred_orientation=south` = 世界正南，**不是** SVG 下边界。  
+`north_angle=0` 兼容旧行为；`north_angle=90` 时世界南 = model 东边。
 
 ### Site (`evaluation/site.py`)
 

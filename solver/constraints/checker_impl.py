@@ -13,8 +13,9 @@ from packages.schema.constraints import (
 from packages.schema.layout import CandidateValidation, LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
 from solver.constraints.checker import ConstraintEvaluationResult
-from solver.evaluation.orientation import exterior_orientations
+from solver.evaluation.orientation import exterior_world_orientations
 from solver.geometry.rect import Rect, contains, from_placement, intersects, shared_edge_length
+from solver.geometry.site_coords import SiteCoordinateSystem
 
 OVERLAP_TOLERANCE = 1e-4
 MIN_ADJACENCY_WALL = 1.2
@@ -50,7 +51,9 @@ class DefaultConstraintChecker:
             ):
                 # hard orientation → validation；soft 由 Evaluator 评分
                 if constraint.hard:
-                    result.extend(self._check_orientation_hard(constraint, candidate, buildable))
+                    result.extend(
+                        self._check_orientation_hard(constraint, candidate, buildable, program)
+                    )
             elif constraint.kind == ConstraintKind.ALIGNMENT and isinstance(
                 constraint, AlignmentConstraint
             ):
@@ -459,6 +462,7 @@ class DefaultConstraintChecker:
         constraint: OrientationConstraint,
         candidate: LayoutCandidate,
         buildable: Rect,
+        program: DesignProgram,
     ) -> ConstraintEvaluationResult:
         placement = None
         for fl in candidate.floors:
@@ -471,20 +475,25 @@ class DefaultConstraintChecker:
                 Violation(
                     constraint_id=constraint.id,
                     room_ids=[constraint.room_id],
-                    message=f"强制朝向未满足：房间缺失（期望 {constraint.preferred_orientation}）",
+                    message=f"强制朝向未满足：房间缺失（期望世界 {constraint.preferred_orientation}）",
                     hard=True,
                     source=constraint.source.value,
                 )
             )
-        faces = exterior_orientations(from_placement(placement.rect), buildable)
-        if constraint.preferred_orientation.lower() not in faces:
+        coords = SiteCoordinateSystem.from_site(program.site)
+        faces = exterior_world_orientations(
+            from_placement(placement.rect), buildable, coords
+        )
+        preferred = constraint.preferred_orientation.lower()
+        if preferred not in faces:
             return ConstraintEvaluationResult.from_optional(
                 Violation(
                     constraint_id=constraint.id,
                     room_ids=[constraint.room_id],
                     message=(
-                        f"强制朝向未满足：期望贴 {constraint.preferred_orientation} 外墙，"
-                        f"实际={sorted(faces) or ['无']}"
+                        f"强制朝向未满足：期望世界 {preferred} "
+                        f"(north_angle={coords.north_angle:.0f}°)，"
+                        f"实际世界朝向={sorted(faces) or ['无']}"
                     ),
                     hard=True,
                     source=constraint.source.value,

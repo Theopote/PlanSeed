@@ -64,7 +64,11 @@ class SiteSpec(BaseModel):
         default=0.0,
         ge=0,
         lt=360,
-        description="正北相对屏幕/坐标系 Y 轴的顺时针角度（度）",
+        description=(
+            "正北相对 model north 外向（−Y）的顺时针角（度）。"
+            "0=model north 朝世界正北；90=model north 朝世界正东。"
+            "见 SiteCoordinateSystem.edge_azimuth"
+        ),
     )
     entrance_edge: CardinalEdge = Field(
         default=CardinalEdge.SOUTH,

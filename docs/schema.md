@@ -25,7 +25,7 @@ ProjectSpec
 | 字段 | 说明 |
 |------|------|
 | `width`, `depth` | 矩形用地尺寸（米） |
-| `north_angle` | 正北角度 |
+| `north_angle` | 正北相对 model north 外向的顺时针角；见 `SiteCoordinateSystem` |
 | `entrance_edge` | 主入口边 |
 | `road_edges` | 临路边 |
 | `setbacks` | 四向退线 |

@@ -10,6 +10,7 @@
 | 0 | Architecture Foundation | ✅ |
 | 1 | Deterministic Layout Core | ✅ 基本完成 |
 | **1.5** | **Solver Reliability** | ✅ 收口 |
+| **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle 朝向） |
 | 2 | Spatial Topology + Circulation（门 / AccessGraph） | 未开始 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
