@@ -26,8 +26,8 @@ ProjectSpec
 |------|------|
 | `width`, `depth` | 矩形用地尺寸（米） |
 | `north_angle` | 正北相对 model north 外向的顺时针角；见 `SiteCoordinateSystem` |
-| `entrance_edge` | 主入口边 |
-| `road_edges` | 临路边 |
+| `entrance_edge` | 主入口边（驱动 **ExteriorEntry**，≠ 楼梯） |
+| `road_edges` | 临路边（入口宜对齐；`ExteriorEntry.on_road_edge`） |
 | `setbacks` | 四向退线 |
 | `site_boundary` | 用地外轮廓（默认可由 width×depth 推导） |
 | `buildable_envelope` | 退线后可建范围（默认由 setbacks 推导） |
@@ -134,12 +134,19 @@ TopologyPlan                    # 生成前打包序（2.0）
 └── pack_order_hint: {floor_id: [room_id…]}
 
 AccessGraph                     # 可达（2.1）；边 = SpaceConnection
-├── node_ids[]                  # 房间 + entry / stair …
+├── node_ids[]                  # 房间 + exterior-entry / stair …
 └── connections[]: SpaceConnection(a, b, type, required)
+
+ExteriorEntry                   # 对外主入口（≠ StairCore）
+├── id = "exterior-entry"
+├── edge ← SiteSpec.entrance_edge
+├── on_road_edge ← entrance_edge ∈ road_edges
+└── connected_room_ids          # 厅/门厅优先，楼梯垫底
 ```
 
 Edge kind（RoomGraph）：`adjacent | connected | near | far | avoid`  
-SpaceConnection type：`open | door | passage | stair | exterior_entry`
+SpaceConnection type：`open | door | passage | stair | exterior_entry`  
+交通起点：`ExteriorEntry → Foyer / Living / Hall → …`（楼梯只做竖向，不当入口）
 
 ## 从 v1 迁移映射
 

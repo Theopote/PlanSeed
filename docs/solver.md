@@ -208,15 +208,18 @@ floor.room_ids + RoomSpec.floor_id
 ## 空间关系图
 
 ```text
-Program → RoomGraph → TopologyPlan → Zone → RoomLayout → Geometry
+DesignProgram → FloorAssignment → Semantic RoomGraph → AccessGraph
+  → ZonePlanner → Core → Graph-aware ordering → Guillotine
+  → ConnectionResolver → DoorOpening → AccessibilityValidator → Evaluator
 ```
 
-`build_room_graph()` 从 explicit constraints 与 room category 构建初始图。  
-`TopologyPlanner` 派生 `TopologyPlan`（簇 / prefer_adjacent / avoid / pack_order_hint）。  
-Guillotine MVP：区内打包读 `pack_order_hint`（替代 shuffle）；评后 checker/evaluator 仍保留邻接校验。  
-门洞与通行：**Phase 2A** = geometry → 校验必连共边 → 标注 `DoorOpening`（**禁止**为门重优化房间）。  
-Hard：`access.unreachable_room`、`access.missing_shared_boundary`。  
-`topology drives geometry` 延后。
+- **2.0**：`TopologyPlan` 替换纯 shuffle（hub BFS / 簇连续）
+- **下一步**：AccessGraph 驱动；邻接簇作为 **slicing group** 整组切分（如 K+D+L）
+- **2A**：geometry → 共边校验 → `DoorOpening`（禁止为门重优化房间）
+- **ExteriorEntry**：交通起点（`entrance_edge` / `road_edges`）；**≠** StairCore
+- **延后**：topology drives geometry（全局为连通改切分）
+
+门洞：先校验共边再标注；禁止矩形→直接画门。
 
 ## 几何模块
 

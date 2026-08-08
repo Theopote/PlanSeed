@@ -1,8 +1,7 @@
 """
 AccessGraph 可达性 — Phase 2.1 第一硬规则。
 
-原则：所有 occupied space（DesignProgram.rooms）必须从 Entry 可达。
-候选图：优先 program.access_graph；否则用共享边 + 入口贴边 + 楼梯叠置作临时连通。
+原则：所有 occupied space 必须从 ExteriorEntry（≠ Stair）可达。
 """
 
 from __future__ import annotations
@@ -11,17 +10,14 @@ from collections import defaultdict, deque
 
 from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
-from packages.schema.site import CardinalEdge
 from packages.schema.topology import (
     AccessGraph,
     SpaceConnection,
     SpaceConnectionType,
 )
-from solver.evaluation.orientation import exterior_world_orientations
-from solver.geometry.rect import Rect, from_placement, shared_edge_length
-from solver.geometry.site_coords import SiteCoordinateSystem
+from solver.geometry.rect import from_placement, shared_edge_length
 
-ENTRY_NODE_ID = "entry"
+ENTRY_NODE_ID = "exterior-entry"  # ExteriorEntry.id；≠ stair
 MIN_ACCESS_WALL = 0.9  # 可通行开口最小共边（米）
 
 
@@ -37,9 +33,11 @@ def build_realized_access_graph(
     """
     构造用于可达性检查的 AccessGraph。
 
-    1. 若 program.access_graph 有 connection → 纳入
-    2. 补充：入口贴边 EXTERIOR_ENTRY、同层共边 PASSAGE、跨层楼梯 STAIR
+    起点：ExteriorEntry（≠ Stair）。
+    边：program.access_graph + 入口→厅/门厅 + 共边 PASSAGE + 楼梯 STAIR。
     """
+    from solver.circulation.exterior_entry import resolve_exterior_entry
+
     graph = AccessGraph()
     if program.access_graph is not None:
         for c in program.access_graph.connections:
@@ -48,70 +46,38 @@ def build_realized_access_graph(
             if nid not in graph.node_ids:
                 graph.node_ids.append(nid)
 
-    if ENTRY_NODE_ID not in graph.node_ids:
-        graph.node_ids.append(ENTRY_NODE_ID)
+    entry = candidate.exterior_entry
+    if entry is None:
+        entry = resolve_exterior_entry(program, candidate)
+        candidate.exterior_entry = entry
 
-    _add_entry_edges(program, candidate, graph)
+    if entry.id not in graph.node_ids:
+        graph.node_ids.append(entry.id)
+
+    _add_exterior_entry_edges(entry, graph)
     _add_shared_boundary_edges(candidate, graph)
     _add_stair_edges(candidate, graph)
     return graph
 
 
-def _add_entry_edges(
-    program: DesignProgram,
-    candidate: LayoutCandidate,
-    graph: AccessGraph,
-) -> None:
-    buildable = Rect(
-        x=program.buildable.x,
-        y=program.buildable.y,
-        width=program.buildable.width,
-        depth=program.buildable.depth,
-    )
-    cs = SiteCoordinateSystem(getattr(program.site, "north_angle", 0.0) or 0.0)
-    entrance = program.site.entrance_edge
-    if isinstance(entrance, CardinalEdge):
-        entrance_val = entrance.value
-    else:
-        entrance_val = str(entrance)
+def _add_exterior_entry_edges(entry, graph: AccessGraph) -> None:
+    """
+    ExteriorEntry → 贴边房间。
 
-    ground = candidate.floors[0].floor_id if candidate.floors else None
-    entry_targets: list[str] = []
-    for fl in candidate.floors:
-        if ground is not None and fl.floor_id != ground:
-            continue
-        for p in fl.placements:
-            worlds = exterior_world_orientations(
-                from_placement(p.rect), buildable, cs
-            )
-            if entrance_val in worlds:
-                entry_targets.append(p.room_id)
-
-    # 回退：地面层任意外墙房间；再回退：地面层楼梯
-    if not entry_targets and ground is not None:
-        for fl in candidate.floors:
-            if fl.floor_id != ground:
-                continue
-            for p in fl.placements:
-                worlds = exterior_world_orientations(
-                    from_placement(p.rect), buildable, cs
-                )
-                if worlds:
-                    entry_targets.append(p.room_id)
-            if not entry_targets:
-                for p in fl.placements:
-                    if (p.category == "circulation") or p.room_id.startswith("stair-"):
-                        entry_targets.append(p.room_id)
-
-    for rid in sorted(set(entry_targets)):
+    connected_room_ids 已按「非楼梯优先」排序；若全是楼梯才连楼梯（回退）。
+    """
+    targets = list(entry.connected_room_ids)
+    non_stair = [r for r in targets if not str(r).startswith("stair-")]
+    use = non_stair if non_stair else targets
+    for rid in use:
         graph.add_connection(
             SpaceConnection(
-                id=f"entry-{rid}",
-                a=ENTRY_NODE_ID,
+                id=f"ext-entry-{rid}",
+                a=entry.id,
                 b=rid,
                 type=SpaceConnectionType.EXTERIOR_ENTRY,
                 required=True,
-                description="入口贴边 / 外墙可达",
+                description="ExteriorEntry → 室内首达空间",
             )
         )
 

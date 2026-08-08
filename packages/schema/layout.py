@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
+from packages.schema.entry import ExteriorEntry
 from pydantic import BaseModel, Field
 
 
@@ -143,6 +144,10 @@ class LayoutCandidate(BaseModel):
     door_openings: list[DoorOpening] = Field(
         default_factory=list,
         description="Phase 2A：在共边上标注开口；不回改房间几何",
+    )
+    exterior_entry: ExteriorEntry | None = Field(
+        default=None,
+        description="对外主入口（≠ 楼梯）；AccessGraph 交通起点",
     )
     validation: CandidateValidation | None = None
     score: float | None = None

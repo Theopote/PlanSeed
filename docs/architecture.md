@@ -13,18 +13,19 @@ Natural Language / Manual Input
 → RequirementSpec（后续）
 → ProjectSpec
 → DesignProgram（normalize）
-→ ConstraintGraph + RoomGraph
-→ TopologyPlan（生成前；影响打包序）
-→ Candidate Generation
-→ AccessGraph / required connections（Phase 2.1）
-→ Shared boundary → Door（Phase 2.2）
-→ Constraint Validation
-→ Multi-objective Evaluation
-→ Ranking
+→ FloorAssignment
+→ Semantic RoomGraph + TopologyPlan（打包序）
+→ AccessGraph / required connections
+→ ZonePlanner + CorePlacement
+→ Graph-aware Room Ordering → Guillotine
+→ ConnectionResolver → DoorOpening（不回改几何）
+→ AccessibilityValidator → Evaluator → Ranking
 → Interactive Floorplan（SVG）
 ```
 
 **LLM 只负责理解自然语言**，不得生成坐标、SVG 或最终平面。
+
+Phase 2 终态流水线见 [roadmap.md](roadmap.md)。
 
 ## 2. 领域术语（已定）
 

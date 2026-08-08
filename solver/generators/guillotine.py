@@ -144,12 +144,16 @@ class GuillotineGenerator:
             )
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
 
-        return LayoutCandidate(
+        from solver.circulation.exterior_entry import resolve_exterior_entry
+
+        candidate = LayoutCandidate(
             id=f"candidate-{seed}",
             seed=seed,
             floors=floor_layouts,
             wet_stacks=list(building_zones.wet_stacks),
         )
+        candidate.exterior_entry = resolve_exterior_entry(program, candidate)
+        return candidate
 
     def _layout_floor_with_zones(
         self,
@@ -205,7 +209,7 @@ class GuillotineGenerator:
                 avoid_pairs=topology.avoid_pairs,
             )
 
-        stair_name = "楼梯" if floor_index > 0 else "楼梯 · 入口"
+        stair_name = "楼梯"
         stair_placement = RoomPlacement(
             room_id=f"stair-{floor.id}",
             floor_id=floor.id,

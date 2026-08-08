@@ -86,35 +86,50 @@ MVP：`SolverConfig.max_wet_stacks=1` → 整栋至多一个 `WetStack`（WS1）
 
 ---
 
-## 目标生成流水线（下一代）
+## 目标生成流水线（Phase 2 终态）
 
 ```text
 DesignProgram
       ↓
 FloorAssignment
       ↓
-RoomGraph
+Semantic RoomGraph
       ↓
-TopologyPlan              ← Phase 2.0 MVP（邻接簇 / pack_order / avoid）
+AccessGraph
       ↓
 ZonePlanner
       ↓
 CorePlacement
       ↓
-ZoneGeometry
+Graph-aware Room Ordering     ← 非 shuffle；簇整组进 slicing
       ↓
-RoomLayout (Guillotine = strategy；区内序读 TopologyPlan)
+Guillotine
       ↓
-AccessGraph + required connections   ← Phase 2.1
+ConnectionResolver            ← 必连 ↔ 共边
       ↓
-Shared boundary → Door placement     ← Phase 2.2
+DoorPlacement                 ← 只标开口，不回改房间几何（2A）
       ↓
-ConstraintChecker
+AccessibilityValidator        ← access.unreachable_room 等
       ↓
 Evaluator
 ```
 
-Guillotine **保留**，但不再决定整栋住宅组织。RoomGraph 须影响生成，而非仅事后打分。
+这已接近小型建筑空间生成系统：关系驱动布局，几何事后验证，门不反向炸掉房间。
+
+### Graph 反向驱动 Generator（渐进）
+
+| 阶段 | 行为 |
+|------|------|
+| ~~纯 `rng.shuffle(rooms)`~~ | ❌ 已淘汰 |
+| **2.0 ✅** | `TopologyPlan.pack_order_hint` + adjacency cluster 连续序 |
+| **下一步** | AccessGraph / 高连通度优先；`[Kitchen,Dining,Living]` 作为 **同一 slicing group** 进入切分，而非仅排序后仍可能被面积对半拆散 |
+| **更晚** | topology drives geometry（为满足必连调整切分，仍尽量不全局重优化） |
+
+示例簇：
+
+```text
+Kitchen — Dining — Living  →  cluster [K, D, L]  →  同组 Guillotine slice
+```
 
 ---
 
@@ -125,8 +140,9 @@ RoomGraph → TopologyPlan → Zone placement → Room placement
 ```
 
 - `TopologyPlanner`（`solver/topology/plan.py`）从邻接/近邻/回避边产出簇与 `pack_order_hint`
-- Guillotine **不再** `shuffle` 决定结构；拓扑序确定性，`rng` 仅扰动切分几何
-- 本切片**不**重划 DAY/NIGHT；**不做** AccessGraph / 门洞
+- Guillotine **不再**纯 `shuffle`；区内序读 TopologyPlan；`rng` 仅扰动切分几何
+- **尚未**：把整簇强制锁进同一 slicing group（见上表「下一步」）
+- 本切片**不**重划 DAY/NIGHT
 
 ## Phase 2.1 — AccessGraph（下一优先；先于画门）
 
@@ -149,22 +165,17 @@ Door placement          ← 仅 Phase 2.2
 示例（住宅可达树，先是图，不是洞口）：
 
 ```text
-Entry
+ExteriorEntry          ← SiteSpec.entrance_edge / road_edges（≠ Stair）
   ↓
-Foyer
+Foyer / Living / Hall
   ↓
-Living
-  ↓
-Hall
-  ├ Bedroom A
-  ├ Bedroom B
-  └ Bathroom
+…
+StairCore              ← 仅竖向交通，不当作主入口
 ```
 
-2.1 交付物：
-
+- **`ExteriorEntry`（✅）**：贴 buildable 外缘；AccessGraph 起点；楼梯命名仅为「楼梯」
 - **Hard 第一原则（✅ MVP）**：`access.unreachable_room`
-  - Entry → SpaceConnection / 共边临时图 BFS
+  - ExteriorEntry → SpaceConnection / 共边临时图 BFS
   - 任意 occupied room（`DesignProgram.rooms`）不在 reachable set → **candidate invalid**
 - **`SpaceConnection`**：`a` / `b` / `type`（OPEN|DOOR|PASSAGE|STAIR|EXTERIOR_ENTRY）/ `required`
   - 邻接 ≠ 通行：Kitchen—Dining 可用 `AdjacencyConstraint`；Hall—Bedroom 用 `SpaceConnection(type=DOOR)`
