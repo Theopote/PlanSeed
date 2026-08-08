@@ -64,7 +64,7 @@ Rust 三态：
 | `probe_engine` / `wait_for_engine`（非 port_open / wait_for_port） | ✅ |
 | spawn 失败 / health 超时 → 换端口重试 | ✅ |
 | setup 不阻塞；`engine-ready` 异步通知 | ✅ |
-| Windows onedir 真装包验收 | ✅ sidecar + `tauri:build`；release `app.exe` 自启引擎并通过 identity health |
+| Windows onedir 真装包验收 | ✅ NSIS 安装于 `%LocalAppData%\PlanSeed`；自启引擎；表单/基准 Generate + Compare 通过 |
 ---
 
 ## P1 — Evaluation / Compare 契约
@@ -90,7 +90,7 @@ Rust 三态：
 - [x] `build_backend_sidecar.ps1` 本机冒烟：onedir 写出 + `GET /api/health` identity 通过
 - [x] `pnpm --dir desktop tauri:build` **Windows** 冒烟（MSI + NSIS；`bundle.resources` **map** → `{resource_dir}/planseed-backend/`）
 - [x] release `app.exe` 自启 onedir 引擎 + `/api/health` identity（无系统 Python）
-- [ ] 安装包安装后手测 generate / compare（可选）
+- [x] NSIS 安装后手测：引擎自启 + 表单 Generate + 基准 Generate + A/B Compare（evaluation 差分）
 - [ ] CSP / macOS / Linux 属 Phase 5+，不在 Alpha 强求
 - [ ] 文档与 DoD 与代码一致（持续）
 
