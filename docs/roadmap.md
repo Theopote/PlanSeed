@@ -91,8 +91,9 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 |----|------|------|
 | **P0** | Engine Identity Probe 三态：PORT_FREE / PLANSEED_ENGINE / FOREIGN_SERVICE | ✅ |
 | **P0** | health 契约含 api_version + engine_version；就绪非仅 TCP | ✅ |
+| **P0** | **GitHub Actions CI**（pytest / ruff / mypy / pnpm build / cargo check） | ✅ workflow 已加；merge 后看 checks |
 | **P1** | evaluation 单一事实源 / 确定性契约测试 | 🟡 持续 |
-| **P2** | onedir 真装包冒烟 | ❌ |
+| **P2** | onedir 真装包冒烟 | ✅ 本机；sidecar 工作流手动/release |
 
 ---
 
