@@ -37,6 +37,13 @@ class ConstraintBase(BaseModel):
 
 
 class AdjacencyConstraint(ConstraintBase):
+    """
+    几何邻接（共享墙偏好）— 不等于可通行。
+
+    Kitchen—Dining 可用本约束表达「贴邻」而不要求门；
+    Hall—Bedroom 可通行请用 SpaceConnection → AccessGraph。
+    """
+
     kind: Literal[ConstraintKind.ADJACENCY] = ConstraintKind.ADJACENCY
     room_a_id: str
     room_b_id: str

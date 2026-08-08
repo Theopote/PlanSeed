@@ -12,8 +12,9 @@
 | **1.5** | **Solver Reliability** | ✅ 收口 |
 | **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
 | **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
-| **2.1** | **Door / AccessGraph** | 未开始 |
-| 2 | Spatial Topology + Circulation（总览） | 2.0 起步；2.1 门与可达 |
+| **2.1** | **AccessGraph + connections** | 未开始（拓扑可达 / 必连 / 共享边；**先于画门**） |
+| **2.2** | **Door placement** | 未开始（依赖 2.1 的共享边界） |
+| 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 AccessGraph → 2.2 Door |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
 | 5 | FastAPI | 延后 |
@@ -104,7 +105,9 @@ ZoneGeometry
       ↓
 RoomLayout (Guillotine = strategy；区内序读 TopologyPlan)
       ↓
-Door / Connectivity       ← Phase 2.1
+AccessGraph + required connections   ← Phase 2.1
+      ↓
+Shared boundary → Door placement     ← Phase 2.2
       ↓
 ConstraintChecker
       ↓
@@ -123,24 +126,67 @@ RoomGraph → TopologyPlan → Zone placement → Room placement
 
 - `TopologyPlanner`（`solver/topology/plan.py`）从邻接/近邻/回避边产出簇与 `pack_order_hint`
 - Guillotine **不再** `shuffle` 决定结构；拓扑序确定性，`rng` 仅扰动切分几何
-- 本切片**不**重划 DAY/NIGHT；**不做**门洞 / AccessGraph / unreachable
+- 本切片**不**重划 DAY/NIGHT；**不做** AccessGraph / 门洞
 
-## Phase 2.1 预告：门与可达性 + 语义标签硬化
+## Phase 2.1 — AccessGraph（下一优先；先于画门）
 
-矩形堆砌不是住宅。Phase 2.1 引入：
+**禁止**：矩形摆好就直接 `place door`。
 
-- Door / Opening / Connection / AccessGraph
-- `unreachable room` 作为 hard validation
-- **tags / semantic role 成为唯一规则入口**（淘汰 Solver 侧中文 name 回退）
+正确顺序：
 
-可达性比「客厅是否 24㎡」更重要。
+```text
+Room topology
+      ↓
+AccessGraph
+      ↓
+Required connections
+      ↓
+Shared boundary
+      ↓
+Door placement          ← 仅 Phase 2.2
+```
 
-示例：
+示例（住宅可达树，先是图，不是洞口）：
+
+```text
+Entry
+  ↓
+Foyer
+  ↓
+Living
+  ↓
+Hall
+  ├ Bedroom A
+  ├ Bedroom B
+  └ Bathroom
+```
+
+2.1 交付物：
+
+- **`SpaceConnection`**：`a` / `b` / `type`（OPEN|DOOR|PASSAGE|STAIR|EXTERIOR_ENTRY）/ `required`
+  - 邻接 ≠ 通行：Kitchen—Dining 可用 `AdjacencyConstraint`；Hall—Bedroom 用 `SpaceConnection(type=DOOR)`
+- **`AccessGraph`**：由 SpaceConnection 构成（`DesignProgram.access_graph`）
+- Required connections：从 constraints / 住宅默认规则派生
+- Shared boundary 查询：两节点是否同层共边、共边几何段
+- Validation：`unreachable room` 作为 hard（相对入口/楼梯）
+- **仍不画门**；SVG 可先画「应连通」虚线边
+
+语义标签硬化可并行：tags 为唯一规则入口（淘汰 Solver 侧中文 name 回退）。
 
 ```text
 「父母房」  →  tags=[bedroom, elderly_accessible]   # LLM / normalize
-FloorAssignment / ZonePlanner 只读 tags，不读 name
+FloorAssignment / ZonePlanner / AccessGraph 只读 tags，不读 name
 ```
+
+## Phase 2.2 — Door placement
+
+在 2.1 确认「谁必须通谁」且存在共享边之后：
+
+- 在 shared boundary 上放置 Opening / Door
+- 门宽、侧铰、净宽校验
+- SVG 画门洞
+
+无 AccessGraph 与共享边，禁止凭空在墙上戳门。
 
 ---
 
@@ -152,4 +198,4 @@ uv run python -m solver.visualize
 ```
 
 输出 `debug/candidate_0N_seedXX.svg`（房间名/面积、category 色、core、wet 虚线框、score/metrics、hard violations）。  
-非正式 UI，供 generator 回归目视检查。后续可加门洞、violation 高亮、对齐轴。
+非正式 UI，供 generator 回归目视检查。后续可加 AccessGraph 边、violation 高亮、对齐轴；门洞在 2.2。

@@ -30,9 +30,16 @@ from packages.schema.site import (
     SetbackSpec,
     SiteSpec,
 )
+from packages.schema.topology import (
+    AccessGraph,
+    SpaceConnection,
+    SpaceConnectionType,
+    TopologyPlan,
+)
 
 __all__ = [
     "AccessConstraint",
+    "AccessGraph",
     "AdjacencyConstraint",
     "AlignmentConstraint",
     "AreaConstraint",
@@ -59,6 +66,9 @@ __all__ = [
     "SetbackSpec",
     "SiteSpec",
     "SolverConfig",
+    "SpaceConnection",
+    "SpaceConnectionType",
+    "TopologyPlan",
     "Violation",
     "WetStack",
     "WidthConstraint",

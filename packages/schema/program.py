@@ -10,7 +10,7 @@ from packages.schema.project import ProjectSpec
 from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import Rect2D, SiteSpec
-from packages.schema.topology import RoomGraph, TopologyPlan
+from packages.schema.topology import AccessGraph, RoomGraph, TopologyPlan
 
 
 class SolverConfig(BaseModel):
@@ -49,6 +49,10 @@ class DesignProgram(BaseModel):
     topology_plan: TopologyPlan | None = Field(
         default=None,
         description="由 RoomGraph 派生的生成前拓扑计划；可由 TopologyPlanner 填充",
+    )
+    access_graph: AccessGraph | None = Field(
+        default=None,
+        description="可达图（SpaceConnection）；Phase 2.1 填充，先于 Door",
     )
     floor_assignment: FloorAssignment | None = Field(
         default=None,

@@ -16,6 +16,8 @@ Natural Language / Manual Input
 → ConstraintGraph + RoomGraph
 → TopologyPlan（生成前；影响打包序）
 → Candidate Generation
+→ AccessGraph / required connections（Phase 2.1）
+→ Shared boundary → Door（Phase 2.2）
 → Constraint Validation
 → Multi-objective Evaluation
 → Ranking

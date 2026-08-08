@@ -11,7 +11,8 @@
 | AlignmentConstraint | ✓ | ✓ wet_stack | ✓ WetStack anchor | ✓ | ✓ vertical | ✓ | stair/wet |
 | AreaConstraint | ✓ | — | — | ✓ hard/soft | area_accuracy | ✓ | soft 不再丢弃 |
 | WidthConstraint | ✓ | — | — | ✓ hard/soft | — | ✓ | soft 不再丢弃 |
-| AccessConstraint | ✓ | — | — | — | — | — | **Phase 2** |
+| AccessConstraint | ✓ | — | — | — | — | — | 遗留；**2.1 以 SpaceConnection/AccessGraph 为主** |
+| SpaceConnection / AccessGraph | ✓ schema | — | — | — | — | ✓ schema | **Phase 2.1**；邻接≠通行 |
 
 ## 系统级几何校验（非 Constraint 联合体成员）
 
@@ -29,6 +30,8 @@
 
 ## 结论
 
-- Separation / Access：**定义了但完全不起作用**（刻意留给 Phase 2 / 后续）
+- Separation：**定义了但完全不起作用**（刻意留给后续）
+- AccessConstraint / SpaceConnection：**Phase 2.1 AccessGraph** 闭环后再接线；**2.2** 才 Door placement
+- 区分：`AdjacencyConstraint` = 几何邻接；`SpaceConnection` = 可通行连接
 - FloorConstraint：由 FloorAssignmentSolver 消费，不重复进 layout checker
 - Generator 不「理解」约束语义；靠 zone/core + checker/evaluator 闭环

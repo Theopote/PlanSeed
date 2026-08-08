@@ -160,6 +160,39 @@ class TestNormalize:
         assert all(e.source_id in wet_ids and e.target_id in wet_ids for e in near_edges)
 
 
+class TestSpaceConnectionAccessGraph:
+    def test_adjacency_is_not_circulation(self):
+        """Kitchen—Dining 邻接 ≠ Hall—Bedroom 通行。"""
+        from packages.schema.topology import (
+            AccessGraph,
+            SpaceConnection,
+            SpaceConnectionType,
+        )
+
+        g = AccessGraph()
+        g.add_connection(
+            SpaceConnection(
+                id="c1",
+                a="hall",
+                b="bed_a",
+                type=SpaceConnectionType.DOOR,
+                required=True,
+            )
+        )
+        g.add_connection(
+            SpaceConnection(
+                id="c2",
+                a="kitchen",
+                b="dining",
+                type=SpaceConnectionType.OPEN,
+                required=False,
+            )
+        )
+        assert set(g.node_ids) >= {"hall", "bed_a", "kitchen", "dining"}
+        assert len(g.required_connections()) == 1
+        assert g.required_connections()[0].type == SpaceConnectionType.DOOR
+
+
 class TestDesignScore:
     def test_default_scores_are_zero(self):
         score = DesignScore()

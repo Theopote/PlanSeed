@@ -58,14 +58,25 @@ Discriminated union，按 `kind` 区分：
 
 | 类型 | 用途 |
 |------|------|
-| `AdjacencyConstraint` | 两房间邻接 |
+| `AdjacencyConstraint` | 几何邻接（共享墙）；**不等于**可通行 |
 | `SeparationConstraint` | 两房间分离 / 最小距离 |
 | `OrientationConstraint` | 朝向偏好（默认 soft） |
 | `FloorConstraint` | 强制楼层 |
 | `AlignmentConstraint` | 跨层对齐（湿区、楼梯） |
 | `AreaConstraint` | 面积 hard/soft |
 | `WidthConstraint` | 最小宽度 hard |
-| `AccessConstraint` | 对外 / 楼梯可达 |
+| `AccessConstraint` | 单房间对外 / 楼梯可达（遗留；2.1 以 AccessGraph 为主） |
+
+### SpaceConnection / AccessGraph（Phase 2.1）
+
+```python
+SpaceConnection(a, b, type=OPEN|DOOR|PASSAGE|STAIR|EXTERIOR_ENTRY, required)
+AccessGraph(node_ids, connections[])
+```
+
+- **邻接**（AdjacencyConstraint）：Kitchen—Dining 可贴邻而无门
+- **通行**（SpaceConnection）：Hall—Bedroom 必须可走通
+- AccessGraph 由 SpaceConnection 构成；Door placement（2.2）只消费已确认共享边的 DOOR/PASSAGE 等
 
 每个约束包含：`id`, `kind`, `hard`, `weight`, `description`
 
@@ -109,21 +120,26 @@ DesignProgram
 
 `SolverConfig`：`candidate_count=32`, `return_top_k=5`, `base_seed=42`, `snap_module=0.3`
 
-## RoomGraph / TopologyPlan
+## RoomGraph / TopologyPlan / AccessGraph
 
 ```python
 RoomGraph
 ├── room_ids[]
 └── edges[]: RoomEdge(source, target, kind, weight)
 
-TopologyPlan                    # 生成前，由 TopologyPlanner 从 RoomGraph 派生
+TopologyPlan                    # 生成前打包序（2.0）
 ├── clusters[]: AdjacencyCluster(floor_id, room_ids)
 ├── prefer_adjacent[]: RoomPair
 ├── avoid_pairs[]: RoomPair
 └── pack_order_hint: {floor_id: [room_id…]}
+
+AccessGraph                     # 可达（2.1）；边 = SpaceConnection
+├── node_ids[]                  # 房间 + entry / stair …
+└── connections[]: SpaceConnection(a, b, type, required)
 ```
 
-Edge kind：`adjacent | connected | near | far | avoid`
+Edge kind（RoomGraph）：`adjacent | connected | near | far | avoid`  
+SpaceConnection type：`open | door | passage | stair | exterior_entry`
 
 ## 从 v1 迁移映射
 

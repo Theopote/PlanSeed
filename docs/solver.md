@@ -214,7 +214,8 @@ Program → RoomGraph → TopologyPlan → Zone → RoomLayout → Geometry
 `build_room_graph()` 从 explicit constraints 与 room category 构建初始图。  
 `TopologyPlanner` 派生 `TopologyPlan`（簇 / prefer_adjacent / avoid / pack_order_hint）。  
 Guillotine MVP：区内打包读 `pack_order_hint`（替代 shuffle）；评后 checker/evaluator 仍保留邻接校验。  
-门洞与 AccessGraph → Phase 2.1。
+门洞与通行：先 **2.1 SpaceConnection → AccessGraph / 必连 / 共享边**，再 **2.2 Door**。  
+`AdjacencyConstraint` 只管几何邻接；可通行连接用 `SpaceConnection`。
 
 ## 几何模块
 
