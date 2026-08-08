@@ -83,8 +83,8 @@ Evaluator 只评分，不改几何。用户层七轴：
 
 | 级 | 主题 | 状态 |
 |----|------|------|
-| **P0** | 端口复用须 `/api/health` + `service=planseed`；外来 8787 不得误认 | ✅ |
-| **P0** | 就绪探测 = health（非仅 TCP） | ✅ |
+| **P0** | Engine Identity Probe 三态：PORT_FREE / PLANSEED_ENGINE / FOREIGN_SERVICE | ✅ |
+| **P0** | health 契约含 api_version + engine_version；就绪非仅 TCP | ✅ |
 | **P1** | evaluation 单一事实源 / 确定性契约测试 | 🟡 持续 |
 | **P2** | onedir 真装包冒烟 | ❌ |
 

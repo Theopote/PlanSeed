@@ -21,34 +21,39 @@ generate → validate → evaluate → candidate.evaluation → rank
 
 ---
 
-## P0 — 引擎身份与端口契约
+## P0 — Engine Identity Probe
+
+不要：`TCP open?`
+
+必须：
+
+```text
+GET /api/health
+→ {
+    "ok": true,
+    "service": "planseed",
+    "api_version": "1",
+    "engine_version": "0.1.0"
+  }
+```
+
+Rust 三态：
+
+| 身份 | 行为 |
+|------|------|
+| `PORT_FREE` | bind preferred（或失败则 ephemeral）+ spawn |
+| `PLANSEED_ENGINE` | reuse |
+| `FOREIGN_SERVICE` | **不要 reuse** → pick another port → launch PlanSeed |
+
+就绪探测同样要求完整身份 JSON，而非仅 TCP connect。
 
 | 项 | 状态 |
 |----|------|
-| 复用端口前必须 `GET /api/health` 且 `ok` + `service=planseed` | ✅ |
-| 8787 被外来进程占用 → **换端口自启**，不得误 reuse | ✅ |
-| 就绪探测用 health，而非仅 TCP `connect` | ✅ |
-| setup 不阻塞；`engine-ready` 异步通知 | ✅（3.5） |
+| health 含 api_version / engine_version | ✅ |
+| 三态探针 PORT_FREE / PLANSEED_ENGINE / FOREIGN_SERVICE | ✅ |
+| FOREIGN → 换端口自启 | ✅ |
+| setup 不阻塞；`engine-ready` 异步通知 | ✅ |
 | Windows onedir 真装包验收 | ❌ 仍待本机跑 |
-
-错误路径（本阶段已堵）：
-
-```text
-任意 localhost:8787 TCP 开放
-  → 误认 PlanSeed
-  → ready=true 且永不 spawn
-  → 前端 health 失败
-```
-
-正确路径：
-
-```text
-preferred 端口
-  ├─ health=planseed → reuse
-  ├─ 空闲 → bind + spawn
-  └─ 被占用但非 PlanSeed → 另选端口 + spawn
-```
-
 ---
 
 ## P1 — Evaluation / Compare 契约

@@ -14,13 +14,18 @@ def test_health():
     body = r.json()
     assert body["ok"] is True
     assert body["service"] == "planseed"
+    assert body["api_version"] == "1"
+    assert body["engine_version"] == "0.1.0"
 
 
 def test_health_identity_contract():
-    """Tauri 复用端口的唯一身份依据：ok + service=planseed。"""
+    """Engine Identity Probe：ok + service + api_version + engine_version。"""
     body = client.get("/api/health").json()
-    assert set(body.keys()) >= {"ok", "service"}
+    assert set(body.keys()) >= {"ok", "service", "api_version", "engine_version"}
+    assert body["ok"] is True
     assert body["service"] == "planseed"
+    assert body["api_version"] == "1"
+    assert isinstance(body["engine_version"], str) and body["engine_version"]
 
 
 def test_generate_benchmark():

@@ -1,7 +1,9 @@
 //! PlanSeed Tauri shell — 异步拉起本地引擎，窗口先出，就绪后 emit。
 //!
-//! 端口复用契约：仅当 GET /api/health 返回 ok + service=planseed 时才 reuse；
-//! 任意其它进程占用 8787 不得被当成 PlanSeed。
+//! Engine Identity Probe（禁止仅靠 TCP open）：
+//! - PORT_FREE → bind + spawn PlanSeed
+//! - PLANSEED_ENGINE → reuse（须通过 /api/health 身份契约）
+//! - FOREIGN_SERVICE → 换端口 + spawn PlanSeed
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
@@ -12,7 +14,12 @@ use std::thread;
 use std::time::Duration;
 
 use serde::Serialize;
+use serde_json::Value;
 use tauri::{Emitter, Manager, RunEvent, State};
+
+/// 与 backend/routes/health.py 对齐。
+const EXPECTED_SERVICE: &str = "planseed";
+const EXPECTED_API_VERSION: &str = "1";
 
 struct BackendChild(Mutex<Option<Child>>);
 
@@ -26,6 +33,14 @@ struct EngineReadyPayload {
     ready: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+}
+
+/// 端口身份三态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PortIdentity {
+    PortFree,
+    PlanseedEngine,
+    ForeignService,
 }
 
 fn repo_root_from_manifest() -> PathBuf {
@@ -46,7 +61,7 @@ fn preferred_port() -> u16 {
         .unwrap_or(8787)
 }
 
-fn port_open(host: &str, port: u16) -> bool {
+fn tcp_connectable(host: &str, port: u16) -> bool {
     let addr = format!("{host}:{port}");
     let Ok(mut addrs) = addr.to_socket_addrs() else {
         return false;
@@ -57,66 +72,93 @@ fn port_open(host: &str, port: u16) -> bool {
     TcpStream::connect_timeout(&sock, Duration::from_millis(200)).is_ok()
 }
 
-/// 确认对端是 PlanSeed 引擎（不是任意占着端口的进程）。
-fn planseed_alive(host: &str, port: u16) -> bool {
+fn http_get_health_body(host: &str, port: u16) -> Option<String> {
     let addr = format!("{host}:{port}");
-    let Ok(mut addrs) = addr.to_socket_addrs() else {
-        return false;
-    };
-    let Some(sock_addr) = addrs.next() else {
-        return false;
-    };
-    let Ok(mut stream) = TcpStream::connect_timeout(&sock_addr, Duration::from_millis(400)) else {
-        return false;
-    };
-    let _ = stream.set_read_timeout(Some(Duration::from_millis(600)));
-    let _ = stream.set_write_timeout(Some(Duration::from_millis(600)));
+    let mut addrs = addr.to_socket_addrs().ok()?;
+    let sock_addr = addrs.next()?;
+    let mut stream = TcpStream::connect_timeout(&sock_addr, Duration::from_millis(400)).ok()?;
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(800)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(800)));
 
     let req = format!(
         "GET /api/health HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\nAccept: application/json\r\n\r\n"
     );
-    if stream.write_all(req.as_bytes()).is_err() {
-        return false;
-    }
+    stream.write_all(req.as_bytes()).ok()?;
     let mut buf = Vec::new();
     let _ = stream.read_to_end(&mut buf);
     let text = String::from_utf8_lossy(&buf);
-    // 兼容压缩/空白差异：要求 HTTP 成功 + JSON 身份字段
     let ok_status = text.starts_with("HTTP/1.1 200") || text.starts_with("HTTP/1.0 200");
-    let body_ok = text.contains("\"ok\"")
-        && (text.contains("true") || text.contains(": true"));
-    let service_ok = text.contains("\"service\"") && text.contains("planseed");
-    ok_status && body_ok && service_ok
+    if !ok_status {
+        return None;
+    }
+    let body = text.split("\r\n\r\n").nth(1)?.trim();
+    if body.is_empty() {
+        return None;
+    }
+    Some(body.to_string())
+}
+
+fn is_planseed_health_json(body: &str) -> bool {
+    let Ok(v) = serde_json::from_str::<Value>(body) else {
+        return false;
+    };
+    let ok = v.get("ok").and_then(|x| x.as_bool()) == Some(true);
+    let service = v.get("service").and_then(|x| x.as_str()) == Some(EXPECTED_SERVICE);
+    let api = v.get("api_version").and_then(|x| x.as_str()) == Some(EXPECTED_API_VERSION);
+    let engine = v
+        .get("engine_version")
+        .and_then(|x| x.as_str())
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
+    ok && service && api && engine
+}
+
+/// Engine Identity Probe：PORT_FREE | PLANSEED_ENGINE | FOREIGN_SERVICE
+fn probe_port_identity(host: &str, port: u16) -> PortIdentity {
+    if !tcp_connectable(host, port) {
+        return PortIdentity::PortFree;
+    }
+    match http_get_health_body(host, port) {
+        Some(body) if is_planseed_health_json(&body) => PortIdentity::PlanseedEngine,
+        _ => PortIdentity::ForeignService,
+    }
 }
 
 /// 返回 (port, reuse_existing_planseed)。
 fn resolve_engine_endpoint(host: &str, preferred: u16) -> (u16, bool) {
-    if planseed_alive(host, preferred) {
-        return (preferred, true);
-    }
-    // preferred 空闲 → 占用它并自启
-    if !port_open(host, preferred) {
-        if TcpListener::bind((host, preferred)).is_ok() {
-            return (preferred, false);
+    match probe_port_identity(host, preferred) {
+        PortIdentity::PlanseedEngine => {
+            log::info!("probe {preferred}: PLANSEED_ENGINE → reuse");
+            (preferred, true)
         }
-    } else {
-        log::warn!(
-            "port {preferred} is open but not PlanSeed (/api/health); picking another port"
-        );
+        PortIdentity::PortFree => {
+            log::info!("probe {preferred}: PORT_FREE → spawn here");
+            // 试绑确认可占用；失败则退到 ephemeral
+            if TcpListener::bind((host, preferred)).is_ok() {
+                (preferred, false)
+            } else {
+                log::warn!("preferred port {preferred} became unbindable; picking another");
+                (pick_ephemeral_port(host).unwrap_or(preferred), false)
+            }
+        }
+        PortIdentity::ForeignService => {
+            log::warn!("probe {preferred}: FOREIGN_SERVICE → pick another port + spawn PlanSeed");
+            (pick_ephemeral_port(host).unwrap_or(preferred), false)
+        }
     }
-    // preferred 被外来进程占用，或 bind 失败 → 系统分配
-    let port = TcpListener::bind((host, 0))
+}
+
+fn pick_ephemeral_port(host: &str) -> Option<u16> {
+    TcpListener::bind((host, 0))
         .ok()
         .and_then(|l| l.local_addr().ok())
         .map(|a| a.port())
-        .unwrap_or(preferred);
-    (port, false)
 }
 
 fn wait_for_planseed(host: &str, port: u16, timeout: Duration) -> bool {
     let deadline = std::time::Instant::now() + timeout;
     while std::time::Instant::now() < deadline {
-        if planseed_alive(host, port) {
+        if probe_port_identity(host, port) == PortIdentity::PlanseedEngine {
             return true;
         }
         thread::sleep(Duration::from_millis(250));
@@ -225,7 +267,7 @@ pub fn run() {
             *handle.state::<EngineMeta>().url.lock().expect("url") = url.clone();
 
             if reuse {
-                log::info!("reusing PlanSeed engine at {url}");
+                log::info!("reusing PLANSEED_ENGINE at {url}");
                 emit_ready(
                     &handle,
                     EngineReadyPayload {

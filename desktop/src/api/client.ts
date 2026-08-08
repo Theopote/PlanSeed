@@ -111,8 +111,19 @@ export async function checkHealth(): Promise<boolean> {
   try {
     const r = await fetch(`${_apiBase}/api/health`);
     if (!r.ok) return false;
-    const data = (await r.json()) as { ok?: boolean; service?: string };
-    return data.ok === true && data.service === "planseed";
+    const data = (await r.json()) as {
+      ok?: boolean;
+      service?: string;
+      api_version?: string;
+      engine_version?: string;
+    };
+    return (
+      data.ok === true &&
+      data.service === "planseed" &&
+      data.api_version === "1" &&
+      typeof data.engine_version === "string" &&
+      data.engine_version.length > 0
+    );
   } catch {
     return false;
   }
