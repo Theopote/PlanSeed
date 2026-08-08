@@ -117,7 +117,7 @@ desktop/src-tauri/resources/planseed-backend/  →  bundle.resources map → pla
 canonical: {resource_dir}/planseed-backend/planseed-backend(.exe)
   （Windows: resource_dir = exe 所在目录；必须用 map，勿用列表保留 resources/ 前缀）
 Tauri Command::new 启动；退出时 kill 子进程
-setup 不阻塞；就绪后 emit engine-ready（health 身份探针）
+setup 不阻塞；就绪后 emit **engine-status**（health 身份探针；已废弃 engine-ready）
 ```
 
 验收标准：最终用户路径中不出现 `uvicorn` / `pip` / 手动端口说明；UI 只显示「引擎就绪 / 启动中 / 未就绪」。

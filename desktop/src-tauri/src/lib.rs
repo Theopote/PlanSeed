@@ -2,11 +2,12 @@
 //!
 //! Engine Identity Probe（禁止仅靠 TCP open）：
 //! - PORT_FREE → spawn PlanSeed（不预占端口；bind 失败则换端口重试）
-//! - PLANSEED_ENGINE → reuse（须通过 /api/health 身份契约）
+//! - PLANSEED_ENGINE → reuse（须通过 /api/health 身份契约）+ health 监视
 //! - FOREIGN_SERVICE → 换端口 + spawn PlanSeed
 //!
 //! 就绪判定：poll /api/health + identity/version（应用级），不是 TCP listen。
-//! 状态：STARTING | READY | ERROR | STOPPED；崩溃 emit ERROR，用户可 Retry。
+//! 状态：STARTING | READY | ERROR | STOPPED；唯一事件 engine-status。
+//! 崩溃 / reuse health 丢失 → ERROR，用户可 Retry。
 
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
@@ -49,14 +50,6 @@ enum EngineLifecycle {
 struct EngineStatusPayload {
     status: EngineLifecycle,
     url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
-}
-
-#[derive(Clone, Serialize)]
-struct EngineReadyPayload {
-    url: String,
-    ready: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
 }
@@ -299,19 +292,10 @@ fn kill_backend(state: &BackendChild) {
 }
 
 fn emit_status(handle: &tauri::AppHandle, payload: EngineStatusPayload) {
+    // 唯一事实源：engine-status（不再双发 engine-ready，避免 STARTING→ERROR）
     if let Err(e) = handle.emit("engine-status", &payload) {
         log::warn!("emit engine-status failed: {e}");
     }
-    // 兼容旧监听
-    let ready = matches!(payload.status, EngineLifecycle::Ready);
-    let _ = handle.emit(
-        "engine-ready",
-        EngineReadyPayload {
-            url: payload.url.clone(),
-            ready,
-            error: payload.error.clone(),
-        },
-    );
 }
 
 fn set_engine_url(meta: &EngineMeta, url: &str) {
@@ -342,7 +326,7 @@ fn watch_child_exit(handle: tauri::AppHandle, url: String) {
                         }
                     },
                     None => {
-                        // 无托管子进程（reuse 外部引擎）则不监视
+                        // 无托管子进程（reuse）→ 交给 watch_reused_health
                         return;
                     }
                 }
@@ -358,6 +342,43 @@ fn watch_child_exit(handle: tauri::AppHandle, url: String) {
                     },
                 );
                 return;
+            }
+        }
+    });
+}
+
+/// 复用外部 PlanSeed：无 Child 可 wait，轮询 /api/health 身份；丢失则 ERROR。
+fn watch_reused_health(handle: tauri::AppHandle, host: String, port: u16, url: String) {
+    thread::spawn(move || {
+        loop {
+            thread::sleep(Duration::from_secs(2));
+            let has_child = {
+                let state = handle.state::<BackendChild>();
+                let locked = state.0.lock();
+                let flag = match locked {
+                    Ok(guard) => guard.is_some(),
+                    Err(_) => false,
+                };
+                flag
+            };
+            if has_child {
+                return;
+            }
+            match probe_engine(&host, port) {
+                PortIdentity::PlanseedEngine => {}
+                lost => {
+                    let msg = format!("reused engine lost ({lost:?}) at {url}");
+                    append_engine_log(&handle, &format!("fatal: {msg}"));
+                    emit_status(
+                        &handle,
+                        EngineStatusPayload {
+                            status: EngineLifecycle::Error,
+                            url: url.clone(),
+                            error: Some(msg),
+                        },
+                    );
+                    return;
+                }
             }
         }
     });
@@ -414,10 +435,11 @@ fn spawn_engine_with_retry(
                         &h,
                         EngineStatusPayload {
                             status: EngineLifecycle::Ready,
-                            url,
+                            url: url.clone(),
                             error: None,
                         },
                     );
+                    watch_reused_health(h.clone(), host.clone(), port, url);
                     h.state::<EngineMeta>()
                         .spawning
                         .store(false, Ordering::SeqCst);
@@ -560,10 +582,11 @@ pub fn run() {
                         &handle,
                         EngineStatusPayload {
                             status: EngineLifecycle::Ready,
-                            url,
+                            url: url.clone(),
                             error: None,
                         },
                     );
+                    watch_reused_health(handle.clone(), host.clone(), preferred, url);
                 }
                 identity => {
                     log::info!("preferred {preferred} is {identity:?} → spawn with retry");

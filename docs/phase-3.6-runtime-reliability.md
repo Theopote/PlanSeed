@@ -67,8 +67,9 @@ Rust 三态：
 | FOREIGN → 换端口自启 | ✅ |
 | `probe_engine` / `wait_for_engine`（非 port_open / wait_for_port） | ✅ |
 | spawn 失败 / health 超时 → 换端口重试 | ✅ |
-| setup 不阻塞；`engine-status` / `engine-ready` 异步通知 | ✅ |
+| setup 不阻塞；**仅** `engine-status` 异步通知（已废弃 `engine-ready` 双发） | ✅ |
 | 状态机 STARTING / READY / ERROR / STOPPED + Retry | ✅ |
+| reuse 外部引擎：`watch_reused_health` 丢身份 → ERROR | ✅ |
 | release `engine.log`（startup / port / fatal） | ✅ |
 | `POST /api/compare`（前端只展示） | ✅ |
 | `LayoutCandidate.provenance` first-class | ✅ |
@@ -106,6 +107,18 @@ Rust 三态：
 - [x] NSIS 安装后手测：引擎自启 + 表单 Generate + 基准 Generate + A/B Compare（evaluation 差分）
 - [ ] CSP / macOS / Linux 属 Phase 5+，不在 Alpha 强求
 - [ ] 文档与 DoD 与代码一致（持续）
+
+---
+
+## Phase 3.6.1 — Runtime State Cleanup
+
+- [x] `engine-status` 唯一事实源；废弃 `engine-ready` 双发（修 STARTING→ERROR）
+- [x] reuse 外部引擎：`watch_reused_health` + 前端 health 掉线 → ERROR
+- [x] CI stub sidecar 目录（`cargo check` 不依赖真 onedir）
+- [ ] push 后确认 GitHub Actions 三 job 绿
+- [ ] 按 [windows-alpha-smoke.md](windows-alpha-smoke.md) 再跑一轮 Alpha smoke
+
+完成后进入 Phase 4 Interactive Design Workbench。
 
 ---
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   checkHealth,
   generateBenchmark,
@@ -35,13 +35,6 @@ type EngineStatusPayload = {
   error?: string;
 };
 
-/** 兼容旧 engine-ready 事件 */
-type EngineReadyPayload = {
-  url: string;
-  ready: boolean;
-  error?: string;
-};
-
 function App() {
   const [form, setForm] = useState<RequirementForm>(DEFAULT_FORM);
   const [engineStatus, setEngineStatus] = useState<EngineLifecycle>("STARTING");
@@ -65,6 +58,9 @@ function App() {
     rejected: number;
   } | null>(null);
 
+  const engineStatusRef = useRef<EngineLifecycle>(engineStatus);
+  engineStatusRef.current = engineStatus;
+
   const selected = candidates.find((c) => c.id === selectedId) ?? null;
   const compareWith =
     compareId && compareId !== selectedId
@@ -73,6 +69,7 @@ function App() {
 
   const applyEngineStatus = useCallback((status: EngineLifecycle, errorMsg?: string) => {
     setEngineStatus(status);
+    engineStatusRef.current = status;
     if (status === "READY") {
       setEngineHint(null);
     } else if (status === "ERROR") {
@@ -87,39 +84,34 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
-    const unlistens: Array<() => void> = [];
+    let unlisten: (() => void) | undefined;
+    let inTauri = false;
 
     async function boot() {
       await resolveEngineBase();
 
       try {
         const { listen } = await import("@tauri-apps/api/event");
-        const u1 = await listen<EngineStatusPayload>("engine-status", (ev) => {
+        inTauri = true;
+        // 唯一事实源：engine-status（不再听 engine-ready）
+        unlisten = await listen<EngineStatusPayload>("engine-status", (ev) => {
           if (cancelled) return;
           const p = ev.payload;
           if (p.url) setApiBase(p.url);
           applyEngineStatus(p.status, p.error);
         });
-        unlistens.push(u1);
-        const u2 = await listen<EngineReadyPayload>("engine-ready", (ev) => {
-          if (cancelled) return;
-          const p = ev.payload;
-          if (p.url) setApiBase(p.url);
-          applyEngineStatus(
-            p.ready ? "READY" : "ERROR",
-            p.error || undefined,
-          );
-        });
-        unlistens.push(u2);
       } catch {
-        /* 浏览器模式：无 Tauri 事件 */
+        /* 浏览器模式：无 Tauri 事件，靠 health 轮询 */
       }
 
+      // 浏览器 / 事件未到前的启动探测；Tauri 下就绪以 engine-status 为准
       async function ping() {
         const ok = await checkHealth();
         if (cancelled) return;
         if (ok) {
-          applyEngineStatus("READY");
+          if (!inTauri || engineStatusRef.current === "STARTING") {
+            applyEngineStatus("READY");
+          }
           return;
         }
         attempts += 1;
@@ -127,7 +119,7 @@ function App() {
           window.setTimeout(() => {
             if (!cancelled) void ping();
           }, 500);
-        } else {
+        } else if (!inTauri || engineStatusRef.current === "STARTING") {
           applyEngineStatus("ERROR", "本地引擎启动超时，请重试或检查杀毒拦截");
         }
       }
@@ -135,15 +127,24 @@ function App() {
     }
 
     void boot();
+    // READY 后 health 丢失 → ERROR（前端兜底；Rust reuse 另有 watch_reused_health）
     const id = window.setInterval(() => {
       void checkHealth().then((ok) => {
-        if (!cancelled && ok) applyEngineStatus("READY");
+        if (cancelled) return;
+        const cur = engineStatusRef.current;
+        if (ok) {
+          if (cur === "READY" || cur === "STARTING") {
+            applyEngineStatus("READY");
+          }
+        } else if (cur === "READY") {
+          applyEngineStatus("ERROR", "引擎 health 丢失（进程可能已退出）");
+        }
       });
-    }, 8000);
+    }, 3000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
-      for (const u of unlistens) u();
+      unlisten?.();
     };
   }, [applyEngineStatus]);
 
