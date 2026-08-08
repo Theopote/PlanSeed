@@ -17,8 +17,9 @@ from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan
 from solver.circulation.stair_core import (
+    CorePlacementFailure,
     choose_core_placement,
-    place_stair_core,
+    place_stair_core_resolving,
     resolve_stair_core_spec,
 )
 from solver.geometry.free_rects import subtract_rect
@@ -63,13 +64,25 @@ class GuillotineGenerator:
             preferred=core_spec.preferred_placement,
             entrance_edge=program.site.entrance_edge,
         )
-        core = place_stair_core(
-            floor_width=w,
-            floor_depth=d,
-            spec=core_spec,
-            placement=placement,
-            snap_module=module,
-        )
+        try:
+            core = place_stair_core_resolving(
+                floor_width=w,
+                floor_depth=d,
+                spec=core_spec,
+                primary_placement=placement,
+                snap_module=module,
+                rng=rng,
+            )
+        except CorePlacementFailure as err:
+            return LayoutCandidate(
+                id=f"candidate-{seed}",
+                seed=seed,
+                floors=[FloorLayout(floor_id=fl.id, placements=[]) for fl in program.floors],
+                metrics={
+                    "core_unfit": True,
+                    "core_unfit_reason": str(err),
+                },
+            )
 
         floor_rect = Rect(x=0, y=0, width=w, depth=d)
         core_rect = Rect(

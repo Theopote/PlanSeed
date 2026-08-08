@@ -23,8 +23,9 @@
 | geometry.duplicate_room | ✓ | ✓ |
 | geometry.wrong_floor | ✓ | ✓ |
 | geometry.unknown_room | ✓ | ✓ |
-| vertical.stair_alignment | ✓ | ✓ |
-| vertical.wet_zone_alignment | ✓ | ✓ |
+| geometry.core_unfit | ✓ | ✓ | 规定尺寸放不下 → invalid，禁止缩小 |
+| geometry.core_missing | ✓ | ✓ | |
+| geometry.core_size | ✓ | ✓ | 尺寸必须等于 StairCoreSpec |
 
 ## 结论
 

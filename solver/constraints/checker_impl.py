@@ -35,6 +35,7 @@ class DefaultConstraintChecker:
 
         result.extend(self._check_overlaps(candidate))
         result.extend(self._check_boundary(candidate, buildable))
+        result.extend(self._check_stair_core(program, candidate))
         result.extend(self._check_program_placements(program, candidate))
         result.extend(self._check_area_and_width(program, candidate))
         result.extend(self._check_stair_alignment(candidate))
@@ -105,6 +106,77 @@ class DefaultConstraintChecker:
                             source="system",
                         )
                     )
+        return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_stair_core(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """
+        楼梯核必须存在且尺寸等于 StairCoreSpec（禁止缩小）。
+
+        允许 ns（width×depth）或 ew（depth×width）两种朝向。
+        """
+        from packages.schema.layout import PlacementSource
+        from solver.circulation.stair_core import resolve_stair_core_spec
+
+        violations: list[Violation] = []
+        if candidate.metrics.get("core_unfit"):
+            violations.append(
+                Violation(
+                    constraint_id="geometry.core_unfit",
+                    room_ids=[],
+                    message=str(candidate.metrics.get("core_unfit_reason") or "楼梯核无法放入 footprint"),
+                    hard=True,
+                    source="system",
+                )
+            )
+            return ConstraintEvaluationResult.from_violations(violations)
+
+        spec = resolve_stair_core_spec(
+            stair_width=program.site.stair_width,
+            stair_depth=getattr(program.site, "stair_depth", 4.2),
+        )
+        expected = {
+            (round(spec.width, 3), round(spec.depth, 3)),
+            (round(spec.depth, 3), round(spec.width, 3)),
+        }
+
+        for fl in candidate.floors:
+            stairs = [
+                p
+                for p in fl.placements
+                if p.source == PlacementSource.GENERATED
+                and (p.category == "circulation" or (p.room_id or "").startswith("stair"))
+            ]
+            if not stairs:
+                violations.append(
+                    Violation(
+                        constraint_id="geometry.core_missing",
+                        room_ids=[],
+                        message=f"楼层 {fl.floor_id} 缺少楼梯核",
+                        hard=True,
+                        source="system",
+                    )
+                )
+                continue
+            stair = stairs[0]
+            size = (round(stair.rect.width, 3), round(stair.rect.depth, 3))
+            if size not in expected:
+                violations.append(
+                    Violation(
+                        constraint_id="geometry.core_size",
+                        room_ids=[stair.room_id],
+                        message=(
+                            f"楼梯核尺寸 {stair.rect.width:.2f}×{stair.rect.depth:.2f} "
+                            f"不等于规定 {spec.width}×{spec.depth}（禁止缩小）"
+                        ),
+                        measured_value=stair.rect.area,
+                        required_value=spec.width * spec.depth,
+                        hard=True,
+                        source="system",
+                    )
+                )
+
         return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_program_placements(

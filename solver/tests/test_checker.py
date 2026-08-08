@@ -158,6 +158,18 @@ class TestHardAdjacency:
             a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
             b_rect=PlacementRect(x=5, y=0, width=3, depth=3),
         )
+        # 合成候选补楼梯核，避免 geometry.core_missing 干扰 soft adj 断言
+        candidate.floors[0].placements.insert(
+            0,
+            RoomPlacement(
+                room_id="stair-F1",
+                floor_id="F1",
+                rect=PlacementRect(x=9.0, y=0.0, width=1.8, depth=4.2),
+                source=PlacementSource.GENERATED,
+                name="楼梯",
+                category="circulation",
+            ),
+        )
         validation = DefaultConstraintChecker().check(program, candidate)
         assert validation.valid
         assert any(v.constraint_id == "adj-soft" for v in validation.soft_violations)

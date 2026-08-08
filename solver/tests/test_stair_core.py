@@ -6,9 +6,16 @@ import random
 
 import pytest
 
-from packages.schema.core import CorePlacement
+from packages.schema.core import CorePlacement, StairCoreSpec
 from packages.schema.layout import PlacementSource
-from solver.circulation.stair_core import choose_core_placement, place_stair_core, resolve_stair_core_spec
+from solver.circulation.stair_core import (
+    CorePlacementFailure,
+    choose_core_placement,
+    place_stair_core,
+    place_stair_core_resolving,
+    resolve_stair_core_spec,
+)
+from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.geometry.free_rects import subtract_rect
 from solver.geometry.rect import Rect
 from solver.generators.guillotine import GuillotineGenerator
@@ -33,7 +40,6 @@ class TestStairCore:
         assert core.rect.width == pytest.approx(1.8)
         assert core.rect.depth == pytest.approx(4.2)
         assert core.rect.area == pytest.approx(1.8 * 4.2)
-        # 不再是 1.6×13
         assert core.rect.area < 20
 
     def test_seed_can_vary_placement(self):
@@ -66,3 +72,64 @@ class TestStairCore:
         assert f1.stair_x1 == pytest.approx(f2.stair_x1, abs=0.01)
         assert f1.stair_y1 == pytest.approx(f2.stair_y1, abs=0.01)
         assert f1.core_placement == f2.core_placement
+
+    def test_does_not_shrink_when_too_large(self):
+        """放不下时抛 CorePlacementFailure，绝不缩小。"""
+        spec = StairCoreSpec(width=1.8, depth=4.2)
+        with pytest.raises(CorePlacementFailure):
+            place_stair_core(
+                floor_width=3.0,
+                floor_depth=3.0,
+                spec=spec,
+                placement=CorePlacement.WEST,
+            )
+
+    def test_resolving_tries_alt_orientation_before_fail(self):
+        """窄长 footprint：默认 ns 放不下，ew 可放入。"""
+        spec = StairCoreSpec(width=1.8, depth=4.2)
+        # 3×5：ns 要 1.8×4.2 OK；用更极端的 5×2 使 ns(1.8×4.2) 失败、ew(4.2×1.8) 成功
+        core = place_stair_core_resolving(
+            floor_width=5.0,
+            floor_depth=2.0,
+            spec=spec,
+            primary_placement=CorePlacement.WEST,  # 默认 ns
+            rng=random.Random(0),
+        )
+        assert core.orientation == "ew"
+        assert core.rect.width == pytest.approx(4.2)
+        assert core.rect.depth == pytest.approx(1.8)
+
+    def test_resolving_fails_when_impossible(self):
+        spec = StairCoreSpec(width=1.8, depth=4.2)
+        with pytest.raises(CorePlacementFailure):
+            place_stair_core_resolving(
+                floor_width=2.0,
+                floor_depth=2.0,
+                spec=spec,
+                primary_placement=CorePlacement.CENTER,
+                rng=random.Random(1),
+            )
+
+    def test_guillotine_marks_core_unfit_invalid(self):
+        program = benchmark_program()
+        program.site.stair_width = 1.8
+        program.site.stair_depth = 4.2
+        # 缩小 buildable 使楼梯无法放入
+        program.buildable.width = 2.0
+        program.buildable.depth = 2.0
+        program.site.width = 2.0
+        program.site.depth = 2.0
+
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        assert candidate.metrics.get("core_unfit") is True
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "geometry.core_unfit" for v in validation.hard_violations)
+        # 尺寸未被缩小塞进方案
+        stairs = [
+            p
+            for fl in candidate.floors
+            for p in fl.placements
+            if p.source == PlacementSource.GENERATED
+        ]
+        assert stairs == []

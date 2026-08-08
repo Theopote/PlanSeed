@@ -51,10 +51,11 @@ Rooms → FloorAssignmentSolver → floor.room_ids
 
 Generator 不猜楼层。
 
-### P2 StairCore（✅ 已完成）
+### P2 StairCore（✅ 已完成；1.6 加固：禁止缩小）
 
 ```text
 1.6×整进深条带  →  StairCore ~1.8×4.2，N/S/E/W/center
+放不下 → 换 orientation / placement → 仍不行 → geometry.core_unfit（不缩放）
 ```
 
 ### P3 Architectural Zones（✅ 初版）
