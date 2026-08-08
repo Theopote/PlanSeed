@@ -25,7 +25,9 @@ export function CandidateStrip({
     b &&
     a.id !== b.id &&
     a.design_score &&
-    b.design_score;
+    b.design_score &&
+    a.revision_status !== "dirty" &&
+    b.revision_status !== "dirty";
 
   return (
     <footer className="candidate-strip">
@@ -50,15 +52,20 @@ export function CandidateStrip({
           const active = c.id === selectedId;
           const comparing = c.id === compareId;
           const score =
-            c.score != null
-              ? Math.round(c.score)
-              : c.design_score
-                ? Math.round(c.design_score.total_score)
-                : "—";
+            c.revision_status === "dirty"
+              ? "edited"
+              : c.score != null
+                ? Math.round(c.score)
+                : c.design_score
+                  ? Math.round(c.design_score.total_score)
+                  : "—";
           const gen = c.variant_generation ?? 0;
           const display = lineageLabel(c.label, gen);
           const tipParts = [
             "点击选中；Alt+点击设为比较对象",
+            c.revision_status === "dirty"
+              ? "Modified · Evaluation outdated"
+              : null,
             gen > 0 && c.variant_parent_id
               ? `父：${c.variant_parent_id}`
               : null,
@@ -68,7 +75,7 @@ export function CandidateStrip({
             <button
               key={c.id}
               type="button"
-              className={`strip-item ${active ? "active" : ""} ${comparing ? "compare" : ""} ${gen > 0 ? "is-variant" : ""}`}
+              className={`strip-item ${active ? "active" : ""} ${comparing ? "compare" : ""} ${gen > 0 ? "is-variant" : ""} ${c.revision_status === "dirty" ? "is-dirty" : ""}`}
               style={gen > 0 ? { marginLeft: Math.min(gen, 4) * 6 } : undefined}
               title={tipParts.join(" · ")}
               onClick={(e) => {

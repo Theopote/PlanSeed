@@ -92,6 +92,8 @@ def serialize_candidate(
         variant_parent_id=cand.variant_parent_id,
         variant_generation=cand.variant_generation,
         lock_snapshot_id=cand.lock_snapshot_id,
+        revision_status="generated",
+        mutations=[],
         placements=_placements_payload(cand),
         zones=_zones_payload(cand),
     )

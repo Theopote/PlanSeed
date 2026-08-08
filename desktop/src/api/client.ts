@@ -129,6 +129,19 @@ export type ZonePlacementPayload = {
   room_ids: string[];
 };
 
+export type MutationRecordPayload = {
+  id: string;
+  kind: string;
+  room_id?: string | null;
+  partner_room_id?: string | null;
+  before?: Record<string, number> | null;
+  after?: Record<string, number> | null;
+  after_partner?: Record<string, number> | null;
+  created_at?: string | null;
+};
+
+export type RevisionStatus = "generated" | "dirty" | "validated";
+
 export type CandidatePayload = {
   id: string;
   seed: number;
@@ -148,6 +161,10 @@ export type CandidatePayload = {
   variant_parent_id?: string | null;
   variant_generation?: number;
   lock_snapshot_id?: string | null;
+  /** Phase 5.1 revision */
+  revision_status?: RevisionStatus;
+  revision_parent_id?: string | null;
+  mutations?: MutationRecordPayload[];
   placements?: RoomPlacementPayload[];
   zones?: ZonePlacementPayload[];
 };
@@ -408,9 +425,13 @@ export type ProjectPayload = {
   selected_id: string | null;
   compare_id?: string | null;
   schema_versions?: {
-    solver_version: string;
-    generator_version: string;
-    evaluation_version: string;
+    solver_version?: string | null;
+    generator_version?: string | null;
+    evaluation_version?: string | null;
+  };
+  project_meta?: {
+    format_version: string;
+    app_version: string;
   };
 };
 
@@ -469,4 +490,185 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
     throw new Error(msg);
   }
   return r.json() as Promise<ProjectDetail>;
+}
+
+export type GeometryMutationRequest = {
+  kind: "move" | "resize" | "adjust_wall" | "lock" | "unlock";
+  room_id?: string | null;
+  partner_room_id?: string | null;
+  floor_id: string;
+  before?: {
+    x: number;
+    y: number;
+    width: number;
+    depth: number;
+  } | null;
+  proposed?: {
+    x: number;
+    y: number;
+    width: number;
+    depth: number;
+  } | null;
+  wall_axis?: "x" | "y" | null;
+  wall_coord?: number | null;
+  source?: "pointer" | "inspector" | "system";
+};
+
+export type MutationPreviewApiResult = {
+  ok: boolean;
+  reasons: Array<{ code: string; message: string }>;
+  warnings: Array<{ code: string; message: string }>;
+  snapped: {
+    x: number;
+    y: number;
+    width: number;
+    depth: number;
+  } | null;
+  snapped_partner: {
+    x: number;
+    y: number;
+    width: number;
+    depth: number;
+  } | null;
+  conflict_room_ids: string[];
+};
+
+/** Phase 5.1 — Python Geometry Mutation Authority。 */
+export async function previewMutation(opts: {
+  useBenchmark?: boolean;
+  form: RequirementForm;
+  program: ProgramSummary;
+  placements: RoomPlacementPayload[];
+  locks: LayoutLocks;
+  mutation: GeometryMutationRequest;
+  snapModule?: number;
+}): Promise<MutationPreviewApiResult> {
+  const body: Record<string, unknown> = {
+    use_benchmark: opts.useBenchmark ?? false,
+    placements: opts.placements,
+    locks: {
+      rooms: opts.locks.rooms,
+      stair: opts.locks.stair ?? null,
+      zones: opts.locks.zones ?? [],
+    },
+    mutation: opts.mutation,
+    snap_module: opts.snapModule ?? 0.3,
+  };
+  if (!opts.useBenchmark) {
+    body.requirements = {
+      site: {
+        width: opts.program.site_width,
+        depth: opts.program.site_depth,
+      },
+      household: {
+        bedrooms: opts.form.bedrooms,
+        bathrooms: opts.form.bathrooms,
+        has_garage: opts.form.has_garage,
+      },
+      preferences: {
+        prefer_south_facing_living: opts.form.prefer_south_facing_living,
+      },
+      floor_count: opts.program.floor_count,
+      spaces: opts.program.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        category: room.category,
+        target_area: room.target_area,
+        floor_preference: room.floor_id ? [room.floor_id] : [],
+      })),
+    };
+  }
+  const r = await fetch(`${_apiBase}/api/mutations/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const errBody = (await r.json()) as { detail?: string };
+      if (typeof errBody.detail === "string") msg = errBody.detail;
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<MutationPreviewApiResult>;
+}
+
+/** Phase 5.1 — 重算 openings / access / evaluation（不改几何）。 */
+export async function revalidateMutation(opts: {
+  useBenchmark?: boolean;
+  form: RequirementForm;
+  program: ProgramSummary;
+  placements: RoomPlacementPayload[];
+  locks: LayoutLocks;
+  zones?: ZonePlacementPayload[];
+  candidateId: string;
+  seed: number;
+  labelIndex?: number;
+  variantParentId?: string | null;
+  variantGeneration?: number;
+  lockSnapshotId?: string | null;
+  mutations?: MutationRecordPayload[];
+  revisionParentId?: string | null;
+}): Promise<CandidatePayload> {
+  const body: Record<string, unknown> = {
+    use_benchmark: opts.useBenchmark ?? false,
+    placements: opts.placements,
+    locks: {
+      rooms: opts.locks.rooms,
+      stair: opts.locks.stair ?? null,
+      zones: opts.locks.zones ?? [],
+    },
+    zones: opts.zones ?? [],
+    candidate_id: opts.candidateId,
+    seed: opts.seed,
+    label_index: opts.labelIndex ?? 0,
+    variant_parent_id: opts.variantParentId ?? null,
+    variant_generation: opts.variantGeneration ?? 0,
+    lock_snapshot_id: opts.lockSnapshotId ?? null,
+    mutations: opts.mutations ?? [],
+    revision_parent_id: opts.revisionParentId ?? opts.candidateId,
+  };
+  if (!opts.useBenchmark) {
+    body.requirements = {
+      site: {
+        width: opts.program.site_width,
+        depth: opts.program.site_depth,
+      },
+      household: {
+        bedrooms: opts.form.bedrooms,
+        bathrooms: opts.form.bathrooms,
+        has_garage: opts.form.has_garage,
+      },
+      preferences: {
+        prefer_south_facing_living: opts.form.prefer_south_facing_living,
+      },
+      floor_count: opts.program.floor_count,
+      spaces: opts.program.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        category: room.category,
+        target_area: room.target_area,
+        floor_preference: room.floor_id ? [room.floor_id] : [],
+      })),
+    };
+  }
+  const r = await fetch(`${_apiBase}/api/mutations/revalidate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const errBody = (await r.json()) as { detail?: string };
+      if (typeof errBody.detail === "string") msg = errBody.detail;
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<CandidatePayload>;
 }

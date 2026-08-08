@@ -41,6 +41,7 @@
 | `solver_identity` | generate / health 响应 |
 | `CompareRequest` / `CompareResponse` | `POST /api/compare` |
 | Projects CRUD | Phase 5：`GET/POST /api/projects`、`GET/DELETE /api/projects/{id}`；详见 [phase-5-persistence.md](phase-5-persistence.md) |
+| Mutation preview / revalidate | Phase 5.1：`POST /api/mutations/preview`、`POST /api/mutations/revalidate`；详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md) |
 
 ### SolverIdentity（算法契约，≠ engine_version）
 

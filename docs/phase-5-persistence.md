@@ -58,7 +58,7 @@ LayoutLocks → model_dump / 等价 JSON → sort_keys → sha256 → 前 16 hex
 | GET | `/api/projects/{id}` | 详情；带 `evaluation_version_mismatch` |
 | DELETE | `/api/projects/{id}` | 删除 |
 
-保存时服务端写入**当前** `schema_versions`。打开时若快照 `evaluation_version` ≠ 当前常量 → UI 提示分数不可比、几何仍有效。
+保存时服务端写入 `project_meta`（format/app），并**保留**快照内设计 `schema_versions`（不得仅因 Save 升为 current）。打开时若快照 `evaluation_version` ≠ 当前常量 → UI 提示分数不可比、几何仍有效。详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md)。
 
 ## 明确不做
 

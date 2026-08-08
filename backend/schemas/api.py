@@ -8,12 +8,14 @@ solver_identity / CandidateProvenance — 禁止无 bump 的破坏性改字段�
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from packages.schema.locks import LayoutLocks
 from packages.schema.requirements import RequirementSpec
 from packages.schema.scoring import DesignScore
 from pydantic import BaseModel, Field
+
+RevisionStatus = Literal["generated", "dirty", "validated"]
 
 
 class GenerateRequest(BaseModel):
@@ -88,6 +90,19 @@ class ZonePlacementPayload(BaseModel):
     room_ids: list[str] = Field(default_factory=list)
 
 
+class MutationRecordPayload(BaseModel):
+    """会话 mutation 历史条目（Phase 5.1）；非完整事件溯源。"""
+
+    id: str
+    kind: str
+    room_id: str | None = None
+    partner_room_id: str | None = None
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
+    after_partner: dict[str, Any] | None = None
+    created_at: str | None = None
+
+
 class CandidatePayload(BaseModel):
     id: str
     seed: int
@@ -106,6 +121,18 @@ class CandidatePayload(BaseModel):
     lock_snapshot_id: str | None = Field(
         default=None,
         description="Phase 5：生成时 locks 指纹",
+    )
+    revision_status: RevisionStatus = Field(
+        default="generated",
+        description="Phase 5.1：generated | dirty | validated",
+    )
+    revision_parent_id: str | None = Field(
+        default=None,
+        description="Phase 5.1：用户编辑派生自哪个候选 revision",
+    )
+    mutations: list[MutationRecordPayload] = Field(
+        default_factory=list,
+        description="Phase 5.1：相对 generated 基线的 mutation 日志",
     )
     placements: list[RoomPlacementPayload] = Field(
         default_factory=list,

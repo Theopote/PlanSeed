@@ -961,6 +961,16 @@ button.secondary {
   background: #45413b;
 }
 
+.strip-item.is-dirty .strip-score {
+  color: #d4a574;
+  font-size: 0.85rem;
+}
+
+.strip-item.is-dirty {
+  border-style: dashed;
+  border-color: #8a7355;
+}
+
 .strip-label {
   font-family: var(--font-display);
   font-size: 1.15rem;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RoomPlacementPayload } from "../api/client";
 import {
-  HARD_MIN_EDGE,
+  VISUAL_MIN_EDGE,
   applyWallCoord,
   listSharedWalls,
   type WallAxis,
@@ -69,8 +69,10 @@ type Props = {
     roomId: string,
     pose: RoomMovePose,
     kind?: MutationDragKind,
-  ) => ProposeMoveResult;
-  onProposeWall?: (pose: WallAdjustPose) => ProposeMoveResult;
+  ) => ProposeMoveResult | Promise<ProposeMoveResult>;
+  onProposeWall?: (
+    pose: WallAdjustPose,
+  ) => ProposeMoveResult | Promise<ProposeMoveResult>;
   onLivePreview?: (
     roomId: string,
     pose: RoomMovePose,
@@ -168,20 +170,20 @@ function resizeFromDelta(
     d = od - dy;
   }
 
-  // 硬最小边：拖拽预览也钳制，避免负宽
-  if (w < HARD_MIN_EDGE) {
-    if (moveW) x = ox + ow - HARD_MIN_EDGE;
-    w = HARD_MIN_EDGE;
+  // 视觉最小边：拖拽预览钳制；权威硬拒由 Python Authority
+  if (w < VISUAL_MIN_EDGE) {
+    if (moveW) x = ox + ow - VISUAL_MIN_EDGE;
+    w = VISUAL_MIN_EDGE;
   }
-  if (d < HARD_MIN_EDGE) {
-    if (moveN) y = oy + od - HARD_MIN_EDGE;
-    d = HARD_MIN_EDGE;
+  if (d < VISUAL_MIN_EDGE) {
+    if (moveN) y = oy + od - VISUAL_MIN_EDGE;
+    d = VISUAL_MIN_EDGE;
   }
 
   x = clamp(x, 0, Math.max(0, floorW - w));
   y = clamp(y, 0, Math.max(0, floorD - d));
-  w = clamp(w, HARD_MIN_EDGE, Math.max(HARD_MIN_EDGE, floorW - x));
-  d = clamp(d, HARD_MIN_EDGE, Math.max(HARD_MIN_EDGE, floorD - y));
+  w = clamp(w, VISUAL_MIN_EDGE, Math.max(VISUAL_MIN_EDGE, floorW - x));
+  d = clamp(d, VISUAL_MIN_EDGE, Math.max(VISUAL_MIN_EDGE, floorD - y));
   return { x, y, width: w, depth: d };
 }
 
@@ -530,7 +532,7 @@ export function FloorplanView({
     if (!maybeRoot || !svg) return;
     const stageRoot: HTMLElement = maybeRoot;
 
-    function finishDrag(ev: PointerEvent, commit: boolean) {
+    async function finishDrag(ev: PointerEvent, commit: boolean) {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== ev.pointerId) return;
       dragRef.current = null;
@@ -578,7 +580,7 @@ export function FloorplanView({
           wall_axis: drag.wallAxis,
           wall_coord: coord,
         };
-        const result = onProposeWall?.(wallPose);
+        const result = await Promise.resolve(onProposeWall?.(wallPose));
         clearLiveFeedback();
         if (!result?.ok) {
           syncFromPlacements();
@@ -659,7 +661,9 @@ export function FloorplanView({
         applyNodeGeometry(id, pose.x, pose.y, pose.width, pose.depth);
       }
 
-      const result = onProposeMove?.(drag.roomId, pose, drag.kind);
+      const result = await Promise.resolve(
+        onProposeMove?.(drag.roomId, pose, drag.kind),
+      );
       clearLiveFeedback();
       if (!result?.ok) {
         syncFromPlacements();

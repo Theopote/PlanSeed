@@ -65,7 +65,9 @@ type Props = {
   onClearLocks: () => void;
   onRegenerate: () => void;
   onCreateVariant: () => void;
+  onRevalidate?: () => void;
   regenerating: boolean;
+  revalidating?: boolean;
   canRegenerate: boolean;
 };
 
@@ -305,7 +307,9 @@ export function Inspector({
   onClearLocks,
   onRegenerate,
   onCreateVariant,
+  onRevalidate,
   regenerating,
+  revalidating = false,
   canRegenerate,
 }: Props) {
   if (candidate && compareWith && candidate.id !== compareWith.id) {
@@ -321,9 +325,10 @@ export function Inspector({
   }
 
   const ds = candidate?.design_score ?? null;
+  const isDirty = candidate?.revision_status === "dirty";
   const hard = candidate?.validation?.hard_violations ?? [];
   const soft = candidate?.validation?.soft_violations ?? [];
-  const findings = ds?.findings ?? [];
+  const findings = isDirty ? [] : (ds?.findings ?? []);
   const groups = groupFindings(findings);
   const placement =
     selectedRoomId && candidate
@@ -355,7 +360,11 @@ export function Inspector({
         {candidate && (
           <p className="muted">
             {candidate.label} · seed {candidate.seed}
-            {candidate.score != null ? ` · ${candidate.score.toFixed(1)}` : ""}
+            {isDirty
+              ? " · Modified"
+              : candidate.score != null
+                ? ` · ${candidate.score.toFixed(1)}`
+                : ""}
             {lockCount > 0 ? ` · 锁 ${lockCount}` : ""}
           </p>
         )}
@@ -369,6 +378,24 @@ export function Inspector({
 
       {candidate && (
         <div className="inspector-body">
+          {isDirty && (
+            <p className="lock-banner">
+              Modified · Evaluation outdated
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!onRevalidate || revalidating || regenerating}
+                onClick={() => onRevalidate?.()}
+              >
+                {revalidating ? "重算中…" : "Revalidate"}
+              </button>
+              <span className="muted tiny">
+                {" "}
+                · mutations {candidate?.mutations?.length ?? 0}
+              </span>
+            </p>
+          )}
+
           {lockCount > 0 && (
             <p className="lock-banner">
               已锁 {lockCount} 处
@@ -382,7 +409,7 @@ export function Inspector({
             <button
               type="button"
               className="room-regen"
-              disabled={!canRegenerate || regenerating}
+              disabled={!canRegenerate || regenerating || revalidating}
               onClick={onRegenerate}
             >
               {regenerating
@@ -394,13 +421,14 @@ export function Inspector({
             <button
               type="button"
               className="secondary"
-              disabled={!canRegenerate || regenerating}
+              disabled={!canRegenerate || regenerating || revalidating}
               onClick={onCreateVariant}
             >
               Create Variant
             </button>
             <p className="muted tiny">
-              Regenerate 替换条带；Variant 追加并自动进入比较
+              Regenerate 替换条带；Variant 追加并自动进入比较；编辑后请
+              Revalidate
             </p>
           </div>
 
@@ -464,7 +492,7 @@ export function Inspector({
             />
           )}
 
-          {ds && (
+          {ds && !isDirty && (
             <>
               <div className="total-score">
                 <span>Total</span>
@@ -543,7 +571,7 @@ export function Inspector({
             </>
           )}
 
-          {hard.length > 0 && (
+          {!isDirty && hard.length > 0 && (
             <>
               <h3>硬性违规</h3>
               <ul className="tiny-list bad">
@@ -556,7 +584,7 @@ export function Inspector({
               </ul>
             </>
           )}
-          {soft.length > 0 && (
+          {!isDirty && soft.length > 0 && (
             <>
               <h3>软性约束</h3>
               <ul className="tiny-list">

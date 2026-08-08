@@ -108,7 +108,8 @@ ProposedMutation
 
 ### P0 — Authority + Move Room ✅
 
-1. ✅ `packages/schema/mutation.py` + `solver/mutation/preview_mutation`；桌面 `previewMove` 镜像规则  
+1. ✅ `packages/schema/mutation.py` + `solver/mutation/preview_mutation`  
+   （~~桌面 `previewMove` 镜像规则~~ → **Phase 5.1 已收回** `POST /api/mutations/preview`）  
 2. ✅ 拖拽松手 → `MOVE` → Guard → Commit（upsert Room/Stair Lock）或 Snap Back  
 3. ✅ 非法：Snap Back + `mutationHint` 人话原因  
 4. ✅ 测：`solver/tests/test_mutation.py`（buildable / overlap / zone envelope / snap）

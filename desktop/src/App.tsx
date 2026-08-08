@@ -6,6 +6,8 @@ import {
   generateFromProgram,
   listProjects,
   loadProject,
+  previewMutation,
+  revalidateMutation,
   resolveEngineBase,
   retryEngine,
   saveProject,
@@ -17,6 +19,8 @@ import {
   type LockedRoomRect,
   type LockedStairCore,
   type LockedZoneRect,
+  type MutationPreviewApiResult,
+  type MutationRecordPayload,
   type ProgramSummary,
   type ProjectSummary,
   type RejectedCandidatePayload,
@@ -28,9 +32,8 @@ import {
   mutationLiveMessage,
   mutationRejectMessage,
   mutationWarningMessage,
-  previewAdjustWall,
-  previewMove,
-  previewResize,
+  visualSnapRect,
+  type MutationPreviewResult,
 } from "./lib/geometryMutation";
 import {
   FloorplanView,
@@ -72,6 +75,36 @@ type EngineStatusPayload = {
   error?: string;
 };
 
+function apiPreviewToLocal(p: MutationPreviewApiResult): MutationPreviewResult {
+  return {
+    ok: p.ok,
+    reasons: p.reasons,
+    warnings: p.warnings,
+    snapped: p.snapped,
+    snappedPartner: p.snapped_partner,
+    conflictRoomIds: p.conflict_room_ids,
+  };
+}
+
+function newMutationId(): string {
+  return `mut-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function markCandidateDirty(
+  c: CandidatePayload,
+  record: MutationRecordPayload,
+  placements: NonNullable<CandidatePayload["placements"]>,
+): CandidatePayload {
+  return {
+    ...c,
+    placements,
+    revision_status: "dirty",
+    revision_parent_id: c.revision_parent_id ?? c.id,
+    mutations: [...(c.mutations ?? []), record],
+    validation: null,
+  };
+}
+
 function App() {
   const [form, setForm] = useState<RequirementForm>(DEFAULT_FORM);
   const [engineStatus, setEngineStatus] = useState<EngineLifecycle>("STARTING");
@@ -108,6 +141,13 @@ function App() {
     valid: number;
     rejected: number;
   } | null>(null);
+  const [solverIdentity, setSolverIdentity] = useState<{
+    solver_version: string;
+    generator_version: string;
+    evaluation_version: string;
+  } | null>(null);
+  const [revalidating, setRevalidating] = useState(false);
+  const livePreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const engineStatusRef = useRef<EngineLifecycle>(engineStatus);
   engineStatusRef.current = engineStatus;
@@ -239,6 +279,8 @@ function App() {
         variant_parent_id: c.variant_parent_id ?? null,
         variant_generation: c.variant_generation ?? 0,
         lock_snapshot_id: c.lock_snapshot_id ?? lockSnap,
+        revision_status: c.revision_status ?? "generated",
+        mutations: c.mutations ?? [],
       })),
     [],
   );
@@ -246,6 +288,9 @@ function App() {
   const applyResult = useCallback(
     (data: GenerateResponse) => {
       setProgram(data.program_summary);
+      if (data.solver_identity) {
+        setSolverIdentity(data.solver_identity);
+      }
       const fp = locksFingerprint(locks);
       setCandidates(stampRootLineage(relabel(data.candidates), fp));
       setStats({
@@ -259,6 +304,7 @@ function App() {
       setCompareId(null);
       setHighlightRoomIds([]);
       setSelectedRoomId(null);
+      setMutationHint(null);
       setError(null);
     },
     [relabel, stampRootLineage, locks],
@@ -443,36 +489,50 @@ function App() {
     setLocks({ rooms: [], stair: null, zones: [] });
   }, []);
 
-  /** Geometry Mutation Authority：MOVE/RESIZE → Commit 或 Snap Back */
-  const runPreview = useCallback(
-    (
-      roomId: string,
-      pose: RoomMovePose,
-      kind: MutationDragKind,
-    ) => {
+  /** Phase 5.1：权威预览走 Python；TS 仅 visual。 */
+  const callAuthorityPreview = useCallback(
+    async (
+      mutation: Parameters<typeof previewMutation>[0]["mutation"],
+    ): Promise<MutationPreviewResult | null> => {
       if (!selected?.placements || !program) return null;
-      const roomMeta = program.rooms.find((r) => r.id === roomId);
-      const ctx = {
-        placements: selected.placements,
-        locks,
-        floorWidth: program.site_width,
-        floorDepth: program.site_depth,
-        snapModule: 0.3 as const,
-        roomHints: roomMeta
-          ? { target_area: roomMeta.target_area }
-          : undefined,
-      };
-      const proposed = {
-        x: pose.x,
-        y: pose.y,
-        width: pose.width,
-        depth: pose.depth,
-      };
-      return kind === "resize"
-        ? previewResize(roomId, proposed, pose.floor_id, ctx)
-        : previewMove(roomId, proposed, pose.floor_id, ctx);
+      try {
+        const raw = await previewMutation({
+          form,
+          program,
+          placements: selected.placements,
+          locks,
+          mutation,
+          snapModule: 0.3,
+        });
+        return apiPreviewToLocal(raw);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setMutationHint(msg);
+        return {
+          ok: false,
+          reasons: [{ code: "mutation.api_error", message: msg }],
+          warnings: [],
+          snapped: null,
+          snappedPartner: null,
+          conflictRoomIds: [],
+        };
+      }
     },
-    [selected, program, locks],
+    [selected, program, form, locks],
+  );
+
+  const scheduleAuthorityLiveHint = useCallback(
+    (mutation: Parameters<typeof previewMutation>[0]["mutation"]) => {
+      if (livePreviewTimer.current) clearTimeout(livePreviewTimer.current);
+      livePreviewTimer.current = setTimeout(() => {
+        void (async () => {
+          const preview = await callAuthorityPreview(mutation);
+          if (!preview) return;
+          setMutationHint(mutationLiveMessage(preview));
+        })();
+      }, 80);
+    },
+    [callAuthorityPreview],
   );
 
   const onLivePreview = useCallback(
@@ -481,115 +541,132 @@ function App() {
       pose: RoomMovePose,
       kind: MutationDragKind,
     ): LivePreviewResult => {
-      const preview = runPreview(roomId, pose, kind);
-      if (!preview) {
+      if (!program) {
         return { ok: false, message: "无候选可编辑", conflictRoomIds: [] };
       }
+      const snapped = visualSnapRect(
+        { x: pose.x, y: pose.y, width: pose.width, depth: pose.depth },
+        program.site_width,
+        program.site_depth,
+        0.3,
+        kind === "resize" ? "resize" : "move",
+      );
+      scheduleAuthorityLiveHint({
+        kind: kind === "resize" ? "resize" : "move",
+        room_id: roomId,
+        floor_id: pose.floor_id,
+        proposed: snapped,
+        source: "pointer",
+      });
       return {
-        ok: preview.ok,
-        message: mutationLiveMessage(preview),
-        snapped: preview.snapped,
-        conflictRoomIds: preview.conflictRoomIds,
+        ok: true,
+        message: null,
+        snapped,
+        conflictRoomIds: [],
       };
     },
-    [runPreview],
+    [program, scheduleAuthorityLiveHint],
   );
 
   const onLiveWallPreview = useCallback(
     (pose: WallAdjustPose): LivePreviewResult => {
-      if (!selected?.placements || !program) {
-        return { ok: false, message: "无候选可编辑", conflictRoomIds: [] };
-      }
-      const preview = previewAdjustWall(
-        pose.room_id,
-        pose.partner_room_id,
-        pose.floor_id,
-        pose.wall_axis,
-        pose.wall_coord,
-        {
-          placements: selected.placements,
-          locks,
-          floorWidth: program.site_width,
-          floorDepth: program.site_depth,
-          snapModule: 0.3,
-        },
-      );
+      scheduleAuthorityLiveHint({
+        kind: "adjust_wall",
+        room_id: pose.room_id,
+        partner_room_id: pose.partner_room_id,
+        floor_id: pose.floor_id,
+        wall_axis: pose.wall_axis,
+        wall_coord: pose.wall_coord,
+        source: "pointer",
+      });
       return {
-        ok: preview.ok,
-        message: mutationLiveMessage(preview),
-        snapped: preview.snapped,
-        snappedPartner: preview.snappedPartner,
+        ok: true,
+        message: null,
+        snapped: null,
         partnerRoomId: pose.partner_room_id,
-        conflictRoomIds: preview.conflictRoomIds,
+        conflictRoomIds: [],
       };
     },
-    [selected, program, locks],
+    [scheduleAuthorityLiveHint],
   );
 
   const onProposeWall = useCallback(
-    (pose: WallAdjustPose): ProposeMoveResult => {
+    async (pose: WallAdjustPose): Promise<ProposeMoveResult> => {
       if (!selected?.placements || !program) {
         return { ok: false, message: "无候选可编辑", snapped: null };
       }
-      const preview = previewAdjustWall(
-        pose.room_id,
-        pose.partner_room_id,
-        pose.floor_id,
-        pose.wall_axis,
-        pose.wall_coord,
-        {
-          placements: selected.placements,
-          locks,
-          floorWidth: program.site_width,
-          floorDepth: program.site_depth,
-          snapModule: 0.3,
-        },
-      );
-      if (!preview.ok || !preview.snapped || !preview.snappedPartner) {
-        const msg = mutationRejectMessage(preview);
+      const preview = await callAuthorityPreview({
+        kind: "adjust_wall",
+        room_id: pose.room_id,
+        partner_room_id: pose.partner_room_id,
+        floor_id: pose.floor_id,
+        wall_axis: pose.wall_axis,
+        wall_coord: pose.wall_coord,
+        source: "pointer",
+      });
+      if (!preview || !preview.ok || !preview.snapped || !preview.snappedPartner) {
+        const msg = preview
+          ? mutationRejectMessage(preview)
+          : "无候选可编辑";
         setMutationHint(msg);
         return {
           ok: false,
           message: msg,
-          snapped: preview.snapped,
-          snappedPartner: preview.snappedPartner,
+          snapped: preview?.snapped ?? null,
+          snappedPartner: preview?.snappedPartner ?? null,
           partnerRoomId: pose.partner_room_id,
-          conflictRoomIds: preview.conflictRoomIds,
+          conflictRoomIds: preview?.conflictRoomIds,
         };
       }
       const sA = preview.snapped;
       const sB = preview.snappedPartner;
       const idA = pose.room_id;
       const idB = pose.partner_room_id;
+      const beforeA = selected.placements.find((p) => p.room_id === idA);
+      const record: MutationRecordPayload = {
+        id: newMutationId(),
+        kind: "adjust_wall",
+        room_id: idA,
+        partner_room_id: idB,
+        before: beforeA
+          ? {
+              x: beforeA.x,
+              y: beforeA.y,
+              width: beforeA.width,
+              depth: beforeA.depth,
+            }
+          : null,
+        after: { x: sA.x, y: sA.y, width: sA.width, depth: sA.depth },
+        after_partner: { x: sB.x, y: sB.y, width: sB.width, depth: sB.depth },
+        created_at: new Date().toISOString(),
+      };
       setCandidates((prev) =>
         prev.map((c) => {
           if (c.id !== selectedId || !c.placements) return c;
-          return {
-            ...c,
-            placements: c.placements.map((p) => {
-              if (p.room_id === idA) {
-                return {
-                  ...p,
-                  x: sA.x,
-                  y: sA.y,
-                  width: sA.width,
-                  depth: sA.depth,
-                  area: Math.round(sA.width * sA.depth * 100) / 100,
-                };
-              }
-              if (p.room_id === idB) {
-                return {
-                  ...p,
-                  x: sB.x,
-                  y: sB.y,
-                  width: sB.width,
-                  depth: sB.depth,
-                  area: Math.round(sB.width * sB.depth * 100) / 100,
-                };
-              }
-              return p;
-            }),
-          };
+          const placements = c.placements.map((p) => {
+            if (p.room_id === idA) {
+              return {
+                ...p,
+                x: sA.x,
+                y: sA.y,
+                width: sA.width,
+                depth: sA.depth,
+                area: Math.round(sA.width * sA.depth * 100) / 100,
+              };
+            }
+            if (p.room_id === idB) {
+              return {
+                ...p,
+                x: sB.x,
+                y: sB.y,
+                width: sB.width,
+                depth: sB.depth,
+                area: Math.round(sB.width * sB.depth * 100) / 100,
+              };
+            }
+            return p;
+          });
+          return markCandidateDirty(c, record, placements);
         }),
       );
       setLocks((prev) => {
@@ -618,7 +695,11 @@ function App() {
         return { ...prev, rooms: locksNext };
       });
       const warn = mutationWarningMessage(preview);
-      setMutationHint(warn);
+      setMutationHint(
+        warn
+          ? `已编辑 · ${warn}`
+          : "已编辑 · Evaluation outdated · Revalidate to update",
+      );
       return {
         ok: true,
         snapped: sA,
@@ -628,19 +709,31 @@ function App() {
         conflictRoomIds: preview.conflictRoomIds,
       };
     },
-    [selected, selectedId, program, locks],
+    [selected, selectedId, program, callAuthorityPreview],
   );
 
   const onProposeMove = useCallback(
-    (
+    async (
       roomId: string,
       pose: RoomMovePose,
       kind: MutationDragKind = "move",
-    ): ProposeMoveResult => {
+    ): Promise<ProposeMoveResult> => {
       if (!selected?.placements || !program) {
         return { ok: false, message: "无候选可编辑", snapped: null };
       }
-      const preview = runPreview(roomId, pose, kind);
+      const proposed = {
+        x: pose.x,
+        y: pose.y,
+        width: pose.width,
+        depth: pose.depth,
+      };
+      const preview = await callAuthorityPreview({
+        kind: kind === "resize" ? "resize" : "move",
+        room_id: roomId,
+        floor_id: pose.floor_id,
+        proposed,
+        source: "pointer",
+      });
       if (!preview || !preview.ok || !preview.snapped) {
         const msg = preview
           ? mutationRejectMessage(preview)
@@ -655,38 +748,55 @@ function App() {
       }
       const s = preview.snapped;
       const isStair = roomId.startsWith("stair-");
+      const before = selected.placements.find((p) =>
+        isStair ? p.room_id.startsWith("stair-") : p.room_id === roomId,
+      );
+      const record: MutationRecordPayload = {
+        id: newMutationId(),
+        kind: kind === "resize" ? "resize" : "move",
+        room_id: roomId,
+        before: before
+          ? {
+              x: before.x,
+              y: before.y,
+              width: before.width,
+              depth: before.depth,
+            }
+          : null,
+        after: { x: s.x, y: s.y, width: s.width, depth: s.depth },
+        created_at: new Date().toISOString(),
+      };
       setCandidates((prev) =>
         prev.map((c) => {
           if (c.id !== selectedId || !c.placements) return c;
-          return {
-            ...c,
-            placements: c.placements.map((p) => {
-              if (isStair) {
-                if (!p.room_id.startsWith("stair-")) return p;
-                return {
-                  ...p,
-                  x: s.x,
-                  y: s.y,
-                  width: kind === "resize" ? s.width : p.width,
-                  depth: kind === "resize" ? s.depth : p.depth,
-                  area: Math.round(
-                    (kind === "resize" ? s.width : p.width) *
-                      (kind === "resize" ? s.depth : p.depth) *
-                      100,
-                  ) / 100,
-                };
-              }
-              if (p.room_id !== roomId) return p;
+          const placements = c.placements.map((p) => {
+            if (isStair) {
+              if (!p.room_id.startsWith("stair-")) return p;
               return {
                 ...p,
                 x: s.x,
                 y: s.y,
-                width: s.width,
-                depth: s.depth,
-                area: Math.round(s.width * s.depth * 100) / 100,
+                width: kind === "resize" ? s.width : p.width,
+                depth: kind === "resize" ? s.depth : p.depth,
+                area:
+                  Math.round(
+                    (kind === "resize" ? s.width : p.width) *
+                      (kind === "resize" ? s.depth : p.depth) *
+                      100,
+                  ) / 100,
               };
-            }),
-          };
+            }
+            if (p.room_id !== roomId) return p;
+            return {
+              ...p,
+              x: s.x,
+              y: s.y,
+              width: s.width,
+              depth: s.depth,
+              area: Math.round(s.width * s.depth * 100) / 100,
+            };
+          });
+          return markCandidateDirty(c, record, placements);
         }),
       );
       if (isStair) {
@@ -715,7 +825,11 @@ function App() {
         });
       }
       const warn = mutationWarningMessage(preview);
-      setMutationHint(warn);
+      setMutationHint(
+        warn
+          ? `已编辑 · ${warn}`
+          : "已编辑 · Evaluation outdated · Revalidate to update",
+      );
       return {
         ok: true,
         snapped: s,
@@ -723,7 +837,7 @@ function App() {
         conflictRoomIds: preview.conflictRoomIds,
       };
     },
-    [selected, selectedId, program, runPreview],
+    [selected, selectedId, program, callAuthorityPreview],
   );
 
   const onToggleZoneLock = useCallback(
@@ -798,6 +912,21 @@ function App() {
     setProjectBusy(true);
     setError(null);
     try {
+      const fromCand = candidates.find((c) => c.provenance)?.provenance;
+      const schema_versions = {
+        solver_version:
+          solverIdentity?.solver_version ??
+          fromCand?.solver_version ??
+          null,
+        generator_version:
+          solverIdentity?.generator_version ??
+          fromCand?.generator_version ??
+          null,
+        evaluation_version:
+          solverIdentity?.evaluation_version ??
+          fromCand?.evaluation_version ??
+          null,
+      };
       const saved = await saveProject({
         name: projectName.trim() || "未命名项目",
         id: projectId,
@@ -808,11 +937,17 @@ function App() {
           candidates,
           selected_id: selectedId,
           compare_id: compareId,
+          schema_versions,
         },
       });
       setProjectId(saved.id);
       setProjectName(saved.name);
-      setVersionHint(null);
+      // 仅保存不得清除 mismatch；用服务端回传判断
+      if (saved.evaluation_version_mismatch) {
+        setVersionHint(
+          `评价版本已变（快照 ${saved.payload.schema_versions?.evaluation_version ?? "?"} → 当前 ${saved.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -827,6 +962,7 @@ function App() {
     candidates,
     selectedId,
     compareId,
+    solverIdentity,
   ]);
 
   const onOpenProjects = useCallback(async () => {
@@ -868,9 +1004,27 @@ function App() {
       setRejectedCandidates([]);
       setViolationSummary({});
       setProjectPicker(null);
+      if (
+        p.schema_versions?.solver_version &&
+        p.schema_versions.generator_version &&
+        p.schema_versions.evaluation_version
+      ) {
+        setSolverIdentity({
+          solver_version: p.schema_versions.solver_version,
+          generator_version: p.schema_versions.generator_version,
+          evaluation_version: p.schema_versions.evaluation_version,
+        });
+      }
+      const dirty = (p.candidates ?? []).some(
+        (c) => c.revision_status === "dirty",
+      );
       if (detail.evaluation_version_mismatch) {
         setVersionHint(
           `评价版本已变（快照 ${p.schema_versions?.evaluation_version ?? "?"} → 当前 ${detail.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
+        );
+      } else if (dirty) {
+        setVersionHint(
+          "项目含已编辑草稿（Evaluation outdated）；评分非当前几何。",
         );
       } else {
         setVersionHint(null);
@@ -887,6 +1041,66 @@ function App() {
     setHighlightRoomIds([]);
     setSelectedRoomId(null);
   }, []);
+
+  const onRevalidate = useCallback(async () => {
+    if (!selected?.placements || !program) {
+      setError("无候选可重算");
+      return;
+    }
+    if (selected.revision_status !== "dirty") {
+      setMutationHint("当前候选无需 Revalidate");
+      return;
+    }
+    setRevalidating(true);
+    setError(null);
+    try {
+      const labelIndex = Math.max(
+        0,
+        candidates.findIndex((c) => c.id === selected.id),
+      );
+      const next = await revalidateMutation({
+        form,
+        program,
+        placements: selected.placements,
+        locks: cloneLayoutLocks(locks),
+        zones: selected.zones ?? [],
+        candidateId: selected.id,
+        seed: selected.seed,
+        labelIndex: Math.min(labelIndex, 25),
+        variantParentId: selected.variant_parent_id,
+        variantGeneration: selected.variant_generation,
+        lockSnapshotId: selected.lock_snapshot_id,
+        mutations: selected.mutations ?? [],
+        revisionParentId: selected.revision_parent_id ?? selected.id,
+      });
+      const merged: CandidatePayload = {
+        ...next,
+        label: selected.label,
+        revision_status: "validated",
+        mutations: selected.mutations ?? next.mutations ?? [],
+      };
+      setCandidates((prev) =>
+        prev.map((c) => (c.id === selected.id ? merged : c)),
+      );
+      if (merged.provenance?.evaluation_version) {
+        setSolverIdentity({
+          solver_version: merged.provenance.solver_version,
+          generator_version: merged.provenance.generator_version,
+          evaluation_version: merged.provenance.evaluation_version,
+        });
+      }
+      setMutationHint(
+        merged.validation?.valid === false
+          ? "Revalidate 完成 · 存在硬性违规"
+          : `Revalidate 完成 · Score ${merged.score?.toFixed(1) ?? "—"}`,
+      );
+      setVersionHint(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRevalidating(false);
+    }
+  }, [selected, program, form, locks, candidates]);
 
   const lockCount =
     locks.rooms.length +
@@ -1006,7 +1220,9 @@ function App() {
           onClearLocks={onClearLocks}
           onRegenerate={() => void run("program")}
           onCreateVariant={() => void run("variant")}
+          onRevalidate={() => void onRevalidate()}
           regenerating={loading}
+          revalidating={revalidating}
           canRegenerate={!!program && engineStatus === "READY"}
         />
       </div>
