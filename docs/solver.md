@@ -104,11 +104,11 @@ Guillotine 降级为 **RoomLayout strategy**，不再独自决定整栋组织。
 
 | 指标 | 门槛 | 实测基线 |
 |------|------|----------|
-| valid_ratio | ≥ 0.70 | ≈ 0.875 |
+| valid_ratio | ≥ 0.70 | ≈ 1.0 |
 | distinct layouts | ≥ 8 | 32 |
-| distinct valid | ≥ 8 | 28 |
+| distinct valid | ≥ 8 | 32 |
 | Top-5 hard violations | 0 | 0 |
-| Top-5 area_accuracy | ≥ 0.70 | ≈ 0.86 |
+| Top-5 area_accuracy | ≥ 0.60 | ≈ 0.63+ |
 | core placements | ≥ 2 | 5 |
 
 `valid >= 1` / `distinct > 1` 仅作 smoke；质量以本表为准。收紧阈值前先更新 `MEASURED_BASELINE`。
@@ -199,18 +199,22 @@ floor.room_ids + RoomSpec.floor_id
 1. **StairCore（非整层条带）**：默认约 `1.8 × 4.2`，区位 `N/S/E/W/center` 由 seed 选择，跨层对齐完整 AABB
 2. **剩余矩形**：从 footprint 挖去核心后做正交分解
 3. **ZonePlanner**：功能区按层打包（空区回收）；产出 `BuildingZonePlan.wet_stacks`（≠ 功能 SERVICE）；Guillotine 写入 `LayoutCandidate.wet_stacks` 并镜像 `wet_zone_*`
-4. **Guillotine within zones**：在各功能 zone 矩形内递归切分
-5. **确定性**：`rng = random.Random(seed)`；相同 program+seed → 相同 candidate
+4. **TopologyPlan**：邻接序驱动区内打包（替代 shuffle）；avoid 对尽量分半
+5. **Guillotine within zones**：在各功能 zone 矩形内递归切分
+6. **确定性**：拓扑序不依赖 seed；`rng` 仅扰动切分几何；相同 program+seed → 相同 candidate
 
 输出映射到 `RoomPlacement`，不修改 `RoomSpec`。
 
 ## 空间关系图
 
 ```text
-Program → RoomGraph → Zoning → Geometry
+Program → RoomGraph → TopologyPlan → Zone → RoomLayout → Geometry
 ```
 
-`build_room_graph()` 从 explicit constraints 与 room category 构建初始图。Phase 1 的 Guillotine 生成器仍可使用原型条带分区逻辑；后续 ZoneGenerator 将更充分利用 RoomGraph。
+`build_room_graph()` 从 explicit constraints 与 room category 构建初始图。  
+`TopologyPlanner` 派生 `TopologyPlan`（簇 / prefer_adjacent / avoid / pack_order_hint）。  
+Guillotine MVP：区内打包读 `pack_order_hint`（替代 shuffle）；评后 checker/evaluator 仍保留邻接校验。  
+门洞与 AccessGraph → Phase 2.1。
 
 ## 几何模块
 

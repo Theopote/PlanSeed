@@ -14,6 +14,7 @@ Natural Language / Manual Input
 → ProjectSpec
 → DesignProgram（normalize）
 → ConstraintGraph + RoomGraph
+→ TopologyPlan（生成前；影响打包序）
 → Candidate Generation
 → Constraint Validation
 → Multi-objective Evaluation

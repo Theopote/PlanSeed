@@ -109,12 +109,18 @@ DesignProgram
 
 `SolverConfig`：`candidate_count=32`, `return_top_k=5`, `base_seed=42`, `snap_module=0.3`
 
-## RoomGraph
+## RoomGraph / TopologyPlan
 
 ```python
 RoomGraph
 ├── room_ids[]
 └── edges[]: RoomEdge(source, target, kind, weight)
+
+TopologyPlan                    # 生成前，由 TopologyPlanner 从 RoomGraph 派生
+├── clusters[]: AdjacencyCluster(floor_id, room_ids)
+├── prefer_adjacent[]: RoomPair
+├── avoid_pairs[]: RoomPair
+└── pack_order_hint: {floor_id: [room_id…]}
 ```
 
 Edge kind：`adjacent | connected | near | far | avoid`

@@ -11,7 +11,9 @@
 | 1 | Deterministic Layout Core | ✅ 基本完成 |
 | **1.5** | **Solver Reliability** | ✅ 收口 |
 | **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
-| 2 | Spatial Topology + Circulation（门 / AccessGraph） | 未开始 |
+| **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
+| **2.1** | **Door / AccessGraph** | 未开始 |
+| 2 | Spatial Topology + Circulation（总览） | 2.0 起步；2.1 门与可达 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
 | 5 | FastAPI | 延后 |
@@ -92,28 +94,40 @@ FloorAssignment
       ↓
 RoomGraph
       ↓
+TopologyPlan              ← Phase 2.0 MVP（邻接簇 / pack_order / avoid）
+      ↓
 ZonePlanner
       ↓
 CorePlacement
       ↓
 ZoneGeometry
       ↓
-RoomLayout (Guillotine = strategy)
+RoomLayout (Guillotine = strategy；区内序读 TopologyPlan)
       ↓
-Door / Connectivity          ← Phase 2
+Door / Connectivity       ← Phase 2.1
       ↓
 ConstraintChecker
       ↓
 Evaluator
 ```
 
-Guillotine **保留**，但不再决定整栋住宅组织。
+Guillotine **保留**，但不再决定整栋住宅组织。RoomGraph 须影响生成，而非仅事后打分。
 
 ---
 
-## Phase 2 预告：门与可达性 + 语义标签硬化
+## Phase 2.0 — Topology-driven pack（✅ MVP）
 
-矩形堆砌不是住宅。Phase 2 引入：
+```text
+RoomGraph → TopologyPlan → Zone placement → Room placement
+```
+
+- `TopologyPlanner`（`solver/topology/plan.py`）从邻接/近邻/回避边产出簇与 `pack_order_hint`
+- Guillotine **不再** `shuffle` 决定结构；拓扑序确定性，`rng` 仅扰动切分几何
+- 本切片**不**重划 DAY/NIGHT；**不做**门洞 / AccessGraph / unreachable
+
+## Phase 2.1 预告：门与可达性 + 语义标签硬化
+
+矩形堆砌不是住宅。Phase 2.1 引入：
 
 - Door / Opening / Connection / AccessGraph
 - `unreachable room` 作为 hard validation

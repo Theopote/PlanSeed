@@ -10,7 +10,7 @@ from packages.schema.project import ProjectSpec
 from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import Rect2D, SiteSpec
-from packages.schema.topology import RoomGraph
+from packages.schema.topology import RoomGraph, TopologyPlan
 
 
 class SolverConfig(BaseModel):
@@ -46,6 +46,10 @@ class DesignProgram(BaseModel):
     rooms: list[RoomSpec]
     constraints: list[Constraint]
     room_graph: RoomGraph | None = None
+    topology_plan: TopologyPlan | None = Field(
+        default=None,
+        description="由 RoomGraph 派生的生成前拓扑计划；可由 TopologyPlanner 填充",
+    )
     floor_assignment: FloorAssignment | None = Field(
         default=None,
         description="楼层归属决策（可解释）；由 FloorAssignmentSolver 产出",

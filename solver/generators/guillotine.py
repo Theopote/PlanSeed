@@ -16,6 +16,7 @@ from packages.schema.layout import (
 )
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
+from packages.schema.topology import TopologyPlan
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan
 from solver.circulation.stair_core import (
     CorePlacementFailure,
@@ -27,6 +28,11 @@ from solver.geometry.free_rects import subtract_rect
 from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 from solver.program.floor_assign import assert_all_rooms_placed
+from solver.topology.plan import (
+    TopologyPlanner,
+    order_rooms_for_zone,
+    split_avoid_groups,
+)
 from solver.topology.zoning import ZonePlanner
 
 
@@ -59,11 +65,12 @@ class GuillotineGenerator:
     Generator #1 — Baseline Guillotine（RoomLayout strategy）。
 
     流水线：
-      StairCore → free rects → ZonePlanner(功能区 + 技术湿区条带) → Guillotine
+      StairCore → free rects → ZonePlanner → TopologyPlan 序 → Guillotine
     """
 
     def __init__(self) -> None:
         self._zone_planner = ZonePlanner()
+        self._topology_planner = TopologyPlanner()
 
     def generate(self, program: DesignProgram, seed: int) -> LayoutCandidate:
         assert_all_rooms_placed(program.rooms, program.floors)
@@ -72,6 +79,8 @@ class GuillotineGenerator:
         buildable = program.buildable
         w = buildable.width
         d = buildable.depth
+
+        topology = self._topology_planner.plan(program)
 
         core_spec = resolve_stair_core_spec(
             stair_width=program.site.stair_width,
@@ -131,6 +140,7 @@ class GuillotineGenerator:
                 floor_index=idx,
                 module=module,
                 rng=rng,
+                topology=topology,
             )
             floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
 
@@ -151,6 +161,7 @@ class GuillotineGenerator:
         floor_index: int,
         module: float,
         rng: random.Random,
+        topology: TopologyPlan,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
@@ -166,16 +177,33 @@ class GuillotineGenerator:
             if zg.room_ids:
                 zone_room_ids[zg.zone] = list(zg.room_ids)
 
-        # WetStack 锚由 candidate.wet_stacks 承载；本层仅做功能区打包
+        pack_order = topology.pack_order_hint.get(floor.id, [])
+        clusters = [
+            set(c.room_ids)
+            for c in topology.clusters
+            if c.floor_id == floor.id
+        ]
+
+        # WetStack 锚由 candidate.wet_stacks 承载；本层按 TopologyPlan 序打包
         for zone, room_ids in zone_room_ids.items():
             rects = zone_rects.get(zone, [])
             if not rects or not room_ids:
                 continue
+            ordered_ids = order_rooms_for_zone(
+                room_ids,
+                pack_order=pack_order,
+                cluster_members=clusters,
+            )
             rooms = [
-                layout_rooms[rid] for rid in room_ids if rid in layout_rooms
+                layout_rooms[rid] for rid in ordered_ids if rid in layout_rooms
             ]
-            rng.shuffle(rooms)
-            self._pack_into_rects(rooms, rects, module, rng)
+            self._pack_into_rects(
+                rooms,
+                rects,
+                module,
+                rng,
+                avoid_pairs=topology.avoid_pairs,
+            )
 
         stair_name = "楼梯" if floor_index > 0 else "楼梯 · 入口"
         stair_placement = RoomPlacement(
@@ -218,12 +246,23 @@ class GuillotineGenerator:
         rects: list[Rect],
         module: float,
         rng: random.Random,
+        *,
+        avoid_pairs=None,
     ) -> None:
         if not rooms or not rects:
             return
         if len(rects) == 1:
             r = rects[0]
-            self._layout_rooms(rooms, r.x, r.y, r.right, r.bottom, module, rng)
+            self._layout_rooms(
+                rooms,
+                r.x,
+                r.y,
+                r.right,
+                r.bottom,
+                module,
+                rng,
+                avoid_pairs=avoid_pairs,
+            )
             return
 
         total_area = sum(r.area for r in rects) or 1.0
@@ -246,7 +285,16 @@ class GuillotineGenerator:
                         break
                 share = remaining[:split]
                 remaining = remaining[split:]
-            self._layout_rooms(share, rect.x, rect.y, rect.right, rect.bottom, module, rng)
+            self._layout_rooms(
+                share,
+                rect.x,
+                rect.y,
+                rect.right,
+                rect.bottom,
+                module,
+                rng,
+                avoid_pairs=avoid_pairs,
+            )
 
     def _layout_rooms(
         self,
@@ -257,6 +305,8 @@ class GuillotineGenerator:
         y1: float,
         module: float,
         rng: random.Random,
+        *,
+        avoid_pairs=None,
     ) -> None:
         if not rooms:
             return
@@ -266,18 +316,25 @@ class GuillotineGenerator:
             )
             return
 
-        total = sum(r.weight for r in rooms) or 1.0
-        half = total / 2
-        cum = 0.0
-        split_idx = 1
-        for i, r in enumerate(rooms[:-1]):
-            cum += r.weight
-            if cum >= half:
-                split_idx = i + 1
-                break
+        # avoid 对：优先分到二分两侧（仅一次种子分割）
+        avoid_split = None
+        if avoid_pairs:
+            avoid_split = split_avoid_groups(rooms, avoid_pairs)
+        if avoid_split is not None:
+            group1, group2 = avoid_split
+        else:
+            total = sum(r.weight for r in rooms) or 1.0
+            half = total / 2
+            cum = 0.0
+            split_idx = 1
+            for i, r in enumerate(rooms[:-1]):
+                cum += r.weight
+                if cum >= half:
+                    split_idx = i + 1
+                    break
+            group1 = rooms[:split_idx]
+            group2 = rooms[split_idx:]
 
-        group1 = rooms[:split_idx]
-        group2 = rooms[split_idx:]
         area1 = sum(r.weight for r in group1) or 1.0
         area2 = sum(r.weight for r in group2) or 1.0
         width = x1 - x0
@@ -293,10 +350,10 @@ class GuillotineGenerator:
         if split_horizontal:
             cut_x = snap_value(x0 + width * frac, module)
             cut_x = max(x0 + min_span, min(x1 - min_span, cut_x))
-            self._layout_rooms(group1, x0, y0, cut_x, y1, module, rng)
-            self._layout_rooms(group2, cut_x, y0, x1, y1, module, rng)
+            self._layout_rooms(group1, x0, y0, cut_x, y1, module, rng, avoid_pairs=None)
+            self._layout_rooms(group2, cut_x, y0, x1, y1, module, rng, avoid_pairs=None)
         else:
             cut_y = snap_value(y0 + height * frac, module)
             cut_y = max(y0 + min_span, min(y1 - min_span, cut_y))
-            self._layout_rooms(group1, x0, y0, x1, cut_y, module, rng)
-            self._layout_rooms(group2, x0, cut_y, x1, y1, module, rng)
+            self._layout_rooms(group1, x0, y0, x1, cut_y, module, rng, avoid_pairs=None)
+            self._layout_rooms(group2, x0, cut_y, x1, y1, module, rng, avoid_pairs=None)
