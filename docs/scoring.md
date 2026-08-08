@@ -173,11 +173,12 @@ program_fit 0.08 | space_efficiency 0.04 | layout_stability 0.04
 | Soft constraint 违反 | Evaluator | 扣分 + `soft_violations[]` |
 | 警告（非约束） | Evaluator | `warnings[]`（如狭长房间） |
 
-## UI 展示（桌面 Phase；评分侧已就绪）
+## UI 展示（Desktop MVP）
 
 - Candidate Strip：显示 `total_score` 简写（A 91, B 89…）
 - Inspector：展开 `explanations` + 各分项 score + metrics + violations
 - 失败 candidate：展示 `hard_violations` 详情
+- API：`POST /api/generate` 返回 SVG + `DesignScore`
 
 ## 状态
 
