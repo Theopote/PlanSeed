@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4 — Interactive Design Workbench**  
-> 4.1 Lock/Drag · 4.2 Variant+Compare · **Phase 3.6 runtime ✅ 已冻结进 4**  
-> 契约：[api-contract.md](api-contract.md) · runtime 存档：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md)
+> **当前焦点：Phase 4.1.2 — Lock Semantics Hardening**  
+> 暂停拖拽/resize 深化 · 详案：[phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)  
+> 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
 
@@ -10,8 +10,8 @@
 |-------|------|------|
 | 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
 | **3.5** | **Core Consolidation** | **✅** |
-| **3.6** | **Desktop Runtime Reliability** | **✅**（含 3.6.1；勿再扩 runtime 主线） |
-| **4** | **Interactive Design Workbench** | **← 当前** |
+| **3.6** | **Desktop Runtime Reliability** | **✅**（勿再扩 runtime 主线） |
+| **4** | **Interactive Design Workbench** | **← 当前（4.1.2）** |
 | **5** | **Project Persistence** | 未开始 |
 | **6** | **Local LLM Requirement Parsing** | **未开始**（禁止插队） |
 | **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
@@ -115,7 +115,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 
 ---
 
-## Phase 4 — Interactive Design Workbench（← 当前）
+## Phase 4 — Interactive Design Workbench（← 当前：4.1.2）
 
 **围绕加深，禁止推倒重做。** UI = 观察/控制 solver 的窗口，不是功能堆场。
 
@@ -126,17 +126,34 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] 修改 target_area（session Program）
 - [x] Regenerate（按当前 spaces 整案重生成）
 
-### Phase 4.1 — Lock → Regenerate unlocked（✅ MVP）
+### Phase 4.1 — Lock Room / Stair（✅ MVP）
 
 - [x] Lock Room / Lock Stair（钉死当前候选几何）
 - [x] `GenerateRequest.locks` → Guillotine 挖洞 + 合并锁定放置
 - [x] Regenerate unlocked（未锁空间重排）
-- [x] Lock Zone（钉死功能区 envelope；区内仍可重排）
-- [x] 拖拽几何（平移 → 松手自动 Room/Stair Lock；改尺寸后置）
-- [x] Lock = 管线契约（resolver 尊重 protected；最终 lock invariant；生成前 validate）
 
-**Lock 优先级：** Room Lock > Zone Lock（FunctionalZoneGroup）> Free。  
-同层同 kind 多块 zone rect = 锁定整个分区组（每块有稳定 `ZonePlacement.id`，如 `F1-day-0`）。非法 zone / 未知房间 → HTTP 422，禁止静默忽略。
+### Phase 4.1.1 — Lock Zone（✅ MVP）
+
+- [x] Lock Zone（钉死功能区 envelope；区内仍可重排）
+- [x] FunctionalZoneGroup（同 floor + kind 全部组件）
+
+### Phase 4.1.2 — Lock Semantics Hardening（← 当前）
+
+详案：[phase-4.1.2-lock-semantics.md](phase-4.1.2-lock-semantics.md)
+
+| 级 | 主题 | 状态 |
+|----|------|------|
+| **P0** | floor-local lock free space | ✅ |
+| **P0** | post-processing 不得移动 Room/Stair lock | ✅ |
+| **P0** | final lock invariant checker | ✅ |
+| **P1** | lock request validation（422） | ✅ |
+| **P1** | Room > Zone > Free | ✅ |
+| **P1** | zone identity（`id` / `kind`） | ✅ |
+| **P1** | zone member 过程护栏（不得修出 envelope） | 🟡 |
+| **P2** | Variant locks 快照 · `lock_invariant_ok` · 补测 | 🟡 |
+
+**暂停：** 拖房间深化、拖墙、自由 resize。  
+已有平移 MVP 可留；扩编辑必须等 **Geometry Mutation Authority**（见 4.3）。
 
 ### Phase 4.2 — Create Variant + Compare（✅）
 
@@ -145,8 +162,20 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] 自动设比较对象（旧选中 vs 新 Top）
 - [x] 沿用 `POST /api/compare`（React 不自算分）
 
-**产品方向（已确认）：** 保留 program + locks → `max(seed)+1` 起跑 8 取 Top3 → 追加 Strip → 自动对比旧选中 vs 新 Top。  
-符合「方案大致对，保持条件再变几个」；**后续优先深化 Variant 体验**，血缘树进 Phase 5，不急着扩拖拽。
+**产品方向（已确认）：** 保留 program + locks → `max(seed)+1` 起跑 8 取 Top3 → 追加 Strip → 自动对比。  
+血缘树进 Phase 5。
+
+### Phase 4.3 — Constraint-aware Direct Manipulation（未开始）
+
+先建立统一几何变更权威，再做有限编辑（非自由 CAD）：
+
+```text
+MutationRequest → LockGuard → GeometryValidator → Apply → Revalidate
+```
+
+- [ ] Geometry Mutation Authority（所有改 placement 的唯一入口）
+- [ ] 有限平移 / 有限改尺寸（受 lock + 约束）
+- [ ] **不做**本阶段：拖墙、完全自由 resize、constraint solver 重写
 
 ```text
 ┌ Requirements ┬──────── Floorplan ────────┬ Inspector ┐
@@ -288,7 +317,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 4** Workbench（Lock / Variant）；3.6 runtime ✅ 已冻结 |
+| **当前主线** | **Phase 4.1.2** Lock Semantics Hardening → 其后 **4.3** Mutation Authority |
 
 ---
 
