@@ -18,6 +18,7 @@ from packages.schema.layout import (
     LayoutCandidate,
     RoomPlacement,
     Violation,
+    WetStack,
 )
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
@@ -59,5 +60,6 @@ __all__ = [
     "SiteSpec",
     "SolverConfig",
     "Violation",
+    "WetStack",
     "WidthConstraint",
 ]

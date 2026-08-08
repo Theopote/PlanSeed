@@ -24,6 +24,12 @@ class SolverConfig(BaseModel):
         le=1.0,
         description="Top-K 多样性阈值；None 关闭，仅按分数排序",
     )
+    max_wet_stacks: int = Field(
+        default=1,
+        ge=1,
+        le=2,
+        description="技术湿区叠组上限；MVP=1，未来可扩到 2（WS1/WS2）",
+    )
 
 
 class DesignProgram(BaseModel):

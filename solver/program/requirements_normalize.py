@@ -396,12 +396,12 @@ def _apply_preference_constraints(req, constraints: list, program: DesignProgram
         merged.append(
             AlignmentConstraint(
                 id="pref-wet-stack",
-                alignment_group="wet_zone",
+                alignment_group="wet_stack",
                 hard=False,
                 weight=0.9,
                 source=ConstraintSource.NORMALIZER,
                 source_key="preferences.wet_stack_preference",
-                description="湿区竖向叠置偏好",
+                description="湿区竖向叠置偏好（WetStack）",
             )
         )
 

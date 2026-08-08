@@ -44,7 +44,7 @@ def main() -> None:
                 "area_accuracy",
                 "preferred_adjacency_satisfaction",
                 "stair_alignment",
-                "wet_zone_alignment",
+                "wet_stack_alignment",
             )
             if k in c.metrics
         }

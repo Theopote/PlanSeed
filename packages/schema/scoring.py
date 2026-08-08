@@ -21,7 +21,11 @@ class DesignMetrics(BaseModel):
     preferred_adjacency_satisfaction: float = 0.0
 
     stair_alignment: float = 0.0
-    wet_zone_alignment: float = 0.0
+    wet_stack_alignment: float = 0.0
+    wet_zone_alignment: float = Field(
+        default=0.0,
+        description="[deprecated] wet_stack_alignment 的别名",
+    )
 
     setback_compliance: float = 1.0
     orientation_satisfaction: float = 1.0

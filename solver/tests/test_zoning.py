@@ -114,18 +114,21 @@ class TestZonePlanner:
             RoomSpec(id="bath2", name="公共卫生间", category=RoomCategory.WET, target_area=5),
         ]
         free = [Rect(x=0, y=0, width=10, depth=12)]
-        plans = ZonePlanner().plan_building(
+        building = ZonePlanner().plan_building(
             floors=[("F1", f1), ("F2", f2)],
             free_rects=free,
             rng=random.Random(0),
+            max_wet_stacks=1,
         )
-        # 共享技术湿区条带
-        assert plans["F1"].wet_stack_band is not None
-        assert plans["F2"].wet_stack_band is not None
-        b1, b2 = plans["F1"].wet_stack_band, plans["F2"].wet_stack_band
-        assert b1.x == pytest.approx(b2.x)
-        assert b1.width == pytest.approx(b2.width)
+        # 整栋共享 WetStack 锚
+        assert len(building.wet_stacks) == 1
+        ws = building.wet_stacks[0]
+        assert ws.id == "WS1"
+        assert set(ws.floor_ids) == {"F1", "F2"}
+        assert "kitchen" in ws.member_room_ids
+        assert "bath1" in ws.member_room_ids
 
+        plans = building.floors
         day_f1 = next(z for z in plans["F1"].zones if z.zone == ArchitecturalZone.DAY)
         assert "kitchen" in day_f1.room_ids
         assert "living" in day_f1.room_ids

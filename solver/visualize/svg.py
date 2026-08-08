@@ -73,12 +73,24 @@ def _render_room(
     return "\n".join(lines)
 
 
-def _wet_overlay(floor: FloorLayout, oy: float) -> str:
-    if floor.wet_zone_x0 is None or floor.wet_zone_x1 is None:
+def _wet_overlay(
+    floor: FloorLayout,
+    oy: float,
+    *,
+    stacks: list | None = None,
+) -> str:
+    """优先用 WetStack.anchor_rect；否则回退 floor.wet_zone_*。"""
+    x0 = x1 = y0 = y1 = None
+    if stacks:
+        a = stacks[0].anchor_rect
+        x0, y0 = a.x, a.y
+        x1, y1 = a.x + a.width, a.y + a.depth
+    elif floor.wet_zone_x0 is not None and floor.wet_zone_x1 is not None:
+        x0, x1 = floor.wet_zone_x0, floor.wet_zone_x1
+        y0 = floor.wet_zone_y0 if floor.wet_zone_y0 is not None else 0.0
+        y1 = floor.wet_zone_y1 if floor.wet_zone_y1 is not None else y0
+    if x0 is None or x1 is None or y0 is None or y1 is None:
         return ""
-    x0, x1 = floor.wet_zone_x0, floor.wet_zone_x1
-    y0 = floor.wet_zone_y0 if floor.wet_zone_y0 is not None else 0.0
-    y1 = floor.wet_zone_y1 if floor.wet_zone_y1 is not None else y0
     w = max(0.0, x1 - x0)
     d = max(0.0, y1 - y0)
     if w < 1e-6 or d < 1e-6:
@@ -149,7 +161,7 @@ def render_candidate_svg(
         for key in (
             "area_accuracy",
             "stair_alignment",
-            "wet_zone_alignment",
+            "wet_stack_alignment",
             "compactness",
         ):
             if key in candidate.metrics:
@@ -201,7 +213,7 @@ def render_candidate_svg(
             body.append(
                 _render_room(p, oy, target_area=targets.get(p.room_id))
             )
-        body.append(_wet_overlay(floor, oy))
+        body.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
 
     body.append(_legend(floor_width + 0.4, 0.2))
 

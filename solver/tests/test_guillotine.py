@@ -45,15 +45,20 @@ class TestGuillotineGenerator:
         overlap_violations = [v for v in validation.hard_violations if "overlap" in v.constraint_id]
         assert not overlap_violations
 
-    def test_wet_zone_alignment(self):
+    def test_wet_stack_alignment(self):
         program = benchmark_program()
         candidate = GuillotineGenerator().generate(program, seed=0)
-        f1, f2 = candidate.floors
-        assert f1.wet_zone_x0 is not None and f2.wet_zone_x0 is not None
-        assert f1.wet_zone_x0 == pytest.approx(f2.wet_zone_x0, abs=0.01)
-        assert f1.wet_zone_x1 == pytest.approx(f2.wet_zone_x1, abs=0.01)
-        assert f1.wet_zone_y0 == pytest.approx(f2.wet_zone_y0, abs=0.01)
-        assert f1.wet_zone_y1 == pytest.approx(f2.wet_zone_y1, abs=0.01)
+        assert len(candidate.wet_stacks) == 1
+        ws = candidate.wet_stacks[0]
+        assert ws.id == "WS1"
+        assert set(ws.floor_ids) == {f.floor_id for f in candidate.floors}
+        # deprecated 镜像与主锚一致
+        a = ws.anchor_rect
+        for fl in candidate.floors:
+            assert fl.wet_zone_x0 == pytest.approx(a.x, abs=0.01)
+            assert fl.wet_zone_x1 == pytest.approx(a.x + a.width, abs=0.01)
+            assert fl.wet_zone_y0 == pytest.approx(a.y, abs=0.01)
+            assert fl.wet_zone_y1 == pytest.approx(a.y + a.depth, abs=0.01)
 
     def test_stair_x_alignment(self):
         program = benchmark_program()

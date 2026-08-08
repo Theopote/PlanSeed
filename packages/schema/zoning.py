@@ -6,7 +6,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from packages.schema.layout import PlacementRect
+from packages.schema.layout import PlacementRect, WetStack
 
 
 class ArchitecturalZone(StrEnum):
@@ -76,11 +76,10 @@ class ZoneGeometry(BaseModel):
 class FloorZonePlan(BaseModel):
     floor_id: str
     zones: list[ZoneGeometry] = Field(default_factory=list)
-    wet_stack_band: PlacementRect | None = Field(
-        default=None,
-        description="整栋共享的技术湿区条带（对齐用）；不强制等同功能 SERVICE 区",
-    )
-    wet_stack_group: WetStackGroup | None = Field(
-        default=None,
-        description="本方案使用的湿区叠组（通常 WS1）",
-    )
+
+
+class BuildingZonePlan(BaseModel):
+    """整栋分区结果：各层功能区 + 技术湿区叠组。"""
+
+    floors: dict[str, FloorZonePlan] = Field(default_factory=dict)
+    wet_stacks: list[WetStack] = Field(default_factory=list)

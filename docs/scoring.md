@@ -98,7 +98,8 @@ Model：`y=0` = model north，`x=0` = model west（绘图坐标）。
 | Metric | 说明 |
 |--------|------|
 | `stair_alignment` | 楼梯 x 轴跨层对齐 |
-| `wet_zone_alignment` | 湿区 x 轴跨层对齐 |
+| `wet_stack_alignment` | WetStack 锚跨层对齐 |
+| `wet_zone_alignment` | [deprecated] `wet_stack_alignment` 别名 |
 
 ### Site (`evaluation/site.py`)
 
@@ -125,7 +126,7 @@ Phase 1 将这些逻辑拆分迁移：
 
 - 效率 / 紧凑度 → `geometry.py` / `site.py`
 - 长宽比 → `geometry.py` → `aspect_ratio_penalty`
-- 湿区对齐 → `vertical.py` → `wet_zone_alignment`
+- 湿区对齐 → `vertical.py` → `wet_stack_alignment`（兼容别名 `wet_zone_alignment`）
 
 ## Total Score 聚合（Phase 1 建议权重）
 

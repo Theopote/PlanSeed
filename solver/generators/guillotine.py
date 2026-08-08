@@ -12,6 +12,7 @@ from packages.schema.layout import (
     PlacementRect,
     PlacementSource,
     RoomPlacement,
+    WetStack,
 )
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
@@ -27,6 +28,23 @@ from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 from solver.program.floor_assign import assert_all_rooms_placed
 from solver.topology.zoning import ZonePlanner
+
+
+def _mirror_wet_stack_onto_floor(
+    floor: FloorLayout, stack: WetStack | None
+) -> FloorLayout:
+    """兼容：主 WetStack 锚回填到 deprecated wet_zone_*。"""
+    if stack is None:
+        return floor
+    a = stack.anchor_rect
+    return floor.model_copy(
+        update={
+            "wet_zone_x0": a.x,
+            "wet_zone_y0": a.y,
+            "wet_zone_x1": a.x + a.width,
+            "wet_zone_y1": a.y + a.depth,
+        }
+    )
 
 
 @dataclass
@@ -93,12 +111,14 @@ class GuillotineGenerator:
         floor_room_lists = [
             (floor.id, program.rooms_on_floor(floor.id)) for floor in program.floors
         ]
-        zone_plans = self._zone_planner.plan_building(
+        building_zones = self._zone_planner.plan_building(
             floors=floor_room_lists,
             free_rects=free_rects,
             snap_module=module,
             rng=rng,
+            max_wet_stacks=program.solver_config.max_wet_stacks,
         )
+        primary_stack = building_zones.wet_stacks[0] if building_zones.wet_stacks else None
 
         floor_layouts: list[FloorLayout] = []
         for idx, floor in enumerate(program.floors):
@@ -106,15 +126,20 @@ class GuillotineGenerator:
             layout = self._layout_floor_with_zones(
                 floor=floor,
                 floor_rooms=floor_rooms,
-                zone_plan=zone_plans[floor.id],
+                zone_plan=building_zones.floors[floor.id],
                 core=core,
                 floor_index=idx,
                 module=module,
                 rng=rng,
             )
-            floor_layouts.append(layout)
+            floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
 
-        return LayoutCandidate(id=f"candidate-{seed}", seed=seed, floors=floor_layouts)
+        return LayoutCandidate(
+            id=f"candidate-{seed}",
+            seed=seed,
+            floors=floor_layouts,
+            wet_stacks=list(building_zones.wet_stacks),
+        )
 
     def _layout_floor_with_zones(
         self,
@@ -141,12 +166,7 @@ class GuillotineGenerator:
             if zg.room_ids:
                 zone_room_ids[zg.zone] = list(zg.room_ids)
 
-        # 技术湿区条带（WetStack）写入对齐 AABB — 独立于功能 SERVICE 区
-        wet_zone_rect: Rect | None = None
-        if zone_plan.wet_stack_band is not None:
-            b = zone_plan.wet_stack_band
-            wet_zone_rect = Rect(x=b.x, y=b.y, width=b.width, depth=b.depth)
-
+        # WetStack 锚由 candidate.wet_stacks 承载；本层仅做功能区打包
         for zone, room_ids in zone_room_ids.items():
             rects = zone_rects.get(zone, [])
             if not rects or not room_ids:
@@ -185,10 +205,6 @@ class GuillotineGenerator:
         return FloorLayout(
             floor_id=floor.id,
             placements=placements,
-            wet_zone_x0=wet_zone_rect.x if wet_zone_rect else None,
-            wet_zone_y0=wet_zone_rect.y if wet_zone_rect else None,
-            wet_zone_x1=wet_zone_rect.right if wet_zone_rect else None,
-            wet_zone_y1=wet_zone_rect.bottom if wet_zone_rect else None,
             stair_x0=core.rect.x,
             stair_y0=core.rect.y,
             stair_x1=core.rect.right,

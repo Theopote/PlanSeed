@@ -65,7 +65,18 @@ class CompositeEvaluator:
                 adj_m.get("preferred_adjacency_satisfaction", 1.0)
             ),
             stair_alignment=float(vert_m.get("stair_alignment", 1.0)),
-            wet_zone_alignment=float(vert_m.get("wet_zone_alignment", 1.0)),
+            wet_stack_alignment=float(
+                vert_m.get(
+                    "wet_stack_alignment",
+                    vert_m.get("wet_zone_alignment", 1.0),
+                )
+            ),
+            wet_zone_alignment=float(
+                vert_m.get(
+                    "wet_stack_alignment",
+                    vert_m.get("wet_zone_alignment", 1.0),
+                )
+            ),
             setback_compliance=float(site_m.get("setback_compliance", 1.0)),
             orientation_satisfaction=float(orient_m.get("orientation_satisfaction", 1.0)),
         )

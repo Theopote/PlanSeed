@@ -70,7 +70,9 @@ class AlignmentConstraint(ConstraintBase):
     kind: Literal[ConstraintKind.ALIGNMENT] = ConstraintKind.ALIGNMENT
     room_ids: list[str] = Field(default_factory=list)
     axis: Literal["x", "y"] = "x"
-    alignment_group: str = Field(description='对齐组标识，如 "wet_zone" / "stair"')
+    alignment_group: str = Field(
+        description='对齐组标识，如 "wet_stack" / "stair"（"wet_zone" 为兼容别名）'
+    )
 
 
 class AreaConstraint(ConstraintBase):

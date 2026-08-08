@@ -10,7 +10,7 @@
 | 0 | Architecture Foundation | ✅ |
 | 1 | Deterministic Layout Core | ✅ 基本完成 |
 | **1.5** | **Solver Reliability** | ✅ 收口 |
-| **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack） |
+| **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
 | 2 | Spatial Topology + Circulation（门 / AccessGraph） | 未开始 |
 | 3 | Architectural Evaluation | 未开始 |
 | 4 | Minimal Visual Debugger（SVG debug） | ✅ 初版 |
@@ -71,8 +71,9 @@ Zones (day / night / service)
 Rooms（Guillotine = RoomLayout strategy）
 ```
 
-`ZonePlanner`：功能区（DAY/NIGHT/SERVICE）与技术叠组（`WetStackGroup`）分离；  
-厨房→DAY+WS1，主卫→NIGHT+WS1，客卫→SERVICE+WS1。
+`ZonePlanner`：功能区（DAY/NIGHT/SERVICE）与技术叠组（`WetStack`）分离；  
+厨房→DAY+WS1，主卫→NIGHT+WS1，客卫→SERVICE+WS1。  
+MVP：`SolverConfig.max_wet_stacks=1` → 整栋至多一个 `WetStack`（WS1）；未来可扩 WS2。
 
 ---
 

@@ -91,7 +91,7 @@ StairCore → free rects → ZonePlanner（功能区 + 技术湿区条带）→ 
 | circulation | StairCore（generated） | — |
 
 `WetStackGroup` 与功能区分离：厨房与主卫可同属 WS1，却分属 DAY / NIGHT。  
-`wet_zone_*` 来自整栋共享的技术条带（对齐参考），不强制所有湿区挤进 SERVICE 功能带。
+`LayoutCandidate.wet_stacks` 承载竖向服务对齐（`WetStack.id / anchor_rect / floor_ids / member_room_ids`）；MVP `max_wet_stacks=1`。各层 `wet_zone_*` 仅为兼容镜像。
 
 Guillotine 降级为 **RoomLayout strategy**，不再独自决定整栋组织。
 
@@ -195,7 +195,7 @@ floor.room_ids + RoomSpec.floor_id
 
 1. **StairCore（非整层条带）**：默认约 `1.8 × 4.2`，区位 `N/S/E/W/center` 由 seed 选择，跨层对齐完整 AABB
 2. **剩余矩形**：从 footprint 挖去核心后做正交分解
-3. **ZonePlanner**：功能区按层打包（空区回收）；技术湿区 `wet_stack_band` 整栋共享写入 `wet_zone_*`（≠ 功能 SERVICE）
+3. **ZonePlanner**：功能区按层打包（空区回收）；产出 `BuildingZonePlan.wet_stacks`（≠ 功能 SERVICE）；Guillotine 写入 `LayoutCandidate.wet_stacks` 并镜像 `wet_zone_*`
 4. **Guillotine within zones**：在各功能 zone 矩形内递归切分
 5. **确定性**：`rng = random.Random(seed)`；相同 program+seed → 相同 candidate
 

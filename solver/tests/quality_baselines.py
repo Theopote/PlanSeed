@@ -43,5 +43,5 @@ MEASURED_BASELINE = {
     "case": "benchmark_11x13_2floors",
     "valid_ratio": 0.81,
     "distinct_layouts": 32,
-    "notes": "Functional≠WetStack; kitchen→DAY+WS1; shared wet_stack_band",
+    "notes": "Functional≠WetStack; kitchen→DAY+WS1; LayoutCandidate.wet_stacks",
 }

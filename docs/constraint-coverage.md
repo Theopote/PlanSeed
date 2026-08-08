@@ -8,7 +8,7 @@
 | SeparationConstraint | ✓ | — | — | — | — | — | **未接线** |
 | OrientationConstraint | ✓ | ✓ 偏好 | — | ✓ hard | ✓ soft score | ✓ | 轴对齐外墙；非日照分析 |
 | FloorConstraint | ✓ | ✓ FloorAssignment | — | 归属阶段 | — | ✓ | 不在 checker 再验 |
-| AlignmentConstraint | ✓ | ✓ wet_stack | ✓ wet AABB | ✓ | ✓ vertical | ✓ | stair/wet |
+| AlignmentConstraint | ✓ | ✓ wet_stack | ✓ WetStack anchor | ✓ | ✓ vertical | ✓ | stair/wet |
 | AreaConstraint | ✓ | — | — | ✓ hard/soft | area_accuracy | ✓ | soft 不再丢弃 |
 | WidthConstraint | ✓ | — | — | ✓ hard/soft | — | ✓ | soft 不再丢弃 |
 | AccessConstraint | ✓ | — | — | — | — | — | **Phase 2** |

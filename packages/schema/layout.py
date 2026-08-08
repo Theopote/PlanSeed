@@ -59,7 +59,11 @@ class RoomPlacement(BaseModel):
 class FloorLayout(BaseModel):
     floor_id: str
     placements: list[RoomPlacement] = Field(default_factory=list)
-    wet_zone_x0: float | None = Field(default=None, description="湿区带左边界（跨层对齐用）")
+    # 兼容镜像：由 LayoutCandidate.wet_stacks 主锚回填；新代码请用 wet_stacks
+    wet_zone_x0: float | None = Field(
+        default=None,
+        description="[deprecated] 主 WetStack 锚左界；请用 LayoutCandidate.wet_stacks",
+    )
     wet_zone_x1: float | None = None
     wet_zone_y0: float | None = None
     wet_zone_y1: float | None = None
@@ -70,6 +74,22 @@ class FloorLayout(BaseModel):
     core_placement: str | None = Field(
         default=None,
         description="楼梯核区位 north/south/east/west/center",
+    )
+
+
+class WetStack(BaseModel):
+    """
+    竖向服务对齐单元（vertical service alignment）。
+
+    MVP：max_wet_stacks=1 → 通常仅 WS1；未来可并存 WS2。
+    """
+
+    id: str = Field(default="WS1", description="叠组 id，如 WS1 / WS2")
+    anchor_rect: PlacementRect = Field(description="跨层共享的技术锚矩形")
+    floor_ids: list[str] = Field(default_factory=list, description="参与该叠组的楼层")
+    member_room_ids: list[str] = Field(
+        default_factory=list,
+        description="归属该叠组的房间（各层合计）",
     )
 
 
@@ -94,6 +114,10 @@ class LayoutCandidate(BaseModel):
     id: str
     seed: int
     floors: list[FloorLayout] = Field(default_factory=list)
+    wet_stacks: list[WetStack] = Field(
+        default_factory=list,
+        description="技术湿区叠组；MVP 通常 0～1 个",
+    )
     validation: CandidateValidation | None = None
     score: float | None = None
     metrics: dict[str, float | int | str | bool] = Field(default_factory=dict)

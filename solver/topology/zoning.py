@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import random
 
-from packages.schema.layout import PlacementRect
+from packages.schema.layout import PlacementRect, WetStack
 from packages.schema.room import RoomCategory, RoomSpec
 from packages.schema.zoning import (
     ArchitecturalZone,
+    BuildingZonePlan,
     FloorZonePlan,
     RoomZoning,
     WetStackGroup,
@@ -112,7 +113,7 @@ class ZonePlanner:
     """
     分区策略：
     - 功能区 DAY/NIGHT/SERVICE：按层在 free_rects 内切分（空区回收）
-    - 技术湿区条带：整栋共享几何，仅写入 wet_stack_band（不对功能打包抢空间）
+    - WetStack：整栋共享 anchor_rect（技术对齐参考，不对功能打包抢空间）
     """
 
     def group_rooms(self, rooms: list[RoomSpec]) -> list[ZoneRoomGroup]:
@@ -183,23 +184,28 @@ class ZonePlanner:
         free_rects: list[Rect],
         snap_module: float = 0.3,
         rng: random.Random | None = None,
-    ) -> dict[str, FloorZonePlan]:
+        max_wet_stacks: int = 1,
+    ) -> BuildingZonePlan:
         """
-        各层按功能区打包（空区回收）；整栋共享 wet_stack_band 作技术对齐参考。
+        各层按功能区打包（空区回收）；整栋 WetStack 作技术对齐参考。
 
+        MVP：max_wet_stacks=1 → 至多一个 WS1；未来可扩到 WS2。
         厨房进 DAY、主卫进 NIGHT、客卫进 SERVICE — 不再因 WET 挤进同一功能条带。
         """
         rng = rng or random.Random(0)
         all_rooms = [r for _, rooms in floors for r in rooms]
+        floor_ids = [fid for fid, _ in floors]
 
-        stack_band = self._compute_wet_stack_band(
+        wet_stacks = self._build_wet_stacks(
             free_rects,
             all_rooms=all_rooms,
+            floor_ids=floor_ids,
             snap_module=snap_module,
             rng=rng,
+            max_wet_stacks=max_wet_stacks,
         )
 
-        plans: dict[str, FloorZonePlan] = {}
+        floor_plans: dict[str, FloorZonePlan] = {}
         for floor_id, rooms in floors:
             zones = self.plan_geometry(
                 rooms=rooms,
@@ -208,46 +214,60 @@ class ZonePlanner:
                 rng=rng,
                 floor_id=floor_id,
             )
-            plans[floor_id] = FloorZonePlan(
-                floor_id=floor_id,
-                zones=zones,
-                wet_stack_band=stack_band.model_copy() if stack_band else None,
-                wet_stack_group=WetStackGroup.WS1 if stack_band else None,
-            )
-        return plans
+            floor_plans[floor_id] = FloorZonePlan(floor_id=floor_id, zones=zones)
+        return BuildingZonePlan(floors=floor_plans, wet_stacks=wet_stacks)
 
-    def _compute_wet_stack_band(
+    def _build_wet_stacks(
         self,
         free_rects: list[Rect],
         *,
         all_rooms: list[RoomSpec],
+        floor_ids: list[str],
         snap_module: float,
         rng: random.Random,
-    ) -> PlacementRect | None:
+        max_wet_stacks: int,
+    ) -> list[WetStack]:
         """
-        技术湿区条带：按 WS 成员面积占比切出共享 AABB。
+        按 WS 成员面积占比切出共享 anchor_rect。
 
         不从功能打包空间扣除 — 叠置语义与功能邻接解耦（Phase 2 再做 shaft 路由）。
+        MVP 仅产出至多 1 个 WS1；max_wet_stacks≥2 时预留扩展点。
         """
-        ws_weight = sum(
-            r.target_area for r in all_rooms if wet_stack_group_for_room(r) is not None
-        )
-        if ws_weight <= 1e-9 or not free_rects:
-            return None
+        n = max(1, min(2, max_wet_stacks))
+        members = [r for r in all_rooms if wet_stack_group_for_room(r) is not None]
+        if not members or not free_rects:
+            return []
 
-        other_weight = sum(
-            r.target_area for r in all_rooms if wet_stack_group_for_room(r) is None
-        )
-        bands, _ = self._carve_band(
-            free_rects,
-            band_weight=ws_weight,
-            other_weight=other_weight,
-            snap_module=snap_module,
-            rng=rng,
-            min_frac=0.10,
-            max_frac=0.35,
-        )
-        return bands[0] if bands else None
+        # MVP：全部湿区成员归入 WS1；未来按组拆分 WS1/WS2
+        stacks: list[WetStack] = []
+        for i, group in enumerate((WetStackGroup.WS1, WetStackGroup.WS2)[:n]):
+            if i > 0:
+                break  # Phase 1.6：尚未实现第二叠组分配
+            group_rooms = members if i == 0 else []
+            if not group_rooms:
+                continue
+            ws_weight = sum(r.target_area for r in group_rooms)
+            other_weight = sum(r.target_area for r in all_rooms) - ws_weight
+            bands, _ = self._carve_band(
+                free_rects,
+                band_weight=ws_weight,
+                other_weight=max(0.0, other_weight),
+                snap_module=snap_module,
+                rng=rng,
+                min_frac=0.10,
+                max_frac=0.35,
+            )
+            if not bands:
+                continue
+            stacks.append(
+                WetStack(
+                    id=group.value,
+                    anchor_rect=bands[0],
+                    floor_ids=list(floor_ids),
+                    member_room_ids=[r.id for r in group_rooms],
+                )
+            )
+        return stacks
 
     def _carve_band(
         self,
