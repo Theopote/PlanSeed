@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6 — Local LLM（6.5 ✅ → 下一 6.6）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
-> **6.0–6.5 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6 ✅ · 下一 Phase 7+** · LLM 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
+> **6.0–6.6 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
 
@@ -14,8 +14,8 @@
 | **5** | **Project Persistence** | **✅ P0/P1** |
 | **5.1** | **Revision Integrity & Mutation Single Source** | **✅ P0** |
 | **5.1.1** | **Program Fidelity Gate** | **✅ P0** |
-| **6** | **Local LLM Requirement Parsing** | **← 下一** |
-| **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 未开始 |
+| **6** | **Local LLM Requirement Parsing** | **✅** |
+| **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | **← 下一** |
 | — | SVG Debug | ✅ 开发工具 |
 
 **平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
@@ -255,7 +255,7 @@ LLM 前极短闸门：canonical `RequirementSpec` 往返 + revalidate 楼梯 met
 
 ---
 
-## Phase 6 — Local LLM Requirement Parsing（← 当前）
+## Phase 6 — Local LLM Requirement Parsing ✅
 
 详案：[phase-6-local-llm.md](phase-6-local-llm.md)
 
@@ -273,9 +273,9 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 | **6.3** | Validation + Repair | ✅ |
 | **6.4** | Assumption / Unknown UI | ✅ |
 | **6.5** | NL → Generate | ✅ |
-| **6.6** | Requirement Benchmark | **← 下一** |
+| **6.6** | Requirement Benchmark | ✅ |
 
-详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
 ### Phase 6.0 — LLM Boundary ✅
 
@@ -320,6 +320,15 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 - [x] Desktop：自然语言「解析」/「解析并生成」
 - [x] 写入 `requirementSpec` + 简表回填；假设/未知走 6.4
 - [x] 契约文档 additive 登记
+
+### Phase 6.6 — Requirement Benchmark ✅
+
+- [x] ≥50 条中文住宅用例（`packages/llm/benchmark/cases.py`）
+- [x] 字段准确率 + must_unknown 反幻觉评分
+- [x] CI oracle Mock：`field_accuracy` / `case_pass_rate` = 1.0
+- [x] 真模型可选：`run_benchmark(use_oracle=False, provider=…)`
+
+**Phase 6 已收口。**
 
 ---
 
@@ -419,7 +428,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 6** Local LLM（5.1.1 Program Fidelity ✅） |
+| **当前主线** | **Phase 6 ✅** Local LLM 已收口；下一 **Phase 7+** |
 
 ---
 
