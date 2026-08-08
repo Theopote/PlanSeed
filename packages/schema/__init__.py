@@ -34,6 +34,7 @@ from packages.schema.scoring import (
     DesignFinding,
     DesignMetrics,
     DesignScore,
+    EvaluationAxis,
     FindingSeverity,
 )
 from packages.schema.site import (
@@ -68,6 +69,7 @@ __all__ = [
     "DesignProgram",
     "DesignScore",
     "DoorOpening",
+    "EvaluationAxis",
     "ExteriorEntry",
     "ExteriorEntryPlacement",
     "ExteriorEntrySpec",

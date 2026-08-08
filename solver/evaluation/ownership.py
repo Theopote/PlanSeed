@@ -1,41 +1,55 @@
 """
-Metric Ownership — Phase 3.5。
+Metric Ownership — 映射到七轴评价层。
 
-每个原始 metric 只属于一个 primary score 维度；其他模块可只读引用（findings/metrics），
-但不得再次计入 total_score 加权。
+原始 metric → primary EvaluationAxis；禁止同一 metric 进入多个轴的计分。
 
-| Metric                    | Primary score          |
-|---------------------------|------------------------|
-| area_accuracy             | program_fit            |
-| program_coverage          | program_fit            |
-| aspect_ratio_penalty      | geometry               |
-| slender_room_count        | geometry               |
-| compactness               | space_efficiency       |
-| perimeter_efficiency_pct  | space_efficiency       |
-| reachable_ratio 等        | circulation            |
-| privacy_transition_*      | privacy                |
-| layout_stability*         | layout_stability       |
-| stair/wet alignment       | vertical               |
-| orientation_*             | orientation            |
-| setback_* / entry_on_road | site                   |
-| adjacency satisfaction    | adjacency              |
+| Metric                 | Axis          |
+|------------------------|---------------|
+| program_coverage       | program       |
+| area_accuracy          | program       |
+| adjacency_*            | program       |
+| aspect / slender       | spatial       |
+| compactness            | spatial       |
+| reachable / depth / …  | circulation  |
+| privacy_transition_*   | privacy       |
+| orientation_*          | environment   |
+| stair / wet / site     | technical     |
+| layout_stability       | robustness    |
 """
 
 from __future__ import annotations
 
-# metric → primary DesignScore 字段（不含 _score 后缀的逻辑名）
+from packages.schema.scoring import EvaluationAxis
+
 METRIC_OWNER: dict[str, str] = {
-    "area_accuracy": "program_fit",
-    "program_area_accuracy": "program_fit",
-    "program_coverage": "program_fit",
-    "program_fit": "program_fit",
-    "aspect_ratio_penalty": "geometry",
-    "slender_room_count": "geometry",
-    "slender_room_ratio": "geometry",  # 派生展示；不计 space_efficiency 分
-    "compactness": "space_efficiency",
-    "perimeter_efficiency_pct": "space_efficiency",
-    "space_compactness": "space_efficiency",
-    "space_efficiency": "space_efficiency",
+    "area_accuracy": EvaluationAxis.PROGRAM.value,
+    "program_area_accuracy": EvaluationAxis.PROGRAM.value,
+    "program_coverage": EvaluationAxis.PROGRAM.value,
+    "program_fit": EvaluationAxis.PROGRAM.value,
+    "required_adjacency_satisfaction": EvaluationAxis.PROGRAM.value,
+    "preferred_adjacency_satisfaction": EvaluationAxis.PROGRAM.value,
+    "aspect_ratio_penalty": EvaluationAxis.SPATIAL.value,
+    "slender_room_count": EvaluationAxis.SPATIAL.value,
+    "slender_room_ratio": EvaluationAxis.SPATIAL.value,
+    "compactness": EvaluationAxis.SPATIAL.value,
+    "perimeter_efficiency_pct": EvaluationAxis.SPATIAL.value,
+    "space_compactness": EvaluationAxis.SPATIAL.value,
+    "space_efficiency": EvaluationAxis.SPATIAL.value,
+    "reachable_ratio": EvaluationAxis.CIRCULATION.value,
+    "average_access_depth": EvaluationAxis.CIRCULATION.value,
+    "through_room_count": EvaluationAxis.CIRCULATION.value,
+    "dead_end_count": EvaluationAxis.CIRCULATION.value,
+    "access_pref_satisfaction": EvaluationAxis.CIRCULATION.value,
+    "privacy_transition_score": EvaluationAxis.PRIVACY.value,
+    "private_through_count": EvaluationAxis.PRIVACY.value,
+    "orientation_satisfaction": EvaluationAxis.ENVIRONMENT.value,
+    "stair_alignment": EvaluationAxis.TECHNICAL.value,
+    "wet_stack_alignment": EvaluationAxis.TECHNICAL.value,
+    "setback_compliance": EvaluationAxis.TECHNICAL.value,
+    "entry_on_road": EvaluationAxis.TECHNICAL.value,
+    "garage_on_road": EvaluationAxis.TECHNICAL.value,
+    "layout_stability": EvaluationAxis.ROBUSTNESS.value,
+    "layout_stability_score": EvaluationAxis.ROBUSTNESS.value,
 }
 
 

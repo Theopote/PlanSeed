@@ -1,11 +1,11 @@
-"""Circulation metrics + findings — Phase 2.3 / 3.5。"""
+"""Circulation metrics + findings (Circulation / Robustness axes)."""
 
 from __future__ import annotations
 
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory
-from packages.schema.scoring import DesignFinding, FindingSeverity
+from packages.schema.scoring import DesignFinding, EvaluationAxis, FindingSeverity
 from solver.evaluation.findings import finding
 from solver.topology.access import (
     ENTRY_NODE_ID,
@@ -19,9 +19,9 @@ from solver.topology.derive_access import ensure_access_graph
 
 def _name(program: DesignProgram, room_id: str) -> str:
     if room_id == ENTRY_NODE_ID:
-        return "主入口"
+        return "\u4e3b\u5165\u53e3"
     if room_id.startswith("stair-"):
-        return "楼梯"
+        return "\u697c\u68af"
     room = program.room_by_id(room_id)
     return room.name if room is not None else room_id
 
@@ -129,8 +129,8 @@ def circulation_findings(
     graph = build_realized_access_graph(program, candidate)
     occupied = occupied_room_ids(program)
     out: list[DesignFinding] = []
+    axis = EvaluationAxis.CIRCULATION.value
 
-    # 入口连公共
     entry_rooms = [
         c.b if c.a == ENTRY_NODE_ID else c.a
         for c in graph.connections
@@ -144,10 +144,13 @@ def circulation_findings(
             out.append(
                 finding(
                     id="circulation.entry_to_public",
-                    category="circulation",
+                    category=axis,
                     severity=FindingSeverity.POSITIVE,
-                    title="主入口进入公共空间",
-                    message=f"主入口直接连通「{_name(program, rid)}」，动线起点清晰。",
+                    title="\u4e3b\u5165\u53e3\u8fdb\u5165\u516c\u5171\u7a7a\u95f4",
+                    message=(
+                        f"\u4e3b\u5165\u53e3\u76f4\u63a5\u8fde\u901a\u300c{_name(program, rid)}\u300d\uff0c"
+                        "\u52a8\u7ebf\u8d77\u70b9\u6e05\u6670\u3002"
+                    ),
                     room_ids=[rid],
                     metric="entry_on_public",
                     measured_value=1.0,
@@ -159,15 +162,17 @@ def circulation_findings(
         out.append(
             finding(
                 id="circulation.entry_not_public",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.WARNING,
-                title="主入口未直接进入公共厅",
+                title="\u4e3b\u5165\u53e3\u672a\u76f4\u63a5\u8fdb\u5165\u516c\u5171\u5385",
                 message=(
-                    f"主入口首先连通「{_name(program, first)}」，"
-                    "建议优先连接门厅/客厅等公共空间。"
+                    f"\u4e3b\u5165\u53e3\u9996\u5148\u8fde\u901a\u300c{_name(program, first)}\u300d\uff0c"
+                    "\u5efa\u8bae\u4f18\u5148\u8fde\u63a5\u95e8\u5385/\u5ba2\u5385\u7b49\u516c\u5171\u7a7a\u95f4\u3002"
                 ),
                 room_ids=[first],
-                recommended_action="调整 ExteriorEntry 贴边房间或门厅布置。",
+                recommended_action=(
+                    "\u8c03\u6574 ExteriorEntry \u8d34\u8fb9\u623f\u95f4\u6216\u95e8\u5385\u5e03\u7f6e\u3002"
+                ),
             )
         )
 
@@ -176,28 +181,31 @@ def circulation_findings(
         out.append(
             finding(
                 id="circulation.all_reachable",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.POSITIVE,
-                title="全部占用房间可达",
-                message="RealizedAccessGraph 上所有程序房间均可从主入口到达。",
+                title="\u5168\u90e8\u5360\u7528\u623f\u95f4\u53ef\u8fbe",
+                message=(
+                    "RealizedAccessGraph \u4e0a\u6240\u6709\u7a0b\u5e8f\u623f\u95f4"
+                    "\u5747\u53ef\u4ece\u4e3b\u5165\u53e3\u5230\u8fbe\u3002"
+                ),
                 metric="reachable_ratio",
                 measured_value=ratio,
             )
         )
     else:
         missing = occupied - reachable_nodes(graph, start=ENTRY_NODE_ID)
-        names = "、".join(_name(program, r) for r in sorted(missing)[:5])
+        names = "\u3001".join(_name(program, r) for r in sorted(missing)[:5])
         out.append(
             finding(
                 id="circulation.partial_reachable",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.PROBLEM,
-                title=f"可达率 {ratio:.0%}",
-                message=f"部分房间不可达（含：{names}）。",
+                title=f"\u53ef\u8fbe\u7387 {ratio:.0%}",
+                message=f"\u90e8\u5206\u623f\u95f4\u4e0d\u53ef\u8fbe\uff08\u542b\uff1a{names}\uff09\u3002",
                 room_ids=sorted(missing)[:8],
                 metric="reachable_ratio",
                 measured_value=ratio,
-                recommended_action="补门洞或修复必连共边。",
+                recommended_action="\u8865\u95e8\u6d1e\u6216\u4fee\u590d\u5fc5\u8fde\u5171\u8fb9\u3002",
             )
         )
 
@@ -206,16 +214,19 @@ def circulation_findings(
         out.append(
             finding(
                 id="circulation.through_room",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.WARNING,
-                title=f"潜在穿堂房间 ×{int(through)}",
+                title=f"\u6f5c\u5728\u7a7f\u5802\u623f\u95f4 x{int(through)}",
                 message=(
-                    "若干私密/服务房间在 realized 图上度≥2，"
-                    "可能被迫作为过道。"
+                    "\u82e5\u5e72\u79c1\u5bc6/\u670d\u52a1\u623f\u95f4\u5728 realized \u56fe\u4e0a\u5ea6>=2\uff0c"
+                    "\u53ef\u80fd\u88ab\u8feb\u4f5c\u4e3a\u8fc7\u9053\u3002"
                 ),
                 metric="through_room_count",
                 measured_value=through,
-                recommended_action="用走廊分流，避免卧室/卫生间成为必经节点。",
+                recommended_action=(
+                    "\u7528\u8d70\u5eca\u5206\u6d41\uff0c\u907f\u514d\u5367\u5ba4/\u536b\u751f\u95f4"
+                    "\u6210\u4e3a\u5fc5\u7ecf\u8282\u70b9\u3002"
+                ),
             )
         )
 
@@ -227,30 +238,36 @@ def circulation_findings(
             for r, d in access_depths(graph, start=ENTRY_NODE_ID).items()
             if r in occupied and d >= 4
         ]
-        deep_names = "、".join(_name(program, r) for r in deep[:4])
+        deep_names = "\u3001".join(_name(program, r) for r in deep[:4])
         out.append(
             finding(
                 id="circulation.deep_rooms",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.WARNING,
-                title=f"最大访问深度 {max_d:.0f}",
+                title=f"\u6700\u5927\u8bbf\u95ee\u6df1\u5ea6 {max_d:.0f}",
                 message=(
-                    f"平均深度 {avg_d:.1f}；深层房间包括：{deep_names or '—'}"
+                    f"\u5e73\u5747\u6df1\u5ea6 {avg_d:.1f}\uff1b"
+                    f"\u6df1\u5c42\u623f\u95f4\u5305\u62ec\uff1a{deep_names or '-'}"
                 ),
                 room_ids=deep[:6],
                 metric="max_access_depth",
                 measured_value=max_d,
-                recommended_action="缩短深层私密区到公共核的路径。",
+                recommended_action=(
+                    "\u7f29\u77ed\u6df1\u5c42\u79c1\u5bc6\u533a\u5230\u516c\u5171\u6838\u7684\u8def\u5f84\u3002"
+                ),
             )
         )
     elif 1.5 <= avg_d <= 4.0 and ratio >= 1.0 - 1e-9:
         out.append(
             finding(
                 id="circulation.depth_balanced",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.POSITIVE,
-                title="访问深度适中",
-                message=f"平均访问深度 {avg_d:.1f}，交通层次较清晰。",
+                title="\u8bbf\u95ee\u6df1\u5ea6\u9002\u4e2d",
+                message=(
+                    f"\u5e73\u5747\u8bbf\u95ee\u6df1\u5ea6 {avg_d:.1f}\uff0c"
+                    "\u4ea4\u901a\u5c42\u6b21\u8f83\u6e05\u6670\u3002"
+                ),
                 metric="average_access_depth",
                 measured_value=avg_d,
             )
@@ -261,29 +278,37 @@ def circulation_findings(
         out.append(
             finding(
                 id="circulation.intent_weak",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.WARNING,
-                title=f"通行意图共边率 {pref:.0%}",
-                message="AccessIntent 开口边中具备共边的比例偏低。",
+                title=f"\u901a\u884c\u610f\u56fe\u5171\u8fb9\u7387 {pref:.0%}",
+                message=(
+                    "AccessIntent \u5f00\u53e3\u8fb9\u4e2d\u5177\u5907\u5171\u8fb9"
+                    "\u7684\u6bd4\u4f8b\u504f\u4f4e\u3002"
+                ),
                 metric="access_pref_satisfaction",
                 measured_value=pref,
-                recommended_action="提高必连/偏好边的共边机会（打包序或局部修补）。",
+                recommended_action=(
+                    "\u63d0\u9ad8\u5fc5\u8fde/\u504f\u597d\u8fb9\u7684\u5171\u8fb9\u673a\u4f1a"
+                    "\uff08\u6253\u5305\u5e8f\u6216\u5c40\u90e8\u4fee\u8865\uff09\u3002"
+                ),
             )
         )
     elif pref >= 0.85:
         out.append(
             finding(
                 id="circulation.intent_strong",
-                category="circulation",
+                category=axis,
                 severity=FindingSeverity.POSITIVE,
-                title="通行意图共边良好",
-                message=f"AccessIntent 开口边共边满足率 {pref:.0%}。",
+                title="\u901a\u884c\u610f\u56fe\u5171\u8fb9\u826f\u597d",
+                message=(
+                    f"AccessIntent \u5f00\u53e3\u8fb9\u5171\u8fb9\u6ee1\u8db3\u7387 "
+                    f"{pref:.0%}\u3002"
+                ),
                 metric="access_pref_satisfaction",
                 measured_value=pref,
             )
         )
 
-    # 楼梯连通
     stair_ids = [
         p.room_id
         for fl in candidate.floors
@@ -296,10 +321,13 @@ def circulation_findings(
             out.append(
                 finding(
                     id="circulation.stair_linked",
-                    category="circulation",
+                    category=axis,
                     severity=FindingSeverity.POSITIVE,
-                    title="楼梯接入交通网络",
-                    message="楼梯核可从主入口经 realized 连接到达，竖向交通连贯。",
+                    title="\u697c\u68af\u63a5\u5165\u4ea4\u901a\u7f51\u7edc",
+                    message=(
+                        "\u697c\u68af\u6838\u53ef\u4ece\u4e3b\u5165\u53e3\u7ecf realized "
+                        "\u8fde\u63a5\u5230\u8fbe\uff0c\u7ad6\u5411\u4ea4\u901a\u8fde\u8d2f\u3002"
+                    ),
                     room_ids=stair_ids[:2],
                 )
             )
@@ -315,14 +343,18 @@ def layout_stability_findings(
     repairs = float(candidate.metrics.get("connection_repairs", 0) or 0)
     reslices = float(candidate.metrics.get("connection_reslices", 0) or 0)
     out: list[DesignFinding] = []
+    axis = EvaluationAxis.ROBUSTNESS.value
     if repairs <= 0 and reslices <= 0:
         out.append(
             finding(
-                id="stability.clean_generation",
-                category="layout_stability",
+                id="robustness.clean_generation",
+                category=axis,
                 severity=FindingSeverity.POSITIVE,
-                title="原始生成即成立",
-                message="未依赖 ConnectionResolver 修补/重切即可形成共边开口。",
+                title="\u539f\u59cb\u751f\u6210\u5373\u6210\u7acb",
+                message=(
+                    "\u672a\u4f9d\u8d56 ConnectionResolver \u4fee\u8865/\u91cd\u5207"
+                    "\u5373\u53ef\u5f62\u6210\u5171\u8fb9\u5f00\u53e3\u3002"
+                ),
                 metric="layout_stability_score",
                 measured_value=score,
             )
@@ -330,29 +362,34 @@ def layout_stability_findings(
     elif score < 85 or reslices >= 2:
         out.append(
             finding(
-                id="stability.heavy_repair",
-                category="layout_stability",
+                id="robustness.heavy_repair",
+                category=axis,
                 severity=FindingSeverity.WARNING,
-                title="依赖较多局部修补",
+                title="\u4f9d\u8d56\u8f83\u591a\u5c40\u90e8\u4fee\u8865",
                 message=(
                     f"connection_repairs={int(repairs)}, "
-                    f"reslices={int(reslices)}；方案经修补才成立。"
+                    f"reslices={int(reslices)}\uff1b"
+                    "\u65b9\u6848\u7ecf\u4fee\u8865\u624d\u6210\u7acb\u3002"
                 ),
                 metric="layout_stability_score",
                 measured_value=score,
-                recommended_action="改进拓扑打包，减少事后缝隙修补。",
+                recommended_action=(
+                    "\u6539\u8fdb\u62d3\u6251\u6253\u5305\uff0c"
+                    "\u51cf\u5c11\u4e8b\u540e\u7f1d\u9699\u4fee\u8865\u3002"
+                ),
             )
         )
     else:
         out.append(
             finding(
-                id="stability.light_repair",
-                category="layout_stability",
+                id="robustness.light_repair",
+                category=axis,
                 severity=FindingSeverity.INFO,
-                title="轻微局部修补",
+                title="\u8f7b\u5fae\u5c40\u90e8\u4fee\u8865",
                 message=(
-                    f"经 {int(repairs)} 次修补"
-                    f"（含 {int(reslices)} 次重切）后成立。"
+                    f"\u7ecf {int(repairs)} \u6b21\u4fee\u8865"
+                    f"\uff08\u542b {int(reslices)} \u6b21\u91cd\u5207\uff09"
+                    "\u540e\u6210\u7acb\u3002"
                 ),
                 metric="layout_stability_score",
                 measured_value=score,

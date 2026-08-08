@@ -273,6 +273,24 @@ button.secondary {
   font-weight: 600;
 }
 
+.score-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(196, 187, 170, 0.4);
+  font-size: 0.85rem;
+  align-items: flex-start;
+}
+
+.axis-hint {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 0.05rem;
+}
+
 .finding-block {
   margin-top: 0.85rem;
 }

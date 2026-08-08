@@ -1,4 +1,4 @@
-"""评价结果模型 — Phase 3 分数 + Phase 3.5 DesignFinding。"""
+"""评价结果模型 — 七轴评价层 + DesignFinding。"""
 
 from __future__ import annotations
 
@@ -18,16 +18,28 @@ class FindingSeverity(StrEnum):
     PROBLEM = "problem"
 
 
+class EvaluationAxis(StrEnum):
+    """用户可理解的评价轴（Phase 3.5）。"""
+
+    PROGRAM = "program"
+    SPATIAL = "spatial"
+    CIRCULATION = "circulation"
+    PRIVACY = "privacy"
+    ENVIRONMENT = "environment"
+    TECHNICAL = "technical"
+    ROBUSTNESS = "robustness"
+
+
 class DesignFinding(BaseModel):
     """
     可解释设计发现（≠ 单纯报分数）。
 
-    Evaluator 输出 findings；Inspector 按 severity / category 展示。
+    category 应对齐 EvaluationAxis（或子域，如仍兼容旧 id）。
     """
 
     id: str = Field(description="稳定 id，如 privacy.private_through_room")
     category: str = Field(
-        description="circulation | privacy | program_fit | geometry | …"
+        description="program | spatial | circulation | privacy | environment | technical | robustness"
     )
     severity: FindingSeverity
     title: str
@@ -39,7 +51,7 @@ class DesignFinding(BaseModel):
 
 
 class DesignMetrics(BaseModel):
-    """第一阶段 metrics — 可扩展。"""
+    """底层 metrics — 可扩展；总分按七轴聚合，不按本表直接加权。"""
 
     overlap_count: int = 0
     boundary_violation: int = 0
@@ -61,7 +73,6 @@ class DesignMetrics(BaseModel):
     setback_compliance: float = 1.0
     orientation_satisfaction: float = 1.0
 
-    # Phase 3
     program_fit: float = 1.0
     space_efficiency: float = 1.0
     privacy_transition_score: float = 1.0
@@ -71,35 +82,29 @@ class DesignMetrics(BaseModel):
 
 class DesignScore(BaseModel):
     """
-    可解释建筑评价（Phase 3 + 3.5）。
+    七轴建筑评价（用户层）。
 
-    分项 score 仍用于排名；findings 才是 Inspector 主内容。
+    Program / Spatial / Circulation / Privacy / Environment / Technical / Robustness
     """
 
-    geometry_score: float = 0.0
-    adjacency_score: float = 0.0
-    circulation_score: float = 0.0
-    orientation_score: float = 0.0
-    privacy_score: float = 0.0
-    vertical_score: float = 0.0
-    site_score: float = 0.0
-    program_fit_score: float = 0.0
-    space_efficiency_score: float = 0.0
-    layout_stability_score: float = 0.0
+    program_score: float = Field(default=0.0, description="空间清单 / 面积份额 / 邻接")
+    spatial_score: float = Field(default=0.0, description="比例 / 紧凑度 / 形状")
+    circulation_score: float = Field(default=0.0, description="可达 / 深度 / 穿堂")
+    privacy_score: float = Field(default=0.0, description="动静分区 / 过渡 / 穿卧")
+    environment_score: float = Field(default=0.0, description="朝向 / 外墙；采光后续")
+    technical_score: float = Field(default=0.0, description="楼梯 / 湿区 / 入口 / 临路")
+    robustness_score: float = Field(default=0.0, description="repair / reslice / 稳定性")
 
     total_score: float = 0.0
 
     metrics: DesignMetrics = Field(default_factory=DesignMetrics)
-    findings: list[DesignFinding] = Field(
-        default_factory=list,
-        description="设计发现（优势 / 问题 / 警告）",
-    )
+    findings: list[DesignFinding] = Field(default_factory=list)
     explanations: list[str] = Field(
         default_factory=list,
-        description="[compat] 由 findings 派生的短标题列表",
+        description="[compat] 由 findings 派生",
     )
     warnings: list[str] = Field(
         default_factory=list,
-        description="[compat] WARNING/PROBLEM 的 message 摘要",
+        description="[compat] WARNING/PROBLEM 摘要",
     )
     violations: list[Violation] = Field(default_factory=list)

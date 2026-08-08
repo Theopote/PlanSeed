@@ -7,17 +7,15 @@ type Props = {
 const SCORE_ROWS: Array<{
   key: keyof NonNullable<CandidatePayload["design_score"]>;
   label: string;
+  hint: string;
 }> = [
-  { key: "program_fit_score", label: "Program Fit" },
-  { key: "circulation_score", label: "Circulation" },
-  { key: "privacy_score", label: "Privacy" },
-  { key: "orientation_score", label: "Orientation" },
-  { key: "space_efficiency_score", label: "Space Efficiency" },
-  { key: "vertical_score", label: "Vertical" },
-  { key: "layout_stability_score", label: "Layout Stability" },
-  { key: "geometry_score", label: "Geometry" },
-  { key: "adjacency_score", label: "Adjacency" },
-  { key: "site_score", label: "Site" },
+  { key: "program_score", label: "Program", hint: "空间清单 / 面积 / 邻接" },
+  { key: "spatial_score", label: "Spatial", hint: "比例 / 紧凑 / 形状" },
+  { key: "circulation_score", label: "Circulation", hint: "可达 / 深度 / 穿堂" },
+  { key: "privacy_score", label: "Privacy", hint: "动静 / 过渡 / 穿卧" },
+  { key: "environment_score", label: "Environment", hint: "朝向 / 外墙" },
+  { key: "technical_score", label: "Technical", hint: "楼梯 / 湿区 / 入口" },
+  { key: "robustness_score", label: "Robustness", hint: "repair / 稳定性" },
 ];
 
 const SEV_ORDER = ["problem", "warning", "positive", "info"] as const;
@@ -73,12 +71,15 @@ export function Inspector({ candidate }: Props) {
                 <strong>{ds.total_score.toFixed(1)}</strong>
               </div>
               <ul className="score-rows">
-                {SCORE_ROWS.map(({ key, label }) => {
+                {SCORE_ROWS.map(({ key, label, hint }) => {
                   const v = ds[key];
                   if (typeof v !== "number") return null;
                   return (
-                    <li key={key}>
-                      <span>{label}</span>
+                    <li key={key} title={hint}>
+                      <span>
+                        {label}
+                        <span className="axis-hint"> {hint}</span>
+                      </span>
                       <span>{v.toFixed(1)}</span>
                     </li>
                   );

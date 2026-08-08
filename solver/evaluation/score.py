@@ -1,10 +1,15 @@
-"""评价聚合 — DesignScore + DesignFinding（Phase 3.5）。"""
+"""评价聚合 — 七轴 DesignScore + DesignFinding。"""
 
 from __future__ import annotations
 
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
-from packages.schema.scoring import DesignMetrics, DesignScore, FindingSeverity
+from packages.schema.scoring import (
+    DesignMetrics,
+    DesignScore,
+    EvaluationAxis,
+    FindingSeverity,
+)
 from solver.evaluation.access import (
     access_circulation_score,
     compute_access_metrics,
@@ -44,49 +49,56 @@ from solver.evaluation.vertical import compute_vertical_metrics, vertical_score
 from solver.evaluation.weights import DEFAULT_WEIGHTS, ScoreWeights
 
 
+def _blend(a: float, b: float, share_a: float) -> float:
+    share_a = min(1.0, max(0.0, share_a))
+    return a * share_a + b * (1.0 - share_a)
+
+
 class CompositeEvaluator:
     def __init__(self, weights: ScoreWeights = DEFAULT_WEIGHTS) -> None:
         self.weights = weights
 
     def evaluate(self, program: DesignProgram, candidate: LayoutCandidate) -> DesignScore:
-        geo_m = compute_geometry_metrics(program, candidate, self.weights)
-        adj_m = compute_adjacency_metrics(program, candidate, self.weights)
+        w = self.weights
+        geo_m = compute_geometry_metrics(program, candidate, w)
+        adj_m = compute_adjacency_metrics(program, candidate, w)
         vert_m = compute_vertical_metrics(candidate)
         orient_m = compute_orientation_metrics(program, candidate)
         site_m = compute_site_metrics(program, candidate)
         access_m = compute_access_metrics(program, candidate)
         circ_m = compute_circulation_metrics(program, candidate)
         priv_m = compute_privacy_metrics(program, candidate)
-        fit_m = compute_program_fit_metrics(program, candidate, self.weights)
-        eff_m = compute_space_efficiency_metrics(program, candidate, self.weights)
+        fit_m = compute_program_fit_metrics(program, candidate, w)
+        eff_m = compute_space_efficiency_metrics(program, candidate, w)
 
-        g_score = geometry_score(geo_m)
-        a_score = adjacency_score(adj_m)
-        v_score = vertical_score(vert_m)
-        o_score = orientation_score(orient_m)
-        s_score = compute_site_score(site_m)
-        p_score = privacy_score(priv_m)
-        pf_score = program_fit_score(fit_m)
-        se_score = space_efficiency_score(eff_m)
-        ls_score = float(circ_m.get("layout_stability_score", 100.0))
-
-        c_score = (
+        # 底层切片（Metric Ownership 已去重）
+        fit_s = program_fit_score(fit_m)
+        adj_s = adjacency_score(adj_m)
+        prop_s = geometry_score(geo_m)
+        compact_s = space_efficiency_score(eff_m)
+        circ_s = (
             0.45 * access_circulation_score(access_m)
             + 0.55 * circulation_architecture_score(circ_m)
         )
+        priv_s = privacy_score(priv_m)
+        env_s = orientation_score(orient_m)
+        vert_s = vertical_score(vert_m)
+        site_s = compute_site_score(site_m)
+        robust_s = float(circ_m.get("layout_stability_score", 100.0))
 
-        w = self.weights
+        # 七轴
+        program_s = _blend(fit_s, adj_s, w.program_fit_share)
+        spatial_s = _blend(prop_s, compact_s, w.spatial_proportion_share)
+        technical_s = _blend(vert_s, site_s, w.technical_vertical_share)
+
         parts = [
-            (g_score, w.geometry),
-            (a_score, w.adjacency),
-            (v_score, w.vertical),
-            (s_score, w.site),
-            (o_score, w.orientation),
-            (c_score, w.circulation),
-            (p_score, w.privacy),
-            (pf_score, w.program_fit),
-            (se_score, w.space_efficiency),
-            (ls_score, w.layout_stability),
+            (program_s, w.program),
+            (spatial_s, w.spatial),
+            (circ_s, w.circulation),
+            (priv_s, w.privacy),
+            (env_s, w.environment),
+            (technical_s, w.technical),
+            (robust_s, w.robustness),
         ]
         denom = sum(weight for _, weight in parts) or 1.0
         total = sum(score * weight for score, weight in parts) / denom
@@ -105,11 +117,44 @@ class CompositeEvaluator:
         )
         findings.extend(layout_stability_findings(circ_m, candidate))
 
+        if float(adj_m.get("required_adjacency_satisfaction", 1.0)) < 1.0:
+            findings.append(
+                finding(
+                    id="program.adjacency_required_gap",
+                    category=EvaluationAxis.PROGRAM.value,
+                    severity=FindingSeverity.WARNING,
+                    title="必选邻接未完全满足",
+                    message=(
+                        f"required adjacency "
+                        f"{float(adj_m['required_adjacency_satisfaction']):.0%}"
+                    ),
+                    metric="required_adjacency_satisfaction",
+                    measured_value=float(
+                        adj_m.get("required_adjacency_satisfaction", 1.0)
+                    ),
+                    recommended_action="调整拓扑簇或 ConnectionResolver 共边。",
+                )
+            )
+        elif float(adj_m.get("preferred_adjacency_satisfaction", 1.0)) >= 0.85:
+            findings.append(
+                finding(
+                    id="program.adjacency_ok",
+                    category=EvaluationAxis.PROGRAM.value,
+                    severity=FindingSeverity.POSITIVE,
+                    title="功能邻接较好",
+                    message="偏好/必选邻接共边满足率较高。",
+                    metric="preferred_adjacency_satisfaction",
+                    measured_value=float(
+                        adj_m.get("preferred_adjacency_satisfaction", 1.0)
+                    ),
+                )
+            )
+
         if not site_m.get("setback_info_provided", False):
             findings.append(
                 finding(
-                    id="site.setback_unknown",
-                    category="site",
+                    id="technical.setback_unknown",
+                    category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.INFO,
                     title="未提供规划退界",
                     message="setbacks=0 表示信息缺失，不代表法规结论。",
@@ -117,11 +162,41 @@ class CompositeEvaluator:
                     measured_value=0.0,
                 )
             )
+        entry_road = float(site_m.get("entry_on_road", 1.0))
+        if entry_road >= 1.0 - 1e-9 and site_m.get("setback_info_provided", False):
+            pass  # 无 road 信息时默认 1.0，避免假阳性
+        roads_matter = bool(program.site.road_edges)
+        if roads_matter and entry_road >= 1.0 - 1e-9:
+            findings.append(
+                finding(
+                    id="technical.entry_on_road",
+                    category=EvaluationAxis.TECHNICAL.value,
+                    severity=FindingSeverity.POSITIVE,
+                    title="主入口临路",
+                    message="ExteriorEntry 落在 road_edges 上。",
+                    metric="entry_on_road",
+                    measured_value=entry_road,
+                )
+            )
+        elif roads_matter and entry_road < 0.5:
+            findings.append(
+                finding(
+                    id="technical.entry_off_road",
+                    category=EvaluationAxis.TECHNICAL.value,
+                    severity=FindingSeverity.WARNING,
+                    title="主入口未临路",
+                    message="入口未落在声明的临路边上。",
+                    metric="entry_on_road",
+                    measured_value=entry_road,
+                    recommended_action="调整 entrance_edge / road_edges 或入口放置。",
+                )
+            )
+
         for v in soft_violations:
             findings.append(
                 finding(
-                    id=f"orientation.soft:{v.constraint_id}",
-                    category="orientation",
+                    id=f"environment.orientation:{v.constraint_id}",
+                    category=EvaluationAxis.ENVIRONMENT.value,
                     severity=FindingSeverity.WARNING,
                     title="朝向偏好未满足",
                     message=v.message,
@@ -129,19 +204,47 @@ class CompositeEvaluator:
                     recommended_action="调整房间贴边或 north_angle / preferred_orientation。",
                 )
             )
+        if float(orient_m.get("orientation_satisfaction", 1.0)) >= 0.99 and int(
+            orient_m.get("orientation_constraint_count", 0) or 0
+        ) > 0:
+            findings.append(
+                finding(
+                    id="environment.orientation_ok",
+                    category=EvaluationAxis.ENVIRONMENT.value,
+                    severity=FindingSeverity.POSITIVE,
+                    title="朝向偏好满足",
+                    message="声明的 OrientationConstraint 均满足（世界朝向）。",
+                    metric="orientation_satisfaction",
+                    measured_value=float(orient_m.get("orientation_satisfaction", 1.0)),
+                )
+            )
 
-        # 楼梯竖向对齐
         stair_al = float(vert_m.get("stair_alignment", 1.0))
         if stair_al >= 0.99 and len(candidate.floors) > 1:
             findings.append(
                 finding(
-                    id="vertical.stair_aligned",
-                    category="vertical",
+                    id="technical.stair_aligned",
+                    category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.POSITIVE,
                     title="楼梯跨层对齐",
                     message="楼梯核在各层位置对齐，竖向交通清晰。",
                     metric="stair_alignment",
                     measured_value=stair_al,
+                )
+            )
+        wet_al = float(
+            vert_m.get("wet_stack_alignment", vert_m.get("wet_zone_alignment", 1.0))
+        )
+        if wet_al >= 0.99 and len(candidate.floors) > 1:
+            findings.append(
+                finding(
+                    id="technical.wet_aligned",
+                    category=EvaluationAxis.TECHNICAL.value,
+                    severity=FindingSeverity.POSITIVE,
+                    title="湿区叠组对齐",
+                    message="WetStack 锚跨层对齐良好。",
+                    metric="wet_stack_alignment",
+                    measured_value=wet_al,
                 )
             )
 
@@ -181,7 +284,7 @@ class CompositeEvaluator:
                 priv_m.get("privacy_transition_score", 1.0)
             ),
             reachable_ratio=float(circ_m.get("reachable_ratio", 1.0)),
-            layout_stability=ls_score / 100.0,
+            layout_stability=robust_s / 100.0,
         )
 
         flat_metrics: dict[str, float | int | str | bool] = {
@@ -195,24 +298,24 @@ class CompositeEvaluator:
             **{k: v for k, v in priv_m.items()},
             **fit_m,
             **eff_m,
-            "program_fit_score": pf_score,
-            "privacy_score": p_score,
-            "space_efficiency_score": se_score,
-            "layout_stability_score": ls_score,
+            "program_score": program_s,
+            "spatial_score": spatial_s,
+            "circulation_score": circ_s,
+            "privacy_score": priv_s,
+            "environment_score": env_s,
+            "technical_score": technical_s,
+            "robustness_score": robust_s,
             "finding_count": len(findings),
         }
 
         score = DesignScore(
-            geometry_score=g_score,
-            adjacency_score=a_score,
-            circulation_score=round(c_score, 2),
-            vertical_score=v_score,
-            orientation_score=o_score,
-            privacy_score=round(p_score, 2),
-            site_score=s_score,
-            program_fit_score=round(pf_score, 2),
-            space_efficiency_score=round(se_score, 2),
-            layout_stability_score=round(ls_score, 2),
+            program_score=round(program_s, 2),
+            spatial_score=round(spatial_s, 2),
+            circulation_score=round(circ_s, 2),
+            privacy_score=round(priv_s, 2),
+            environment_score=round(env_s, 2),
+            technical_score=round(technical_s, 2),
+            robustness_score=round(robust_s, 2),
             total_score=round(total, 2),
             metrics=metrics,
             findings=findings,

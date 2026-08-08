@@ -176,13 +176,15 @@ class TestProgramFitAndComposite:
         program = benchmark_program()
         candidate = GuillotineGenerator().generate(program, seed=0)
         score = CompositeEvaluator().evaluate(program, candidate)
-        assert score.program_fit_score > 0
-        assert score.privacy_score >= 0
-        assert score.space_efficiency_score > 0
-        assert score.layout_stability_score > 0
+        assert score.program_score > 0
+        assert score.spatial_score > 0
         assert score.circulation_score > 0
+        assert score.privacy_score >= 0
+        assert score.environment_score >= 0
+        assert score.technical_score > 0
+        assert score.robustness_score > 0
         assert score.total_score > 0
-        assert any("Privacy" in e or "privacy" in e.lower() for e in score.explanations)
+        assert any("privacy" in e.lower() for e in score.explanations)
         assert score.findings
         assert "privacy_transition_score" in candidate.metrics
         assert candidate.score == score.total_score

@@ -6,34 +6,40 @@
 2. **多指标分解**：返回 `DesignScore` 结构，而非单一数字。
 3. **Hard / Soft 分离**：Hard 违反在 `ConstraintChecker` 处理；Evaluator 对 soft 约束扣分。
 
-## DesignScore 结构
+## DesignScore 七轴（用户层）
 
 ```python
 DesignScore
-├── geometry_score
-├── adjacency_score
-├── circulation_score        # Realized + AccessIntent
-├── orientation_score
-├── privacy_score            # Phase 3：路径隐私过渡
-├── vertical_score
-├── site_score
-├── program_fit_score        # Phase 3
-├── space_efficiency_score   # Phase 3
-├── layout_stability_score   # Phase 3（repair 扰动）
+├── program_score       # 空间清单 / 面积份额 / 邻接
+├── spatial_score       # 比例 / 紧凑度 / 形状
+├── circulation_score   # 可达 / 深度 / 穿堂 / 死端
+├── privacy_score       # 动静分区 / 过渡 / 穿卧
+├── environment_score   # 朝向 / 外墙（采光后续）
+├── technical_score     # 楼梯 / 湿区 / 入口 / 临路
+├── robustness_score    # repair / reslice / 稳定性
 ├── total_score
 ├── metrics: DesignMetrics
-├── findings: DesignFinding[]   # Phase 3.5：优势/问题/警告
-├── explanations[]           # compat：由 findings 派生
-├── warnings[]
-└── violations[]             # soft 违反摘要
+├── findings: DesignFinding[]
+├── explanations[] / warnings[]  # compat：由 findings 派生
+└── violations[]
 ```
+
+| 轴 | 回答的问题 | 底层来源（不重复加权） |
+|----|------------|------------------------|
+| Program | 房间有没有？面积份额？邻接？ | coverage + area_accuracy + adjacency |
+| Spatial | 比例？紧凑？形状？ | aspect/slender + compactness |
+| Circulation | 可达？深度？穿堂？ | realized + access intent |
+| Privacy | 动静过渡？穿卧？ | privacy path |
+| Environment | 朝向？ | orientation（daylight 后续） |
+| Technical | 楼梯/湿区/入口/路？ | vertical + site |
+| Robustness | 是否靠修补硬撑？ | layout_stability |
 
 ### DesignFinding
 
 | 字段 | 说明 |
 |------|------|
 | `id` | 稳定键，如 `privacy.private_through_room:bed_b` |
-| `category` | circulation / privacy / program_fit / … |
+| `category` | `program` \| `spatial` \| `circulation` \| …（七轴） |
 | `severity` | `info` \| `positive` \| `warning` \| `problem` |
 | `title` / `message` | 短标题 + 设计语义说明 |
 | `room_ids` | 相关房间 |
@@ -45,11 +51,11 @@ DesignScore
 
 | Metric | Owner | 说明 |
 |--------|------|------|
-| `aspect_ratio_penalty` / `slender_room_count` | **geometry** | 房间比例 |
-| `area_accuracy` | program_fit（只计算，geometry 不计分） | 份额一致性 |
-| `compactness` | space_efficiency（只计算） | 周长效率 |
+| `aspect_ratio_penalty` / `slender_room_count` | **spatial** | 房间比例 |
+| `area_accuracy` | **program** | 份额一致性 |
+| `compactness` | **spatial** | 周长效率（与 slender 同轴但不同子分，轴内合成一次） |
 
-`geometry_score` **仅**反映比例质量（aspect / slender），不再加权 area / compactness。
+比例与紧凑在 **Spatial** 轴内合成；不与 Program 重复扣面积。
 
 #### area_accuracy 语义
 
@@ -171,19 +177,21 @@ Phase 1 将这些逻辑拆分迁移：
 - 长宽比 → `geometry.py` → `aspect_ratio_penalty`
 - 湿区对齐 → `vertical.py` → `wet_stack_alignment`（兼容别名 `wet_zone_alignment`）
 
-## Total Score 聚合（Phase 3 默认权重）
+## Total Score 聚合（七轴默认权重）
 
 ```text
-total = Σ (score_i × w_i) / Σ w_i
+total = Σ (axis_i × w_i) / Σ w_i
 
-geometry 0.12 | adjacency 0.12 | vertical 0.12 | site 0.08
-orientation 0.10 | circulation 0.12 | privacy 0.10
-program_fit 0.12 | space_efficiency 0.08 | layout_stability 0.04
+program 0.18 | spatial 0.14 | circulation 0.16 | privacy 0.12
+environment 0.10 | technical 0.16 | robustness 0.14
 ```
 
-（geometry / program_fit / space_efficiency 已按 Metric Ownership 去重加权。）
+轴内合成（不再进入 total 二次加权）：
+- program = 0.65×fit + 0.35×adjacency
+- spatial = 0.55×proportion + 0.45×compactness
+- technical = 0.55×vertical + 0.45×site
 
-权重见 `solver/evaluation/weights.py`（`ScoreWeights`）。
+权重见 `solver/evaluation/weights.py`。
 
 ## Hard vs Soft
 

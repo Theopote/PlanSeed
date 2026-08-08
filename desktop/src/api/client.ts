@@ -16,16 +16,13 @@ export type DesignFinding = {
 };
 
 export type DesignScore = {
-  geometry_score: number;
-  adjacency_score: number;
+  program_score: number;
+  spatial_score: number;
   circulation_score: number;
-  orientation_score: number;
   privacy_score: number;
-  vertical_score: number;
-  site_score: number;
-  program_fit_score: number;
-  space_efficiency_score: number;
-  layout_stability_score: number;
+  environment_score: number;
+  technical_score: number;
+  robustness_score: number;
   total_score: number;
   findings: DesignFinding[];
   explanations: string[];

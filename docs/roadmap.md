@@ -252,17 +252,17 @@ shared_edge_length >= minimum ?
 
 在 Realized Circulation 之上上做**可解释**建筑评价（Evaluator 只评分，不改几何）：
 
-| 分项 | 模块 | 要点 |
-|------|------|------|
-| Program Fit | `program_fit.py` | 房间覆盖 + 面积份额 |
-| Circulation | `circulation.py` + `access.py` | realized 可达 / 深度 / 穿堂 + intent 共边 |
-| Privacy | `privacy.py` | entry→private 路径过渡；穿卧室惩罚 |
-| Orientation | `orientation.py` | 已有世界朝向 |
-| Space Efficiency | `program_fit.py` | compactness − 细长比 |
-| Vertical | `vertical.py` | 楼梯 / WetStack |
-| Layout Stability | repair metrics | ConnectionResolver 扰动 |
+| 用户轴 | 模块 | 要点 |
+|--------|------|------|
+| Program | `program_fit.py` + adjacency | 清单覆盖 / 面积份额 / 邻接 |
+| Spatial | geometry + compactness | 比例 / 紧凑度（面积归 Program） |
+| Circulation | `circulation.py` + `access.py` | realized 可达 / 深度 / 穿堂 |
+| Privacy | `privacy.py` | entry→private 过渡；穿卧惩罚 |
+| Environment | `orientation.py` | 朝向 / 外墙；采光后续 |
+| Technical | `vertical.py` + entry/site | 楼梯 / 湿区 / 入口 / 临路 |
+| Robustness | repair metrics | ConnectionResolver / reslice 稳定性 |
 
-`DesignScore` 增加 `program_fit_score` / `privacy_score` / `space_efficiency_score` / `layout_stability_score` + `explanations[]`。  
+`DesignScore` 为七轴 + `findings[]`；`explanations` / `warnings` 由 findings 派生。  
 **不做**：daylight；LLM；房间拖拽编辑。
 
 ---
@@ -281,7 +281,8 @@ DesignFinding
 - `CompositeEvaluator` 聚合 circulation / privacy / program_fit / stability 等 findings
 - `explanations` / `warnings` 由 findings 派生（兼容旧字段）
 - Desktop Inspector 按 **优势 / 注意 / 问题 / 说明** 分组展示
-- **Metric Ownership**：`area_accuracy`→program_fit；`aspect/slender`→geometry；`compactness`→space_efficiency（禁止重复扣分）
+- **Metric Ownership**：原始 metric 只进一个轴（见 `ownership.py`）
+- **七轴用户层**：Program / Spatial / Circulation / Privacy / Environment / Technical / Robustness
 
 仍收紧中：API 仅编排、Evaluator 不改几何、Renderer 只渲染。
 

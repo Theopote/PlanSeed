@@ -1,25 +1,27 @@
-"""评价权重 — 集中配置；与 Metric Ownership 对齐。"""
+"""评价权重 — 七轴（用户层）。"""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ScoreWeights(BaseModel):
     """
-    Phase 3.5 分项权重（合计约 1.0；聚合时按实际和归一）。
+    Program / Spatial / Circulation / Privacy / Environment / Technical / Robustness
 
-    geometry 仅房间比例；program_fit 含面积份额；space_efficiency 仅紧凑度。
+    合计约 1.0；CompositeEvaluator 按实际和归一。
     """
 
-    geometry: float = 0.12
-    adjacency: float = 0.12
-    vertical: float = 0.12
-    site: float = 0.08
-    orientation: float = 0.10
-    circulation: float = 0.12
-    privacy: float = 0.10
-    program_fit: float = 0.12
-    space_efficiency: float = 0.08
-    layout_stability: float = 0.04
+    program: float = 0.18
+    spatial: float = 0.14
+    circulation: float = 0.16
+    privacy: float = 0.12
+    environment: float = 0.10
+    technical: float = 0.16
+    robustness: float = 0.14
+
+    # 子合成（轴内，不进入 total 二次加权之外）
+    program_fit_share: float = 0.65  # vs adjacency
+    spatial_proportion_share: float = 0.55  # vs compactness
+    technical_vertical_share: float = 0.55  # vs site
 
     aspect_ratio_threshold: float = 2.2
     min_adjacency_wall: float = 1.2

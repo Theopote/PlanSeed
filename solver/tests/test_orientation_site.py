@@ -163,7 +163,7 @@ class TestOrientationEvaluator:
                     p.rect = PlacementRect(x=2, y=0, width=4, depth=3)
         s_south = evaluator.evaluate(program, south_c)
         s_north = evaluator.evaluate(program, north_c)
-        assert s_south.orientation_score > s_north.orientation_score
+        assert s_south.environment_score > s_north.environment_score
         assert s_south.total_score >= s_north.total_score
         assert s_north.violations
 
