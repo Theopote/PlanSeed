@@ -30,6 +30,18 @@ class TestFreeRects:
         assert 3 <= len(parts) <= 4
         assert abs(sum(p.area for p in parts) + hole.area - outer.area) < 0.01
 
+    def test_subtract_multiple_holes(self):
+        from solver.geometry.free_rects import subtract_rects
+
+        outer = Rect(x=0, y=0, width=10, depth=8)
+        holes = [
+            Rect(x=3, y=0, width=2, depth=4),
+            Rect(x=7, y=5, width=2, depth=2),
+        ]
+        parts = subtract_rects([outer], holes)
+        assert parts
+        assert abs(sum(p.area for p in parts) + sum(h.area for h in holes) - outer.area) < 0.05
+
 
 class TestStairCore:
     def test_default_size_not_full_depth(self):

@@ -1,5 +1,5 @@
 """
-ConnectionResolver — topology → 局部几何（Phase 2.1.1 / 2.1.2）。
+ConnectionResolver — topology → 局部几何（Phase 2.1.1 / 2.1.2 / 2.1.3）。
 
 原则：
 - **禁止**整层重跑 Guillotine / 为门全局重优化
@@ -7,7 +7,8 @@ ConnectionResolver — topology → 局部几何（Phase 2.1.1 / 2.1.2）。
   1) 投影重叠且缝隙 ≤ max_nudge → 闭合分界
   2) 已共边但偏短 → 沿墙向加长
   3) 仍失败 → 小 AABB 内跨区局部重切（强制对端先共边）
-- 不动楼梯核；重切区撞核或过大则放弃
+  4) AABB 含楼梯核 → 核作障碍挖洞 + 绕行扩边，多 free-rect 打包（不动核）
+- 不动楼梯核；重切区过大或踩到非成员外人则放弃
 """
 
 from __future__ import annotations

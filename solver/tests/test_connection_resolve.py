@@ -207,7 +207,8 @@ class TestConnectionResolve:
             for v in validation.hard_violations
         )
 
-    def test_reslice_aborts_when_stair_in_region(self):
+    def test_reslice_around_stair_core(self):
+        """大厅|楼梯|卧室：挖核 + 绕行扩边后仍可共边；楼梯矩形不变。"""
         program = _door_program()
         hall = RoomPlacement(
             room_id="hall",
@@ -231,10 +232,46 @@ class TestConnectionResolve:
             source=PlacementSource.PROGRAM,
             category="private",
         )
+        stair_before = stair.rect.model_copy()
         candidate = LayoutCandidate(
             id="c",
             seed=0,
             floors=[FloorLayout(floor_id="F1", placements=[hall, stair, bed])],
+        )
+        n = resolve_required_connections(program, candidate, max_nudge=1.5)
+        assert n == 1
+        assert candidate.metrics.get("connection_reslices", 0) >= 1
+        assert stair.rect == stair_before
+        assert shared_boundary_between(hall, bed, min_length=0.9) is not None
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not any(
+            v.constraint_id == "access.missing_shared_boundary"
+            for v in validation.hard_violations
+        )
+
+    def test_reslice_still_aborts_when_outsider_blocks_region(self):
+        """中间外人（非楼梯）踩 AABB 且无法绕开 → 不修。"""
+        program = _door_program()
+        # 扩大场地，把外人放在对端之间但标为不可动的「已占用」——用另一房间
+        # 这里：hall 与 bed 远距对角，中间无成员可重切且超出距离上限
+        hall = RoomPlacement(
+            room_id="hall",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=0, width=2, depth=2),
+            source=PlacementSource.PROGRAM,
+            category="circulation",
+        )
+        bed = RoomPlacement(
+            room_id="bed",
+            floor_id="F1",
+            rect=PlacementRect(x=8, y=8, width=2, depth=2),
+            source=PlacementSource.PROGRAM,
+            category="private",
+        )
+        candidate = LayoutCandidate(
+            id="c",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[hall, bed])],
         )
         assert resolve_required_connections(program, candidate) == 0
         assert shared_boundary_between(hall, bed) is None

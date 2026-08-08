@@ -127,7 +127,8 @@ Evaluator
 | **2.1 ✅ 软驱动** | 默认 AccessGraph + 高连通度打包加权；硬必连仍显式 `required=True` |
 | **2.1.1 ✅** | ConnectionResolver：必连小缝 / 短共边 **局部修补**（不全局重排） |
 | **2.1.2 ✅** | 同层小 AABB **跨区局部重切**：必连对先共边占位，其余在剩余矩形打包 |
-| **下一步** | 更强跨障碍重切（绕核 / 多矩形 free space）；Phase 3 建筑评价 |
+| **2.1.3 ✅** | **绕核 / 多 free-rect**：楼梯核固定挖洞；必要时扩绕行带再打包（仍不动核） |
+| **下一步** | 桌面 SVG Inspector 增强；FastAPI / Tauri 仍延后 |
 
 示例簇：
 
@@ -191,7 +192,8 @@ StairCore              ← 仅竖向交通，不当作主入口
 - Shared boundary 查询：`shared_boundary_between`（doors）
 - SVG：应连通虚线边（`access_graph=`）
 - **局部几何（✅ 2.1.1）**：`resolve_required_connections` 闭合 ≤1.5m 缝隙 / 加长短共边
-- **跨区重切（✅ 2.1.2）**：局部失败后在小 AABB 内重切（≤6 房、≤55% 楼层、距≤8m）；撞楼梯核则放弃
+- **跨区重切（✅ 2.1.2）**：局部失败后在小 AABB 内重切（≤6 房、≤55% 楼层、距≤8m）
+- **绕核重切（✅ 2.1.3）**：AABB 含楼梯核时**挖洞**为多块 free rect；互不连通则扩绕行带；核矩形不变；踩非成员外人仍放弃
 - **仍不**整层为连通重跑 Guillotine
 
 语义标签硬化可并行：tags 为唯一规则入口（淘汰 Solver 侧中文 name 回退）。
@@ -229,8 +231,8 @@ shared_edge_length >= minimum ?
       └─ no  → access.missing_shared_boundary（invalid）
 ```
 
-当前阶段：**geometry → ConnectionResolver（缝隙修补 → 局部重切）→ DoorOpening**。  
-绕楼梯核 / 多 free-rect 重切仍延后。
+当前阶段：**geometry → ConnectionResolver（缝隙修补 → 局部重切 → 绕核多 free-rect）→ DoorOpening**。  
+更激进的整层重切仍禁止。
 
 ## Phase 2.2 — Door polish（✅；仍不回改房间）
 
@@ -242,6 +244,25 @@ shared_edge_length >= minimum ?
 - **SVG**：洞口粗线 + 铰链点 + 90° 开启弧
 
 无共边仍禁止凭空戳门；**仍禁止**为门重跑 Guillotine。
+
+---
+
+## Phase 3 — Architectural Evaluation（✅ MVP）
+
+在 Realized Circulation 之上上做**可解释**建筑评价（Evaluator 只评分，不改几何）：
+
+| 分项 | 模块 | 要点 |
+|------|------|------|
+| Program Fit | `program_fit.py` | 房间覆盖 + 面积份额 |
+| Circulation | `circulation.py` + `access.py` | realized 可达 / 深度 / 穿堂 + intent 共边 |
+| Privacy | `privacy.py` | entry→private 路径过渡；穿卧室惩罚 |
+| Orientation | `orientation.py` | 已有世界朝向 |
+| Space Efficiency | `program_fit.py` | compactness − 细长比 |
+| Vertical | `vertical.py` | 楼梯 / WetStack |
+| Layout Stability | repair metrics | ConnectionResolver 扰动 |
+
+`DesignScore` 增加 `program_fit_score` / `privacy_score` / `space_efficiency_score` / `layout_stability_score` + `explanations[]`。  
+**不做**：daylight、正式 UI Inspector（仍属 Phase 4+ 桌面）。
 
 ---
 

@@ -12,13 +12,17 @@
 DesignScore
 ├── geometry_score
 ├── adjacency_score
-├── circulation_score      # Phase 2+ 实现，Phase 1 可为 0
-├── orientation_score        # OrientationConstraint 满足度
-├── privacy_score            # 后续
+├── circulation_score        # Realized + AccessIntent
+├── orientation_score
+├── privacy_score            # Phase 3：路径隐私过渡
 ├── vertical_score
-├── site_score               # setback/envelope，非常量
+├── site_score
+├── program_fit_score        # Phase 3
+├── space_efficiency_score   # Phase 3
+├── layout_stability_score   # Phase 3（repair 扰动）
 ├── total_score
 ├── metrics: DesignMetrics
+├── explanations[]           # 分项简述
 ├── warnings[]
 └── violations[]             # soft 违反摘要
 ```
@@ -107,12 +111,33 @@ Model：`y=0` = model north，`x=0` = model west（绘图坐标）。
 |--------|------|
 | `setback_compliance` | 退线合规率 |
 
-## 后续 Metrics（不在 Phase 1）
+## Phase 3 Metrics（建筑评价 MVP）
 
-- daylight
-- circulation（走廊长度）
-- privacy（动静分区）
-- exterior wall access
+### Privacy (`evaluation/privacy.py`)
+
+| Metric | 说明 |
+|--------|------|
+| `privacy_transition_score` | entry→各 private 路径上 category 过渡质量 |
+| `private_through_count` | 路径穿过其他 private 的次数 |
+| `bad_privacy_transition_count` | 高惩罚过渡步数 |
+
+### Program Fit / Space Efficiency (`evaluation/program_fit.py`)
+
+| Metric | 说明 |
+|--------|------|
+| `program_coverage` | 程序房间是否都落下 |
+| `program_fit` | coverage + area_accuracy |
+| `space_efficiency` | compactness × (1 − 0.5×细长比) |
+
+### Circulation（续）
+
+| Metric | 说明 |
+|--------|------|
+| `reachable_ratio` | RealizedAccessGraph 占用房间可达率 |
+| `through_room_count` / `dead_end_count` | 穿堂 / 尽端粗指标 |
+| `layout_stability_score` | 1 − repair 扰动 |
+
+**仍后续**：daylight、走廊长度精细化、正式 UI Inspector。
 
 ## 与参考原型的关系
 
@@ -128,19 +153,17 @@ Phase 1 将这些逻辑拆分迁移：
 - 长宽比 → `geometry.py` → `aspect_ratio_penalty`
 - 湿区对齐 → `vertical.py` → `wet_stack_alignment`（兼容别名 `wet_zone_alignment`）
 
-## Total Score 聚合（Phase 1 建议权重）
+## Total Score 聚合（Phase 3 默认权重）
 
 ```text
-total = (
-    0.35 × geometry_score +
-    0.20 × adjacency_score +
-    0.20 × vertical_score +
-    0.15 × site_score +
-    0.10 × (circulation + orientation + privacy)  # 初期为 0
-)
+total = Σ (score_i × w_i) / Σ w_i
+
+geometry 0.20 | adjacency 0.12 | vertical 0.12 | site 0.08
+orientation 0.10 | circulation 0.12 | privacy 0.10
+program_fit 0.08 | space_efficiency 0.04 | layout_stability 0.04
 ```
 
-权重可配置，存于 `SolverConfig` 或 `PreferencesSpec`（后续）。
+权重见 `solver/evaluation/weights.py`（`ScoreWeights`）。
 
 ## Hard vs Soft
 
@@ -150,14 +173,13 @@ total = (
 | Soft constraint 违反 | Evaluator | 扣分 + `soft_violations[]` |
 | 警告（非约束） | Evaluator | `warnings[]`（如狭长房间） |
 
-## UI 展示（Phase 3）
+## UI 展示（桌面 Phase；评分侧已就绪）
 
 - Candidate Strip：显示 `total_score` 简写（A 91, B 89…）
-- Inspector：展开各分项 score + metrics + violations
+- Inspector：展开 `explanations` + 各分项 score + metrics + violations
 - 失败 candidate：展示 `hard_violations` 详情
 
-## Phase 0 状态
+## 状态
 
-- ✅ `DesignScore` / `DesignMetrics` Pydantic 模型
-- ✅ `Evaluator` Protocol 定义
-- ⏳ 各 evaluation 模块实现 — Phase 1
+- ✅ `DesignScore` / `DesignMetrics` + Phase 3 分项
+- ✅ Geometry / Adjacency / Vertical / Site / Orientation / Circulation / Privacy / ProgramFit

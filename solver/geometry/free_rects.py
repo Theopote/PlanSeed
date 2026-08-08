@@ -31,3 +31,14 @@ def subtract_rect(outer: Rect, hole: Rect) -> list[Rect]:
         parts.append(Rect(x=x1, y=y0, width=outer.right - x1, depth=y1 - y0))
 
     return [p for p in parts if p.width > 1e-9 and p.depth > 1e-9]
+
+
+def subtract_rects(outers: list[Rect], holes: list[Rect]) -> list[Rect]:
+    """依次从一组矩形中挖去多个 hole。"""
+    rects = list(outers)
+    for hole in holes:
+        nxt: list[Rect] = []
+        for r in rects:
+            nxt.extend(subtract_rect(r, hole))
+        rects = nxt
+    return rects

@@ -88,3 +88,26 @@ def compute_circulation_metrics(
         "through_room_count": float(through),
         "layout_stability_score": round(stability * 100.0, 2),
     }
+
+
+def circulation_architecture_score(metrics: dict[str, float]) -> float:
+    """Phase 3：路径质量（不含 layout_stability，后者单独计分）。"""
+    reachable = float(metrics.get("reachable_ratio", 1.0))
+    through = float(metrics.get("through_room_count", 0.0))
+    dead = float(metrics.get("dead_end_count", 0.0))
+    avg_d = float(metrics.get("average_access_depth", 0.0))
+
+    depth_pen = 0.0
+    if avg_d > 0:
+        if avg_d < 1.5:
+            depth_pen = 0.05
+        elif avg_d > 5.0:
+            depth_pen = min(0.25, (avg_d - 5.0) * 0.05)
+
+    score = (
+        100.0 * reachable * 0.70
+        + 100.0 * (1.0 - depth_pen) * 0.30
+        - through * 6.0
+        - dead * 2.0
+    )
+    return max(0.0, min(100.0, score))
