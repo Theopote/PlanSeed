@@ -347,9 +347,12 @@ fn watch_child_exit(handle: tauri::AppHandle, url: String) {
     });
 }
 
-/// 复用外部 PlanSeed：无 Child 可 wait，轮询 /api/health 身份；丢失则 ERROR。
+/// 复用外部 PlanSeed：无 Child 可 wait，轮询 /api/health 身份。
+/// 连续失败才 ERROR（与前端 consecutiveHealthFailures 对齐；不 kill 外进程）。
 fn watch_reused_health(handle: tauri::AppHandle, host: String, port: u16, url: String) {
+    const FAIL_THRESHOLD: u32 = 3;
     thread::spawn(move || {
+        let mut consecutive_failures: u32 = 0;
         loop {
             thread::sleep(Duration::from_secs(2));
             let has_child = {
@@ -365,8 +368,17 @@ fn watch_reused_health(handle: tauri::AppHandle, host: String, port: u16, url: S
                 return;
             }
             match probe_engine(&host, port) {
-                PortIdentity::PlanseedEngine => {}
+                PortIdentity::PlanseedEngine => {
+                    consecutive_failures = 0;
+                }
                 lost => {
+                    consecutive_failures = consecutive_failures.saturating_add(1);
+                    if consecutive_failures < FAIL_THRESHOLD {
+                        log::warn!(
+                            "reused engine probe miss ({lost:?}) {consecutive_failures}/{FAIL_THRESHOLD}"
+                        );
+                        continue;
+                    }
                     let msg = format!("reused engine lost ({lost:?}) at {url}");
                     append_engine_log(&handle, &format!("fatal: {msg}"));
                     emit_status(

@@ -29,7 +29,7 @@ pwsh scripts/windows_alpha_smoke.ps1
 | 4 | 基准案例 | 同上 |
 | 5 | Alt+点击另一候选 | Compare 表来自引擎 `/api/compare`（非前端算分） |
 | 6 | 杀**自启**引擎进程 | 状态 → **异常**，出现 **重试引擎**（不闪 ERROR 再 READY） |
-| 7 | 先手动起引擎再开 App（reuse）后杀引擎 | ≤~3s 变 **异常**（`watch_reused_health`） |
+| 7 | 先手动起引擎再开 App（reuse）后杀引擎 | 连续 ~3 次 health 失败后 → **异常**（「本地引擎连接中断」） |
 | 8 | 重试引擎 | 回到 **已就绪** |
 | 9 | 启动过程 | 左栏应是 启动中→已就绪，**不应**启动中→异常→已就绪 |
 | 10 | 日志 | Tauri `app_log_dir`/engine.log 含 startup / port / fatal |

@@ -127,20 +127,32 @@ function App() {
     }
 
     void boot();
-    // READY 后 health 丢失 → ERROR（前端兜底；Rust reuse 另有 watch_reused_health）
+    // reuse / 失联兜底：连续失败才 ERROR（自启引擎以 Rust watch_child_exit 为准）
+    const HEALTH_INTERVAL_MS = 2000;
+    const HEALTH_FAIL_THRESHOLD = 3;
+    let consecutiveHealthFailures = 0;
     const id = window.setInterval(() => {
       void checkHealth().then((ok) => {
         if (cancelled) return;
         const cur = engineStatusRef.current;
         if (ok) {
+          consecutiveHealthFailures = 0;
           if (cur === "READY" || cur === "STARTING") {
             applyEngineStatus("READY");
           }
-        } else if (cur === "READY") {
-          applyEngineStatus("ERROR", "引擎 health 丢失（进程可能已退出）");
+          return;
+        }
+        if (cur !== "READY") {
+          consecutiveHealthFailures = 0;
+          return;
+        }
+        consecutiveHealthFailures += 1;
+        if (consecutiveHealthFailures >= HEALTH_FAIL_THRESHOLD) {
+          consecutiveHealthFailures = 0;
+          applyEngineStatus("ERROR", "本地引擎连接中断");
         }
       });
-    }, 3000);
+    }, HEALTH_INTERVAL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(id);
