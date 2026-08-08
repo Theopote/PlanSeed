@@ -139,3 +139,111 @@ def test_locked_zone_envelope_stays_fixed():
         assert pl.rect.y >= lock.y - 1e-6
         assert pl.rect.right <= lock.x + lock.width + 1e-6
         assert pl.rect.bottom <= lock.y + lock.depth + 1e-6
+
+
+def _overlap_area(a: Rect, b: Rect) -> float:
+    x0 = max(a.x, b.x)
+    y0 = max(a.y, b.y)
+    x1 = min(a.x + a.width, b.x + b.width)
+    y1 = min(a.y + a.depth, b.y + b.depth)
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    return (x1 - x0) * (y1 - y0)
+
+
+def test_room_lock_hole_is_floor_local():
+    """P0：F1 房间锁不得投影到 F2 free space（楼梯核除外）。"""
+    from solver.geometry.rect import Rect
+
+    program = benchmark_program()
+    assert len(program.floors) >= 2
+    f1_id = program.floors[0].id
+    f2_id = program.floors[1].id
+    base = GuillotineGenerator().generate(program, seed=0)
+    f1_rooms = [
+        p
+        for fl in base.floors
+        if fl.floor_id == f1_id
+        for p in fl.placements
+        if not p.room_id.startswith("stair-")
+    ]
+    assert f1_rooms
+    pinned = max(f1_rooms, key=lambda p: p.rect.area)
+    lock = LockedRoomRect(
+        room_id=pinned.room_id,
+        floor_id=pinned.floor_id,
+        x=pinned.rect.x,
+        y=pinned.rect.y,
+        width=pinned.rect.width,
+        depth=pinned.rect.depth,
+    )
+    assert lock.floor_id == f1_id
+
+    again = GuillotineGenerator().generate(
+        program, seed=11, locks=LayoutLocks(rooms=[lock])
+    )
+    hole = Rect(x=lock.x, y=lock.y, width=lock.width, depth=lock.depth)
+    f2_overlap = 0.0
+    for fl in again.floors:
+        if fl.floor_id != f2_id:
+            continue
+        for p in fl.placements:
+            if p.room_id.startswith("stair-"):
+                continue
+            pr = Rect(
+                x=p.rect.x, y=p.rect.y, width=p.rect.width, depth=p.rect.depth
+            )
+            f2_overlap += _overlap_area(pr, hole)
+
+    assert f2_overlap > 1.0, (
+        f"F2 应仍可占用 F1 锁定脚印；overlap={f2_overlap:.2f}"
+    )
+
+
+def test_plan_building_per_floor_free_rects():
+    """ZonePlanner：各层使用各自 free_rects，不得共用另一层的洞。"""
+    import random
+
+    from packages.schema.room import RoomCategory, RoomSpec
+    from solver.geometry.rect import Rect
+    from solver.topology.zoning import ZonePlanner
+
+    f1 = [
+        RoomSpec(
+            id="living",
+            name="客厅",
+            category=RoomCategory.PUBLIC,
+            target_area=20,
+        ),
+    ]
+    f2 = [
+        RoomSpec(
+            id="bed",
+            name="主卧",
+            category=RoomCategory.PRIVATE,
+            target_area=18,
+        ),
+    ]
+    # F1 左下被挖洞；F2 整板可用
+    full = [Rect(x=0, y=0, width=10, depth=12)]
+    f1_free = [
+        Rect(x=5, y=0, width=5, depth=12),
+        Rect(x=0, y=4, width=5, depth=8),
+    ]
+    building = ZonePlanner().plan_building(
+        floors=[("F1", f1), ("F2", f2)],
+        free_rects=full,
+        free_rects_by_floor={"F1": f1_free, "F2": full},
+        rng=random.Random(0),
+    )
+    f2_zones = building.floors["F2"].zones
+    assert f2_zones
+    # F2 分区应能盖住 F1 挖掉的 (0,0)-(5,4) 区域
+    hole = Rect(x=0, y=0, width=5, depth=4)
+    cover = sum(
+        _overlap_area(
+            Rect(z.rect.x, z.rect.y, z.rect.width, z.rect.depth), hole
+        )
+        for z in f2_zones
+    )
+    assert cover > 5.0, f"F2 zone should cover F1 hole footprint; cover={cover}"

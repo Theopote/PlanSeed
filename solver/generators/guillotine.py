@@ -148,11 +148,25 @@ class GuillotineGenerator:
         core_rect = Rect(
             x=core.rect.x, y=core.rect.y, width=core.rect.width, depth=core.rect.depth
         )
-        lock_holes = [
-            Rect(x=r.x, y=r.y, width=r.width, depth=r.depth) for r in locks.rooms
-        ]
-        # 湿区锚 / 初规划：只扣楼梯与房间锁（分区锁按层处理）
-        free_rects = subtract_rects([floor_rect], [core_rect, *lock_holes])
+        # 跨层共享 free：只扣 StairCore（房间/分区锁不得投影到其它层）
+        shared_free = subtract_rects([floor_rect], [core_rect])
+
+        def _holes_on_floor(floor_id: str) -> list[Rect]:
+            room_holes = [
+                Rect(x=r.x, y=r.y, width=r.width, depth=r.depth)
+                for r in locks.rooms_on_floor(floor_id)
+            ]
+            zone_holes = [
+                Rect(x=z.x, y=z.y, width=z.width, depth=z.depth)
+                for z in locks.zones_on_floor(floor_id)
+            ]
+            return [*room_holes, *zone_holes]
+
+        def _free_on_floor(floor_id: str) -> list[Rect]:
+            holes = _holes_on_floor(floor_id)
+            if not holes:
+                return list(shared_free)
+            return subtract_rects([floor_rect], [core_rect, *holes])
 
         def _unlocked_for_planning(
             floor_id: str, rooms: list[RoomSpec]
@@ -174,38 +188,18 @@ class GuillotineGenerator:
             )
             for floor in program.floors
         ]
+        free_rects_by_floor = {
+            floor.id: _free_on_floor(floor.id) for floor in program.floors
+        }
         building_zones = self._zone_planner.plan_building(
             floors=floor_room_lists,
-            free_rects=free_rects,
+            free_rects=shared_free,
+            free_rects_by_floor=free_rects_by_floor,
             snap_module=module,
             rng=rng,
             max_wet_stacks=program.solver_config.max_wet_stacks,
         )
-        # 有分区锁的层：用「扣掉该层 zone 洞」的剩余区重规划未锁分区
         if locks.zones:
-            for floor in program.floors:
-                z_holes = [
-                    Rect(x=z.x, y=z.y, width=z.width, depth=z.depth)
-                    for z in locks.zones_on_floor(floor.id)
-                ]
-                if not z_holes:
-                    continue
-                floor_free = subtract_rects(
-                    [floor_rect], [core_rect, *lock_holes, *z_holes]
-                )
-                unlocked = _unlocked_for_planning(
-                    floor.id, program.rooms_on_floor(floor.id)
-                )
-                building_zones.floors[floor.id] = FloorZonePlan(
-                    floor_id=floor.id,
-                    zones=self._zone_planner.plan_geometry(
-                        rooms=unlocked,
-                        free_rects=floor_free,
-                        snap_module=module,
-                        rng=rng,
-                        floor_id=floor.id,
-                    ),
-                )
             self._inject_locked_zones(program, locks, building_zones)
         primary_stack = building_zones.wet_stacks[0] if building_zones.wet_stacks else None
 

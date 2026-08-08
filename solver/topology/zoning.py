@@ -169,12 +169,16 @@ class ZonePlanner:
         snap_module: float = 0.3,
         rng: random.Random | None = None,
         max_wet_stacks: int = 1,
+        free_rects_by_floor: dict[str, list[Rect]] | None = None,
     ) -> BuildingZonePlan:
         """
         各层按功能区打包（空区回收）；整栋 WetStack 作技术对齐参考。
 
         MVP：max_wet_stacks=1 → 至多一个 WS1；未来可扩到 WS2。
         厨房进 DAY、主卫进 NIGHT、客卫进 SERVICE — 不再因 WET 挤进同一功能条带。
+
+        free_rects：跨层共享空间（通常只扣 StairCore），供 WetStack 锚点。
+        free_rects_by_floor：按层 free space（扣本层 room/zone lock）；缺省回退到 free_rects。
         """
         rng = rng or random.Random(0)
         all_rooms = [r for _, rooms in floors for r in rooms]
@@ -191,9 +195,14 @@ class ZonePlanner:
 
         floor_plans: dict[str, FloorZonePlan] = {}
         for floor_id, rooms in floors:
+            floor_free = (
+                free_rects_by_floor.get(floor_id, free_rects)
+                if free_rects_by_floor is not None
+                else free_rects
+            )
             zones = self.plan_geometry(
                 rooms=rooms,
-                free_rects=free_rects,
+                free_rects=floor_free,
                 snap_module=snap_module,
                 rng=rng,
                 floor_id=floor_id,
