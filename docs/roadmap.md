@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6 — Local LLM（6.4 ✅ → 下一 6.5）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
-> **6.0–6.4 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6 — Local LLM（6.5 ✅ → 下一 6.6）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
+> **6.0–6.5 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
 
@@ -272,10 +272,10 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 | **6.2** | Structured Requirement Parser | ✅ |
 | **6.3** | Validation + Repair | ✅ |
 | **6.4** | Assumption / Unknown UI | ✅ |
-| **6.5** | NL → Generate | **← 下一** |
-| **6.6** | Requirement Benchmark | 未开始 |
+| **6.5** | NL → Generate | ✅ |
+| **6.6** | Requirement Benchmark | **← 下一** |
 
-详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
 ### Phase 6.0 — LLM Boundary ✅
 
@@ -313,6 +313,13 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 - [x] 事实源 `requirementSpec`；镜像 `program`；空态明示
 - [x] Generate 时把假设/未知写入会话 spec
 - [x] 无 NL 入口（留给 6.5）
+
+### Phase 6.5 — NL → Generate ✅
+
+- [x] `POST /api/requirements/parse`（repair + Mock 可测）
+- [x] Desktop：自然语言「解析」/「解析并生成」
+- [x] 写入 `requirementSpec` + 简表回填；假设/未知走 6.4
+- [x] 契约文档 additive 登记
 
 ---
 

@@ -415,6 +415,44 @@ button.secondary {
   padding: 0.15rem 0.45rem;
 }
 
+.nl-block {
+  margin: 0.75rem 0 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.nl-heading {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.nl-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 4.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel, #fff);
+  color: inherit;
+}
+
+.nl-actions {
+  margin-top: 0.5rem;
+}
+
+.nl-hint {
+  margin: 0.4rem 0 0;
+}
+
 .floorplan-stage {
   flex: 1;
   min-height: 0;

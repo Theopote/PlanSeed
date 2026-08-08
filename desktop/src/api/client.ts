@@ -221,6 +221,70 @@ export type RequirementForm = {
   prefer_south_facing_living: boolean;
 };
 
+export type ParseNLResponse = {
+  requirement_spec: RequirementSpecPayload;
+  attempts: number;
+  repair_notes: string[];
+  provider: string;
+  raw?: Record<string, unknown>;
+};
+
+/** 用 RequirementSpec 的 known 字段回填简表（不覆盖未提供的项）。 */
+export function patchFormFromRequirementSpec(
+  form: RequirementForm,
+  spec: RequirementSpecPayload,
+): RequirementForm {
+  const next = { ...form };
+  if (spec.site?.width != null) next.width = spec.site.width;
+  if (spec.site?.depth != null) next.depth = spec.site.depth;
+  if (spec.floor_count != null) next.floor_count = spec.floor_count;
+  if (spec.household?.bedrooms != null) next.bedrooms = spec.household.bedrooms;
+  if (spec.household?.bathrooms != null)
+    next.bathrooms = spec.household.bathrooms;
+  if (spec.household?.has_garage != null)
+    next.has_garage = spec.household.has_garage;
+  if (spec.preferences?.prefer_south_facing_living != null) {
+    next.prefer_south_facing_living =
+      spec.preferences.prefer_south_facing_living;
+  }
+  return next;
+}
+
+async function readApiError(r: Response): Promise<string> {
+  let msg = `HTTP ${r.status}`;
+  try {
+    const body = (await r.json()) as {
+      detail?: string | { message?: string; errors?: string[] };
+    };
+    if (typeof body.detail === "string") msg = body.detail;
+    else if (body.detail && typeof body.detail === "object") {
+      const d = body.detail;
+      msg = d.message ?? msg;
+      if (d.errors?.length) msg = `${msg}（${d.errors[d.errors.length - 1]}）`;
+    }
+  } catch {
+    /* keep */
+  }
+  return msg;
+}
+
+/** Phase 6.5 — NL → RequirementSpec（含服务端 repair）。 */
+export async function parseRequirementsNl(
+  text: string,
+  opts?: { max_repairs?: number },
+): Promise<ParseNLResponse> {
+  const r = await fetch(`${_apiBase}/api/requirements/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      max_repairs: opts?.max_repairs ?? 2,
+    }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<ParseNLResponse>;
+}
+
 /** Phase 5.1.1 — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。 */
 export type RequirementSpecPayload = {
   raw_text?: string | null;

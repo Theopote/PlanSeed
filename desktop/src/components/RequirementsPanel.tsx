@@ -16,6 +16,12 @@ type Props = {
   onChange: (next: RequirementForm) => void;
   onGenerate: () => void;
   onBenchmark: () => void;
+  nlText: string;
+  onNlTextChange: (text: string) => void;
+  onParseNl: () => void;
+  onParseAndGenerate: () => void;
+  nlBusy?: boolean;
+  nlHint?: string | null;
   loading: boolean;
   engineStatus: EngineLifecycle;
   onRetryEngine: () => void;
@@ -66,6 +72,12 @@ export function RequirementsPanel({
   onChange,
   onGenerate,
   onBenchmark,
+  nlText,
+  onNlTextChange,
+  onParseNl,
+  onParseAndGenerate,
+  nlBusy = false,
+  nlHint = null,
   loading,
   engineStatus,
   onRetryEngine,
@@ -177,7 +189,45 @@ export function RequirementsPanel({
       </div>
       {versionHint ? <p className="warn-hint version-hint">{versionHint}</p> : null}
 
+      <section className="nl-block" aria-label="自然语言需求">
+        <h2 className="nl-heading">自然语言</h2>
+        <p className="muted tiny gaps-hint">
+          解析为 RequirementSpec（不直接出几何）；假设/未知见下方
+        </p>
+        <textarea
+          className="nl-input"
+          rows={4}
+          value={nlText}
+          onChange={(e) => onNlTextChange(e.target.value)}
+          placeholder="例：两层三卧两卫，客厅朝南，地块约 11×13 米"
+          disabled={!engineReady || loading || nlBusy}
+        />
+        <div className="actions nl-actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={
+              !engineReady || loading || nlBusy || !nlText.trim()
+            }
+            onClick={onParseNl}
+          >
+            {nlBusy ? "解析中…" : "解析需求"}
+          </button>
+          <button
+            type="button"
+            disabled={
+              !engineReady || loading || nlBusy || !nlText.trim()
+            }
+            onClick={onParseAndGenerate}
+          >
+            {loading || nlBusy ? "处理中…" : "解析并生成"}
+          </button>
+        </div>
+        {nlHint ? <p className="muted tiny nl-hint">{nlHint}</p> : null}
+      </section>
+
       <form className="req-form" onSubmit={handleSubmit}>
+        <h2 className="nl-heading">简表</h2>
         <label>
           地块宽 (m)
           <input

@@ -6,6 +6,8 @@ import {
   generateFromProgram,
   listProjects,
   loadProject,
+  parseRequirementsNl,
+  patchFormFromRequirementSpec,
   previewMutation,
   revalidateMutation,
   resolveEngineBase,
@@ -118,6 +120,9 @@ function App() {
   const [program, setProgram] = useState<ProgramSummary | null>(null);
   const [requirementSpec, setRequirementSpec] =
     useState<RequirementSpecPayload | null>(null);
+  const [nlText, setNlText] = useState("");
+  const [nlBusy, setNlBusy] = useState(false);
+  const [nlHint, setNlHint] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<CandidatePayload[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareId, setCompareId] = useState<string | null>(null);
@@ -525,6 +530,58 @@ function App() {
     },
     [ensureEditableSpec],
   );
+
+  const applyParsedSpec = useCallback((spec: RequirementSpecPayload) => {
+    setRequirementSpec(spec);
+    setForm((prev) => patchFormFromRequirementSpec(prev, spec));
+    if (spec.raw_text) setNlText(spec.raw_text);
+  }, []);
+
+  const onParseNl = useCallback(async () => {
+    setNlBusy(true);
+    setNlHint(null);
+    setError(null);
+    try {
+      const data = await parseRequirementsNl(nlText);
+      applyParsedSpec(data.requirement_spec);
+      const notes =
+        data.attempts > 1
+          ? `已解析（含 ${data.attempts - 1} 次修复）· ${data.provider}`
+          : `已解析 · ${data.provider}`;
+      setNlHint(notes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setNlBusy(false);
+    }
+  }, [nlText, applyParsedSpec]);
+
+  const onParseAndGenerate = useCallback(async () => {
+    setNlBusy(true);
+    setLoading(true);
+    setNlHint(null);
+    setError(null);
+    try {
+      const parsed = await parseRequirementsNl(nlText);
+      applyParsedSpec(parsed.requirement_spec);
+      setLocks({ rooms: [], stair: null, zones: [] });
+      const data = await generateFromProgram(parsed.requirement_spec, {
+        candidate_count: 16,
+        return_top_k: 5,
+      });
+      applyResult(data);
+      const notes =
+        parsed.attempts > 1
+          ? `已解析并生成（修复 ${parsed.attempts - 1} 次）`
+          : "已解析并生成";
+      setNlHint(notes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setNlBusy(false);
+      setLoading(false);
+    }
+  }, [nlText, applyParsedSpec, applyResult]);
 
   const onToggleRoomLock = useCallback(
     (roomId: string) => {
@@ -1083,7 +1140,9 @@ function App() {
       }
       setProgram((p.program as ProgramSummary) ?? null);
       if (p.requirement_spec) {
-        setRequirementSpec(p.requirement_spec as RequirementSpecPayload);
+        const spec = p.requirement_spec as RequirementSpecPayload;
+        setRequirementSpec(spec);
+        if (spec.raw_text) setNlText(spec.raw_text);
       } else if (p.program) {
         setRequirementSpec(
           fallbackRequirementFromForm(
@@ -1271,6 +1330,12 @@ function App() {
           onChange={setForm}
           onGenerate={() => void run("form")}
           onBenchmark={() => void run("benchmark")}
+          nlText={nlText}
+          onNlTextChange={setNlText}
+          onParseNl={() => void onParseNl()}
+          onParseAndGenerate={() => void onParseAndGenerate()}
+          nlBusy={nlBusy}
+          nlHint={nlHint}
           loading={loading}
           engineStatus={engineStatus}
           onRetryEngine={() => void onRetryEngine()}
