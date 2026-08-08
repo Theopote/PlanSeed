@@ -508,6 +508,21 @@ button.secondary {
   stroke-width: 0.22 !important;
 }
 
+.floorplan-svg .mutation-handles {
+  pointer-events: all;
+}
+
+.floorplan-svg .resize-handle {
+  fill: #f7f3ea;
+  stroke: #1a3d28;
+  stroke-width: 0.05;
+  pointer-events: all;
+}
+
+.floorplan-svg .resize-handle:hover {
+  fill: #c5d4c0;
+}
+
 .room-lock-actions {
   display: grid;
   gap: 0.4rem;

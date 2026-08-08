@@ -21,10 +21,13 @@ import {
 import { CandidateStrip } from "./components/CandidateStrip";
 import {
   mutationRejectMessage,
+  mutationWarningMessage,
   previewMove,
+  previewResize,
 } from "./lib/geometryMutation";
 import {
   FloorplanView,
+  type MutationDragKind,
   type ProposeMoveResult,
   type RoomMovePose,
 } from "./components/FloorplanView";
@@ -364,29 +367,37 @@ function App() {
     setLocks({ rooms: [], stair: null, zones: [] });
   }, []);
 
-  /** Geometry Mutation Authority：预览 → Commit（写 placements + upsert lock）或 Snap Back */
+  /** Geometry Mutation Authority：MOVE/RESIZE → Commit 或 Snap Back */
   const onProposeMove = useCallback(
-    (roomId: string, pose: RoomMovePose): ProposeMoveResult => {
+    (
+      roomId: string,
+      pose: RoomMovePose,
+      kind: MutationDragKind = "move",
+    ): ProposeMoveResult => {
       if (!selected?.placements || !program) {
         return { ok: false, message: "无候选可编辑", snapped: null };
       }
-      const preview = previewMove(
-        roomId,
-        {
-          x: pose.x,
-          y: pose.y,
-          width: pose.width,
-          depth: pose.depth,
-        },
-        pose.floor_id,
-        {
-          placements: selected.placements,
-          locks,
-          floorWidth: program.site_width,
-          floorDepth: program.site_depth,
-          snapModule: 0.3,
-        },
-      );
+      const roomMeta = program.rooms.find((r) => r.id === roomId);
+      const ctx = {
+        placements: selected.placements,
+        locks,
+        floorWidth: program.site_width,
+        floorDepth: program.site_depth,
+        snapModule: 0.3,
+        roomHints: roomMeta
+          ? { target_area: roomMeta.target_area }
+          : undefined,
+      };
+      const proposed = {
+        x: pose.x,
+        y: pose.y,
+        width: pose.width,
+        depth: pose.depth,
+      };
+      const preview =
+        kind === "resize"
+          ? previewResize(roomId, proposed, pose.floor_id, ctx)
+          : previewMove(roomId, proposed, pose.floor_id, ctx);
       if (!preview.ok || !preview.snapped) {
         const msg = mutationRejectMessage(preview);
         setMutationHint(msg);
@@ -406,7 +417,13 @@ function App() {
                   ...p,
                   x: s.x,
                   y: s.y,
-                  area: Math.round(s.width * s.depth * 100) / 100,
+                  width: kind === "resize" ? s.width : p.width,
+                  depth: kind === "resize" ? s.depth : p.depth,
+                  area: Math.round(
+                    (kind === "resize" ? s.width : p.width) *
+                      (kind === "resize" ? s.depth : p.depth) *
+                      100,
+                  ) / 100,
                 };
               }
               if (p.room_id !== roomId) return p;
@@ -428,8 +445,8 @@ function App() {
           stair: {
             x: s.x,
             y: s.y,
-            width: s.width,
-            depth: s.depth,
+            width: kind === "resize" ? s.width : (prev.stair?.width ?? s.width),
+            depth: kind === "resize" ? s.depth : (prev.stair?.depth ?? s.depth),
             core_placement: prev.stair?.core_placement ?? null,
           },
         }));
@@ -447,8 +464,9 @@ function App() {
           return { ...prev, rooms: [...rest, next] };
         });
       }
-      setMutationHint(null);
-      return { ok: true, snapped: s };
+      const warn = mutationWarningMessage(preview);
+      setMutationHint(warn);
+      return { ok: true, snapped: s, warning: warn };
     },
     [selected, selectedId, program, locks],
   );

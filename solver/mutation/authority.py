@@ -15,6 +15,9 @@ from solver.geometry.rect import Rect, from_placement, intersects
 from solver.geometry.snap import snap_value
 from solver.locks.envelopes import build_zone_member_envelopes, rect_in_envelope
 
+# 绝对最小边长（米）；小于此硬拒。RoomSpec.min_width 另作 soft warning。
+_HARD_MIN_EDGE = 0.9
+
 
 def preview_mutation(
     *,
@@ -27,7 +30,8 @@ def preview_mutation(
     """
     LockGuard + GeometryConstraintChecker（AccessImpact 本轮不做 hard reject）。
 
-    MOVE：平移；Commit 侧通常 upsert Room/Stair Lock。
+    MOVE：平移原点 snap；RESIZE：四边 snap + 最小边硬拒 / min_width·area soft。
+    Commit 侧通常 upsert Room/Stair Lock。
     """
     module = (
         snap_module
@@ -43,14 +47,12 @@ def preview_mutation(
             module=module,
         )
     if mutation.kind == MutationKind.RESIZE:
-        return MutationPreviewResult(
-            ok=False,
-            reasons=[
-                MutationReject(
-                    code="mutation.resize_not_ready",
-                    message="Resize 尚未开放（Phase 4.3 P1）",
-                )
-            ],
+        return _preview_resize(
+            program=program,
+            placements=placements,
+            locks=locks,
+            mutation=mutation,
+            module=module,
         )
     return MutationPreviewResult(
         ok=False,
@@ -71,39 +73,166 @@ def _preview_move(
     mutation: GeometryMutation,
     module: float,
 ) -> MutationPreviewResult:
-    reasons: list[MutationReject] = []
-    rid = mutation.room_id
-    if not rid or mutation.proposed is None:
-        return MutationPreviewResult(
-            ok=False,
-            reasons=[
-                MutationReject(
-                    code="mutation.missing_target",
-                    message="MOVE 需要 room_id 与 proposed rect",
-                )
-            ],
-        )
+    rid, prop, current, early = _resolve_target(placements, mutation, "MOVE")
+    if early is not None:
+        return early
+    assert rid is not None and prop is not None and current is not None
 
-    current = next((p for p in placements if p.room_id == rid), None)
-    if current is None:
-        return MutationPreviewResult(
-            ok=False,
-            reasons=[
-                MutationReject(
-                    code="mutation.unknown_room",
-                    message=f"未知房间：{rid}",
-                )
-            ],
-        )
-
-    prop = mutation.proposed
-    # snap 原点
-    sx = snap_value(prop.x, module)
-    sy = snap_value(prop.y, module)
     snapped = PlacementRect(
-        x=sx, y=sy, width=prop.width, depth=prop.depth
+        x=snap_value(prop.x, module),
+        y=snap_value(prop.y, module),
+        width=prop.width,
+        depth=prop.depth,
+    )
+    reasons = _geometry_reasons(
+        program=program,
+        placements=placements,
+        locks=locks,
+        room_id=rid,
+        floor_id=mutation.floor_id,
+        current_floor_id=current.floor_id,
+        snapped=snapped,
+    )
+    return MutationPreviewResult(
+        ok=len(reasons) == 0,
+        reasons=reasons,
+        snapped=snapped,
     )
 
+
+def _preview_resize(
+    *,
+    program: DesignProgram,
+    placements: list,
+    locks: LayoutLocks,
+    mutation: GeometryMutation,
+    module: float,
+) -> MutationPreviewResult:
+    rid, prop, current, early = _resolve_target(placements, mutation, "RESIZE")
+    if early is not None:
+        return early
+    assert rid is not None and prop is not None and current is not None
+
+    snapped = _snap_rect_edges(prop, module)
+    reasons: list[MutationReject] = []
+    warnings: list[MutationReject] = []
+
+    if snapped.width < _HARD_MIN_EDGE - 1e-9 or snapped.depth < _HARD_MIN_EDGE - 1e-9:
+        reasons.append(
+            MutationReject(
+                code="mutation.min_edge",
+                message=f"边长不可小于 {_HARD_MIN_EDGE:g} m",
+            )
+        )
+
+    reasons.extend(
+        _geometry_reasons(
+            program=program,
+            placements=placements,
+            locks=locks,
+            room_id=rid,
+            floor_id=mutation.floor_id,
+            current_floor_id=current.floor_id,
+            snapped=snapped,
+        )
+    )
+
+    if not rid.startswith("stair-"):
+        room = program.room_by_id(rid)
+        if room is not None:
+            min_dim = min(snapped.width, snapped.depth)
+            if room.min_width is not None and min_dim < room.min_width - 1e-9:
+                warnings.append(
+                    MutationReject(
+                        code="mutation.soft_min_width",
+                        message=(
+                            f"净宽偏小：{min_dim:.2f} < "
+                            f"建议 {room.min_width:.2f} m"
+                        ),
+                    )
+                )
+            min_area = room.resolved_min_area()
+            area = snapped.width * snapped.depth
+            if area < min_area - 1e-9:
+                warnings.append(
+                    MutationReject(
+                        code="mutation.soft_min_area",
+                        message=(
+                            f"面积偏小：{area:.1f} < "
+                            f"建议 {min_area:.1f} m²"
+                        ),
+                    )
+                )
+
+    return MutationPreviewResult(
+        ok=len(reasons) == 0,
+        reasons=reasons,
+        warnings=warnings,
+        snapped=snapped,
+    )
+
+
+def _resolve_target(
+    placements: list,
+    mutation: GeometryMutation,
+    label: str,
+) -> tuple[str | None, PlacementRect | None, object | None, MutationPreviewResult | None]:
+    rid = mutation.room_id
+    if not rid or mutation.proposed is None:
+        return (
+            None,
+            None,
+            None,
+            MutationPreviewResult(
+                ok=False,
+                reasons=[
+                    MutationReject(
+                        code="mutation.missing_target",
+                        message=f"{label} 需要 room_id 与 proposed rect",
+                    )
+                ],
+            ),
+        )
+    current = next((p for p in placements if p.room_id == rid), None)
+    if current is None:
+        return (
+            None,
+            None,
+            None,
+            MutationPreviewResult(
+                ok=False,
+                reasons=[
+                    MutationReject(
+                        code="mutation.unknown_room",
+                        message=f"未知房间：{rid}",
+                    )
+                ],
+            ),
+        )
+    return rid, mutation.proposed, current, None
+
+
+def _snap_rect_edges(prop: PlacementRect, module: float) -> PlacementRect:
+    x0 = snap_value(prop.x, module)
+    y0 = snap_value(prop.y, module)
+    x1 = snap_value(prop.x + prop.width, module)
+    y1 = snap_value(prop.y + prop.depth, module)
+    w = max(module, x1 - x0) if module > 0 else max(0.0, x1 - x0)
+    d = max(module, y1 - y0) if module > 0 else max(0.0, y1 - y0)
+    return PlacementRect(x=x0, y=y0, width=w, depth=d)
+
+
+def _geometry_reasons(
+    *,
+    program: DesignProgram,
+    placements: list,
+    locks: LayoutLocks,
+    room_id: str,
+    floor_id: str,
+    current_floor_id: str,
+    snapped: PlacementRect,
+) -> list[MutationReject]:
+    reasons: list[MutationReject] = []
     buildable = Rect(
         x=0.0,
         y=0.0,
@@ -119,12 +248,10 @@ def _preview_move(
             )
         )
 
-    # Zone envelope（Room Lock 成员不在 envelopes 内）
     envelopes = build_zone_member_envelopes(locks)
-    # 若房间仅在 zone 锁内（未单独 Room Lock），必须留在 envelope
-    is_room_locked = rid in locks.locked_room_ids
-    if not is_room_locked and not rid.startswith("stair-"):
-        env = envelopes.get(rid)
+    is_room_locked = room_id in locks.locked_room_ids
+    if not is_room_locked and not room_id.startswith("stair-"):
+        env = envelopes.get(room_id)
         if env is not None and not rect_in_envelope(pr, env):
             reasons.append(
                 MutationReject(
@@ -133,8 +260,7 @@ def _preview_move(
                 )
             )
 
-    # 楼梯：若 stair lock 存在，MOVE stair 允许（Commit 更新 lock）；非 stair 不得与 stair lock 重叠
-    if locks.stair is not None and not rid.startswith("stair-"):
+    if locks.stair is not None and not room_id.startswith("stair-"):
         stair_r = Rect(
             x=locks.stair.x,
             y=locks.stair.y,
@@ -149,19 +275,15 @@ def _preview_move(
                 )
             )
 
-    # 与其它房间重叠（同层）
     for p in placements:
-        if p.room_id == rid:
+        if p.room_id == room_id:
             continue
-        if p.floor_id != mutation.floor_id and not rid.startswith("stair-"):
-            continue
-        # 楼梯 MOVE 同步各层：只查同 floor_id 的非 stair，或各层 stair 跳过互检
-        if rid.startswith("stair-"):
+        if room_id.startswith("stair-"):
             if p.room_id.startswith("stair-"):
                 continue
-            if p.floor_id != mutation.floor_id:
+            if p.floor_id != floor_id:
                 continue
-        elif p.floor_id != current.floor_id:
+        elif p.floor_id != current_floor_id:
             continue
         if intersects(pr, from_placement(p.rect)):
             reasons.append(
@@ -172,11 +294,10 @@ def _preview_move(
             )
             break
 
-    # 与其它 Room Lock 重叠（同层）
     for lr in locks.rooms:
-        if lr.room_id == rid:
+        if lr.room_id == room_id:
             continue
-        if lr.floor_id != mutation.floor_id:
+        if lr.floor_id != floor_id:
             continue
         lr_r = Rect(x=lr.x, y=lr.y, width=lr.width, depth=lr.depth)
         if intersects(pr, lr_r):
@@ -188,11 +309,7 @@ def _preview_move(
             )
             break
 
-    return MutationPreviewResult(
-        ok=len(reasons) == 0,
-        reasons=reasons,
-        snapped=snapped if not reasons else snapped,
-    )
+    return reasons
 
 
 def _contains_tol(outer: Rect, inner: Rect, tol: float = 1e-6) -> bool:

@@ -186,10 +186,10 @@ LockGuard → GeometryConstraintChecker → AccessImpactChecker → Commit → R
 
 | 级 | 主题 | 状态 |
 |----|------|------|
-| **P0** | `GeometryMutation`（MOVE / RESIZE / LOCK / UNLOCK）+ Authority 唯一写入口 | ✅ MOVE；RESIZE/LOCK/UNLOCK kind 已建模，RESIZE 预览拒 |
+| **P0** | `GeometryMutation`（MOVE / RESIZE / LOCK / UNLOCK）+ Authority 唯一写入口 | ✅ MOVE/RESIZE；LOCK/UNLOCK kind 已建模 |
 | **P0** | Move Room：迁入现有平移 MVP；非法 Snap Back | ✅ |
 | **P0** | LockGuard（zone envelope；不与其它锁/房重叠；可建范围） | ✅ |
-| **P1** | Resize Room（边/角；受 min width） | 未开始 |
+| **P1** | Resize Room（边/角；受 min width） | ✅ |
 | **P2** | 拖动中 preview / 冲突高亮 / AccessImpact | 未开始 |
 
 **不做本阶段：** 拖墙、无约束自由 resize、绕过 Authority 写 PlacementRect。

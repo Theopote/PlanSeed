@@ -7,11 +7,11 @@
 
 ```text
 4.1.2 Lock Semantics Hardening ✅
-4.3 Constraint-aware Direct Manipulation ← 当前（P0 ✅）
+4.3 Constraint-aware Direct Manipulation ← 当前（P0/P1 ✅）
   ├─ GeometryMutation Authority（P0）✅
   ├─ Move Room（P0）✅
-  ├─ Resize Room（P1）
-  └─ Constraint Preview + Snap Back（P0）✅
+  ├─ Resize Room（P1）✅
+  └─ Constraint Preview + Snap Back（P0）✅ · P2 拖动中高亮待做
 ```
 
 ---
@@ -113,11 +113,11 @@ ProposedMutation
 3. ✅ 非法：Snap Back + `mutationHint` 人话原因  
 4. ✅ 测：`solver/tests/test_mutation.py`（buildable / overlap / zone envelope / snap）
 
-### P1 — Resize Room
+### P1 — Resize Room ✅
 
-1. 边/角手柄 → `RESIZE` ProposedMutation  
-2. 同 Authority；min width / area soft 提示  
-3. **不做**拖墙（墙是两房共享边界，属更后阶段）
+1. ✅ 选中房间后边/角手柄 → `RESIZE` ProposedMutation  
+2. ✅ 同 Authority：四边 snap、`≥0.9m` 硬拒；`min_width` / `resolved_min_area` soft 提示  
+3. ✅ **不做**拖墙（墙是两房共享边界）
 
 ### P2 — Preview 体验
 
@@ -152,10 +152,10 @@ ProposedMutation
 ## Definition of Done
 
 1. ✅ 不存在「pointer → 直接写 PlacementRect」旁路（拖拽经 `onProposeMove` → Authority）  
-2. ✅ MOVE 经 LockGuard → GeometryChecker → Commit；RESIZE 待 P1  
-3. ✅ 非法 mutation：Snap Back + 可见原因  
-4. ✅ 不得侵入其它 locked room/stair；zone member（无 Room Lock）不出 envelope；本房锁可经 MOVE 更新  
+2. ✅ MOVE / RESIZE 经 LockGuard → GeometryChecker → Commit  
+3. ✅ 非法 mutation：Snap Back + 可见原因；RESIZE soft 提示不挡 Commit  
+4. ✅ 不得侵入其它 locked room/stair；zone member（无 Room Lock）不出 envelope；本房锁可经 MOVE/RESIZE 更新  
 5. same seed + same locks 仍 deterministic；lock invariant 仍绿  
 6. 文档与 UI 文案写清：受控编辑 ≠ 自由 CAD  
 
-**P0 已满足。** 下一步 **P1 Resize**，或有限墙编辑（仍须走 Authority）/ Phase 5 血缘持久化。
+**P0/P1 已满足。** 下一步 **P2 拖动中 preview/冲突高亮**，或有限墙编辑（仍须走 Authority）/ Phase 5 血缘持久化。

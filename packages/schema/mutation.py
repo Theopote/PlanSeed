@@ -39,8 +39,9 @@ class MutationReject(BaseModel):
 
 
 class MutationPreviewResult(BaseModel):
-    """Authority 预览结果；ok 才可 Commit。"""
+    """Authority 预览结果；ok 才可 Commit。warnings 为 soft（不阻挡 Commit）。"""
 
     ok: bool
     reasons: list[MutationReject] = Field(default_factory=list)
+    warnings: list[MutationReject] = Field(default_factory=list)
     snapped: PlacementRect | None = None
