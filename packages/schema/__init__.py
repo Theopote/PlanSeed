@@ -44,8 +44,16 @@ from packages.schema.mutation import (
     MutationReject,
     MutationSource,
 )
+from packages.schema.llm_contract import LLMKnownFacts, LLMRequirementDraft
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
+from packages.schema.requirements import (
+    Assumption,
+    RelationIntent,
+    RequirementSpec,
+    SpaceRequirement,
+    UnknownRequirement,
+)
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
 from packages.schema.scoring import (
     DesignEvaluation,
@@ -76,6 +84,7 @@ __all__ = [
     "AdjacencyConstraint",
     "AlignmentConstraint",
     "AreaConstraint",
+    "Assumption",
     "CandidateValidation",
     "CardinalEdge",
     "CardinalOrientation",
@@ -100,6 +109,8 @@ __all__ = [
     "GeometryMutation",
     "GENERATOR_VERSION",
     "HouseholdSpec",
+    "LLMKnownFacts",
+    "LLMRequirementDraft",
     "LayoutCandidate",
     "LayoutLocks",
     "lineage_label",
@@ -116,7 +127,9 @@ __all__ = [
     "PreferencesSpec",
     "ProjectSpec",
     "RealizedConnection",
+    "RelationIntent",
     "RepairRecord",
+    "RequirementSpec",
     "RoomCategory",
     "RoomPlacement",
     "RoomSpec",
@@ -128,7 +141,9 @@ __all__ = [
     "SolverConfig",
     "SpaceConnection",
     "SpaceConnectionType",
+    "SpaceRequirement",
     "TopologyPlan",
+    "UnknownRequirement",
     "Violation",
     "WetStack",
     "WidthConstraint",

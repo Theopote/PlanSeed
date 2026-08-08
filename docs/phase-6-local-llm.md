@@ -1,6 +1,6 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：← 下一（5.1.1 ✅ 后）**  
+> **状态：进行中（6.0 ✅ → 下一 6.1 Ollama）**  
 > 总览：[roadmap.md](roadmap.md)  
 > 前置：[phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)
 
@@ -29,15 +29,17 @@ NL → Local LLM → RequirementSpec
 
 ## 分期
 
-| 子阶段 | 主题 | 要点 |
-|--------|------|------|
-| **6.0** | LLM Boundary | 契约、Known/Assumed/Unknown、不进几何 |
-| **6.1** | Ollama Provider | `LLMProvider` 抽象；仅 Ollama 实现 |
-| **6.2** | Structured Parser | Text → JSON → RequirementSpec |
-| **6.3** | Validation + Repair | schema + semantic gate；非法拒收/修 JSON |
-| **6.4** | Assumption / Unknown UI | 显式假设与未知；禁止偷偷补全 |
-| **6.5** | NL → Generate | Workbench 接入口 |
-| **6.6** | Requirement Benchmark | ~50 条住宅需求；准确率而非「聪明感」 |
+| 子阶段 | 主题 | 要点 | 状态 |
+|--------|------|------|------|
+| **6.0** | LLM Boundary | 契约、Known/Assumed/Unknown、不进几何 | ✅ |
+| **6.1** | Ollama Provider | `LLMProvider` 抽象；仅 Ollama 实现 | **← 下一** |
+| **6.2** | Structured Parser | Text → JSON → RequirementSpec | 未开始 |
+| **6.3** | Validation + Repair | schema + semantic gate；非法拒收/修 JSON | 未开始 |
+| **6.4** | Assumption / Unknown UI | 显式假设与未知；禁止偷偷补全 | 未开始 |
+| **6.5** | NL → Generate | Workbench 接入口 | 未开始 |
+| **6.6** | Requirement Benchmark | ~50 条住宅需求；准确率而非「聪明感」 | 未开始 |
+
+详案 6.0：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
 
 ## 第一版不做
 

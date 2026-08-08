@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from packages.schema.site import CardinalEdge, CardinalOrientation, SetbackSpec
+
+RelationKind = Literal["adjacency", "access", "separation"]
+RelationStrength = Literal["required", "preferred"]
 
 
 class Assumption(BaseModel):
@@ -61,6 +66,16 @@ class DesignPreferences(BaseModel):
     wet_stack_preference: bool | None = None
 
 
+class RelationIntent(BaseModel):
+    """软关系意图（名称级）；Normalizer 后续可编译为 Constraint。"""
+
+    a: str = Field(min_length=1, description="空间名或 id")
+    b: str = Field(min_length=1)
+    kind: RelationKind = "adjacency"
+    strength: RelationStrength = "preferred"
+    note: str = ""
+
+
 class RequirementSpec(BaseModel):
     """
     用户自然语言或表单表达的需求。
@@ -77,3 +92,7 @@ class RequirementSpec(BaseModel):
 
     assumptions: list[Assumption] = Field(default_factory=list)
     unknowns: list[UnknownRequirement] = Field(default_factory=list)
+    relation_intents: list[RelationIntent] = Field(
+        default_factory=list,
+        description="Phase 6：名称级邻接/通行意图；Normalizer 可暂忽略",
+    )
