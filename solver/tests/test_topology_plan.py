@@ -136,6 +136,32 @@ class TestTopologyPlanner:
         i_a, i_b = ordered.index("a"), ordered.index("b")
         assert abs(i_a - i_b) == 1
 
+    def test_group_into_slicing_units_merges_cluster(self):
+        from solver.topology.plan import group_into_slicing_units
+
+        units = group_into_slicing_units(
+            ["kitchen", "dining", "living", "bed"],
+            [{"kitchen", "dining", "living"}],
+        )
+        assert units[0] == ["kitchen", "dining", "living"]
+        assert units[1] == ["bed"]
+
+    def test_bipartition_does_not_split_cluster(self):
+        from solver.topology.plan import (
+            bipartition_slicing_units,
+            group_into_slicing_units,
+        )
+
+        # 等权时朴素对半会切在 dining|living；unit 切应整簇一侧
+        ids = ["kitchen", "dining", "living", "bed"]
+        units = group_into_slicing_units(ids, [{"kitchen", "dining", "living"}])
+        weights = {rid: 10.0 for rid in ids}
+        left, right = bipartition_slicing_units(
+            units, weight_of=lambda rid: weights[rid]
+        )
+        assert set(left) == {"kitchen", "dining", "living"}
+        assert right == ["bed"]
+
     def test_cached_topology_plan_reused(self):
         program = _tiny_program()
         first = TopologyPlanner().plan(program)
@@ -152,6 +178,113 @@ class TestTopologyInfluencesGenerator:
         # 同层公共区邻接；拓扑序应至少不破坏软邻接评估通路
         assert "preferred_adjacency_satisfaction" in metrics
         assert 0.0 <= metrics["preferred_adjacency_satisfaction"] <= 1.0
+
+    def test_cluster_slicing_keeps_adjacent_pair_sharing_edge(self):
+        """K/D/L 同簇时，客厅—餐厅应更易共边（slicing group 不拆簇）。"""
+        from packages.schema.constraints import AdjacencyConstraint, ConstraintSource
+        from packages.schema.room import RoomCategory, RoomSpec
+        from solver.geometry.rect import from_placement, shared_edge_length
+
+        rooms = [
+            RoomSpec(
+                id="kitchen",
+                name="厨房",
+                category=RoomCategory.WET,
+                target_area=8,
+                tags=["kitchen"],
+            ),
+            RoomSpec(
+                id="dining",
+                name="餐厅",
+                category=RoomCategory.PUBLIC,
+                target_area=10,
+                tags=["dining"],
+            ),
+            RoomSpec(
+                id="living",
+                name="客厅",
+                category=RoomCategory.PUBLIC,
+                target_area=22,
+            ),
+            RoomSpec(
+                id="bed", name="次卧", category=RoomCategory.PRIVATE, target_area=14
+            ),
+            RoomSpec(
+                id="bath",
+                name="客卫",
+                category=RoomCategory.WET,
+                target_area=4,
+                tags=["bathroom"],
+            ),
+        ]
+        floors = [
+            FloorSpec(id="F1", label="一层", room_ids=[]),
+            FloorSpec(id="F2", label="二层", room_ids=[]),
+        ]
+        constraints = [
+            AdjacencyConstraint(
+                id="adj-ld",
+                room_a_id="living",
+                room_b_id="dining",
+                hard=False,
+                weight=1.0,
+                source=ConstraintSource.USER,
+            ),
+            AdjacencyConstraint(
+                id="adj-dk",
+                room_a_id="dining",
+                room_b_id="kitchen",
+                hard=False,
+                weight=1.0,
+                source=ConstraintSource.USER,
+            ),
+        ]
+        site = SiteSpec(width=12, depth=14)
+        program = DesignProgram(
+            project_id="slice-cluster",
+            site=site,
+            buildable=site.buildable_envelope,
+            floors=floors,
+            rooms=rooms,
+            constraints=constraints,
+            solver_config=SolverConfig(candidate_count=4, return_top_k=2),
+        )
+        ensure_floor_assignment(program.rooms, program.floors, program.constraints)
+        graph = RoomGraph(room_ids=[r.id for r in rooms])
+        for c in constraints:
+            graph.add_edge(
+                RoomEdge(
+                    source_id=c.room_a_id,
+                    target_id=c.room_b_id,
+                    kind=RoomEdgeKind.ADJACENT,
+                    weight=c.weight,
+                )
+            )
+        program.room_graph = graph
+
+        plan = TopologyPlanner().plan(program)
+        assert any(
+            set(c.room_ids) >= {"kitchen", "dining", "living"} for c in plan.clusters
+        )
+
+        # 多个 seed：至少一半候选客厅—餐厅共边
+        hits = 0
+        for seed in range(8):
+            cand = GuillotineGenerator().generate(program, seed=seed)
+            by_id = {
+                p.room_id: p
+                for fl in cand.floors
+                for p in fl.placements
+                if p.room_id in ("living", "dining")
+            }
+            if "living" not in by_id or "dining" not in by_id:
+                continue
+            if shared_edge_length(
+                from_placement(by_id["living"].rect),
+                from_placement(by_id["dining"].rect),
+            ) > 1e-6:
+                hits += 1
+        assert hits >= 4
 
     def test_deterministic_with_same_seed(self):
         program = _tiny_program()

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from packages.schema.layout import FloorLayout, LayoutCandidate, RoomPlacement
 from packages.schema.site import CardinalEdge, SiteSpec
+from packages.schema.topology import AccessGraph, SpaceConnectionType
 
 _CATEGORY_FILL: dict[str, str] = {
     "public": "#E8D5B5",
@@ -27,6 +28,7 @@ _WET_GUIDE = "#2A7A72"
 _ENTRY = "#C45C26"
 _ROAD = "#4A6FA5"
 _STAIR = "#333333"
+_ACCESS = "#6B4C9A"
 _BG = "#F7F5F0"
 
 
@@ -180,6 +182,42 @@ def _site_overlays(
     return "\n".join(parts)
 
 
+def _access_overlays(
+    floor: FloorLayout,
+    oy: float,
+    access_graph: AccessGraph | None,
+) -> str:
+    """应连通虚线：同层 AccessGraph 开口边，连房间中心。"""
+    if access_graph is None:
+        return ""
+    by_id = {p.room_id: p for p in floor.placements}
+    opening = {
+        SpaceConnectionType.OPEN,
+        SpaceConnectionType.DOOR,
+        SpaceConnectionType.PASSAGE,
+    }
+    parts: list[str] = []
+    for conn in access_graph.connections:
+        if conn.type not in opening:
+            continue
+        a = by_id.get(conn.a)
+        b = by_id.get(conn.b)
+        if a is None or b is None:
+            continue
+        ax = a.rect.x + a.rect.width / 2
+        ay = oy + a.rect.y + a.rect.depth / 2
+        bx = b.rect.x + b.rect.width / 2
+        by = oy + b.rect.y + b.rect.depth / 2
+        sw = 0.07 if conn.required else 0.045
+        dash = "0.18 0.12" if conn.required else "0.12 0.16"
+        parts.append(
+            f'<line x1="{ax:.3f}" y1="{ay:.3f}" x2="{bx:.3f}" y2="{by:.3f}" '
+            f'stroke="{_ACCESS}" stroke-width="{sw:.3f}" '
+            f'stroke-dasharray="{dash}" opacity="0.85"/>'
+        )
+    return "\n".join(parts)
+
+
 def _north_arrow(
     *,
     x: float,
@@ -237,8 +275,9 @@ def render_candidate_svg(
     floor_labels: dict[str, str] | None = None,
     target_areas: dict[str, float] | None = None,
     site: SiteSpec | None = None,
+    access_graph: AccessGraph | None = None,
 ) -> str:
-    """渲染单个候选：各层纵向堆叠 + 场地/入口 debug 叠加。"""
+    """渲染单个候选：各层纵向堆叠 + 场地/入口/通行 debug 叠加。"""
     labels = floor_labels or {}
     targets = target_areas or {}
     gap = 1.0
@@ -268,6 +307,11 @@ def render_candidate_svg(
             f"entry={e.edge.value}  on_road={e.on_road_edge}  "
             f"@({e.x:.1f},{e.y:.1f})"
         )
+    if access_graph is not None:
+        header_lines.append(
+            f"access_edges={len(access_graph.connections)}  "
+            f"required={len(access_graph.required_connections())}"
+        )
     if candidate.metrics:
         bits = []
         for key in (
@@ -276,6 +320,7 @@ def render_candidate_svg(
             "wet_stack_alignment",
             "entry_on_road",
             "garage_on_road",
+            "access_pref_satisfaction",
             "compactness",
         ):
             if key in candidate.metrics:
@@ -342,6 +387,7 @@ def render_candidate_svg(
                 floor_index=i,
             )
         )
+        body.append(_access_overlays(floor, oy, access_graph))
 
     body.append(_legend(floor_width + 0.4, 1.6))
 
@@ -369,6 +415,7 @@ def write_candidate_svg(
     floor_labels: dict[str, str] | None = None,
     target_areas: dict[str, float] | None = None,
     site: SiteSpec | None = None,
+    access_graph: AccessGraph | None = None,
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -379,6 +426,7 @@ def write_candidate_svg(
         floor_labels=floor_labels,
         target_areas=target_areas,
         site=site,
+        access_graph=access_graph,
     )
     path.write_text(svg, encoding="utf-8")
     return path

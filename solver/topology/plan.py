@@ -168,6 +168,14 @@ class TopologyPlanner:
             rid: sum(w for _, w in nbs) for rid, nbs in adj.items()
         }
 
+        # AccessGraph 高连通度优先：通行边抬升 hub 权重
+        if program.access_graph is not None:
+            for conn in program.access_graph.connections:
+                for nid in (conn.a, conn.b):
+                    if nid.startswith("exterior") or nid.startswith("stair"):
+                        continue
+                    degree_weight[nid] = degree_weight.get(nid, 0.0) + conn.weight * 1.5
+
         orders: dict[str, list[str]] = {}
         for fl in program.floors:
             room_ids = [
@@ -243,6 +251,72 @@ def order_rooms_for_zone(
                 result.append(other)
                 placed.add(other)
     return result
+
+
+def group_into_slicing_units(
+    room_ids: list[str],
+    cluster_members: list[set[str]] | None,
+) -> list[list[str]]:
+    """
+    将有序房间压成 Guillotine slicing units。
+
+    同簇且同时出现在列表中的成员合并为一组；其余为单人组。
+    组内稍后可再切；组间切分不得拆开簇（如 K+D+L 同组）。
+    """
+    if not room_ids:
+        return []
+    if not cluster_members:
+        return [[rid] for rid in room_ids]
+
+    cluster_of: dict[str, int] = {}
+    for i, cluster in enumerate(cluster_members):
+        for rid in cluster:
+            cluster_of.setdefault(rid, i)
+
+    placed: set[str] = set()
+    units: list[list[str]] = []
+    for rid in room_ids:
+        if rid in placed:
+            continue
+        cid = cluster_of.get(rid)
+        if cid is None:
+            units.append([rid])
+            placed.add(rid)
+            continue
+        cluster = cluster_members[cid]
+        members = [r for r in room_ids if r in cluster and r not in placed]
+        for m in members:
+            placed.add(m)
+        units.append(members)
+    return units
+
+
+def bipartition_slicing_units(
+    units: list[list],
+    *,
+    weight_of,
+) -> tuple[list, list] | None:
+    """
+    按 unit 权重对半切：返回 (左侧 rooms 扁平列表, 右侧)。
+    仅一个 unit 时返回 None（调用方应解锁簇内再切）。
+    """
+    if len(units) < 2:
+        return None
+    weights = [sum(weight_of(r) for r in u) or 1.0 for u in units]
+    total = sum(weights) or 1.0
+    half = total / 2.0
+    cum = 0.0
+    split_idx = 1
+    for i, w in enumerate(weights[:-1]):
+        cum += w
+        if cum >= half:
+            split_idx = i + 1
+            break
+    left = [r for u in units[:split_idx] for r in u]
+    right = [r for u in units[split_idx:] for r in u]
+    if not left or not right:
+        return None
+    return left, right
 
 
 def split_avoid_groups(

@@ -53,7 +53,7 @@ class TopologyPlan(BaseModel):
     """
     由 RoomGraph 派生的生成前拓扑计划。
 
-    MVP：影响区内打包顺序与 avoid 分半；不重划功能区边界。
+    影响区内打包顺序、邻接簇 slicing group，以及 avoid 分半；不重划功能区边界。
     """
 
     clusters: list[AdjacencyCluster] = Field(default_factory=list)

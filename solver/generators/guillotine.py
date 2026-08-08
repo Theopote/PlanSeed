@@ -28,8 +28,11 @@ from solver.geometry.free_rects import subtract_rect
 from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 from solver.program.floor_assign import assert_all_rooms_placed
+from solver.topology.derive_access import ensure_access_graph
 from solver.topology.plan import (
     TopologyPlanner,
+    bipartition_slicing_units,
+    group_into_slicing_units,
     order_rooms_for_zone,
     split_avoid_groups,
 )
@@ -65,7 +68,7 @@ class GuillotineGenerator:
     Generator #1 — Baseline Guillotine（RoomLayout strategy）。
 
     流水线：
-      StairCore → free rects → ZonePlanner → TopologyPlan 序 → Guillotine
+      StairCore → free rects → ZonePlanner → TopologyPlan 序/簇 → Guillotine
     """
 
     def __init__(self) -> None:
@@ -80,6 +83,7 @@ class GuillotineGenerator:
         w = buildable.width
         d = buildable.depth
 
+        ensure_access_graph(program)
         topology = self._topology_planner.plan(program)
 
         core_spec = resolve_stair_core_spec(
@@ -207,6 +211,7 @@ class GuillotineGenerator:
                 module,
                 rng,
                 avoid_pairs=topology.avoid_pairs,
+                cluster_members=clusters,
             )
 
         stair_name = "楼梯"
@@ -252,6 +257,7 @@ class GuillotineGenerator:
         rng: random.Random,
         *,
         avoid_pairs=None,
+        cluster_members: list[set[str]] | None = None,
     ) -> None:
         if not rooms or not rects:
             return
@@ -266,29 +272,48 @@ class GuillotineGenerator:
                 module,
                 rng,
                 avoid_pairs=avoid_pairs,
+                cluster_members=cluster_members,
             )
             return
 
         total_area = sum(r.area for r in rects) or 1.0
         total_weight = sum(r.weight for r in rooms) or 1.0
-        remaining = list(rooms)
+        id_to = {lr.spec.id: lr for lr in rooms}
+        unit_ids = group_into_slicing_units(
+            [lr.spec.id for lr in rooms], cluster_members
+        )
+        remaining_units: list[list[_LayoutRoom]] = [
+            [id_to[rid] for rid in u if rid in id_to] for u in unit_ids
+        ]
+        remaining_units = [u for u in remaining_units if u]
+
         for i, rect in enumerate(rects):
-            if not remaining:
+            if not remaining_units:
                 break
             if i == len(rects) - 1:
-                share = remaining
-                remaining = []
+                share_units = remaining_units
+                remaining_units = []
             else:
                 target_w = total_weight * (rect.area / total_area)
+                leave = len(rects) - i - 1
+                # 尽量留给后续 rect 至少一个 unit；不够则整簇不拆
+                max_take = (
+                    len(remaining_units)
+                    if len(remaining_units) <= leave
+                    else len(remaining_units) - leave
+                )
+                max_take = max(1, max_take)
                 cum = 0.0
-                split = max(1, len(remaining) - (len(rects) - i - 1))
-                for j, lr in enumerate(remaining):
-                    cum += lr.weight
-                    if cum >= target_w and j + 1 < len(remaining):
+                split = max_take
+                for j, unit in enumerate(remaining_units):
+                    cum += sum(lr.weight for lr in unit)
+                    if cum >= target_w and j + 1 <= max_take:
                         split = j + 1
                         break
-                share = remaining[:split]
-                remaining = remaining[split:]
+                split = min(split, max_take)
+                share_units = remaining_units[:split]
+                remaining_units = remaining_units[split:]
+            share = [lr for u in share_units for lr in u]
             self._layout_rooms(
                 share,
                 rect.x,
@@ -298,6 +323,7 @@ class GuillotineGenerator:
                 module,
                 rng,
                 avoid_pairs=avoid_pairs,
+                cluster_members=cluster_members,
             )
 
     def _layout_rooms(
@@ -311,6 +337,7 @@ class GuillotineGenerator:
         rng: random.Random,
         *,
         avoid_pairs=None,
+        cluster_members: list[set[str]] | None = None,
     ) -> None:
         if not rooms:
             return
@@ -320,12 +347,46 @@ class GuillotineGenerator:
             )
             return
 
-        # avoid 对：优先分到二分两侧（仅一次种子分割）
+        unit_ids = group_into_slicing_units(
+            [r.spec.id for r in rooms], cluster_members
+        )
+        # 整组就是一个簇：解锁后按面积再切（簇内允许细分）
+        if (
+            cluster_members
+            and len(unit_ids) == 1
+            and len(unit_ids[0]) == len(rooms)
+            and len(rooms) > 1
+        ):
+            self._layout_rooms(
+                rooms,
+                x0,
+                y0,
+                x1,
+                y1,
+                module,
+                rng,
+                avoid_pairs=avoid_pairs,
+                cluster_members=None,
+            )
+            return
+
+        # avoid 对：优先分到二分两侧（仅一次种子分割）；可能拆簇，属显式分离意图
         avoid_split = None
         if avoid_pairs:
             avoid_split = split_avoid_groups(rooms, avoid_pairs)
         if avoid_split is not None:
             group1, group2 = avoid_split
+        elif cluster_members and len(unit_ids) >= 2:
+            id_to = {r.spec.id: r for r in rooms}
+            units = [[id_to[rid] for rid in u if rid in id_to] for u in unit_ids]
+            units = [u for u in units if u]
+            parted = bipartition_slicing_units(
+                units, weight_of=lambda lr: lr.weight
+            )
+            if parted is None:
+                group1, group2 = rooms[:1], rooms[1:]
+            else:
+                group1, group2 = parted
         else:
             total = sum(r.weight for r in rooms) or 1.0
             half = total / 2
@@ -354,10 +415,50 @@ class GuillotineGenerator:
         if split_horizontal:
             cut_x = snap_value(x0 + width * frac, module)
             cut_x = max(x0 + min_span, min(x1 - min_span, cut_x))
-            self._layout_rooms(group1, x0, y0, cut_x, y1, module, rng, avoid_pairs=None)
-            self._layout_rooms(group2, cut_x, y0, x1, y1, module, rng, avoid_pairs=None)
+            self._layout_rooms(
+                group1,
+                x0,
+                y0,
+                cut_x,
+                y1,
+                module,
+                rng,
+                avoid_pairs=None,
+                cluster_members=cluster_members,
+            )
+            self._layout_rooms(
+                group2,
+                cut_x,
+                y0,
+                x1,
+                y1,
+                module,
+                rng,
+                avoid_pairs=None,
+                cluster_members=cluster_members,
+            )
         else:
             cut_y = snap_value(y0 + height * frac, module)
             cut_y = max(y0 + min_span, min(y1 - min_span, cut_y))
-            self._layout_rooms(group1, x0, y0, x1, cut_y, module, rng, avoid_pairs=None)
-            self._layout_rooms(group2, x0, cut_y, x1, y1, module, rng, avoid_pairs=None)
+            self._layout_rooms(
+                group1,
+                x0,
+                y0,
+                x1,
+                cut_y,
+                module,
+                rng,
+                avoid_pairs=None,
+                cluster_members=cluster_members,
+            )
+            self._layout_rooms(
+                group2,
+                x0,
+                cut_y,
+                x1,
+                y1,
+                module,
+                rng,
+                avoid_pairs=None,
+                cluster_members=cluster_members,
+            )

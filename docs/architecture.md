@@ -14,7 +14,7 @@ Natural Language / Manual Input
 → ProjectSpec
 → DesignProgram（normalize）
 → FloorAssignment
-→ Semantic RoomGraph + TopologyPlan（打包序）
+→ Semantic RoomGraph + TopologyPlan（打包序 / slicing group）
 → AccessGraph / required connections
 → ZonePlanner + CorePlacement
 → Graph-aware Room Ordering → Guillotine

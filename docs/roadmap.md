@@ -12,7 +12,7 @@
 | **1.5** | **Solver Reliability** | ✅ 收口 |
 | **1.6** | **Spatial Semantics Hardening** | **← 进行中**（core 禁止缩小；north_angle；Functional≠WetStack；`WetStack` + `max_wet_stacks=1`） |
 | **2.0** | **Topology-driven pack** | **MVP ✅**（`RoomGraph → TopologyPlan` 影响区内打包序） |
-| **2.1** | **AccessGraph + connections** | **进行中**（✅ `access.unreachable_room`；✅ 2A 共边→DoorOpening） |
+| **2.1** | **AccessGraph + connections** | **进行中**（✅ unreachable；✅ 默认软边派生；✅ 2A 共边→Door；✅ SVG 虚线） |
 | **2.2** | **Door placement polish** | 未开始（铰链/净宽/SVG；**仍不回改房间几何**） |
 | 2 | Spatial Topology + Circulation（总览） | 2.0 ✅ → 2.1 → 2A ✅ → 2.2；拓扑驱动几何延后 |
 | 3 | Architectural Evaluation | 未开始 |
@@ -122,8 +122,9 @@ Evaluator
 |------|------|
 | ~~纯 `rng.shuffle(rooms)`~~ | ❌ 已淘汰 |
 | **2.0 ✅** | `TopologyPlan.pack_order_hint` + adjacency cluster 连续序 |
-| **下一步** | AccessGraph / 高连通度优先；`[Kitchen,Dining,Living]` 作为 **同一 slicing group** 进入切分，而非仅排序后仍可能被面积对半拆散 |
-| **更晚** | topology drives geometry（为满足必连调整切分，仍尽量不全局重优化） |
+| **2.0.1 ✅** | `[Kitchen,Dining,Living]` 作为 **同一 slicing group** 进入切分（组间不拆簇；组内可再切） |
+| **2.1 ✅ 软驱动** | 默认 AccessGraph + 高连通度打包加权；硬必连仍显式 `required=True` |
+| **下一步** | topology drives geometry（为满足必连调整切分，仍尽量不全局重优化） |
 
 示例簇：
 
@@ -141,7 +142,7 @@ RoomGraph → TopologyPlan → Zone placement → Room placement
 
 - `TopologyPlanner`（`solver/topology/plan.py`）从邻接/近邻/回避边产出簇与 `pack_order_hint`
 - Guillotine **不再**纯 `shuffle`；区内序读 TopologyPlan；`rng` 仅扰动切分几何
-- **尚未**：把整簇强制锁进同一 slicing group（见上表「下一步」）
+- 邻接簇作为 **slicing group**：组间二分不拆簇；仅当当前矩形内只剩该簇时才解锁组内再切
 - 本切片**不**重划 DAY/NIGHT
 
 ## Phase 2.1 — AccessGraph（下一优先；先于画门）
@@ -180,9 +181,13 @@ StairCore              ← 仅竖向交通，不当作主入口
 - **`SpaceConnection`**：`a` / `b` / `type`（OPEN|DOOR|PASSAGE|STAIR|EXTERIOR_ENTRY）/ `required`
   - 邻接 ≠ 通行：Kitchen—Dining 可用 `AdjacencyConstraint`；Hall—Bedroom 用 `SpaceConnection(type=DOOR)`
 - **`AccessGraph`**：由 SpaceConnection 构成（`DesignProgram.access_graph`）；校验时回退共边+入口贴边+楼梯叠置
-- Required connections：从 constraints / 住宅默认规则派生（后续）
-- Shared boundary 查询：两节点是否同层共边、共边几何段
-- **仍不画门**；SVG 可先画「应连通」虚线边
+- **默认派生（✅）**：`derive_residential_access_graph` — hub↔卧室/客卫 DOOR、厨餐 OPEN 等为 **soft**（`required=False`）；硬必连仍需用户显式边
+- **高连通度打包**：AccessGraph 边权抬升 TopologyPlan hub
+- **软评价**：`access_pref_satisfaction` → `circulation_score`
+- Required connections：用户 `SpaceConnection(required=True)` / `AccessConstraint.requires_exterior`
+- Shared boundary 查询：`shared_boundary_between`（doors）
+- SVG：应连通虚线边（`access_graph=`）
+- **仍不**为连通回改房间几何（topology drives geometry 延后）
 
 语义标签硬化可并行：tags 为唯一规则入口（淘汰 Solver 侧中文 name 回退）。
 

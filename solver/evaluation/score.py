@@ -5,6 +5,10 @@ from __future__ import annotations
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
 from packages.schema.scoring import DesignMetrics, DesignScore
+from solver.evaluation.access import (
+    access_circulation_score,
+    compute_access_metrics,
+)
 from solver.evaluation.adjacency import adjacency_score, compute_adjacency_metrics
 from solver.evaluation.geometry import compute_geometry_metrics, geometry_score
 from solver.evaluation.orientation import (
@@ -27,21 +31,31 @@ class CompositeEvaluator:
         vert_m = compute_vertical_metrics(candidate)
         orient_m = compute_orientation_metrics(program, candidate)
         site_m = compute_site_metrics(program, candidate)
+        access_m = compute_access_metrics(program, candidate)
 
         g_score = geometry_score(geo_m)
         a_score = adjacency_score(adj_m)
         v_score = vertical_score(vert_m)
         o_score = orientation_score(orient_m)
         s_score = compute_site_score(site_m)
+        c_score = access_circulation_score(access_m)
 
         w = self.weights
-        denom = w.geometry + w.adjacency + w.vertical + w.site + w.orientation
+        denom = (
+            w.geometry
+            + w.adjacency
+            + w.vertical
+            + w.site
+            + w.orientation
+            + w.circulation
+        )
         total = (
             g_score * w.geometry
             + a_score * w.adjacency
             + v_score * w.vertical
             + s_score * w.site
             + o_score * w.orientation
+            + c_score * w.circulation
         ) / denom
 
         warnings: list[str] = []
@@ -49,6 +63,11 @@ class CompositeEvaluator:
             warnings.append(f"{int(geo_m['slender_room_count'])} 个房间长宽比偏大")
         if not site_m.get("setback_info_provided", False):
             warnings.append("未提供规划退界（setbacks=0 表示信息缺失，非法规结论）")
+        if float(access_m.get("access_pref_satisfaction", 1.0)) < 0.5:
+            warnings.append(
+                f"通行偏好共边偏低 "
+                f"({access_m.get('access_pref_satisfaction', 0):.0%})"
+            )
 
         soft_violations = orientation_soft_violations(program, candidate)
         for v in soft_violations:
@@ -87,11 +106,13 @@ class CompositeEvaluator:
             **vert_m,
             **{k: v for k, v in orient_m.items()},
             **{k: v for k, v in site_m.items()},
+            **access_m,
         }
 
         score = DesignScore(
             geometry_score=g_score,
             adjacency_score=a_score,
+            circulation_score=c_score,
             vertical_score=v_score,
             orientation_score=o_score,
             site_score=s_score,

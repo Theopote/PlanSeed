@@ -214,7 +214,9 @@ DesignProgram → FloorAssignment → Semantic RoomGraph → AccessGraph
 ```
 
 - **2.0**：`TopologyPlan` 替换纯 shuffle（hub BFS / 簇连续）
-- **下一步**：AccessGraph 驱动；邻接簇作为 **slicing group** 整组切分（如 K+D+L）
+- **2.0.1**：邻接簇作为 **slicing group** 整组切分（如 K+D+L）；组内可再细分
+- **2.1**：住宅默认 AccessGraph（软边）+ 高连通度打包 + `circulation_score`；硬必连仍显式
+- **下一步**：topology drives geometry（为必连调整切分，仍尽量不全局重优化）
 - **2A**：geometry → 共边校验 → `DoorOpening`（禁止为门重优化房间）
 - **ExteriorEntry**：交通起点（`entrance_edge` / `road_edges`）；**≠** StairCore
 - **延后**：topology drives geometry（全局为连通改切分）

@@ -11,8 +11,8 @@
 | AlignmentConstraint | ✓ | ✓ wet_stack | ✓ WetStack anchor | ✓ | ✓ vertical | ✓ | stair/wet |
 | AreaConstraint | ✓ | — | — | ✓ hard/soft | area_accuracy | ✓ | soft 不再丢弃 |
 | WidthConstraint | ✓ | — | — | ✓ hard/soft | — | ✓ | soft 不再丢弃 |
-| AccessConstraint | ✓ | — | — | — | — | — | 遗留；2.1 AccessGraph |
-| SpaceConnection / AccessGraph | ✓ | — | — | ✓ unreachable / 共边 | — | ✓ | Phase 2 抢跑；邻接≠通行 |
+| AccessConstraint | ✓ | ✓ → SpaceConnection | — | — | — | ✓ | `requires_exterior` 入 AccessGraph；stair 靠 unreachable |
+| SpaceConnection / AccessGraph | ✓ | ✓ 默认软边 | ✓ 连通度序 | ✓ unreachable / 共边 | ✓ circulation | ✓ | 硬必连需 required=True |
 
 ## 系统级 / 语义（Phase 1.6）
 
