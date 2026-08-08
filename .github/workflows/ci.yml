@@ -88,5 +88,11 @@ jobs:
         with:
           workspaces: desktop/src-tauri -> target
 
+      # tauri.conf.json 要求 bundle.resources 路径存在；真 sidecar 仅 Windows 构建产出
+      - name: Stub sidecar resources dir
+        run: |
+          mkdir -p resources/planseed-backend
+          echo "CI stub - real onedir from scripts/build_backend_sidecar.ps1" > resources/planseed-backend/.ci-stub
+
       - name: cargo check
         run: cargo check --locked

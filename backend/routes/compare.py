@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
+from solver.evaluation.compare import compare_evaluations
 
 from backend.schemas.api import CompareRequest, CompareResponse
-from solver.evaluation.compare import compare_evaluations
 
 router = APIRouter(tags=["compare"])
 
