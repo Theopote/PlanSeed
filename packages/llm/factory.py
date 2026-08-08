@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import Any, Literal
 
+from packages.llm.draft_schema import draft_json_schema
 from packages.llm.mock import MockLLMProvider
 from packages.llm.ollama import (
     DEFAULT_OLLAMA_BASE_URL,
@@ -72,3 +74,34 @@ def create_llm_provider(
         return MockLLMProvider(mock_responses)
     cfg = ollama_config or load_ollama_config(environ=environ)
     return OllamaProvider(cfg, client=ollama_client)
+
+
+def create_requirement_llm_provider(
+    *,
+    environ: dict[str, str] | None = None,
+    mock_responses: list[dict[str, Any]] | None = None,
+    ollama_client: Any | None = None,
+) -> LLMProvider:
+    """
+    需求解析专用 Provider。
+
+    - PLANSEED_LLM_PROVIDER=mock → Mock（须 mock_responses）
+    - 默认 ollama，且 format= LLMRequirementDraft JSON Schema（6.2）
+    """
+    kind = resolve_provider_kind(environ=environ)
+    if kind == "mock":
+        return create_llm_provider(
+            "mock",
+            environ=environ,
+            mock_responses=mock_responses,
+        )
+    cfg = replace(
+        load_ollama_config(environ=environ),
+        response_format=draft_json_schema(),
+    )
+    return create_llm_provider(
+        "ollama",
+        environ=environ,
+        ollama_config=cfg,
+        ollama_client=ollama_client,
+    )

@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6 — Local LLM（6.1 ✅ → 下一 6.2）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
-> **5.1.1 Program Fidelity ✅** · **5.1 Revision Integrity ✅** · **6.0 Boundary ✅** · **6.1 Ollama ✅**  
+> **当前焦点：Phase 6 — Local LLM（6.2 ✅ → 下一 6.3）** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
+> **5.1.1 ✅** · **5.1 ✅** · **6.0 Boundary ✅** · **6.1 Ollama ✅** · **6.2 Parser ✅**  
 > 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -270,13 +270,13 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 |--------|------|------|
 | **6.0** | LLM Boundary（契约 / Known·Assumed·Unknown） | ✅ |
 | **6.1** | Ollama Provider（`LLMProvider` 抽象） | ✅ |
-| **6.2** | Structured Requirement Parser | **← 下一** |
-| **6.3** | Validation + Repair | 未开始 |
+| **6.2** | Structured Requirement Parser | ✅ |
+| **6.3** | Validation + Repair | **← 下一** |
 | **6.4** | Assumption / Unknown UI | 未开始 |
 | **6.5** | NL → Generate | 未开始 |
 | **6.6** | Requirement Benchmark | 未开始 |
 
-详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
 ### Phase 6.0 — LLM Boundary ✅
 
@@ -293,6 +293,13 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 - [x] `create_llm_provider()` 工厂（`ollama` | `mock`）
 - [x] MockTransport 测试；无云端 API
 - [x] `httpx` 运行时依赖
+
+### Phase 6.2 — Structured Parser ✅
+
+- [x] `parse_requirement_text` / `StructuredRequirementParser`
+- [x] `draft_json_schema()` + `create_requirement_llm_provider()`
+- [x] 用户提示模板；经 ingest gate
+- [x] 测试：MockProvider 路径
 
 ---
 
