@@ -19,7 +19,10 @@ import {
   type RequirementForm,
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
-import { FloorplanView } from "./components/FloorplanView";
+import {
+  FloorplanView,
+  type RoomMovePose,
+} from "./components/FloorplanView";
 import { Inspector } from "./components/Inspector";
 import { RequirementsPanel } from "./components/RequirementsPanel";
 import "./App.css";
@@ -341,6 +344,67 @@ function App() {
     setLocks({ rooms: [], stair: null, zones: [] });
   }, []);
 
+  /** 拖拽松手：更新当前候选 placements 预览，并自动写入 Room/Stair Lock */
+  const onRoomMoved = useCallback(
+    (roomId: string, pose: RoomMovePose) => {
+      const isStair = roomId.startsWith("stair-");
+      setCandidates((prev) =>
+        prev.map((c) => {
+          if (c.id !== selectedId || !c.placements) return c;
+          return {
+            ...c,
+            placements: c.placements.map((p) => {
+              if (isStair) {
+                if (!p.room_id.startsWith("stair-")) return p;
+                return {
+                  ...p,
+                  x: pose.x,
+                  y: pose.y,
+                  area: Math.round(pose.width * pose.depth * 100) / 100,
+                };
+              }
+              if (p.room_id !== roomId) return p;
+              return {
+                ...p,
+                x: pose.x,
+                y: pose.y,
+                width: pose.width,
+                depth: pose.depth,
+                area: Math.round(pose.width * pose.depth * 100) / 100,
+              };
+            }),
+          };
+        }),
+      );
+      if (isStair) {
+        setLocks((prev) => ({
+          ...prev,
+          stair: {
+            x: pose.x,
+            y: pose.y,
+            width: pose.width,
+            depth: pose.depth,
+            core_placement: prev.stair?.core_placement ?? null,
+          },
+        }));
+        return;
+      }
+      setLocks((prev) => {
+        const rest = prev.rooms.filter((r) => r.room_id !== roomId);
+        const next: LockedRoomRect = {
+          room_id: roomId,
+          floor_id: pose.floor_id,
+          x: pose.x,
+          y: pose.y,
+          width: pose.width,
+          depth: pose.depth,
+        };
+        return { ...prev, rooms: [...rest, next] };
+      });
+    },
+    [selectedId],
+  );
+
   const onToggleZoneLock = useCallback(
     (zone: string, floorId: string) => {
       if (!selected?.zones) return;
@@ -419,7 +483,7 @@ function App() {
         ? "正在连接本地引擎…"
         : engineStatus === "STOPPED"
           ? "引擎已停止"
-          : "Generate → 锁定 → Regenerate unlocked / Create Variant → Alt+点比较";
+          : "Generate → 拖拽/锁定 → Regenerate unlocked / Create Variant → Alt+点比较";
 
   return (
     <div className="app-shell">
@@ -452,7 +516,13 @@ function App() {
                   .map((p) => p.room_id) ?? [])
               : []),
           ]}
+          placements={selected?.placements}
+          floorIds={program?.floors.map((f) => f.id)}
+          floorWidth={program?.site_width}
+          floorDepth={program?.site_depth}
+          snapModule={0.3}
           onSelectRoom={onSelectRoom}
+          onRoomMoved={program ? onRoomMoved : undefined}
         />
         <Inspector
           candidate={selected}

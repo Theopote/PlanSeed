@@ -63,7 +63,9 @@ def _render_room(
     if target_area is not None:
         area = f"{r.area:.1f}/{target_area:.0f}㎡"
     show_detail = r.width >= 1.4 and r.depth >= 1.2
+    # 成组便于桌面拖拽时 rect+label 一起平移
     lines = [
+        f'<g class="room-node" data-room-id="{rid}">',
         f'<rect class="room-shape" data-room-id="{rid}" x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
         f'height="{r.depth:.3f}" fill="{fill}" fill-opacity="0.9" '
         f'stroke="{stroke}" stroke-width="{sw:.3f}"/>',
@@ -82,6 +84,7 @@ def _render_room(
             f'fill="{_MUTED}" text-anchor="middle" '
             f'font-family="Consolas, monospace">{area}</text>'
         )
+    lines.append("</g>")
     return "\n".join(lines)
 
 

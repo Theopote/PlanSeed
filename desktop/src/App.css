@@ -242,6 +242,8 @@ button.secondary {
 .floorplan-svg {
   width: 100%;
   max-width: 920px;
+  touch-action: none;
+  user-select: none;
 }
 
 .floorplan-svg svg {
@@ -489,6 +491,16 @@ button.secondary {
   stroke: #8a5a2b !important;
   stroke-width: 0.18 !important;
   stroke-dasharray: 0.25 0.12;
+}
+
+.floorplan-svg .room-node.is-dragging {
+  cursor: grabbing;
+}
+
+.floorplan-svg .room-node.is-dragging .room-shape {
+  cursor: grabbing;
+  fill-opacity: 1 !important;
+  stroke-width: 0.22 !important;
 }
 
 .room-lock-actions {

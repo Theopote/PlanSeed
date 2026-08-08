@@ -255,8 +255,8 @@ function RoomDetail({
       </div>
       <p className="muted tiny">
         {isLocked
-          ? "已锁定几何；Create Variant 会保留此钉死位置"
-          : "锁定后 Regenerate / Variant 只动未锁空间"}
+          ? "已锁定几何；拖拽可改位置，Create Variant 会保留钉死位置"
+          : "可拖拽定位（松手自动锁定），或点锁定后 Regenerate"}
       </p>
     </section>
   );

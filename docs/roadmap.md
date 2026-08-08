@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 4 — Lock Zone 已落地；拖拽后置**  
-> 4.1 Room/Stair · 4.1.1 Zone · 4.2 Variant+Compare  
+> **当前焦点：Phase 4 — 拖拽几何已落地；交互加深后置**  
+> 4.1 Room/Stair/Zone/Drag · 4.2 Variant+Compare  
 > 详案：[phase-3.6-runtime-reliability.md](phase-3.6-runtime-reliability.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
@@ -131,7 +131,7 @@ Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止
 - [x] `GenerateRequest.locks` → Guillotine 挖洞 + 合并锁定放置
 - [x] Regenerate unlocked（未锁空间重排）
 - [x] Lock Zone（钉死功能区 envelope；区内仍可重排）
-- [ ] 拖拽几何（后置）
+- [x] 拖拽几何（平移 → 松手自动 Room/Stair Lock；改尺寸后置）
 
 ### Phase 4.2 — Create Variant + Compare（✅）
 
