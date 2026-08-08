@@ -50,4 +50,18 @@ def generate_layouts(
     locks: LayoutLocks | None = None,
 ) -> PipelineResult:
     """单次评价在 pipeline 内完成；此处不调用 CompositeEvaluator。"""
-    return run_pipeline(program, locks=locks)
+    from solver.locks import LockValidationError
+
+    try:
+        return run_pipeline(program, locks=locks)
+    except LockValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": str(exc),
+                "issues": [
+                    {"code": i.code, "message": i.message, "hard": i.hard}
+                    for i in exc.result.issues
+                ],
+            },
+        ) from exc

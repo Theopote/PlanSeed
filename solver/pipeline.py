@@ -66,9 +66,17 @@ def run_pipeline(
     program: DesignProgram,
     locks: LayoutLocks | None = None,
 ) -> PipelineResult:
+    from solver.constraints.checker import ConstraintEvaluationResult
+    from solver.locks import assert_valid_layout_locks, check_lock_invariants
+
     generator = GuillotineGenerator()
     checker = DefaultConstraintChecker()
     evaluator = CompositeEvaluator()
+
+    locks = locks or LayoutLocks()
+    has_locks = bool(locks.rooms or locks.stair or locks.zones)
+    if has_locks:
+        assert_valid_layout_locks(program, locks)
 
     cfg = program.solver_config
     candidates: list[LayoutCandidate] = []
@@ -77,7 +85,18 @@ def run_pipeline(
     for i in range(cfg.candidate_count):
         seed = cfg.base_seed + i
         candidate = generator.generate(program, seed, locks=locks)
-        candidate.validation = checker.check(program, candidate)
+        validation = checker.check(program, candidate)
+        if has_locks:
+            inv = check_lock_invariants(candidate, locks)
+            if inv.hard_violations or inv.soft_violations or inv.warnings:
+                merged = ConstraintEvaluationResult(
+                    hard_violations=list(validation.hard_violations),
+                    soft_violations=list(validation.soft_violations),
+                    warnings=list(validation.warnings),
+                )
+                merged.extend(inv)
+                validation = merged.to_candidate_validation()
+        candidate.validation = validation
 
         if candidate.validation.valid:
             evaluation = evaluator.evaluate(program, candidate)

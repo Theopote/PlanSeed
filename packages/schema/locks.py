@@ -1,8 +1,23 @@
-"""会话级布局锁 — Phase 4.1/4.1.1；不进 RequirementSpec / RoomSpec。"""
+"""会话级布局锁 — Phase 4.1；不进 RequirementSpec / RoomSpec。
+
+Lock = 不可变几何契约（immutable geometry contract），不是 generator hint。
+
+优先级：Room Lock > Zone Lock（FunctionalZoneGroup）> Free
+
+- Room Lock：房间矩形绝对固定（含后处理 / ConnectionResolver）
+- Zone Lock：同层同 kind 的全部 zone 组件 envelope 固定；区内未 Room-Lock 的房间可重排，但不得越界
+- Stair Lock：楼梯核跨层几何固定
+- Free：完全自由
+
+同 floor_id + zone kind 的多条 LockedZoneRect = 锁定整个 FunctionalZoneGroup（多组件），
+而非「只锁其中一块」。
+"""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from packages.schema.zoning import ArchitecturalZone
 
 
 class LockedRoomRect(BaseModel):
@@ -30,9 +45,13 @@ class LockedStairCore(BaseModel):
 
 
 class LockedZoneRect(BaseModel):
-    """钉死的功能分区容器；区内房间仍可重排。"""
+    """
+    钉死的功能分区组件矩形。
 
-    zone: str = Field(description="day | night | service")
+    同 floor_id + zone 的多条共同构成 FunctionalZoneGroup 锁。
+    """
+
+    zone: ArchitecturalZone = Field(description="day | night | service（非 circulation）")
     floor_id: str
     x: float = Field(ge=0)
     y: float = Field(ge=0)
@@ -40,8 +59,15 @@ class LockedZoneRect(BaseModel):
     depth: float = Field(gt=0)
     room_ids: list[str] = Field(
         default_factory=list,
-        description="锁定时归属该区的房间；空则按 classify 回填",
+        description="锁定时归属该组件的房间；空则按 classify 回填",
     )
+
+    @field_validator("zone", mode="before")
+    @classmethod
+    def _coerce_zone(cls, v: object) -> object:
+        if isinstance(v, str):
+            return v.lower().strip()
+        return v
 
 
 class LayoutLocks(BaseModel):
@@ -62,4 +88,4 @@ class LayoutLocks(BaseModel):
         return [z for z in self.zones if z.floor_id == floor_id]
 
     def locked_zone_kinds_on_floor(self, floor_id: str) -> set[str]:
-        return {z.zone for z in self.zones if z.floor_id == floor_id}
+        return {z.zone.value if hasattr(z.zone, "value") else str(z.zone) for z in self.zones if z.floor_id == floor_id}

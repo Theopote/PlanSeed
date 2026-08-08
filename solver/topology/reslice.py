@@ -466,15 +466,20 @@ def try_reslice_required_pair(
     module: float,
     min_wall: float = MIN_ACCESS_WALL,
     floor_bounds: Rect | None = None,
+    protected_room_ids: set[str] | None = None,
 ) -> bool:
     """
     在局部 AABB（可绕核扩边）内重切，使 pa—pb 必连共边。
 
     成功则已写入 placements；失败则恢复原矩形。楼梯核不动。
+    含 LayoutLocks protected 成员时直接放弃（禁止偷偷解锁）。
     """
     if pa.floor_id != pb.floor_id:
         return False
     if _is_stair(pa) or _is_stair(pb):
+        return False
+    protected = protected_room_ids or set()
+    if pa.room_id in protected or pb.room_id in protected:
         return False
     if shared_boundary_between(pa, pb, min_length=min_wall) is not None:
         return False
@@ -483,6 +488,8 @@ def try_reslice_required_pair(
     placements = _floor_placements(candidate, floor_id)
     members = collect_reslice_members(pa, pb, placements)
     if not members:
+        return False
+    if any(p.room_id in protected for p in members):
         return False
 
     member_ids = {p.room_id for p in members}

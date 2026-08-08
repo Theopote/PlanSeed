@@ -292,7 +292,20 @@ class GuillotineGenerator:
             metrics=metrics,
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
-        resolve_required_connections(program, candidate, module=module)
+        protected = set(locks.locked_room_ids)
+        if locks.stair is not None:
+            protected.update(
+                p.room_id
+                for fl in candidate.floors
+                for p in fl.placements
+                if p.room_id.startswith("stair-")
+            )
+        resolve_required_connections(
+            program,
+            candidate,
+            module=module,
+            protected_room_ids=protected,
+        )
         place_door_openings(program, candidate)
         build_realized_connections(program, candidate)
         return candidate
@@ -309,8 +322,9 @@ class GuillotineGenerator:
         for lz in locks.zones:
             try:
                 zone_enum = ArchitecturalZone(lz.zone)
-            except ValueError:
-                continue
+            except ValueError as exc:
+                # validate_layout_locks 应已拦截；此处不再静默忽略
+                raise ValueError(f"illegal locked zone: {lz.zone!r}") from exc
             if lz.room_ids:
                 room_ids = [
                     rid for rid in lz.room_ids if rid not in locks.locked_room_ids

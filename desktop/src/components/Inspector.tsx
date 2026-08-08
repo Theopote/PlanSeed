@@ -255,7 +255,7 @@ function RoomDetail({
       </div>
       <p className="muted tiny">
         {isLocked
-          ? "已锁定几何；拖拽可改位置，Create Variant 会保留钉死位置"
+          ? "已锁定几何（Room>Zone>Free）；拖拽可改位置，后处理不得移动"
           : "可拖拽定位（松手自动锁定），或点锁定后 Regenerate"}
       </p>
     </section>
@@ -383,7 +383,8 @@ export function Inspector({
             <section className="zone-list">
               <h3>Zones</h3>
               <p className="muted tiny">
-                锁分区 = 钉死 envelope；区内房间仍可重排
+                锁分区 = 钉死该层同 kind 全部 envelope（FunctionalZoneGroup）；区内未锁房间可重排。Room
+                Lock 优先于 Zone Lock
               </p>
               <ul className="zone-rows">
                 {uniqueZones(candidate.zones ?? []).map((z) => {

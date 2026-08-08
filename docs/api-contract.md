@@ -32,9 +32,9 @@
 |------|------|
 | `GenerateResponse` | `backend/schemas/api.py` |
 | `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`） |
-| `GenerateRequest` · `locks` | Phase 4.1 additive：`LayoutLocks`（rooms + stair + **zones**） |
+| `GenerateRequest` · `locks` | Phase 4.1：`LayoutLocks`（rooms + stair + zones）；生成前 `validate_layout_locks`，非法 → **422** |
 | `GenerateRequest` · `base_seed` | Phase 4.2 additive：变体批次种子起点 |
-| `CandidatePayload` · `zones` | Phase 4 Lock Zone：功能分区几何摘要 |
+| `CandidatePayload` · `zones` | Phase 4 Lock Zone：功能分区几何摘要（同 floor+kind 多块 = FunctionalZoneGroup） |
 | `RoomPlacementPayload` | Phase 4.0 additive：点选房间用 |
 | `CandidateProvenance` | solver / generator / evaluation_version |
 | `solver_identity` | generate / health 响应 |

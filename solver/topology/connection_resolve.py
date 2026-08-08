@@ -246,9 +246,14 @@ def repair_connection_pair(
     module: float,
     min_wall: float = MIN_ACCESS_WALL,
     max_nudge: float = DEFAULT_MAX_NUDGE,
+    protected_room_ids: set[str] | None = None,
 ) -> bool:
     """尝试局部修补一对放置；成功返回 True。"""
     if _is_stair(pa) or _is_stair(pb):
+        return False
+    protected = protected_room_ids or set()
+    # Lock = 不可变几何：任一侧受保护则禁止 nudge（失败 ≠ 偷偷解锁）
+    if pa.room_id in protected or pb.room_id in protected:
         return False
     if shared_boundary_between(pa, pb, min_length=min_wall) is not None:
         return False
@@ -282,11 +287,13 @@ def resolve_required_connections(
     max_nudge: float = DEFAULT_MAX_NUDGE,
     allow_reslice: bool = True,
     include_preferred: bool = True,
+    protected_room_ids: set[str] | None = None,
 ) -> int:
     """
     对开口类 AccessIntent 做局部共边修补（required 优先，再 preferred）。
 
     写入 RepairRecord；遵守 SolverConfig repair budget。
+    protected_room_ids：LayoutLocks 钉死的房间（及楼梯核），禁止 nudge/reslice。
     """
     from packages.schema.layout import RepairRecord
     from solver.topology.derive_access import ensure_access_graph
@@ -298,6 +305,7 @@ def resolve_required_connections(
     snap = module if module is not None else cfg.snap_module
     max_repairs = cfg.max_connection_repairs
     max_reslices = cfg.max_connection_reslices
+    protected = set(protected_room_ids or ())
 
     conns = sorted(
         opening_connections(program),
@@ -343,6 +351,7 @@ def resolve_required_connections(
                     module=snap,
                     min_wall=min_wall,
                     max_nudge=max_nudge,
+                    protected_room_ids=protected,
                 ):
                     kind = "gap_close_or_lengthen"
                     repaired += 1
@@ -357,6 +366,7 @@ def resolve_required_connections(
                         module=snap,
                         min_wall=min_wall,
                         floor_bounds=bounds,
+                        protected_room_ids=protected,
                     )
                 ):
                     kind = "reslice"
