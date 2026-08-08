@@ -12,6 +12,7 @@ from solver.program.requirements_normalize import (
 )
 
 from backend.schemas.api import GenerateRequest
+from backend.services.form_requirements import ensure_spaces_for_solve
 
 
 def resolve_program(body: GenerateRequest) -> DesignProgram:
@@ -20,7 +21,8 @@ def resolve_program(body: GenerateRequest) -> DesignProgram:
         if body.use_benchmark:
             program = benchmark_program()
         elif body.requirements is not None:
-            program = normalize_requirements_to_program(body.requirements)
+            requirements = ensure_spaces_for_solve(body.requirements)
+            program = normalize_requirements_to_program(requirements)
         else:
             raise HTTPException(
                 status_code=400,
