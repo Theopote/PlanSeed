@@ -179,6 +179,40 @@ def test_revalidate_hydrates_stair_so_vertical_can_detect_misalignment():
     assert metrics["stair_alignment"] == 0.0
 
 
+def test_missing_stair_metadata_is_not_perfect():
+    """有楼梯 placement 但缺 stair_* → 不得默认 stair_alignment=1。"""
+    from packages.schema.layout import FloorLayout, LayoutCandidate, RoomPlacement
+    from packages.schema.layout import PlacementRect, PlacementSource
+
+    floors = [
+        FloorLayout(
+            floor_id="F1",
+            placements=[
+                RoomPlacement(
+                    room_id="stair-F1",
+                    floor_id="F1",
+                    rect=PlacementRect(x=0, y=0, width=1.8, depth=4),
+                    source=PlacementSource.GENERATED,
+                )
+            ],
+            # 故意不填 stair_*
+        ),
+        FloorLayout(
+            floor_id="F2",
+            placements=[
+                RoomPlacement(
+                    room_id="stair-F2",
+                    floor_id="F2",
+                    rect=PlacementRect(x=0, y=0, width=1.8, depth=4),
+                    source=PlacementSource.GENERATED,
+                )
+            ],
+        ),
+    ]
+    cand = LayoutCandidate(id="c", seed=0, floors=floors)
+    assert compute_vertical_metrics(cand)["stair_alignment"] == 0.0
+
+
 def test_hydrate_without_stair_leaves_none():
     program = benchmark_program()
     cand = hydrate_candidate_from_placements(

@@ -18,7 +18,7 @@
 | Canonical spec | `GenerateResponse.requirement_spec`（ensure_spaces 后） |
 | 项目持久化 | `ProjectPayload.requirement_spec` |
 | Desktop 会话 | `requirementSpec` state；mutate / revalidate / regenerate 原样回传（+ Program 面积补丁） |
-| Stair derive | `derive_stair_core_from_placements` in `solver/mutation/commit.py` |
+| Stair derive | `derive_stair_core_from_placements`；缺 metadata 不得默认满分 |
 | Client preview | `geometryMutation.ts` 标注 NON-AUTHORITATIVE |
 
 ## 流程

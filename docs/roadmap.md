@@ -1,8 +1,9 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 5.1.1 ✅** · 下一：Phase 6 Local LLM  
-> **5.1 Revision Integrity ✅** · 详案：[phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)  
-> 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6 — Local LLM** · 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
+> **5.1.1 Program Fidelity ✅** · **5.1 Revision Integrity ✅**  
+> 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)  
+> **工程门禁：** 进 6.1 前确认最新 master CI green
 
 ## 阶段总览（以代码为准）
 
@@ -258,11 +259,26 @@ LLM 前极短闸门：canonical `RequirementSpec` 往返 + revalidate 楼梯 met
 
 ## Phase 6 — Local LLM Requirement Parsing（← 下一）
 
+详案：[phase-6-local-llm.md](phase-6-local-llm.md)
+
 ```text
-Natural Language → (Ollama) → RequirementSpec → normalize → Solver
+Natural Language → (Ollama) → RequirementSpec → validate → normalize → Solver
 ```
 
-禁止 LLM 输出坐标 / SVG / DesignProgram。LLM 写出的 `RequirementSpec` 必须进入会话事实源并随项目保存。
+**LLM NEVER GENERATES GEOMETRY。** 写出的 `RequirementSpec` 必须进入会话事实源并随项目保存。
+
+| 子阶段 | 主题 |
+|--------|------|
+| **6.0** | LLM Boundary（契约 / Known·Assumed·Unknown） |
+| **6.1** | Ollama Provider（`LLMProvider` 抽象） |
+| **6.2** | Structured Requirement Parser |
+| **6.3** | Validation + Repair |
+| **6.4** | Assumption / Unknown UI |
+| **6.5** | NL → Generate |
+| **6.6** | Requirement Benchmark |
+
+**第一版禁止：** Agent / RAG / tool-calling / 自然语言改几何。  
+**工程门禁：** 最新 master CI green（人为确认）。
 
 ---
 
