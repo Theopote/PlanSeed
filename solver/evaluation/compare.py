@@ -15,8 +15,16 @@ AXIS_SPECS: tuple[tuple[str, str, str], ...] = (
     ("spatial_score", "Spatial", "比例与紧凑度更好"),
     ("circulation_score", "Circulation", "交通更直接 / 可达更好"),
     ("privacy_score", "Privacy", "私密过渡更好"),
-    ("environment_score", "Environment", "朝向 / 外墙更优"),
-    ("technical_score", "Technical", "楼梯 / 湿区 / 入口更稳"),
+    (
+        "environment_score",
+        "Environment (Orientation MVP)",
+        "朝向与外墙关系更优（Orientation MVP）",
+    ),
+    (
+        "technical_score",
+        "Technical Logic",
+        "楼梯 / 湿区 / 入口与场地关系更稳（Technical Logic）",
+    ),
     ("robustness_score", "Robustness", "更少 repair、布局更稳"),
 )
 

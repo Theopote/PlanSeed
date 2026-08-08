@@ -38,9 +38,11 @@ class EvaluationAxis(StrEnum):
 
 class DesignFinding(BaseModel):
     """
-    可解释设计发现（≠ 单纯报分数）。
+    可解释设计发现（≠ 单纯报分数；≠ 法规合规结论）。
 
     category 应对齐 EvaluationAxis（或子域，如仍兼容旧 id）。
+    文案须保持 design heuristic；禁止无 CodeProfile / Jurisdiction / Rule source
+    时声称「符合规范 / 合法 / 消防 / 无障碍」等。
     """
 
     id: str = Field(description="稳定 id，如 privacy.private_through_room")
@@ -76,7 +78,8 @@ class DesignMetrics(BaseModel):
         description="[deprecated] wet_stack_alignment 的别名",
     )
 
-    setback_compliance: float = 1.0
+    setback_compliance: float = 1.0  # 内部名：buildable 落位比例；非法规「合规」结论
+
     orientation_satisfaction: float = 1.0
 
     program_fit: float = 1.0
@@ -97,8 +100,14 @@ class DesignScore(BaseModel):
     spatial_score: float = Field(default=0.0, description="比例 / 紧凑度 / 形状")
     circulation_score: float = Field(default=0.0, description="可达 / 深度 / 穿堂")
     privacy_score: float = Field(default=0.0, description="动静分区 / 过渡 / 穿卧")
-    environment_score: float = Field(default=0.0, description="朝向 / 外墙；采光后续")
-    technical_score: float = Field(default=0.0, description="楼梯 / 湿区 / 入口 / 临路")
+    environment_score: float = Field(
+        default=0.0,
+        description="Environment (Orientation MVP)：朝向 / 外墙；不含日照/通风/景观模拟",
+    )
+    technical_score: float = Field(
+        default=0.0,
+        description="Technical Logic：楼梯 / 湿区叠置 / 入口与场地；不含结构/设备/消防/法规",
+    )
     robustness_score: float = Field(default=0.0, description="repair / reslice / 稳定性")
 
     total_score: float = 0.0

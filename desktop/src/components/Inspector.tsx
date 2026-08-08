@@ -1,4 +1,5 @@
 import type { CandidatePayload, DesignFinding, ProgramSummary } from "../api/client";
+import { AXIS_SCOPE } from "../lib/axisScope";
 import { ComparePanel } from "./ComparePanel";
 
 type Props = {
@@ -19,8 +20,16 @@ const SCORE_ROWS: Array<{
   { key: "spatial_score", label: "Spatial", hint: "比例 / 紧凑 / 形状" },
   { key: "circulation_score", label: "Circulation", hint: "可达 / 深度 / 穿堂" },
   { key: "privacy_score", label: "Privacy", hint: "动静 / 过渡 / 穿卧" },
-  { key: "environment_score", label: "Environment", hint: "朝向 / 外墙" },
-  { key: "technical_score", label: "Technical", hint: "楼梯 / 湿区 / 入口" },
+  {
+    key: "environment_score",
+    label: AXIS_SCOPE.environment.label,
+    hint: AXIS_SCOPE.environment.hint,
+  },
+  {
+    key: "technical_score",
+    label: AXIS_SCOPE.technical.label,
+    hint: AXIS_SCOPE.technical.hint,
+  },
   { key: "robustness_score", label: "Robustness", hint: "repair / 稳定性" },
 ];
 
@@ -38,8 +47,8 @@ const CATEGORY_ZH: Record<string, string> = {
   spatial: "空间形态",
   circulation: "交通流线",
   privacy: "私密分区",
-  environment: "环境朝向",
-  technical: "技术体系",
+  environment: AXIS_SCOPE.environment.categoryZh,
+  technical: AXIS_SCOPE.technical.categoryZh,
   robustness: "稳健性",
 };
 
@@ -207,6 +216,11 @@ export function Inspector({
                   </section>
                 );
               })}
+              {findings.length > 0 && (
+                <p className="finding-disclaimer muted">
+                  以上为设计启发式，不构成规范合规或法规审查结论。
+                </p>
+              )}
             </>
           )}
 

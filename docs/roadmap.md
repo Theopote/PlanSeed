@@ -33,12 +33,13 @@ Evaluator 只评分，不改几何。用户层七轴：
 | Spatial | geometry + compactness | 比例 / 紧凑度（面积归 Program） |
 | Circulation | `circulation.py` + `access.py` | realized 可达 / 深度 / 穿堂 |
 | Privacy | `privacy.py` | entry→private 过渡；穿卧惩罚 |
-| Environment | `orientation.py` | 朝向 / 外墙；采光后续 |
-| Technical | `vertical.py` + entry/site | 楼梯 / 湿区 / 入口 / 临路 |
+| Environment | `orientation.py` | **Orientation MVP**：朝向 / 外墙；非日照·通风·景观 |
+| Technical | `vertical.py` + entry/site | **Technical Logic**：楼梯 / 湿区 / 入口·场地；非结构·设备·消防·法规 |
 | Robustness | repair metrics | ConnectionResolver / reslice 稳定性 |
 
 `DesignScore`：七轴（**名称冻结至 Phase 4**，见 [scoring.md](scoring.md)）+ `findings[]`；`explanations` / `warnings` 由 findings 派生。  
 `DesignEvaluation`：当前为 **temporary compatibility alias**（`= DesignScore`）；长期再拆成真正 Evaluation 模型（非 P0，见 [scoring.md](scoring.md)）。  
+Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止合规语气）。  
 **不做（本 Phase）**：daylight；LLM；房间拖拽编辑。
 
 ---

@@ -163,8 +163,8 @@ class CompositeEvaluator:
                     severity=FindingSeverity.INFO,
                     title="未提供规划退界",
                     message=(
-                        "地块未声明退界数值（setbacks 默认 0 表示信息缺失），"
-                        "系统不会据此推断合规结论。"
+                        "地块未声明退界数值（setbacks 默认 0 表示信息缺失）。"
+                        "这是数据缺口提示，不是规范审查；系统不会据此给出合规结论。"
                     ),
                     metric="setback_info_provided",
                     measured_value=0.0,
@@ -193,7 +193,10 @@ class CompositeEvaluator:
                     category=EvaluationAxis.TECHNICAL.value,
                     severity=FindingSeverity.WARNING,
                     title="主入口未临路",
-                    message="主入口未落在声明的临路边上，对外到达可能绕行或不符合场地意图。",
+                    message=(
+                        "主入口未落在声明的临路边上，对外到达可能绕行，"
+                        "偏离当前声明的场地意图（road_edges）。"
+                    ),
                     metric="entry_on_road",
                     measured_value=entry_road,
                     recommended_action="调整 entrance_edge / road_edges 或入口放置。",
@@ -221,7 +224,10 @@ class CompositeEvaluator:
                     category=EvaluationAxis.ENVIRONMENT.value,
                     severity=FindingSeverity.POSITIVE,
                     title="朝向偏好满足",
-                    message="已声明的朝向约束均满足（按世界坐标边判断），采光/景观意图得到落实。",
+                    message=(
+                        "已声明的朝向约束均满足（按世界坐标边判断）。"
+                        "Environment 轴现为 Orientation MVP，不含日照 / 通风 / 景观模拟。"
+                    ),
                     metric="orientation_satisfaction",
                     measured_value=float(orient_m.get("orientation_satisfaction", 1.0)),
                 )

@@ -16,10 +16,14 @@ Program      = Program Fit + Adjacency
 Spatial      = Proportion + Compactness
 Circulation  = Reachability + Depth + Through-room …
 Privacy      = Transition + Through-bedroom …
-Environment  = Orientation (+ daylight 后续)
-Technical    = Vertical + Site（入口 / 临路）
+Environment  = Orientation MVP（朝向 / 外墙；**不含**日照 / 通风 / 景观模拟）
+Technical    = Technical Logic = Vertical + Site（楼梯 / 湿区 / 入口·场地；
+               **不含**结构 / 设备 / 消防 / 法规 / 施工）
 Robustness   = Layout stability / repair
 ```
+
+**产品文案：** UI / Compare / Finding 必须标明 MVP 范围，避免把 Environment 理解成完整环境性能、把 Technical 理解成全专业技术审查。轴 **标识符**（`environment` / `technical`）仍冻结；显示名可用  
+`Environment (Orientation MVP)` / `Technical Logic`。
 
 ```python
 DesignScore
@@ -27,8 +31,8 @@ DesignScore
 ├── spatial_score       # 比例 / 紧凑度 / 形状
 ├── circulation_score   # 可达 / 深度 / 穿堂 / 死端
 ├── privacy_score       # 动静分区 / 过渡 / 穿卧
-├── environment_score   # 朝向 / 外墙（采光后续）
-├── technical_score     # 楼梯 / 湿区 / 入口 / 临路
+├── environment_score   # Orientation MVP：朝向 / 外墙
+├── technical_score     # Technical Logic：楼梯 / 湿区 / 入口·场地
 ├── robustness_score    # repair / reslice / 稳定性
 ├── total_score
 ├── metrics: DesignMetrics
@@ -37,15 +41,15 @@ DesignScore
 └── violations[]
 ```
 
-| 轴（冻结名） | 回答的问题 | 底层来源（不重复加权） |
-|----|------------|------------------------|
-| Program | 房间有没有？面积份额？邻接？ | Program Fit + Adjacency |
-| Spatial | 比例？紧凑？形状？ | Proportion + Compactness |
-| Circulation | 可达？深度？穿堂？ | realized + access intent |
-| Privacy | 动静过渡？穿卧？ | privacy path |
-| Environment | 朝向？ | orientation（daylight 后续） |
-| Technical | 楼梯/湿区/入口/路？ | Vertical + Site |
-| Robustness | 是否靠修补硬撑？ | layout_stability |
+| 轴（冻结名） | 回答的问题 | 底层来源（不重复加权） | MVP 边界 |
+|----|------------|------------------------|----------|
+| Program | 房间有没有？面积份额？邻接？ | Program Fit + Adjacency | — |
+| Spatial | 比例？紧凑？形状？ | Proportion + Compactness | — |
+| Circulation | 可达？深度？穿堂？ | realized + access intent | — |
+| Privacy | 动静过渡？穿卧？ | privacy path | — |
+| Environment | 朝向 / 外墙？ | orientation | **非**日照/通风/景观模拟 |
+| Technical | 楼梯/湿区/入口/场地？ | Vertical + Site | **非**结构/设备/消防/法规 |
+| Robustness | 是否靠修补硬撑？ | layout_stability | — |
 
 ### DesignFinding
 
@@ -57,6 +61,20 @@ DesignScore
 | `title` / `message` | 短标题 + 设计语义说明 |
 | `room_ids` | 相关房间 |
 | `recommended_action` | 可选改进建议 |
+
+#### design heuristic ≠ code compliance
+
+Finding / Inspector 文案必须保持 **设计启发式**，与 **规范合规** 严格分开。
+
+| 允许（启发式） | 禁止（无 CodeProfile 时） |
+|----------------|---------------------------|
+| 有利于管井与施工组织 | 符合规范 / 合法 |
+| 朝向偏好满足、私密过渡更好 | 满足消防 / 满足无障碍 |
+| 未提供退界 → 信息缺失提示 | 退线「合规通过」 |
+
+在具备 `CodeProfile` / `Jurisdiction` / `Rule source` 之前，**不要**把 Finding 写成审查结论。  
+内部 metric 名 `setback_compliance` 仅表示 buildable 落位比例，对外文案勿称「规范合规率」。
+
 
 ## 第一阶段 Metrics（Phase 1 实现）
 
@@ -115,7 +133,7 @@ Model：`y=0` = model north，`x=0` = model west（绘图坐标）。
 
 | Metric | 说明 |
 |--------|------|
-| `setback_compliance` | 程序房间落在 buildable 内比例 |
+| `setback_compliance` | 程序房间落在 buildable 内比例（内部名含 compliance，**非**法规结论） |
 | `setback_info_provided` | 是否用户提供了退界；未提供时 site_score ≤ 95 |
 
 不再使用 `site_score = 100` 常量。
@@ -136,11 +154,10 @@ Model：`y=0` = model north，`x=0` = model west（绘图坐标）。
 | `wet_stack_alignment` | WetStack 锚跨层对齐 |
 | `wet_zone_alignment` | [deprecated] `wet_stack_alignment` 别名 |
 
-### Site (`evaluation/site.py`)
+### Site（文案注意）
 
-| Metric | 说明 |
-|--------|------|
-| `setback_compliance` | 退线合规率 |
+对外勿把 `setback_compliance` 说成「退线合规率」；称 **buildable 落位比例** 即可。
+
 
 ## Phase 3 Metrics（建筑评价 MVP）
 

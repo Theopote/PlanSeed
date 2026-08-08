@@ -392,6 +392,12 @@ button.secondary {
   line-height: 1.35;
 }
 
+.finding-disclaimer {
+  margin: 0.75rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
 .violation-id {
   display: block;
   margin-top: 0.15rem;

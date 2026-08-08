@@ -1,6 +1,7 @@
 /** 候选确定性比较 — 与 solver/evaluation/compare.py 规则对齐。 */
 
 import type { DesignFinding, DesignScore } from "../api/client";
+import { AXIS_SCOPE } from "./axisScope";
 
 export const AXIS_MARGIN = 3;
 
@@ -26,13 +27,13 @@ const AXIS_SPECS: Array<{ key: AxisKey; label: string; reason: string }> = [
   { key: "privacy_score", label: "Privacy", reason: "私密过渡更好" },
   {
     key: "environment_score",
-    label: "Environment",
-    reason: "朝向 / 外墙更优",
+    label: AXIS_SCOPE.environment.label,
+    reason: AXIS_SCOPE.environment.compareReason,
   },
   {
     key: "technical_score",
-    label: "Technical",
-    reason: "楼梯 / 湿区 / 入口更稳",
+    label: AXIS_SCOPE.technical.label,
+    reason: AXIS_SCOPE.technical.compareReason,
   },
   {
     key: "robustness_score",

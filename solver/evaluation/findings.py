@@ -1,4 +1,13 @@
-"""DesignFinding 构造辅助 — Phase 3.5。"""
+"""DesignFinding 构造辅助 — Phase 3.5。
+
+Finding 文案纪律（design heuristic ≠ code compliance）：
+
+- 当前 PlanSeed 输出的是**设计启发式**评价，不是规范审查结论。
+- 禁止在 Finding / UI 中轻易写：符合规范、合法、满足消防、满足无障碍、合规通过 等，
+  除非已有明确的 CodeProfile / Jurisdiction / Rule source（尚未实现）。
+- 允许：有利于管井与施工组织、空间过渡更合理、朝向偏好满足 等启发式表述。
+- setbacks=0 / 未提供规划信息 → 不得推断法规结论。
+"""
 
 from __future__ import annotations
 
