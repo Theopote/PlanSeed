@@ -27,6 +27,9 @@ def test_benchmark_compare_guillotine_maxrect_smoke():
         assert 0.0 <= s.diversity <= 1.0
         assert s.runtime_s >= 0.0
         assert s.distinct_layouts >= 1
+        assert s.privacy >= 0.0
+        assert s.environment >= 0.0
+        assert s.mean_repair_count >= 0.0
 
 
 def test_benchmark_deterministic_metrics():

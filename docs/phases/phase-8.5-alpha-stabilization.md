@@ -41,7 +41,7 @@ research：  MaxRect（实现 ✅ · 未产品验收）· multi-gen · pareto ·
 - [x] 固定 fixture：默认 Top-K 角色分布回归（axis）  
   （`solver/fixtures/topk_axis_roles.py` · `test_topk_axis_roles_regression.py`）  
 - [x] **SolverProvenance** 升级（strategy 层：generator / selection / assignment / geometry）  
-- [ ] MaxRect **product qualification**（当前 aspect penalty 约 5.8× 劣于 Guillotine；保持 research）  
+- [ ] MaxRect **product qualification**（须过 [Layout Suite v1](../baselines/layout-benchmark-suite-v1.md)；单 case aspect 劣化不足据）  
 - [ ] 文档：凡写「Phase 8 完成」须注明 **默认语义已 requalify**  
 - [ ] 7.1.1 WebView2 Print Smoke（产品手测，独立于本项）  
 - [ ] **禁止**在稳定化完成前开 Phase 9 / 新算法主线  

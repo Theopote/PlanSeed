@@ -102,15 +102,20 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 | hard_violation_rate | 含 hard violation 的候选比例 |
 | area_fit | valid 上 mean `area_accuracy` |
 | mean_aspect_ratio_penalty / aspect_ratio_quality | 长宽比惩罚（后者 `1/(1+p)`） |
-| circulation | mean `circulation_score` |
+| circulation / privacy / environment | 轴分均值 |
 | orientation | mean `orientation_satisfaction` |
+| mean_repair_count | mean `connection_repairs` |
 | diversity | 几何指纹去重数 / generated |
 | runtime_s | 墙钟时间 |
 
-基线快照：`docs/baselines/layout_generation_guillotine_vs_maxrect.json`（n=32，同 case）
+基线快照：
 
-| | Guillotine | MaxRect |
-|--|------------|---------|
+- **遗留单 case：** `docs/baselines/layout_generation_guillotine_vs_maxrect.json`（≈ B03）  
+- **资格套件：** [layout-benchmark-suite-v1.md](../baselines/layout-benchmark-suite-v1.md)  
+  `uv run python -m solver.benchmark --suite v1 --count 32|64`
+
+| | Guillotine | MaxRect（单 case B03，n=32） |
+|--|------------|------------------------------|
 | valid_rate | 1.0 | 1.0 |
 | area_fit | 0.7533 | 0.7518 |
 | aspect_ratio_quality | 0.037 | **0.007** |
@@ -119,8 +124,8 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 | top_score | 92.31 | 89.08 |
 | mean_score | 88.24 | 87.17 |
 
-**结论：** MaxRect 与 Guillotine 几何完全可分（pairwise diff=1.0），但 **长宽比惩罚约 5.8× 更差**，总分略低。  
-→ **未产品验收**；禁止默认启用或宣称 MaxRect 已合格。
+**结论：** 单 case 已暴露 MaxRect 长宽比惩罚约 5.8× 更差 → **未产品验收**。  
+进入 Alpha candidate pool 前必须过 **Layout Benchmark Suite v1**（B01–B12，n=32/64），不得只看 B03。
 
 **禁止**凭感觉宣称某 strategy 全面更优；以报告数字为准。
 

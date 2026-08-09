@@ -49,22 +49,31 @@ Holdout 过门 ≠ 严格独立泛化证据。
 - **bathrooms**（Holdout 分字段 ≈87.5%）：整体 field 已高；卫浴为已知弱项，禁止逐案 regex 冒充修复
 
 
-## Layout generation（Phase 8.0-C）
+## Layout generation（Phase 8.0-C / Suite v1）
+
+**单 case 不够资格判定。** 请用 Layout Benchmark Suite v1：
+
+详案：[layout-benchmark-suite-v1.md](layout-benchmark-suite-v1.md)
 
 ```bash
+uv run python -m solver.benchmark --suite v1 --count 32
+uv run python -m solver.benchmark --suite v1 --count 64 \
+  --out docs/baselines/layout_benchmark_suite_v1_n64.json
+
+# 旧单 case（仅回归；≠ MaxRect 资格）
 uv run python -m solver.benchmark --count 32
-uv run python -m solver.benchmark --count 32 --out docs/baselines/layout_generation_guillotine_vs_maxrect.json
 ```
 
 | 文件 | 含义 |
 |------|------|
-| `layout_generation_guillotine_vs_maxrect.json` | Guillotine vs MaxRect 同 case 对比快照 |
+| `layout_generation_guillotine_vs_maxrect.json` | **遗留** 单 case B03 快照（n=32） |
+| `layout_benchmark_suite_v1_n32.json` / `_n64.json` | Suite v1 资格跑（生成后提交） |
 
 **资格判定（勿与「实现完成」混淆）：**
 
 | Strategy | Implementation | Product qualified |
 |----------|----------------|-------------------|
 | Guillotine | ✅（Alpha 默认） | ✅（当前默认路径） |
-| MaxRect | ✅ | **❌**（`mean_aspect_ratio_penalty` 166.8 vs Guillotine 28.7） |
+| MaxRect | ✅ | **❌**（须过 Suite v1；单 case aspect penalty 已暴露劣化） |
 
 MaxRect 仅 research / opt-in；禁止因「8.0-B ✅」写成产品已验收。
