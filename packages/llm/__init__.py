@@ -37,6 +37,12 @@ from packages.llm.repair import (
     parse_requirement_text_with_repair,
     parse_with_repair,
 )
+from packages.llm.runtime import (
+    close_shared_requirement_provider,
+    get_shared_requirement_provider,
+    reset_shared_requirement_provider,
+    set_shared_requirement_provider,
+)
 from packages.llm.semantic import (
     RequirementSemanticValidator,
     SemanticIssue,
@@ -65,14 +71,18 @@ __all__ = [
     "StructuredRequirementParser",
     "build_repair_prompt",
     "build_user_prompt",
+    "close_shared_requirement_provider",
     "create_llm_provider",
     "create_requirement_llm_provider",
     "draft_json_schema",
+    "get_shared_requirement_provider",
     "load_ollama_config",
     "parse_requirement_text",
     "parse_requirement_text_with_repair",
     "parse_with_repair",
+    "reset_shared_requirement_provider",
     "resolve_provider_kind",
+    "set_shared_requirement_provider",
     "RequirementSemanticValidator",
     "SemanticIssue",
     "SemanticValidationResult",

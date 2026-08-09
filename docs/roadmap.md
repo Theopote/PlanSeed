@@ -340,6 +340,8 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 - [x] relation 端点分别 soft 校验（`req.relation_a_unknown` / `b`）
 - [x] Benchmark v2：`relations` / `floor_preferences` / `orientations` + unknown P·R
 - [x] Unknown Detection Recall / FPR；Assumption Precision（缺 reason 不计命中）
+- [x] 改进纪律：Benchmark→失败模式→Schema/语义；禁止靠堆 Prompt 提准确率
+- [x] Application LLM Runtime：共享 OllamaProvider / httpx（防连接泄漏）
 - [x] `uv run python -m packages.llm.benchmark.qualify` 真模型 CLI
 - [ ] 完整 `qwen2.5:7b` 跑分写入 `docs/baselines/llm-alpha-baseline.json`
 

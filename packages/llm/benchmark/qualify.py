@@ -19,7 +19,8 @@ from pathlib import Path
 from packages.llm.benchmark.cases import load_benchmark_cases
 from packages.llm.benchmark.report import BenchmarkReport
 from packages.llm.benchmark.runner import run_benchmark
-from packages.llm.factory import create_requirement_llm_provider, load_ollama_config
+from packages.llm.factory import load_ollama_config
+from packages.llm.runtime import get_shared_requirement_provider
 
 
 def run_real_model_qualification(
@@ -32,7 +33,7 @@ def run_real_model_qualification(
     if limit is not None:
         cases = cases[:limit]
     cfg = load_ollama_config()
-    provider = create_requirement_llm_provider()
+    provider = get_shared_requirement_provider()
     return run_benchmark(
         provider=provider,
         cases=cases,

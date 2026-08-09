@@ -51,6 +51,28 @@ Phase 6 框架完成    ≠  LLM 已可靠
 | `assumption_precision` / `assumption_recall` | 显式假设命中；缺 reason 不算命中 |
 | `unknown_precision` | unknowns 列表精确率（与 FPR 互补） |
 
+## 改进回路（禁止 Prompt 堆砌）
+
+当前 system prompt **刻意保持短**：known / assumptions / unknowns、禁几何、勿猜关键未知。这是正确默认。
+
+**禁止**把准确率问题主要靠下列手段「糊过去」：
+
+- 超长 system prompt  
+- 大量 few-shot  
+- 建筑规范百科塞进上下文  
+- 万级 token 指令堆叠  
+
+正确推进顺序：
+
+```text
+Benchmark / Alpha Baseline
+  → 归类失败模式（幻觉 / 漏列 unknown / 关系错 / …）
+  → 修 Schema · Semantic Gate · Normalizer · Repair · 评分契约
+  → 仅当契约无法表达时，才做最小 Prompt 改动
+```
+
+Prompt 是边界说明，不是知识库；可靠度来自可测流水线，不是提示词文学。
+
 ## 运行
 
 本机 Ollama（默认 `127.0.0.1:11434`，模型 `qwen2.5:7b`，timeout 120s）：

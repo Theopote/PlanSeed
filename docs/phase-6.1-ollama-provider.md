@@ -33,7 +33,10 @@ NL HTTP 路由 · Desktop 输入框 · JSON repair 循环 · Agent / RAG · 云�
 packages/llm/
   ollama.py      # OllamaConfig / OllamaProvider / OllamaError*
   factory.py     # create_llm_provider / load_ollama_config
+  runtime.py     # 进程内共享 Requirement Provider（复用 httpx）
 ```
+
+生产 NL 解析经 `get_shared_requirement_provider()`（backend `get_nl_provider`），**不要**每次 `create_requirement_llm_provider()` 后丢弃不 close。
 
 ## Definition of Done
 

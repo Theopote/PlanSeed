@@ -75,6 +75,10 @@ class LLMProvider(Protocol):
 
 实现：`OllamaProvider`（`packages/llm/ollama.py`）；工厂：`create_llm_provider()`。业务层不散落 Ollama URL。
 
+## 改进纪律
+
+Prompt 保持短。准确率靠 **Benchmark → 失败模式 → Schema/语义/Normalizer**，禁止靠堆 few-shot / 长指令冒充可靠。详案见 [phase-6.7](phase-6.7-real-model-qualification.md)。
+
 ## Definition of Done（整 Phase）
 
 1. NL → RequirementSpec 稳定、可验证 ✅（框架）  
