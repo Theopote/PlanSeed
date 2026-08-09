@@ -51,6 +51,9 @@ jobs:
       - name: Mypy (loose baseline — not --strict)
         run: uv run mypy packages solver backend
 
+      - name: pip-audit (Python deps)
+        run: uv run pip-audit
+
   contract:
     name: OpenAPI → TS contract drift
     runs-on: ubuntu-latest
@@ -154,3 +157,11 @@ jobs:
 
       - name: cargo check
         run: cargo check --locked
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit

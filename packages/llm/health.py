@@ -23,6 +23,11 @@ from packages.llm.ollama import (
     OllamaError,
     OllamaProvider,
 )
+from packages.llm.privacy import (
+    OllamaRemoteBlockedError,
+    ollama_endpoint_is_loopback,
+    remote_model_warning,
+)
 
 
 class LlmHealthState(StrEnum):
@@ -40,6 +45,9 @@ class LlmHealthStatus:
     model: str
     detail: str | None = None
     installed_models: tuple[str, ...] = ()
+    base_url: str | None = None
+    endpoint_remote: bool = False
+    remote_blocked: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,6 +56,9 @@ class LlmHealthStatus:
             "model": self.model,
             "detail": self.detail,
             "installed_models": list(self.installed_models),
+            "base_url": self.base_url,
+            "endpoint_remote": self.endpoint_remote,
+            "remote_blocked": self.remote_blocked,
         }
 
 
@@ -66,11 +77,13 @@ def probe_llm_health(
 
     - mock → ModelReady（无外部依赖）
     - ollama → tags 可达且配置模型已安装 → ModelReady
+    - 非 loopback 且未 ALLOW_REMOTE → LLMUnavailable + REMOTE MODEL WARNING
     - 禁止在此路径触发模型下载
     """
     kind = resolve_provider_kind(environ=environ)
     cfg = load_ollama_config(environ=environ)
     model = cfg.model or DEFAULT_OLLAMA_MODEL
+    remote = not ollama_endpoint_is_loopback(cfg.base_url)
 
     if kind == "mock":
         return LlmHealthStatus(
@@ -78,55 +91,105 @@ def probe_llm_health(
             provider="mock",
             model=model,
             detail="mock provider（无需本机模型）",
+            base_url=None,
+            endpoint_remote=False,
+            remote_blocked=False,
         )
+
+    if remote:
+        try:
+            from packages.llm.privacy import enforce_ollama_endpoint_policy
+
+            enforce_ollama_endpoint_policy(cfg.base_url, environ=environ)
+        except OllamaRemoteBlockedError as exc:
+            return LlmHealthStatus(
+                state=LlmHealthState.LLM_UNAVAILABLE,
+                provider="ollama",
+                model=model,
+                detail=str(exc),
+                base_url=cfg.base_url,
+                endpoint_remote=True,
+                remote_blocked=True,
+            )
 
     owns_client = False
     ollama = provider if isinstance(provider, OllamaProvider) else None
     if ollama is None:
         # 短超时探测，避免 health 卡住 UI
         probe_cfg = replace(cfg, timeout_s=min(cfg.timeout_s, 5.0))
-        ollama = OllamaProvider(probe_cfg)
+        ollama = OllamaProvider(
+            probe_cfg, environ=environ, skip_endpoint_policy=True
+        )
         owns_client = True
+
+    warn = remote_model_warning(cfg.base_url) if remote else None
 
     try:
         if not ollama.is_available():
+            detail = f"无法连接 Ollama（{cfg.base_url}）"
+            if warn:
+                detail = f"{warn} · {detail}"
             return LlmHealthStatus(
                 state=LlmHealthState.LLM_UNAVAILABLE,
                 provider="ollama",
                 model=model,
-                detail=f"无法连接 Ollama（{cfg.base_url}）",
+                detail=detail,
+                base_url=cfg.base_url,
+                endpoint_remote=remote,
+                remote_blocked=False,
             )
         try:
             installed = tuple(ollama.list_models())
         except OllamaConnectionError as exc:
+            detail = str(exc)
+            if warn:
+                detail = f"{warn} · {detail}"
             return LlmHealthStatus(
                 state=LlmHealthState.LLM_UNAVAILABLE,
                 provider="ollama",
                 model=model,
-                detail=str(exc),
+                detail=detail,
+                base_url=cfg.base_url,
+                endpoint_remote=remote,
+                remote_blocked=False,
             )
         except OllamaError as exc:
+            detail = str(exc)
+            if warn:
+                detail = f"{warn} · {detail}"
             return LlmHealthStatus(
                 state=LlmHealthState.LLM_UNAVAILABLE,
                 provider="ollama",
                 model=model,
-                detail=str(exc),
+                detail=detail,
+                base_url=cfg.base_url,
+                endpoint_remote=remote,
+                remote_blocked=False,
             )
 
         if not ollama.is_model_available(model):
+            detail = model_missing_message(model)
+            if warn:
+                detail = f"{warn} · {detail}"
             return LlmHealthStatus(
                 state=LlmHealthState.MODEL_MISSING,
                 provider="ollama",
                 model=model,
-                detail=model_missing_message(model),
+                detail=detail,
                 installed_models=installed,
+                base_url=cfg.base_url,
+                endpoint_remote=remote,
+                remote_blocked=False,
             )
         return LlmHealthStatus(
             state=LlmHealthState.MODEL_READY,
             provider="ollama",
             model=model,
-            detail=None,
+            detail=warn,
             installed_models=installed,
+            base_url=cfg.base_url,
+            endpoint_remote=remote,
+            remote_blocked=False,
         )
     finally:
         if owns_client:

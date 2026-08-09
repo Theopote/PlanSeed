@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from packages.schema.limits import API_LIMITS
 from packages.schema.locks import LayoutLocks
 from packages.schema.requirements import RequirementSpec
 from packages.schema.scoring import DesignScore
@@ -23,12 +24,16 @@ class GenerateRequest(BaseModel):
 
     use_benchmark: bool = False
     requirements: RequirementSpec | None = None
-    candidate_count: int | None = Field(default=None, ge=1, le=64)
-    return_top_k: int | None = Field(default=None, ge=1, le=16)
+    candidate_count: int | None = Field(
+        default=None, ge=1, le=API_LIMITS.max_generate_candidates
+    )
+    return_top_k: int | None = Field(
+        default=None, ge=1, le=API_LIMITS.max_generate_return_top_k
+    )
     base_seed: int | None = Field(
         default=None,
         ge=0,
-        le=1_000_000,
+        le=API_LIMITS.max_base_seed,
         description="Phase 4.2：候选种子起点；默认沿用 SolverConfig.base_seed",
     )
     locks: LayoutLocks | None = Field(
@@ -189,7 +194,7 @@ class RejectedCandidatePayload(BaseModel):
 
 
 # 响应中最多带回多少条淘汰样例（调试 / Inspector）
-MAX_REJECTED_SAMPLES = 8
+MAX_REJECTED_SAMPLES = API_LIMITS.max_rejected_samples
 
 
 class GenerateResponse(BaseModel):

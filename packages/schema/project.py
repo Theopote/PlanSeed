@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from packages.schema.constraints import Constraint
+from packages.schema.limits import SOLVER_LIMITS
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import SiteSpec
 
@@ -43,8 +44,8 @@ class ProjectSpec(BaseModel):
 
     site: SiteSpec
     household: HouseholdSpec = Field(default_factory=HouseholdSpec)
-    floors: list[FloorSpec] = Field(min_length=1, max_length=3)
-    rooms: list[RoomSpec] = Field(min_length=1)
+    floors: list[FloorSpec] = Field(min_length=1, max_length=SOLVER_LIMITS.max_floors)
+    rooms: list[RoomSpec] = Field(min_length=1, max_length=SOLVER_LIMITS.max_rooms)
     constraints: list[Constraint] = Field(default_factory=list)
     preferences: PreferencesSpec = Field(default_factory=PreferencesSpec)
 

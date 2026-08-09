@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-I privacy / limits / audit ← 当前 · 7.5-H ✅ · 7.5-G ✅ · 7.5-F ✅ · 7.5-E ✅ · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：✅ Phase 7.5 完成（A–I）· 7.2 ✅ · 不改建筑设计行为 · 下一主线 8.0**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -34,7 +34,7 @@
 | **7.5-F** | LLM Enricher stage 化 | ✅ |
 | **7.5-G** | Hypothesis 不变量 | ✅ |
 | **7.5-H** | pytest-cov 报告（暂不门槛） | ✅ |
-| **7.5-I** | Ollama local 守卫 · RuntimeLimits · audit | **← 当前** |
+| **7.5-I** | Ollama local 守卫 · RuntimeLimits · audit | ✅ |
 
 ## 7.5-A — OpenAPI → TypeScript
 
@@ -164,9 +164,24 @@ CI：`python` job 输出 term 报告 + 上传 `coverage.xml` artifact。
 
 重点观察目录：`solver/constraints` · `solver/locks` · `solver/mutation` · `backend/services` · `packages/persistence`。
 
-## 后续批次（摘要）
+## 7.5-I — Privacy / Limits / Audit
 
-- **I**：非 loopback Ollama 警告/可拦；集中 `RuntimeLimits`；`pip-audit` + `cargo audit`
+### Ollama loopback 守卫
+
+- `packages/llm/privacy.py`：仅允许 `127.0.0.1` / `localhost` / `::1`
+- 非本机默认 **block**（`OllamaRemoteBlockedError` / health → `LLMUnavailable` + `REMOTE MODEL WARNING`）
+- 显式放开：`PLANSEED_OLLAMA_ALLOW_REMOTE=1`（仍在 UI 显示警告）
+- Desktop：`RequirementsPanel` 对 `endpoint_remote` / `remote_blocked` 显示 REMOTE 提示
+
+### RuntimeLimits
+
+`packages/schema/limits.py`：`SOLVER_LIMITS` · `API_LIMITS` · `RUNTIME_LIMITS`  
+SolverConfig / ProjectSpec / GenerateRequest 等引用常量，禁止散落 magic numbers。
+
+### Dependency audit
+
+- CI `python` job：`uv run pip-audit`
+- CI `rust` job：`cargo audit`（`desktop/src-tauri`）
 
 ## Definition of Done（7.5）
 
@@ -178,7 +193,7 @@ CI：`python` job 输出 term 报告 + 上传 `coverage.xml` artifact。
 - [x] Enricher stage 化  
 - [x] Hypothesis 核心 property tests  
 - [x] coverage reporting  
-- [ ] local LLM privacy guard  
-- [ ] dependency audit  
+- [x] local LLM privacy guard  
+- [x] dependency audit  
 
-完成后：功能型 Alpha → **工程上较可靠的 Alpha**。
+完成后：功能型 Alpha → **工程上较可靠的 Alpha**。下一主线：**8.0 Solver 2.0**。

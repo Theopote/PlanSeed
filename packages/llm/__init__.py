@@ -40,6 +40,12 @@ from packages.llm.parser import (
     build_user_prompt,
     parse_requirement_text,
 )
+from packages.llm.privacy import (
+    OllamaRemoteBlockedError,
+    enforce_ollama_endpoint_policy,
+    ollama_endpoint_is_loopback,
+    remote_model_warning,
+)
 from packages.llm.provider import LLMProvider
 from packages.llm.repair import (
     DEFAULT_MAX_REPAIRS,
@@ -79,8 +85,12 @@ __all__ = [
     "OllamaError",
     "OllamaHTTPError",
     "OllamaProvider",
+    "OllamaRemoteBlockedError",
     "OllamaResponseError",
     "ParseResult",
+    "enforce_ollama_endpoint_policy",
+    "ollama_endpoint_is_loopback",
+    "remote_model_warning",
     "StructuredRequirementParser",
     "build_repair_prompt",
     "build_user_prompt",

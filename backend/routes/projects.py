@@ -18,6 +18,7 @@ from packages.schema.identity import (
     GENERATOR_VERSION,
     SOLVER_VERSION,
 )
+from packages.schema.limits import API_LIMITS
 from pydantic import BaseModel, Field
 
 from backend.services.export.svg_exporter import content_disposition_attachment
@@ -68,7 +69,7 @@ class ProjectPayload(BaseModel):
 
 
 class SaveProjectRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    name: str = Field(min_length=1, max_length=API_LIMITS.max_project_name_chars)
     id: str | None = None
     payload: ProjectPayload
 

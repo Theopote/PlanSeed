@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from packages.llm import LLMIngestError, LLMRepairExhaustedError
 from packages.llm.health import LlmHealthState, probe_llm_health
 from packages.llm.ollama import OllamaConnectionError, OllamaHTTPError, OllamaProvider
+from packages.schema.limits import API_LIMITS
 from packages.schema.requirements import RequirementSpec
 from pydantic import BaseModel, Field, field_validator
 
@@ -35,7 +36,7 @@ def _preflight_llm_or_raise() -> None:
 
 
 class ParseNLRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=8000)
+    text: str = Field(min_length=1, max_length=API_LIMITS.max_nl_text_chars)
     max_repairs: int = Field(default=2, ge=0, le=5)
 
     @field_validator("text")

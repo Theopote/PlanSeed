@@ -48,9 +48,9 @@ def test_complete_json_success():
         "unknowns": [{"key": "site.width", "description": "未给"}],
     }
     transport = httpx.MockTransport(_chat_handler(json.dumps(draft)))
-    client = httpx.Client(transport=transport, base_url="http://test")
+    client = httpx.Client(transport=transport, base_url="http://127.0.0.1:11434")
     provider = OllamaProvider(
-        OllamaConfig(base_url="http://test", model="test-model"),
+        OllamaConfig(base_url="http://127.0.0.1:11434", model="test-model"),
         client=client,
     )
     out = provider.complete_json(system="sys", user="两层三卧")
@@ -63,7 +63,7 @@ def test_strips_markdown_fence():
     fenced = "```json\n" + json.dumps(inner) + "\n```"
     transport = httpx.MockTransport(_chat_handler(fenced))
     client = httpx.Client(transport=transport)
-    provider = OllamaProvider(OllamaConfig(base_url="http://t"), client=client)
+    provider = OllamaProvider(OllamaConfig(base_url="http://127.0.0.1:11434"), client=client)
     out = provider.complete_json(system="s", user="u")
     assert out["known"]["floor_count"] == 1
 
@@ -71,7 +71,7 @@ def test_strips_markdown_fence():
 def test_http_error():
     transport = httpx.MockTransport(_chat_handler("{}", status=500))
     client = httpx.Client(transport=transport)
-    provider = OllamaProvider(OllamaConfig(base_url="http://t"), client=client)
+    provider = OllamaProvider(OllamaConfig(base_url="http://127.0.0.1:11434"), client=client)
     with pytest.raises(OllamaHTTPError) as ei:
         provider.complete_json(system="s", user="u")
     assert ei.value.status_code == 500
@@ -82,7 +82,7 @@ def test_connection_error():
         raise httpx.ConnectError("refused", request=request)
 
     client = httpx.Client(transport=httpx.MockTransport(boom))
-    provider = OllamaProvider(OllamaConfig(base_url="http://t"), client=client)
+    provider = OllamaProvider(OllamaConfig(base_url="http://127.0.0.1:11434"), client=client)
     with pytest.raises(OllamaConnectionError):
         provider.complete_json(system="s", user="u")
 
@@ -90,7 +90,7 @@ def test_connection_error():
 def test_invalid_json_content():
     transport = httpx.MockTransport(_chat_handler("not-json{"))
     client = httpx.Client(transport=transport)
-    provider = OllamaProvider(OllamaConfig(base_url="http://t"), client=client)
+    provider = OllamaProvider(OllamaConfig(base_url="http://127.0.0.1:11434"), client=client)
     with pytest.raises(OllamaResponseError):
         provider.complete_json(system="s", user="u")
 
@@ -98,7 +98,7 @@ def test_invalid_json_content():
 def test_non_object_json():
     transport = httpx.MockTransport(_chat_handler("[1,2,3]"))
     client = httpx.Client(transport=transport)
-    provider = OllamaProvider(OllamaConfig(base_url="http://t"), client=client)
+    provider = OllamaProvider(OllamaConfig(base_url="http://127.0.0.1:11434"), client=client)
     with pytest.raises(OllamaResponseError):
         provider.complete_json(system="s", user="u")
 
@@ -109,7 +109,7 @@ def test_is_available():
         return httpx.Response(200, json={"models": []})
 
     client = httpx.Client(transport=httpx.MockTransport(tags_ok))
-    provider = OllamaProvider(OllamaConfig(base_url="http://t"), client=client)
+    provider = OllamaProvider(OllamaConfig(base_url="http://127.0.0.1:11434"), client=client)
     assert provider.is_available() is True
 
 
@@ -134,7 +134,7 @@ def test_is_model_available_exact_and_latest_alias():
 
     client = httpx.Client(transport=httpx.MockTransport(tags))
     provider = OllamaProvider(
-        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        OllamaConfig(base_url="http://127.0.0.1:11434", model="qwen2.5:7b"),
         client=client,
     )
     assert provider.is_model_available() is True
@@ -149,7 +149,7 @@ def test_is_model_available_server_down():
 
     client = httpx.Client(transport=httpx.MockTransport(boom))
     provider = OllamaProvider(
-        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        OllamaConfig(base_url="http://127.0.0.1:11434", model="qwen2.5:7b"),
         client=client,
     )
     assert provider.is_available() is False
@@ -184,7 +184,7 @@ def test_factory_ollama_uses_injected_client():
     client = httpx.Client(transport=transport)
     provider = create_llm_provider(
         "ollama",
-        ollama_config=OllamaConfig(base_url="http://t", model="m"),
+        ollama_config=OllamaConfig(base_url="http://127.0.0.1:11434", model="m"),
         ollama_client=client,
     )
     assert isinstance(provider, OllamaProvider)

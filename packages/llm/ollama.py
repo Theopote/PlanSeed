@@ -61,8 +61,14 @@ class OllamaProvider:
         config: OllamaConfig | None = None,
         *,
         client: httpx.Client | None = None,
+        environ: dict[str, str] | None = None,
+        skip_endpoint_policy: bool = False,
     ) -> None:
         self.config = config or OllamaConfig()
+        if not skip_endpoint_policy:
+            from packages.llm.privacy import enforce_ollama_endpoint_policy
+
+            enforce_ollama_endpoint_policy(self.config.base_url, environ=environ)
         self._owns_client = client is None
         self._client = client or httpx.Client(timeout=self.config.timeout_s)
 

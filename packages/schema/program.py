@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from packages.schema.constraints import Constraint
 from packages.schema.entry import ExteriorEntrySpec
 from packages.schema.floor_assignment import FloorAssignment
+from packages.schema.limits import SOLVER_LIMITS
 from packages.schema.project import ProjectSpec
 from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
@@ -15,8 +16,8 @@ from packages.schema.topology import AccessGraph, RoomGraph, TopologyPlan
 
 
 class SolverConfig(BaseModel):
-    candidate_count: int = Field(default=32, ge=1, le=256)
-    return_top_k: int = Field(default=5, ge=1, le=32)
+    candidate_count: int = Field(default=32, ge=1, le=SOLVER_LIMITS.max_candidates)
+    return_top_k: int = Field(default=5, ge=1, le=SOLVER_LIMITS.max_return_top_k)
     base_seed: int = Field(default=42)
     snap_module: float = Field(default=0.3, gt=0)
     min_diversity_threshold: float | None = Field(
@@ -34,11 +35,13 @@ class SolverConfig(BaseModel):
     max_connection_repairs: int = Field(
         default=8,
         ge=0,
+        le=SOLVER_LIMITS.max_connection_repairs,
         description="ConnectionResolver 最大修补次数（含 gap/lengthen）",
     )
     max_connection_reslices: int = Field(
         default=3,
         ge=0,
+        le=SOLVER_LIMITS.max_connection_reslices,
         description="跨区局部重切上限",
     )
     max_modified_area_ratio: float = Field(

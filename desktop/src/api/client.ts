@@ -96,6 +96,9 @@ export type LlmStatusPayload = {
   model: string;
   detail: string | null;
   installed_models: string[];
+  base_url?: string | null;
+  endpoint_remote?: boolean;
+  remote_blocked?: boolean;
 };
 
 /** 浏览器用默认端口；Tauri 内从 get_engine_url 覆盖。 */

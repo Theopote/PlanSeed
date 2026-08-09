@@ -35,6 +35,14 @@ from packages.schema.layout import (
     WetStack,
     ZonePlacement,
 )
+from packages.schema.limits import (
+    API_LIMITS,
+    RUNTIME_LIMITS,
+    SOLVER_LIMITS,
+    ApiLimits,
+    RuntimeLimits,
+    SolverLimits,
+)
 from packages.schema.lineage import lineage_label, locks_fingerprint
 from packages.schema.llm_contract import LLMKnownFacts, LLMRequirementDraft
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
@@ -101,10 +109,12 @@ from packages.schema.topology import (
 )
 
 __all__ = [
+    "API_LIMITS",
     "AccessConstraint",
     "AccessGraph",
     "AdjacencyConstraint",
     "AlignmentConstraint",
+    "ApiLimits",
     "AreaConstraint",
     "Assumption",
     "CandidateValidation",
@@ -149,6 +159,7 @@ __all__ = [
     "PreferencesSpec",
     "ProjectSpec",
     "ProjectMetadata",
+    "RUNTIME_LIMITS",
     "RealizedConnection",
     "RelationIntent",
     "RepairRecord",
@@ -173,12 +184,15 @@ __all__ = [
     "DesignReportPayload",
     "EvaluationSummary",
     "FloorPlanBlock",
+    "RuntimeLimits",
+    "SOLVER_LIMITS",
     "SOLVER_VERSION",
     "SemanticRole",
     "SeparationConstraint",
     "SetbackSpec",
     "SiteSpec",
     "SolverConfig",
+    "SolverLimits",
     "SpaceConnection",
     "SpaceConnectionType",
     "SpaceRequirement",

@@ -73,7 +73,7 @@ def create_llm_provider(
             raise ValueError("create_llm_provider(kind='mock') 需要 mock_responses")
         return MockLLMProvider(mock_responses)
     cfg = ollama_config or load_ollama_config(environ=environ)
-    return OllamaProvider(cfg, client=ollama_client)
+    return OllamaProvider(cfg, client=ollama_client, environ=environ)
 
 
 def create_requirement_llm_provider(

@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **主线：7.5 Alpha Hardening ← 当前（7.5-I privacy/limits/audit）→ 8.0 Solver 2.0**（7.5-A–H ✅ · 7.2 ✅ · 7.1.1 Print ☐）  
-> Phase 6 **彻底冻结** · **7.2 Alpha Product Loop Complete**  
+> **主线：8.0 Solver 2.0 ← 当前 · 7.5 Alpha Hardening ✅（A–I）· 7.2 ✅ · 7.1.1 Print ☐**  
+> Phase 6 **彻底冻结** · **7.2 Alpha Product Loop Complete** · **7.5 Engineering Hardening Complete**  
 > 收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · 硬化：[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)
 
 ## 项目状态（阶段判断）
@@ -15,8 +15,8 @@
 | **7.1** | **Report Presentation** | **✅ Engineering** |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
-| **7.5** | **Alpha Engineering Hardening** | **← 当前**（7.5-I；7.5-A–H ✅） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
+| **7.5** | **Alpha Engineering Hardening** | **✅**（A–I） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **← 当前** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 
 ```text
@@ -27,15 +27,15 @@
 7.1       Report Presentation               ✅ Engineering
 7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
 7.2       Export Formats                    ✅ Alpha Product Loop
-7.5       Alpha Engineering Hardening       ← 当前（7.5-I；7.5-A–H ✅）
-8.0       Solver Diversity / Solver 2.0     ← 后续
+7.5       Alpha Engineering Hardening       ✅（A–I）
+8.0       Solver Diversity / Solver 2.0     ← 当前
 8.x       Advanced Site / Code / Interop    ← 更后
 ```
 
 ```text
 纪律：发现一个问题 ≠ 新开一个 Phase。
 优化建议（mypy 渐进 / OpenAPI / 持久化 / Solver 多样性 / LLM 可维护性）
-  → 进 7.5 或 8.0；7.2 已关闭。
+  → 进 8.0 backlog；7.2 / 7.5 已关闭。
 现在不做：重开 Phase 6 · Shapely/CP-SAT/GA · 全面 strict mypy · Canva 品牌。
 产品问题：生成的东西能不能离开 PlanSeed？→ 7.2 已答「能」。
 ```
@@ -59,8 +59,8 @@
 | **7.1** | **Report Presentation** | **✅ Engineering**（收口 7.1.1） |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅** |
-| **7.5** | **Alpha Engineering Hardening** | **← 当前**（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
+| **7.5** | **Alpha Engineering Hardening** | **✅**（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **← 当前** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -424,7 +424,7 @@ qualify --gate：git worktree dirty → 直接拒绝（防 baseline SHA ≠ 未�
 
 ---
 
-## Phase 7 — Deliverables / Export ← 当前
+## Phase 7 — Deliverables / Export ✅
 
 详案：[phase-7-deliverables.md](phase-7-deliverables.md)
 
@@ -439,11 +439,11 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.1** | Report Presentation | ✅ Engineering |
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke 待手测勾选 |
 | **7.2** | Export Formats | **✅**（SVG · PNG · JSON · Print · Export Dialog） |
-| **7.5** | Alpha Engineering Hardening | **← 当前**（[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | Solver Diversity / Solver 2.0 | 后续研究；禁止提前塞进 7.x |
+| **7.5** | Alpha Engineering Hardening | **✅**（[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
+| **8.0** | Solver Diversity / Solver 2.0 | **← 当前**；禁止提前塞进 7.x |
 | **8.x** | Advanced Site / Code / Interop | 更后 |
 
-**纪律：** 发现问题 → 记入 7.5/8  backlog，**禁止**每发现一问题就新开 Phase。  
+**纪律：** 发现问题 → 记入 8.0 backlog，**禁止**每发现一问题就新开 Phase。  
 **PDF：** `HTML → Print`。**SVG：** Store + `revision_id`。**PNG：** SVG→光栅。**JSON：** DesignReport ≠ Project Snapshot。  
 详收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md)。
 
@@ -537,7 +537,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **7.5-I** → **8.0**（7.5-A–H ✅ · 7.2 ✅ · Phase 6 冻结 · 7.1.1 Print ☐） |
+| **当前主线** | **8.0**（7.5 ✅ · 7.2 ✅ · Phase 6 冻结 · 7.1.1 Print ☐） |
 
 ---
 

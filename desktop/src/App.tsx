@@ -244,6 +244,8 @@ function App() {
           llmState={engine.displayLlmState}
           llmModel={engine.llmStatus?.model ?? null}
           llmDetail={engine.llmStatus?.detail ?? null}
+          llmEndpointRemote={engine.llmStatus?.endpoint_remote ?? false}
+          llmRemoteBlocked={engine.llmStatus?.remote_blocked ?? false}
           program={candidate.program}
           requirementSpec={requirement.requirementSpec}
           onUpdateAssumption={requirement.onUpdateAssumption}

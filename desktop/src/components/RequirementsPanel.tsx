@@ -28,6 +28,8 @@ type Props = {
   llmState?: LlmHealthState | null;
   llmModel?: string | null;
   llmDetail?: string | null;
+  llmEndpointRemote?: boolean;
+  llmRemoteBlocked?: boolean;
   program: ProgramSummary | null;
   requirementSpec: RequirementSpecPayload | null;
   onUpdateAssumption: (
@@ -112,6 +114,8 @@ export function RequirementsPanel({
   llmState = null,
   llmModel = null,
   llmDetail = null,
+  llmEndpointRemote = false,
+  llmRemoteBlocked = false,
   program,
   requirementSpec,
   onUpdateAssumption,
@@ -203,8 +207,21 @@ export function RequirementsPanel({
             {llmModel ? ` · ${llmModel}` : ""}
           </p>
         ) : null}
-        {llmState === "ModelMissing" && llmDetail ? (
+        {llmState === "ModelMissing" &&
+        llmDetail &&
+        !llmDetail.includes("REMOTE MODEL WARNING") ? (
           <p className="warn-hint llm-hint">{llmDetail}</p>
+        ) : null}
+        {llmEndpointRemote || llmRemoteBlocked ? (
+          <p
+            className={`warn-hint llm-hint ${
+              llmRemoteBlocked ? "is-live-bad" : "is-live-warn"
+            }`}
+          >
+            {llmDetail?.includes("REMOTE MODEL WARNING")
+              ? llmDetail
+              : "REMOTE MODEL WARNING: Ollama 指向非本机。PlanSeed 为 local-first；生产请用 loopback。若确需远程，设置 PLANSEED_OLLAMA_ALLOW_REMOTE=1。"}
+          </p>
         ) : null}
         {(engineStatus === "ERROR" ||
           engineStatus === "STOPPED" ||

@@ -24,7 +24,7 @@ def test_probe_model_missing():
 
     client = httpx.Client(transport=httpx.MockTransport(tags))
     provider = OllamaProvider(
-        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        OllamaConfig(base_url="http://127.0.0.1:11434", model="qwen2.5:7b"),
         client=client,
     )
     status = probe_llm_health(
@@ -45,7 +45,7 @@ def test_probe_model_ready():
 
     client = httpx.Client(transport=httpx.MockTransport(tags))
     provider = OllamaProvider(
-        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        OllamaConfig(base_url="http://127.0.0.1:11434", model="qwen2.5:7b"),
         client=client,
     )
     status = probe_llm_health(
@@ -64,7 +64,7 @@ def test_probe_unavailable():
 
     client = httpx.Client(transport=httpx.MockTransport(boom))
     provider = OllamaProvider(
-        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        OllamaConfig(base_url="http://127.0.0.1:11434", model="qwen2.5:7b"),
         client=client,
     )
     status = probe_llm_health(
