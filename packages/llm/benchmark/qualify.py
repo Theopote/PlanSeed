@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from packages.llm.benchmark.blind_cases_v2 import BLIND_VERSION, load_blind_cases
+from packages.llm.benchmark.blind_cases_v3 import BLIND_VERSION, load_blind_cases
 from packages.llm.benchmark.cases import load_benchmark_cases
 from packages.llm.benchmark.gates import evaluate_alpha_gates
 from packages.llm.benchmark.holdout_cases import HOLDOUT_VERSION, load_holdout_cases

@@ -45,7 +45,7 @@ FORBIDDEN_GEOMETRY_KEYS: frozenset[str] = frozenset(
 # 仅在非 site / 非 space 尺寸上下文中禁止
 _CONTEXTUAL_SIZE_KEYS: frozenset[str] = frozenset({"width", "depth", "area"})
 
-SYSTEM_PROMPT_SKELETON = """你是 PlanSeed 住宅需求解析器。
+SYSTEM_PROMPT_SKELETON = """你是 PlanSeed 住宅需求解析器（Hybrid：草稿由你提出，确定性层会校验）。
 
 只输出 JSON，形状必须符合 LLMRequirementDraft：
 - known: 用户明确说出的事实
@@ -56,6 +56,8 @@ SYSTEM_PROMPT_SKELETON = """你是 PlanSeed 住宅需求解析器。
 site.width/depth 与 spaces[].target_area 是需求量，允许。
 不要生成完整 RoomSpec 表或求解器内部字段。
 不要擅自补全卧室数、卫生间数、场地尺寸等关键未知；用 unknowns 或带 reason 的 assumptions。
+relation_intents 仅在原文有明确二元谓词时填写（靠近/连通/相连/远离/不要靠等）；两端共现不够。
+preferences.prefer_south_facing_living 仅当客厅/起居明确朝南或南向。
 """
 
 

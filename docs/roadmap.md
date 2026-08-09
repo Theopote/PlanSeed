@@ -15,8 +15,7 @@
 | **7** | **Deliverables / Export** | ⏸ Blind 过门后 |
 
 ```text
-现在做：Blind v2 已 FAIL → Development 一般规律（非无限 regex）→ Blind v3  
-架构定性：Hybrid Semantic Parser（见 hybrid-semantic-parser.md）  
+现在做：Blind v3 单次跑分（Hybrid：禁逐案 regex）  
 不做：开工 Phase 7 · 对着 Blind 逐案加 regex · 回头改 solver
 ```
 
@@ -378,21 +377,18 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 | Field / Rel F1·P / Case pass | 96.2% / 82.4%·75% / 76.7% |
 | Unknown P·R / Assumption P | 100%·89% / 100% |
 
-### Phase 6.7.2 — Blind Requalification ← 当前（v2 FAIL）
+### Phase 6.7.2 — Blind Requalification ← 当前（v3 待跑）
 
-详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)
+详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ```text
-Blind v1：Gate FAIL（field 77% · case pass 30%）
-Blind v2：Gate FAIL（field 88.5% · case pass 77% · parse 93% · rel-P 73%）
-相对 v1 标量/场地明显改善，但仍未过门
-禁止：对着 Blind 逐案加规则
-允许：Development 一般规律 → Blind v3 再单次跑
+Blind v1 / v2：Gate FAIL（已归档）
+Development：标量口语 + 关系证据收紧 + 南向/车库一般规律（非 Blind 逐案）
+下一：Blind v3 单次 Pipeline
 ```
 
-- [x] Blind Set v1（53 条）单次入库 FAIL
-- [x] Development 口语标量一般规律（中文数字场地/卫浴/车位等）
-- [x] Blind Set v2（44 条）单次入库 FAIL
+- [x] Blind v1 / v2 单次入库 FAIL
+- [x] Hybrid Semantic Parser 定性（禁无限扩 regex）
 - [ ] Blind v3 Gate PASS → Strict Alpha Qualified → Phase 7
 
 ---

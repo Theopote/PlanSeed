@@ -33,6 +33,7 @@ REPAIR_PROMPT_TEMPLATE = """上次输出未通过 PlanSeed 校验。请输出修
 - 删除一切几何字段（x/y、墙、门、SVG、placements 等）
 - known / assumptions / unknowns 结构正确
 - 楼层偏好须在 floor_count 范围内（F1…）
+- relation_intents 无原文谓词则删除；不要因房间共现臆造 near
 - 不确定的关键项放入 unknowns，不要编造
 """
 

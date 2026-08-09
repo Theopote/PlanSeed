@@ -1,6 +1,6 @@
 """Phase 6.6–6.7.2 — Requirement Benchmark 包。"""
 
-from packages.llm.benchmark.blind_cases_v2 import (
+from packages.llm.benchmark.blind_cases_v3 import (
     BLIND_VERSION,
     blind_case_count,
     load_blind_cases,

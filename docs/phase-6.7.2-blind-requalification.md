@@ -1,8 +1,8 @@
 # Phase 6.7.2 — Blind Requalification
 
-> **状态：Blind v2 ❌ Gate FAIL（已单次入库）；禁止对着 Blind 调规则**  
-> 前置：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md)  
-> 下一：Development 一般规律改进 → **Blind v3** → 过门后再进 [phase-7-deliverables.md](phase-7-deliverables.md)
+> **状态：Blind v2 ❌ FAIL 已归档；当前严格资格 = Blind v3（待单次跑分）**  
+> 前置：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)  
+> 下一：Blind v3 单次 Pipeline → PASS 后进 Phase 7；FAIL 则 Development 一般规律 → Blind v4
 
 ## 为什么还要 6.7.2
 
@@ -32,7 +32,7 @@ Pipeline 对「已参与规则设计的 30 句」可过门
 | Current 30-case Holdout | ✅ Passed（工程证据，非严格独立） |
 | Blind v1 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v1.json`） |
 | Blind v2 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v2.json`） |
-| Blind v3 | ⏳ 下一严格资格语料 |
+| Blind v3 | ⏳ 当前严格资格语料 |
 | Phase 7 | ⏸ Blind Gate PASS 后再开 |
 
 ## 本阶段唯一目标

@@ -174,6 +174,47 @@ def test_enrich_oral_chinese_site_and_scalars():
     assert no_park.draft.known.household.has_garage is False
 
 
+def test_enrich_south_living_either_order_and_garage_soft():
+    """南向客厅语序；有车库更好≠has_garage。"""
+    south = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层三卧，南向客厅，地块未定")
+    )
+    assert south.draft.known.preferences.prefer_south_facing_living is True
+    living = next(s for s in south.draft.known.spaces if s.name == "客厅")
+    assert str(living.preferred_orientation) == "south"
+
+    soft = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层三卧，有车库更好，场地未定")
+    )
+    assert soft.draft.known.household.has_garage is None
+
+
+def test_enrich_rejects_global_near_cue_false_positive():
+    """两端共现 + 文中别处「近」不足以保留 near。"""
+    draft = LLMRequirementDraft(
+        raw_text="两层三卧，客厅朝南，厨房和餐厅都要，书房近一点采光",
+        known={  # type: ignore[arg-type]
+            "floor_count": 2,
+            "spaces": [{"name": "厨房"}, {"name": "餐厅"}, {"name": "书房"}],
+            "relation_intents": [
+                {"a": "厨房", "b": "餐厅", "kind": "near"},
+            ],
+        },
+    )
+    out = enrich_requirement_draft(draft)
+    assert not any(
+        r.kind == "near" and {r.a, r.b} == {"厨房", "餐厅"}
+        for r in out.draft.known.relation_intents
+    )
+    grounded = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层三卧，厨房和餐厅近一点")
+    )
+    assert any(
+        r.kind == "near" and {r.a, r.b} == {"厨房", "餐厅"}
+        for r in grounded.draft.known.relation_intents
+    )
+
+
 def test_enrich_drops_llm_inference_assumptions():
     draft = LLMRequirementDraft(
         raw_text="两层三卧",
