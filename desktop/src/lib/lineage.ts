@@ -19,15 +19,38 @@ function sortKeys(value: unknown): unknown {
 }
 
 function locksToDump(locks: LayoutLocks | null | undefined): Record<string, unknown> {
-  return {
-    rooms: (locks?.rooms ?? []).map((r) => ({
+  const rooms = [...(locks?.rooms ?? [])]
+    .map((r) => ({
       room_id: r.room_id,
       floor_id: r.floor_id,
       x: r.x,
       y: r.y,
       width: r.width,
       depth: r.depth,
-    })),
+    }))
+    .sort((a, b) => {
+      const ka = `${a.room_id}\0${a.floor_id}\0${a.x}\0${a.y}\0${a.width}\0${a.depth}`;
+      const kb = `${b.room_id}\0${b.floor_id}\0${b.x}\0${b.y}\0${b.width}\0${b.depth}`;
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+  const zones = [...(locks?.zones ?? [])]
+    .map((z) => ({
+      zone: z.zone,
+      floor_id: z.floor_id,
+      x: z.x,
+      y: z.y,
+      width: z.width,
+      depth: z.depth,
+      room_ids: [...(z.room_ids ?? [])].map(String).sort(),
+      zone_id: z.zone_id ?? null,
+    }))
+    .sort((a, b) => {
+      const ka = `${a.zone}\0${a.floor_id}\0${a.x}\0${a.y}\0${a.width}\0${a.depth}\0${a.room_ids.join(",")}\0${a.zone_id ?? ""}`;
+      const kb = `${b.zone}\0${b.floor_id}\0${b.x}\0${b.y}\0${b.width}\0${b.depth}\0${b.room_ids.join(",")}\0${b.zone_id ?? ""}`;
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+  return {
+    rooms,
     stair: locks?.stair
       ? {
           x: locks.stair.x,
@@ -37,16 +60,7 @@ function locksToDump(locks: LayoutLocks | null | undefined): Record<string, unkn
           core_placement: locks.stair.core_placement ?? null,
         }
       : null,
-    zones: (locks?.zones ?? []).map((z) => ({
-      zone: z.zone,
-      floor_id: z.floor_id,
-      x: z.x,
-      y: z.y,
-      width: z.width,
-      depth: z.depth,
-      room_ids: [...(z.room_ids ?? [])],
-      zone_id: z.zone_id ?? null,
-    })),
+    zones,
   };
 }
 

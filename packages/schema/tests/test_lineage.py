@@ -33,6 +33,14 @@ def test_locks_fingerprint_changes_with_room():
     assert empty != locked
 
 
+def test_locks_fingerprint_rooms_list_order_independent():
+    a = LockedRoomRect(room_id="a", floor_id="F1", x=1, y=2, width=3, depth=4)
+    b = LockedRoomRect(room_id="b", floor_id="F1", x=5, y=6, width=2, depth=2)
+    assert locks_fingerprint(LayoutLocks(rooms=[a, b])) == locks_fingerprint(
+        LayoutLocks(rooms=[b, a])
+    )
+
+
 def test_locks_fingerprint_order_independent_for_dict_keys():
     # model_dump + sort_keys；同内容同指纹
     locks = LayoutLocks(

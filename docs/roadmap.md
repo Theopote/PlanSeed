@@ -1,6 +1,6 @@
 # PlanSeed 路线图
 
-> **主线：7.5 Alpha Hardening ← 当前（7.5-G Hypothesis）→ 8.0 Solver 2.0**（7.5-A–F ✅ · 7.2 ✅ · 7.1.1 Print ☐）  
+> **主线：7.5 Alpha Hardening ← 当前（7.5-H coverage）→ 8.0 Solver 2.0**（7.5-A–G ✅ · 7.2 ✅ · 7.1.1 Print ☐）  
 > Phase 6 **彻底冻结** · **7.2 Alpha Product Loop Complete**  
 > 收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · 硬化：[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)
 
@@ -15,7 +15,7 @@
 | **7.1** | **Report Presentation** | **✅ Engineering** |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
-| **7.5** | **Alpha Engineering Hardening** | **← 当前**（7.5-G Hypothesis；7.5-A–F ✅） |
+| **7.5** | **Alpha Engineering Hardening** | **← 当前**（7.5-H coverage；7.5-A–G ✅） |
 | **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 
@@ -27,7 +27,7 @@
 7.1       Report Presentation               ✅ Engineering
 7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
 7.2       Export Formats                    ✅ Alpha Product Loop
-7.5       Alpha Engineering Hardening       ← 当前（7.5-G；7.5-A–F ✅）
+7.5       Alpha Engineering Hardening       ← 当前（7.5-H；7.5-A–G ✅）
 8.0       Solver Diversity / Solver 2.0     ← 后续
 8.x       Advanced Site / Code / Interop    ← 更后
 ```
@@ -537,7 +537,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **7.5-G** → … → **8.0**（7.5-A–F ✅ · 7.2 ✅ · Phase 6 冻结 · 7.1.1 Print ☐） |
+| **当前主线** | **7.5-H** → … → **8.0**（7.5-A–G ✅ · 7.2 ✅ · Phase 6 冻结 · 7.1.1 Print ☐） |
 
 ---
 

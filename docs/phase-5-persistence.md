@@ -75,7 +75,7 @@ LayoutLocks → model_dump / 等价 JSON → sort_keys → sha256 → 前 16 hex
 ## Definition of Done
 
 1. Create Variant 后 Strip 可见代数与父提示  
-2. 同锁同指纹（Python 测）  
+2. 同锁同指纹（Python 测）；rooms/zones **列表序无关**（Phase 7.5-G 规范化）  
 3. Save → Open 恢复候选树、锁、选中项  
 4. 旧 evaluation_version 快照触发 mismatch 提示  
 5. 现有 generate / lock / mutation 回归仍绿

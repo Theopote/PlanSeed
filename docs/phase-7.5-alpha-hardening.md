@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-G Hypothesis ← 当前 · 7.5-F ✅ · 7.5-E ✅ · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：▶ 7.5-H coverage ← 当前 · 7.5-G ✅ · 7.5-F ✅ · 7.5-E ✅ · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -32,8 +32,8 @@
 | **7.5-D** | `.planseed` ZIP 项目包 | ✅ |
 | **7.5-E** | `App.tsx` → hooks 拆分 | ✅ |
 | **7.5-F** | LLM Enricher stage 化 | ✅ |
-| **7.5-G** | Hypothesis 不变量 | **← 当前** |
-| **7.5-H** | pytest-cov 报告（暂不门槛） | |
+| **7.5-G** | Hypothesis 不变量 | ✅ |
+| **7.5-H** | pytest-cov 报告（暂不门槛） | **← 当前** |
 | **7.5-I** | Ollama local 守卫 · RuntimeLimits · audit | |
 
 ## 7.5-A — OpenAPI → TypeScript
@@ -138,9 +138,22 @@ scalar → assumptions → unknowns → spaces → relations → floor → orien
 
 `EnrichmentStage` Protocol + 可选 `StageProvenance`；公开 API 仍为 `enrich_requirement_draft` / `extract_space_names` 等。
 
+## 7.5-G — Hypothesis 核心不变量
+
+依赖：`hypothesis`（dev）。测试：`solver/tests/test_hypothesis_invariants.py`。
+
+| 域 | 不变量（示例） |
+|----|----------------|
+| Rect | area≥0 · 无 NaN · intersection↔intersects · shared_edge 对称 |
+| locks | 指纹确定 · **rooms/zones 列表序无关**（Python + TS 对齐） |
+| mutation | preview 不崩 · 无 NaN · 撞锁占位硬拒 |
+| access / doors | 建图与开门不崩 · 有限几何 |
+| checker | 生成候选上 check 不崩 |
+| regenerate | Room Lock 矩形不变 |
+
 ## 后续批次（摘要）
 
-- **G/H**：Hypothesis 核心不变量；coverage 先观察  
+- **H**：`pytest-cov` 先报告；**暂不** coverage&lt;90 CI fail  
 - **I**：非 loopback Ollama 警告/可拦；集中 Limits；`pip-audit` + `cargo audit`
 
 ## Definition of Done（7.5）
@@ -151,7 +164,7 @@ scalar → assumptions → unknowns → spaces → relations → floor → orien
 - [x] `.planseed` project package  
 - [x] App orchestration 拆分  
 - [x] Enricher stage 化  
-- [ ] Hypothesis 核心 property tests  
+- [x] Hypothesis 核心 property tests  
 - [ ] coverage reporting  
 - [ ] local LLM privacy guard  
 - [ ] dependency audit  
