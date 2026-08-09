@@ -307,9 +307,13 @@ Cover / Executive Summary
 
 ### B. Floor Plan = 视觉核心
 
-每层独立页 · 楼层标题 · 北向 · 尺度说明 · 图例 · 留白 · 打印分页。  
+每层独立页 · 楼层标题 · **真实北向** · 尺度说明 · 图例 · 留白 · 打印分页。  
 接近建筑方案报告，避免 Web UI 截图感。  
 （房间标签 / 面积标注仍消费既有 SVG；本阶段不切 SVG DOM。）
+
+**北向（P0）：** `FloorPlanBlock.north_angle_deg` ← `SiteCoordinateSystem` / `requirement.site.north_angle`  
+（或 assumption）。HTML 用 `rotate(-north_angle)` 指向世界北。  
+**未知 → 显示「北向未定义」，禁止默认 ↑N。** Renderer 不重新解释坐标系。
 
 ### C. Space Schedule 建筑化
 
@@ -335,7 +339,7 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 ### Definition of Done（7.1）
 
 1. [x] Cover / 编号章节信息层级（HTML）  
-2. [x] 平面章节：独立页样式 · 北向 · 尺度/图例 · print page-break  
+2. [x] 平面章节：独立页样式 · **真实北向**（未知不画假 ↑N）· 尺度/图例 · print page-break  
 3. [x] 面积表：目标/实际/差值/宽×深；主表无 room_id  
 4. [x] `report_evaluation_presenter`：档位 + top strengths/concerns（仅 DesignFinding）  
 5. [x] Assumptions/Unknowns 后置；blocking 首页提示  

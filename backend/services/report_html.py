@@ -18,6 +18,7 @@ from packages.schema.report_i18n import (
 )
 
 from backend.services.report_evaluation_presenter import present_evaluation
+from backend.services.report_orientation import north_arrow_css_rotation_deg
 from backend.services.report_svg_sanitize import sanitize_report_svg
 
 
@@ -169,13 +170,14 @@ def render_report_html(report: DesignReport) -> str:
     plans = ""
     for fp in r.floor_plans:
         safe_svg = sanitize_report_svg(fp.svg)
+        north_meta = _north_compass_html(locale, fp.north_angle_deg)
         plans += f"""
       <section class="plan-page">
         <header class="plan-head">
           <h3>{html.escape(fp.label)}</h3>
           <div class="plan-meta">
             <span class="floor-id">{html.escape(fp.floor_id)}</span>
-            {_north_compass(tr(locale, "meta.north"))}
+            {north_meta}
           </div>
         </header>
         <div class="svg-wrap">{safe_svg}</div>
@@ -398,12 +400,24 @@ _REPORT_CSS = """
   .plan-head h3 { margin: 0; font-size: 1rem; }
   .plan-meta { display: flex; align-items: center; gap: 0.75rem; color: var(--muted);
     font-family: "Segoe UI", "PingFang SC", sans-serif; font-size: 0.8rem; }
+  .north-wrap {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 0.1rem;
+  }
   .north {
     display: inline-flex; flex-direction: column; align-items: center;
-    width: 28px; line-height: 1; color: var(--ink);
+    width: 2rem; line-height: 1; color: var(--ink);
+    transform-origin: 50% 45%;
   }
   .north .arrow { font-size: 0.95rem; }
   .north .n { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; }
+  .north-angle {
+    font-size: 0.65rem; color: var(--muted); margin-top: 0.15rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
+  .north-undefined {
+    font-size: 0.72rem; color: var(--muted);
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
   .svg-wrap {
     margin-top: 0.35rem; overflow: auto; border: 1px solid var(--line);
     background: #fff; padding: 1.25rem 1rem;
@@ -470,11 +484,25 @@ def _schedule_row_html(row: Any) -> str:
     )
 
 
-def _north_compass(label: str) -> str:
+def _north_compass_html(locale: Any, north_angle_deg: float | None) -> str:
+    """北针 = SiteCoordinateSystem 投影；未知则不画假 ↑N。"""
+    if north_angle_deg is None:
+        return (
+            f'<span class="north-undefined">'
+            f"{html.escape(tr(locale, 'meta.north_undefined'))}"
+            f"</span>"
+        )
+    rot = north_arrow_css_rotation_deg(north_angle_deg)
+    label = tr(locale, "meta.north")
+    title = f"{label} · north_angle={north_angle_deg:.0f}°"
     return (
-        f'<span class="north" title="{html.escape(label)}">'
+        f'<span class="north-wrap">'
+        f'<span class="north" style="transform: rotate({rot:.4f}deg)" '
+        f'title="{html.escape(title)}">'
         f'<span class="arrow" aria-hidden="true">▲</span>'
         f'<span class="n">{html.escape(label)}</span>'
+        f"</span>"
+        f'<span class="north-angle">∠{north_angle_deg:.0f}°</span>'
         f"</span>"
     )
 

@@ -133,6 +133,14 @@ class FloorPlanBlock(BaseModel):
     )
     label: str = "Floor plan"
     svg: str = ""
+    north_angle_deg: float | None = Field(
+        default=None,
+        description=(
+            "正北相对 model north（图上方 / −Y）的顺时针角（度），"
+            "与 SiteCoordinateSystem.north_angle 一致。"
+            "None = 未定义：报告不得画默认 ↑N"
+        ),
+    )
 
 
 class RoomScheduleRow(BaseModel):

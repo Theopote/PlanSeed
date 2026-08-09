@@ -32,6 +32,7 @@ from packages.schema.report_i18n import (
 )
 from packages.schema.scoring import DesignScore
 
+from backend.services.report_orientation import resolve_north_angle_deg
 from backend.services.serialization import resolve_revision_id
 
 
@@ -196,8 +197,12 @@ def build_design_report(
         )
     # 优先消费 candidate.floor_svgs（serializer / render_floor_svg）；
     # 否则 Alpha 退回整图 svg（floor_id=all）。禁止在此切 SVG DOM。
+    north_angle_deg = resolve_north_angle_deg(req, program)
     floor_plans = _floor_plan_blocks(
-        candidate, svg=svg, locale=report_locale
+        candidate,
+        svg=svg,
+        locale=report_locale,
+        north_angle_deg=north_angle_deg,
     )
 
     revision = candidate.get("revision_status")
@@ -396,6 +401,7 @@ def _floor_plan_blocks(
     *,
     svg: str,
     locale: ReportLocale,
+    north_angle_deg: float | None = None,
 ) -> list[FloorPlanBlock]:
     """
     消费候选已序列化的平面 SVG。
@@ -403,6 +409,8 @@ def _floor_plan_blocks(
     - 若有 `floor_svgs: {floor_id: svg}`（serializer）→ 按楼层展开
     - 否则：单块 Candidate SVG snapshot（floor_id=all）
     禁止在此解析/裁剪 SVG DOM。
+    north_angle_deg 来自 SiteCoordinateSystem 投影（requirement/assumption），
+    报告 HTML 只渲染，不重新解释。
     """
     raw = candidate.get("floor_svgs")
     if isinstance(raw, dict) and raw:
@@ -416,6 +424,7 @@ def _floor_plan_blocks(
                     floor_id=fid_s,
                     label=present_floor_plan_label(locale, fid_s),
                     svg=floor_svg,
+                    north_angle_deg=north_angle_deg,
                 )
             )
         if blocks:
@@ -426,5 +435,6 @@ def _floor_plan_blocks(
             floor_id="all",
             label=tr(locale, "label.candidate_snapshot"),
             svg=svg,
+            north_angle_deg=north_angle_deg,
         )
     ]
