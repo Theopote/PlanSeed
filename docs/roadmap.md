@@ -15,7 +15,7 @@
 | **7** | **Deliverables / Export** | ⏸ Blind 过门后 |
 
 ```text
-现在做：Blind v3 单次跑分（Hybrid：禁逐案 regex）  
+现在做：Blind v3 已 FAIL → Development（parse/repair，非无限 regex）→ Blind v4  
 不做：开工 Phase 7 · 对着 Blind 逐案加 regex · 回头改 solver
 ```
 
@@ -377,19 +377,19 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 | Field / Rel F1·P / Case pass | 96.2% / 82.4%·75% / 76.7% |
 | Unknown P·R / Assumption P | 100%·89% / 100% |
 
-### Phase 6.7.2 — Blind Requalification ← 当前（v3 待跑）
+### Phase 6.7.2 — Blind Requalification ← 当前（v3 FAIL）
 
 详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ```text
-Blind v1 / v2：Gate FAIL（已归档）
-Development：标量口语 + 关系证据收紧 + 南向/车库一般规律（非 Blind 逐案）
-下一：Blind v3 单次 Pipeline
+Blind v1–v3：均 Gate FAIL（已归档）
+v3：关系精度已过门；卡在 parse 86% · repair 耗尽 14% · field 87%
+下一：Development 稳 parse/repair → Blind v4（禁逐案 regex）
 ```
 
-- [x] Blind v1 / v2 单次入库 FAIL
-- [x] Hybrid Semantic Parser 定性（禁无限扩 regex）
-- [ ] Blind v3 Gate PASS → Strict Alpha Qualified → Phase 7
+- [x] Blind v1 / v2 / v3 单次入库 FAIL
+- [x] Hybrid Semantic Parser 定性
+- [ ] Blind v4 Gate PASS → Strict Alpha Qualified → Phase 7
 
 ---
 

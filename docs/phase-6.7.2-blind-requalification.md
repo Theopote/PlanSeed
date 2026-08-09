@@ -1,8 +1,8 @@
 # Phase 6.7.2 — Blind Requalification
 
-> **状态：Blind v2 ❌ FAIL 已归档；当前严格资格 = Blind v3（待单次跑分）**  
+> **状态：Blind v3 ❌ Gate FAIL（已单次入库）；禁止对着 Blind 调规则**  
 > 前置：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)  
-> 下一：Blind v3 单次 Pipeline → PASS 后进 Phase 7；FAIL 则 Development 一般规律 → Blind v4
+> 下一：Development 一般规律（尤其 parse/repair 稳定性）→ Blind v4 → 过门后再进 Phase 7
 
 ## 为什么还要 6.7.2
 
@@ -32,7 +32,8 @@ Pipeline 对「已参与规则设计的 30 句」可过门
 | Current 30-case Holdout | ✅ Passed（工程证据，非严格独立） |
 | Blind v1 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v1.json`） |
 | Blind v2 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v2.json`） |
-| Blind v3 | ⏳ 当前严格资格语料 |
+| Blind v3 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v3.json`） |
+| Blind v4 | ⏳ 下一严格资格语料 |
 | Phase 7 | ⏸ Blind Gate PASS 后再开 |
 
 ## 本阶段唯一目标
@@ -110,22 +111,21 @@ Record summary → PASS / FAIL
 
 分字段：site ≈17%；bathrooms ≈56%；garage ≈47%；floor_pref ≈17%。
 
-## Blind v2 单次结果（2026-08-09，`qwen2.5:7b` Pipeline）
+## Blind v3 单次结果（2026-08-09，`qwen2.5:7b` Pipeline）
 
 | 指标 | 实际 | Gate | |
 |------|------|------|--|
 | Geometry | 0% | 0% | ✅ |
-| **Parse success** | **93.2%** | ≥95% | ❌ |
-| Relation F1 | 81.8% | ≥80% | ✅ |
-| **Relation precision** | **72.6%** | ≥75% | ❌ |
-| Unknown precision / recall | 100% / 93.9% | ≥70% | ✅ |
+| **Parse success** | **86.4%** | ≥95% | ❌ |
+| Relation F1 / precision | **84.9% / 82.4%** | ≥80% / ≥75% | ✅ |
+| Unknown precision / recall | 100% / 84.6% | ≥70% | ✅ |
 | Assumption precision | 100% | ≥80% | ✅ |
-| **Repair exhausted** | **6.8%** | ≤5% | ❌ |
-| **Scalar field accuracy** | **88.5%** | ≥90% | ❌ |
-| Case pass rate | 77.3% | ≥70% | ✅ |
+| **Repair exhausted** | **13.6%** | ≤5% | ❌ |
+| **Scalar field accuracy** | **86.6%** | ≥90% | ❌ |
+| Case pass rate | 81.8% | ≥70% | ✅ |
 
-分字段（报告项）：site ≈92%；bathrooms ≈96%；garage ≈63%；south ≈71%。
+分字段：garage ≈75%；south ≈86%；site ≈92%。
 
-**解读：** 相对 v1，场地/卫浴标量与整案通过率大幅改善；仍卡在 parse、标量差一线、关系精度、repair 耗尽。  
-**下一步（允许）：** Development 一般规律（车库/朝南稳健性、关系假阳性压制、repair 稳定性）→ **Blind v3**。  
-**禁止：** 打开 Blind v2 失败明细逐案补 regex 后宣称通过。
+**解读：** 关系精度相对 v2 已过门（证据收紧有效）；瓶颈转到 **parse / repair 耗尽** 与标量差一线。  
+**下一步：** Development 侧提高草稿可解析性 / repair 稳定性（短 prompt、schema 容错），**非** Blind 逐案 regex → Blind v4。  
+**禁止：** 打开 Blind v3 失败明细逐案补丁后宣称通过。

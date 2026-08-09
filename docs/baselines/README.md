@@ -29,6 +29,7 @@ uv run python -m packages.llm.benchmark.qualify --set holdout
 | `llm-alpha-baseline.json` | **Blind + Pipeline** 最新一次（严格资格） |
 | `llm-alpha-baseline-blind-v1.json` | Blind v1 归档（FAIL） |
 | `llm-alpha-baseline-blind-v2.json` | Blind v2 归档（FAIL） |
+| `llm-alpha-baseline-blind-v3.json` | Blind v3 归档（FAIL） |
 | `llm-alpha-baseline-holdout-pipeline.json` | Holdout 工程回归 |
 | `llm-alpha-baseline-<set>-<mode>[-model].json` | 其他组合 |
 
