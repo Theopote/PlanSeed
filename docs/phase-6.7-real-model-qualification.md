@@ -143,20 +143,20 @@ uv run pytest packages/llm/tests/test_requirement_benchmark.py packages/llm/test
 5. **本机** `qwen2.5:7b` 全量跑分已写入 `docs/baselines/llm-alpha-baseline.json`（2026-08-09；**Alpha Gate 未过**，见下表）  
 6. 过门后进入 [Phase 7 Deliverables](phase-7-deliverables.md)——**不是**高级分析大杂烩
 
-### qwen2.5:7b 首轮实测（62 案）
+### qwen2.5:7b 实测（62 案）
 
-| 指标 | 实测 | Gate |
-|------|------|------|
-| Geometry violation | **0%** ✅ | 0% |
-| Unknown hallucination | **1.6%** ✅ | ≤5% |
-| Parse success | 93.6% | ≥95% |
-| Repair exhausted | 6.5% | ≤5% |
-| Scalar field accuracy | 42.7% | ≥90% |
-| Relation F1 | 9.7% | ≥80% |
-| Case pass rate | 8.1% | ≥70% |
+| 指标 | 首轮 | enrich 后 | Gate |
+|------|------|-----------|------|
+| Geometry violation | 0% | **0%** ✅ | 0% |
+| Unknown hallucination | 1.6% | **1.6%** ✅ | ≤5% |
+| Parse success | 93.6% | 93.6% | ≥95% |
+| Repair exhausted | 6.5% | 6.5% | ≤5% |
+| Scalar field accuracy | 42.7% | **70.9%** | ≥90% |
+| Relation F1 | 9.7% | **31.3%** | ≥80% |
+| Case pass rate | 8.1% | **32.3%** | ≥70% |
 
-失败归因计数：`schema_fail=3` · `semantic_fail=1` · `geometry_violation=0` · `json_parse_fail=0` · `repair_success=17` · `repair_exhausted=4`。  
-主失分：标量字段漏/错、unknowns 漏列、关系/楼层偏好/朝向、assumption 未对齐——**不是**几何越界。
+enrich 后：`relation_recall` / `floor_preference_accuracy` / `orientation_accuracy` = **1.0**。  
+失败归因（enrich 后）：`schema_fail=4` · `semantic_fail=0` · `geometry_violation=0` · `repair_success=17` · `repair_exhausted=4`。
 
 ## 不做
 

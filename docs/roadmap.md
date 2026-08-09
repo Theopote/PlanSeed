@@ -389,19 +389,19 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 - [x] Requirement enricher：补列 site unknowns · 原文抽空间/关系/标量/楼层偏好/朝向（禁堆 Prompt）
 - [ ] 至少一模型过 Alpha Gate → **Phase 6 ✅ Alpha Qualified** → 进入 Phase 7
 
-**qwen2.5:7b Alpha Baseline（2026-08-09）：**
+**qwen2.5:7b Alpha Baseline（enrich 后重跑，2026-08-09）：**
 
-| 指标 | 实测 | Gate | |
-|------|------|------|--|
-| Geometry violation | 0% | 0% | ✅ |
-| Unknown hallucination | 1.6% | ≤5% | ✅ |
-| Parse success | 93.6% | ≥95% | ❌ |
-| Repair exhausted | 6.5% | ≤5% | ❌ |
-| Scalar field accuracy | 42.7% | ≥90% | ❌ |
-| Relation F1 | 9.7% | ≥80% | ❌ |
-| Case pass rate | 8.1% | ≥70% | ❌ |
+| 指标 | 首轮 | enrich 后 | Gate | |
+|------|------|-----------|------|--|
+| Geometry violation | 0% | **0%** | 0% | ✅ |
+| Unknown hallucination | 1.6% | **1.6%** | ≤5% | ✅ |
+| Parse success | 93.6% | 93.6% | ≥95% | ❌ |
+| Repair exhausted | 6.5% | 6.5% | ≤5% | ❌ |
+| Scalar field accuracy | 42.7% | **70.9%** | ≥90% | ❌ |
+| Relation F1 | 9.7% | **31.3%** | ≥80% | ❌ |
+| Case pass rate | 8.1% | **32.3%** | ≥70% | ❌ |
 
-架构边界（禁几何）已守住；准确率距门仍远。下一步走 Benchmark→失败模式→Schema/语义/Normalizer（禁止堆 Prompt）；可另测候选模型判断是否仍用 7B。
+另：`relation_recall` / `floor_preference` / `orientation` 均已到 **1.0**（enrich 补齐原文意图）。主失分仍在标量精度、关系 precision（多余关系）、parse/repair 尾部、整案通过率。
 
 ---
 
