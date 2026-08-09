@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6.7 Real Model Qualification & LLM Runtime Hardening**  
-> 详案：[phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md) · [phase-6-local-llm.md](phase-6-local-llm.md)  
-> **下一：Phase 7 Deliverables / Export**（过 Alpha Gate 之后）· 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6.7.1 Parser Precision & Holdout Qualification**  
+> 详案：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)  
+> **下一：Phase 7 Deliverables / Export**（Holdout + Pipeline 过 Alpha Gate 之后）· 契约：[api-contract.md](api-contract.md)
 
 ## 项目状态（阶段判断）
 
@@ -10,12 +10,13 @@
 |------|------|------|
 | **0–5.1.1** | **Design Kernel**（求解 · 评价 · 工作台 · 持久化） | **✅** |
 | **6.0–6.6** | **LLM Infrastructure**（契约 · Provider · Gate · Harness） | **✅ Engineering Complete** |
-| **6.7** | **Real Model Qualification & Runtime Hardening** | **← 当前** |
-| **7** | **Deliverables / Export** | 下一（6.7 过门后） |
+| **6.7** | **Real Model Qualification & Runtime Hardening** | 🚧 baseline 已有，Gate 未过 |
+| **6.7.1** | **Parser Precision & Holdout** | **← 当前** |
+| **7** | **Deliverables / Export** | 下一（过门后） |
 
 ```text
-现在做：证明本地 LLM 真正好用（真模型跑分 + Alpha Gate）
-不做：回头重构 solver · 继续扩 LLM feature · 把 7+ 做成大杂烩
+现在做：抬高 relation/unknown/assumption precision；用 Holdout 判定 Gate
+不做：开工 Phase 7 · 先拉 14B · 对 holdout 逐案调 regex · 回头改 solver
 ```
 
 ## 阶段总览（以代码为准）
@@ -30,7 +31,8 @@
 | **5.1** | **Revision Integrity & Mutation Single Source** | **✅ P0** |
 | **5.1.1** | **Program Fidelity Gate** | **✅ P0** |
 | **6.0–6.6** | **LLM Infrastructure** | **✅ Engineering Complete** |
-| **6.7** | **Real Model Qualification & Runtime Hardening** | **← 当前** |
+| **6.7** | **Real Model Qualification & Runtime Hardening** | 🚧 |
+| **6.7.1** | **Parser Precision & Holdout** | **← 当前** |
 | **7** | **Deliverables / Export** | 下一 |
 | **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（避免失焦） |
 | — | SVG Debug | ✅ 开发工具 |
@@ -357,13 +359,20 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 
 **6.0–6.6 LLM Infrastructure Complete；可靠度不由 oracle 100% 代表。过 Alpha Gate 前不要写 Phase 6 ✅。**
 
-### Phase 6.7 — Real Model Qualification & LLM Runtime Hardening ← 当前
+### Phase 6.7 — Real Model Qualification & LLM Runtime Hardening
 
 详案：[phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)
 
-**本阶段唯一目标：证明本地 LLM 真正好用。** 不扩 LLM 产品功能；不回头重构 solver。
+**目标：证明本地 LLM 真正好用。** 不扩 LLM 产品功能；不回头重构 solver。
 
-**Alpha Gate（内部门槛；Geometry = 0 为架构硬边界）：**
+### Phase 6.7.1 — Parser Precision & Holdout ← 当前
+
+详案：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md)
+
+**判定对象：Requirement Parsing Pipeline（LLM + Gate + Enrich），不是裸模型。**  
+**Gate 证据：Holdout（≥30）；Development 62 条仅供调规则。**
+
+**Alpha Gate（扩展；Geometry = 0 为架构硬边界）：**
 
 | 指标 | Gate |
 |------|------|
@@ -371,41 +380,38 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 | Parse success | ≥ 95% |
 | Scalar field accuracy | ≥ 90% |
 | Relation F1 | ≥ 80% |
+| Relation precision | ≥ 75% |
 | Unknown hallucination | ≤ 5% |
+| Unknown precision | ≥ 70% |
+| Unknown recall | ≥ 70% |
+| Assumption precision | ≥ 80% |
 | Repair exhausted | ≤ 5% |
 | Case pass rate | ≥ 70% |
 
-**清单（与「下一步具体做什么」对齐）：**
+**清单：**
 
-- [x] 文档纠偏：oracle 100% ≠ 模型质量；完成标准分层（Infrastructure / Qualification / Alpha Qualified）
-- [x] Benchmark：`relation_intents` / `floor_preference` / Unknown·Assumption 准确率
-- [x] Semantic：关系 endpoint 分别 soft（一端未知也报警）
-- [x] 失败归因：schema / semantic / geometry / JSON / repair success·exhausted
-- [x] OllamaProvider 生命周期：共享 runtime / 正确 close httpx
-- [x] Ollama server / model 两级状态（`is_available` · `is_model_available` · `/api/llm/status`）
-- [x] UI：本地 AI 未启动 / 模型未安装 / 解析中 / 解析失败 / 修复后成功
-- [x] Alpha Gate + `qualify --gate`；多模型 `--models`（判断 7B 是否够用）
-- [x] 本机 `qwen2.5:7b` 全量跑分 → `docs/baselines/llm-alpha-baseline.json`（62 案；**Alpha Gate 未过**）
-- [x] Requirement enricher：补列 site unknowns · 原文抽空间/关系/标量/楼层偏好/朝向（禁堆 Prompt）
-- [ ] 至少一模型过 Alpha Gate → **Phase 6 ✅ Alpha Qualified** → 进入 Phase 7
+- [x] 6.7 工程项（runtime / UI / qualify / 首轮 baseline）
+- [x] Development vs Holdout 分集；`qualify --set holdout|development`
+- [x] Pipeline vs `model_raw`（`--mode`）
+- [x] precision-first enricher + 细化 RelationKind / AssumptionSource
+- [x] Gate 扩展 + latency p50/p90/p95 + 分字段准确率
+- [ ] Holdout + Pipeline 重跑 baseline（勿逐案盯 holdout 调 regex）
+- [ ] 至少一 Pipeline 过 Holdout Alpha Gate → **Phase 6 ✅** → Phase 7
 
-**qwen2.5:7b Alpha Baseline（enrich 后重跑，2026-08-09）：**
+**qwen2.5:7b 旧 Development baseline（enrich 激进版，2026-08-09；已过时，勿作唯一证据）：**
 
-| 指标 | 首轮 | enrich 后 | Gate | |
-|------|------|-----------|------|--|
-| Geometry violation | 0% | **0%** | 0% | ✅ |
-| Unknown hallucination | 1.6% | **1.6%** | ≤5% | ✅ |
-| Parse success | 93.6% | 93.6% | ≥95% | ❌ |
-| Repair exhausted | 6.5% | 6.5% | ≤5% | ❌ |
-| Scalar field accuracy | 42.7% | **70.9%** | ≥90% | ❌ |
-| Relation F1 | 9.7% | **31.3%** | ≥80% | ❌ |
-| Case pass rate | 8.1% | **32.3%** | ≥70% | ❌ |
-
-另：`relation_recall` / `floor_preference` / `orientation` 均已到 **1.0**（enrich 补齐原文意图）。主失分仍在标量精度、关系 precision（多余关系）、parse/repair 尾部、整案通过率。
+| 指标 | enrich 后 | 备注 |
+|------|-----------|------|
+| Geometry | 0% | ✅ |
+| Field accuracy | 70.9% | |
+| Relation F1 | 31.3% | precision 仅 18.5% → 6.7.1 主攻 |
+| Unknown precision | ~15% | 主攻 |
+| Assumption precision | ~1% | 主攻（剥离 llm_inference） |
+| Case pass | 32.3% | |
 
 ---
 
-## Phase 7 — Deliverables / Export（下一 · 6.7 过门后）
+## Phase 7 — Deliverables / Export（下一 · Holdout Gate 通过后）
 
 详案：[phase-7-deliverables.md](phase-7-deliverables.md)
 
@@ -511,7 +517,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 6.7** 真模型 Qualification；过门后 **Phase 7 Export** |
+| **当前主线** | **Phase 6.7.1** Holdout + Precision；过门后 **Phase 7 Export** |
 
 ---
 

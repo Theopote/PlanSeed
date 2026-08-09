@@ -1,4 +1,4 @@
-"""Phase 6.7 — Requirement enricher（unknowns / 空间 / 关系）。"""
+"""Phase 6.7 / 6.7.1 — Requirement enricher（precision-first）。"""
 
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ def test_extract_spaces_and_relations_from_text():
     assert set(names) >= {"厨房", "餐厅", "客厅"}
     rels = extract_relation_intents(text, set(names))
     kinds = {(tuple(sorted((r.a, r.b))), r.kind) for r in rels}
-    assert ((tuple(sorted(("厨房", "餐厅"))), "adjacency")) in kinds
-    assert ((tuple(sorted(("客厅", "餐厅"))), "adjacency")) in kinds
+    assert ((tuple(sorted(("厨房", "餐厅"))), "near")) in kinds
+    assert ((tuple(sorted(("客厅", "餐厅"))), "open_connection")) in kinds
 
 
 def test_enrich_fills_unknowns_without_inventing_site():
@@ -40,6 +40,18 @@ def test_enrich_fills_unknowns_without_inventing_site():
     assert out.draft.known.floor_count == 2
 
 
+def test_enrich_does_not_always_add_site_unknowns():
+    """precision-first：无场地不确定语义时不主动问卷式补列 site。"""
+    draft = LLMRequirementDraft(
+        raw_text="两层三卧",
+        known={"floor_count": 2, "household": {"bedrooms": 3}},  # type: ignore[arg-type]
+    )
+    out = enrich_requirement_draft(draft)
+    keys = {u.key for u in out.draft.unknowns}
+    assert "site.width" not in keys
+    assert "site.depth" not in keys
+
+
 def test_enrich_extracts_scalars_from_raw_text():
     draft = LLMRequirementDraft(raw_text="两层三卧两卫带车库，客厅朝南")
     out = enrich_requirement_draft(draft)
@@ -51,30 +63,45 @@ def test_enrich_extracts_scalars_from_raw_text():
     assert out.draft.known.preferences.prefer_south_facing_living is True
 
 
+def test_enrich_drops_llm_inference_assumptions():
+    draft = LLMRequirementDraft(
+        raw_text="两层三卧",
+        known={"floor_count": 2},  # type: ignore[arg-type]
+        assumptions=[
+            {
+                "key": "household.bathrooms",
+                "value": 2,
+                "reason": "常见默认",
+                "source": "llm_inference",
+            }
+        ],
+    )
+    out = enrich_requirement_draft(draft)
+    assert out.draft.assumptions == []
+
+
 def test_ingest_enrich_recovers_intent_case():
-    """LLM 漏列 unknowns/空间/关系时，enrich 应让 intent 用例可过。"""
+    """LLM 漏列空间/关系时，enrich 应恢复原文显式意图。"""
     case = RequirementBenchmarkCase(
         id="t-enrich-053",
-        text="两层三卧，厨房靠近餐厅，客厅与餐厅连通",
+        text="两层三卧，厨房靠近餐厅，客厅与餐厅连通，场地未定",
         expect=ExpectKnown(
             floor_count=2,
             bedrooms=3,
             space_names_contains=["厨房", "餐厅", "客厅"],
             relations=[
-                ExpectRelation(a="厨房", b="餐厅", kind="adjacency"),
-                ExpectRelation(a="客厅", b="餐厅", kind="adjacency"),
+                ExpectRelation(a="厨房", b="餐厅", kind="near"),
+                ExpectRelation(a="客厅", b="餐厅", kind="open_connection"),
             ],
         ),
         must_unknown=["site.width", "site.depth"],
     )
-    # 残缺 Draft：只有层数，漏空间与关系与 unknowns
     sparse = {
         "known": {"floor_count": 2},
         "assumptions": [],
         "unknowns": [],
     }
     scored = score_draft_against_case(case, sparse)
-    # score_draft 走 ingest（含 enrich）
     assert scored.space_ok
     assert all(r.hit for r in scored.relations)
     assert not scored.missed_unknowns
@@ -102,7 +129,7 @@ def test_ingest_enrich_sparse_unknown_detection():
 
 def test_enrich_can_be_disabled():
     raw = {
-        "raw_text": "两层三卧",
+        "raw_text": "两层三卧，场地未提供",
         "known": {},
         "assumptions": [],
         "unknowns": [],

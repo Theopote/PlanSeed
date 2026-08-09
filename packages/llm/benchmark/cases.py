@@ -1,4 +1,7 @@
-"""Requirement Benchmark — 用例模型与语料（Phase 6.6 / 6.7）。"""
+"""Requirement Benchmark — 用例模型与 Development 语料（Phase 6.6 / 6.7.1）。
+
+Qualification Holdout 见 `holdout_cases.py`；本文件不得单独作为 Alpha 证据。
+"""
 
 from __future__ import annotations
 
@@ -88,7 +91,12 @@ def _c(
 
 
 def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
-    """内置中文住宅需求语料（≥50；含 6.7 设计意图子集）。"""
+    """
+    Development Benchmark（原 62 条）。
+
+    Phase 6.7.1：本集合已驱动 enricher 迭代，**不得**单独作为 Qualification 证据。
+    Qualification 请用 `load_holdout_cases()`。
+    """
     cases: list[RequirementBenchmarkCase] = [
         _c(
             "rb-001",
@@ -583,8 +591,8 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
                 bedrooms=3,
                 space_names_contains=["厨房", "餐厅", "客厅"],
                 relations=[
-                    ExpectRelation(a="厨房", b="餐厅", kind="adjacency"),
-                    ExpectRelation(a="客厅", b="餐厅", kind="adjacency"),
+                    ExpectRelation(a="厨房", b="餐厅", kind="near"),
+                    ExpectRelation(a="客厅", b="餐厅", kind="open_connection"),
                 ],
             ),
             must_unknown=["site.width", "site.depth"],
@@ -599,7 +607,7 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
                 space_names_contains=["主卧", "入口", "儿童房"],
                 relations=[
                     ExpectRelation(a="主卧", b="入口", kind="separation"),
-                    ExpectRelation(a="儿童房", b="主卧", kind="adjacency"),
+                    ExpectRelation(a="儿童房", b="主卧", kind="near"),
                 ],
             ),
             must_unknown=["site.width"],
@@ -654,7 +662,7 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
                 ],
                 relations=[
                     ExpectRelation(a="主卧", b="客厅", kind="separation"),
-                    ExpectRelation(a="儿童房", b="主卧", kind="adjacency"),
+                    ExpectRelation(a="儿童房", b="主卧", kind="near"),
                 ],
             ),
             must_unknown=["site.width", "site.depth"],
@@ -668,7 +676,7 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
                 bedrooms=3,
                 space_names_contains=["客厅", "餐厅", "客房"],
                 relations=[
-                    ExpectRelation(a="客厅", b="餐厅", kind="adjacency"),
+                    ExpectRelation(a="客厅", b="餐厅", kind="open_connection"),
                     ExpectRelation(a="客房", b="客厅", kind="separation"),
                 ],
             ),
@@ -683,7 +691,7 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
                 bedrooms=2,
                 space_names_contains=["厨房", "餐厅"],
                 relations=[
-                    ExpectRelation(a="厨房", b="餐厅", kind="adjacency"),
+                    ExpectRelation(a="厨房", b="餐厅", kind="near"),
                 ],
             ),
             must_unknown=["site.width", "site.depth"],

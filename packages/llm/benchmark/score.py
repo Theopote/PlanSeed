@@ -13,6 +13,7 @@ from packages.llm.benchmark.cases import (
     RequirementBenchmarkCase,
 )
 from packages.llm.benchmark.failure import FailureKind
+from packages.llm.vocabulary import endpoint_alias_group
 from packages.schema.requirements import Assumption, RelationIntent, RequirementSpec
 
 
@@ -199,7 +200,7 @@ def _relation_matches(expected: ExpectRelation, actual: RelationIntent) -> bool:
 
 
 _SPACE_ALIAS_GROUPS: tuple[frozenset[str], ...] = (
-    frozenset({"入口", "门厅", "玄关"}),
+    frozenset({"入口", "门厅", "玄关", "入户"}),
 )
 
 
@@ -208,10 +209,7 @@ def _canonical_space_token(name: str) -> str:
 
 
 def _alias_group(token: str) -> frozenset[str]:
-    for g in _SPACE_ALIAS_GROUPS:
-        if token in g:
-            return g
-    return frozenset({token})
+    return endpoint_alias_group(token)
 
 
 def _endpoint_sets_match(expected: set[str], actual: set[str]) -> bool:

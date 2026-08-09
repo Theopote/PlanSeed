@@ -71,10 +71,12 @@ class StructuredRequirementParser:
         *,
         system: str = SYSTEM_PROMPT_SKELETON,
         validator: RequirementSemanticValidator | None = None,
+        enrich: bool = True,
     ) -> None:
         self.provider = provider
         self.system = system
         self.validator = validator
+        self.enrich = enrich
 
     def parse(self, text: str) -> ParseResult:
         user = build_user_prompt(text)
@@ -83,6 +85,7 @@ class StructuredRequirementParser:
             raw,
             raw_text=text.strip(),
             validator=self.validator,
+            enrich=self.enrich,
         )
         return ParseResult(text=text.strip(), raw=raw, ingest=ingest)
 
@@ -103,10 +106,12 @@ def parse_requirement_text(
     provider: LLMProvider,
     system: str = SYSTEM_PROMPT_SKELETON,
     validator: RequirementSemanticValidator | None = None,
+    enrich: bool = True,
 ) -> ParseResult:
     """便捷函数：等价于 StructuredRequirementParser(...).parse(text)。"""
     return StructuredRequirementParser(
         provider,
         system=system,
         validator=validator,
+        enrich=enrich,
     ).parse(text)

@@ -100,6 +100,7 @@ def expect_to_draft(
             "key": a.key,
             "value": a.value if a.value is not None else True,
             "reason": a.reason or "用例期望的显式假设",
+            "source": "user_authorized",
         }
         for a in case.expect_assumptions
     ]
@@ -136,12 +137,15 @@ def run_benchmark(
     with_repair: bool = False,
     mode: str | None = None,
     model: str | None = None,
+    case_set: str = "development",
+    enrich: bool = True,
 ) -> BenchmarkReport:
     """
     跑完整语料。
 
     默认 use_oracle=True（CI）；传入 provider 且 use_oracle=False 可测真模型。
     with_repair=True 时走 parse_requirement_text_with_repair（真模型 qualification）。
+    enrich=False 为 model_raw 诊断（仅 LLM Draft，无确定性补全）。
     """
     corpus = cases or load_benchmark_cases()
     prov: LLMProvider
@@ -152,9 +156,9 @@ def run_benchmark(
         if provider is None:
             raise ValueError("use_oracle=False 时必须提供 provider")
         prov = provider
-        report_mode = mode or "real"
+        report_mode = mode or ("pipeline" if enrich else "model_raw")
 
-    report = BenchmarkReport(mode=report_mode, model=model)
+    report = BenchmarkReport(mode=report_mode, model=model, case_set=case_set)
     for case in corpus:
         geometry_fail = False
         parse_failed = False
@@ -165,9 +169,13 @@ def run_benchmark(
         t0 = time.perf_counter()
         try:
             if with_repair:
-                parsed = parse_requirement_text_with_repair(case.text, provider=prov)
+                parsed = parse_requirement_text_with_repair(
+                    case.text, provider=prov, enrich=enrich
+                )
             else:
-                parsed = parse_requirement_text(case.text, provider=prov)
+                parsed = parse_requirement_text(
+                    case.text, provider=prov, enrich=enrich
+                )
             spec = parsed.spec
             attempts = parsed.attempts
         except GeometryForbiddenError as exc:

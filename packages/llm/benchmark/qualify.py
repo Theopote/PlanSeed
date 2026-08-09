@@ -1,16 +1,19 @@
-"""Phase 6.7 — Real Model Qualification 入口。
+"""Phase 6.7.1 — Requirement Parsing Pipeline Qualification。
 
-用法（本机 Ollama 就绪后）::
+用法::
 
-    uv run python -m packages.llm.benchmark.qualify
-    uv run python -m packages.llm.benchmark.qualify --limit 3
+    # Holdout + Pipeline（默认；Alpha Gate 据此判定）
     uv run python -m packages.llm.benchmark.qualify --gate
-    # 多模型对比（判断 7B 是否够用，非排行榜）
+
+    # Development 集（调规则用；不作唯一证据）
+    uv run python -m packages.llm.benchmark.qualify --set development
+
+    # 仅看模型 Raw（enrich=False，诊断）
+    uv run python -m packages.llm.benchmark.qualify --mode model_raw --set holdout
+
     uv run python -m packages.llm.benchmark.qualify --models qwen2.5:7b,qwen2.5:14b
 
-环境变量：
-- PLANSEED_OLLAMA_*（见 factory）
-- PLANSEED_LLM_QUALIFY_LIMIT：可选，只跑前 N 条（冒烟）
+环境变量：PLANSEED_OLLAMA_*、PLANSEED_LLM_QUALIFY_LIMIT
 """
 
 from __future__ import annotations
@@ -18,20 +21,27 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
+import subprocess
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Literal
 
 from packages.llm.benchmark.cases import load_benchmark_cases
 from packages.llm.benchmark.gates import evaluate_alpha_gates
+from packages.llm.benchmark.holdout_cases import HOLDOUT_VERSION, load_holdout_cases
 from packages.llm.benchmark.report import BenchmarkReport
 from packages.llm.benchmark.runner import run_benchmark
 from packages.llm.draft_schema import draft_json_schema
 from packages.llm.factory import load_ollama_config
 from packages.llm.ollama import OllamaProvider
 
+CaseSetName = Literal["development", "holdout"]
+QualifyMode = Literal["pipeline", "model_raw"]
+
 
 def _make_provider(model: str) -> OllamaProvider:
-    """按模型名新建 Provider（不复用共享 runtime，便于多模型对比）。"""
     cfg = replace(
         load_ollama_config(),
         model=model,
@@ -40,30 +50,107 @@ def _make_provider(model: str) -> OllamaProvider:
     return OllamaProvider(cfg)
 
 
+def _load_cases(case_set: CaseSetName):
+    if case_set == "holdout":
+        return load_holdout_cases(), HOLDOUT_VERSION
+    return load_benchmark_cases(), "development-v1"
+
+
+def _git_commit() -> str | None:
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return out.strip() or None
+    except Exception:
+        return None
+
+
+def _host_metadata() -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "os": platform.platform(),
+        "python": platform.python_version(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or None,
+    }
+    try:
+        import psutil  # type: ignore
+
+        meta["ram_gb"] = round(psutil.virtual_memory().total / (1024**3), 1)
+        meta["cpu_count"] = psutil.cpu_count(logical=True)
+    except Exception:
+        meta["ram_gb"] = None
+        meta["cpu_count"] = os.cpu_count()
+    # GPU：尽力探测，失败则留空（不依赖 CUDA 包）
+    meta["gpu"] = None
+    try:
+        out = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total",
+                "--format=csv,noheader",
+            ],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=5,
+        )
+        lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
+        if lines:
+            meta["gpu"] = lines
+    except Exception:
+        pass
+    return meta
+
+
+def run_qualification(
+    *,
+    model: str | None = None,
+    limit: int | None = None,
+    with_repair: bool = True,
+    case_set: CaseSetName = "holdout",
+    mode: QualifyMode = "pipeline",
+) -> tuple[BenchmarkReport, str]:
+    """跑真模型；返回 (report, case_set_version)。"""
+    cases, version = _load_cases(case_set)
+    if limit is not None:
+        cases = cases[:limit]
+    cfg = load_ollama_config()
+    resolved = (model or cfg.model).strip()
+    enrich = mode == "pipeline"
+    provider = _make_provider(resolved)
+    try:
+        report = run_benchmark(
+            provider=provider,
+            cases=cases,
+            use_oracle=False,
+            with_repair=with_repair,
+            mode=mode,
+            model=resolved,
+            case_set=case_set,
+            enrich=enrich,
+        )
+        return report, version
+    finally:
+        provider.close()
+
+
+# 兼容旧名
 def run_real_model_qualification(
     *,
     model: str | None = None,
     limit: int | None = None,
     with_repair: bool = True,
 ) -> BenchmarkReport:
-    """对语料跑真模型（非 oracle），产出 Alpha Baseline 指标。"""
-    cases = load_benchmark_cases()
-    if limit is not None:
-        cases = cases[:limit]
-    cfg = load_ollama_config()
-    resolved = (model or cfg.model).strip()
-    provider = _make_provider(resolved)
-    try:
-        return run_benchmark(
-            provider=provider,
-            cases=cases,
-            use_oracle=False,
-            with_repair=with_repair,
-            mode="real",
-            model=resolved,
-        )
-    finally:
-        provider.close()
+    report, _ = run_qualification(
+        model=model,
+        limit=limit,
+        with_repair=with_repair,
+        case_set="development",
+        mode="pipeline",
+    )
+    return report
 
 
 def _failed_cases_payload(report: BenchmarkReport) -> list[dict]:
@@ -89,18 +176,35 @@ def _write_baseline(
     *,
     out_path: Path,
     gate: dict | None = None,
+    case_set_version: str,
+    detail_failed: bool,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    payload: dict[str, Any] = {
         "note": (
-            "LLM Alpha Baseline（真模型）。"
-            "勿与 CI oracle 100% 混淆：oracle 只验证 harness。"
-            "Phase 6 ✅ Alpha Qualified 仅当 Alpha Gate 全部通过。"
+            "Requirement Parsing Pipeline Baseline（真模型）。"
+            "勿与 CI oracle 100% 混淆。Alpha Qualified 仅当 Holdout + Pipeline "
+            "过 Alpha Gate。"
         ),
+        "meta": {
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "git_commit": _git_commit(),
+            "case_set": report.case_set,
+            "case_set_version": case_set_version,
+            "mode": report.mode,
+            "model": report.model,
+            "host": _host_metadata(),
+        },
         "summary": report.summary(),
         "alpha_gate": gate,
-        "failed_cases": _failed_cases_payload(report),
     }
+    # Holdout 默认只写 summary；开发集或显式要求才列 failed ids
+    if detail_failed:
+        payload["failed_cases"] = _failed_cases_payload(report)
+    else:
+        payload["failed_case_count"] = sum(
+            1 for c in report.case_scores if not c.passed
+        )
     out_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -116,30 +220,38 @@ def _parse_models(raw: str | None, default: str) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="PlanSeed Phase 6.7 — Real Model Qualification",
+        description="PlanSeed Phase 6.7.1 — Pipeline Qualification",
     )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="只跑前 N 条（冒烟）",
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default=None,
-        help="单个模型（覆盖 PLANSEED_OLLAMA_MODEL）",
-    )
+    parser.add_argument("--limit", type=int, default=None, help="只跑前 N 条（冒烟）")
+    parser.add_argument("--model", type=str, default=None, help="单个模型")
     parser.add_argument(
         "--models",
         type=str,
         default=None,
-        help="逗号分隔多模型对比，例：qwen2.5:7b,qwen2.5:14b",
+        help="逗号分隔多模型对比",
+    )
+    parser.add_argument(
+        "--set",
+        dest="case_set",
+        choices=("development", "holdout"),
+        default="holdout",
+        help="语料集（默认 holdout；Gate 应以 holdout 为准）",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("pipeline", "model_raw"),
+        default="pipeline",
+        help="pipeline=LLM+enrich（默认）；model_raw=仅 LLM（诊断）",
+    )
+    parser.add_argument(
+        "--detail-failed",
+        action="store_true",
+        help="写出 failed_cases 明细（holdout 默认不写，防逐案过拟合）",
     )
     parser.add_argument(
         "--gate",
         action="store_true",
-        help="Alpha Gate 未通过时以非零退出（判定 Alpha Qualified）",
+        help="Alpha Gate 未通过时非零退出",
     )
     args = parser.parse_args(argv)
 
@@ -150,10 +262,13 @@ def main(argv: list[str] | None = None) -> int:
 
     cfg = load_ollama_config()
     models = _parse_models(args.models, args.model or cfg.model)
+    case_set: CaseSetName = args.case_set
+    mode: QualifyMode = args.mode
+    detail_failed = bool(args.detail_failed) or case_set == "development"
 
-    print("PlanSeed Phase 6.7 — Real Model Qualification", flush=True)
+    print("PlanSeed Phase 6.7.1 — Pipeline Qualification", flush=True)
     print(
-        f"base_url={cfg.base_url} timeout_s={cfg.timeout_s} models={models}",
+        f"base_url={cfg.base_url} set={case_set} mode={mode} models={models}",
         flush=True,
     )
     if limit is not None:
@@ -164,11 +279,13 @@ def main(argv: list[str] | None = None) -> int:
     all_gates_ok = True
 
     for model in models:
-        print(f"\n=== model={model} ===", flush=True)
-        report = run_real_model_qualification(
+        print(f"\n=== model={model} set={case_set} mode={mode} ===", flush=True)
+        report, version = run_qualification(
             model=model,
             limit=limit,
             with_repair=True,
+            case_set=case_set,
+            mode=mode,
         )
         summary = report.summary()
         gate = evaluate_alpha_gates(report)
@@ -186,16 +303,33 @@ def main(argv: list[str] | None = None) -> int:
             print("Alpha Gate PASS", flush=True)
 
         safe_name = model.replace(":", "_").replace("/", "_")
-        if len(models) == 1:
+        parts = ["llm-alpha-baseline", case_set, mode]
+        if len(models) > 1:
+            parts.append(safe_name)
+        # 单模型 holdout+pipeline 仍写经典文件名，便于文档引用
+        if (
+            len(models) == 1
+            and case_set == "holdout"
+            and mode == "pipeline"
+        ):
             out_path = out_dir / "llm-alpha-baseline.json"
         else:
-            out_path = out_dir / f"llm-alpha-baseline-{safe_name}.json"
-        _write_baseline(report, out_path=out_path, gate=gate_dict)
+            out_path = out_dir / ( "-".join(parts) + ".json")
+
+        _write_baseline(
+            report,
+            out_path=out_path,
+            gate=gate_dict,
+            case_set_version=version,
+            detail_failed=detail_failed,
+        )
         print(f"wrote {out_path}", flush=True)
 
         compare_rows.append(
             {
                 "model": model,
+                "case_set": case_set,
+                "mode": mode,
                 "summary": summary,
                 "alpha_gate": gate_dict,
                 "baseline_path": str(out_path).replace("\\", "/"),
@@ -203,11 +337,11 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if len(models) > 1:
-        compare_path = out_dir / "llm-alpha-compare.json"
+        compare_path = out_dir / f"llm-alpha-compare-{case_set}-{mode}.json"
         compare_payload = {
             "note": (
-                "多模型对比：判断 7B 规模是否够 PlanSeed 需求解析；"
-                "不是排行榜。local-first：能过 Alpha Gate 的最小够用模型优先。"
+                "多模型对比：判断 Pipeline 是否够用；"
+                "不是排行榜。Gate 以 holdout+pipeline 为准。"
             ),
             "models": compare_rows,
             "any_alpha_qualified": any(
@@ -226,9 +360,9 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"  [{mark}] {row['model']}: "
                 f"pass_rate={m.get('case_pass_rate')} "
-                f"field={m.get('field_accuracy')} "
-                f"geom={m.get('geometry_violation')} "
-                f"latency={m.get('average_latency_s')}s",
+                f"rel_p={m.get('relation_precision')} "
+                f"unk_p={m.get('unknown_precision')} "
+                f"p95={m.get('latency_p95')}s",
                 flush=True,
             )
 

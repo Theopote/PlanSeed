@@ -8,16 +8,36 @@ from pydantic import BaseModel, Field
 
 from packages.schema.site import CardinalEdge, CardinalOrientation, SetbackSpec
 
-RelationKind = Literal["adjacency", "access", "separation"]
+RelationKind = Literal[
+    "adjacency",  # 共享边界级邻接（遗留）
+    "near",  # 靠近 / 邻近（不必连通）
+    "separation",  # 远离 / 私密分离
+    "access",  # 可通行 / 内部相连
+    "open_connection",  # 开敞连通（客餐厅等）
+    "visual_connection",  # 视线联系（预留）
+]
 RelationStrength = Literal["required", "preferred"]
+
+AssumptionSource = Literal[
+    "user_authorized",  # 用户明确授权假设
+    "planseed_default",  # 产品确认的默认
+    "llm_inference",  # 模型推断（Alpha 默认丢弃）
+]
+
+UnknownPriority = Literal[
+    "blocking",  # 阻塞求解
+    "recommended",  # 影响设计质量，应提示
+    "optional",  # 可省略
+]
 
 
 class Assumption(BaseModel):
-    """Normalizer 或 LLM 做出的可解释推断。"""
+    """可解释推断；Alpha 优先 user_authorized / planseed_default。"""
 
     key: str
     value: str | int | float | bool
     reason: str = ""
+    source: AssumptionSource = "llm_inference"
 
 
 class UnknownRequirement(BaseModel):
@@ -25,6 +45,7 @@ class UnknownRequirement(BaseModel):
 
     key: str
     description: str = ""
+    priority: UnknownPriority = "recommended"
 
 
 class SiteRequirements(BaseModel):

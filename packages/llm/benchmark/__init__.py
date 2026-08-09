@@ -1,4 +1,4 @@
-"""Phase 6.6 — Requirement Benchmark 包。"""
+"""Phase 6.6 / 6.7.1 — Requirement Benchmark 包。"""
 
 from packages.llm.benchmark.cases import (
     ExpectAssumption,
@@ -16,6 +16,11 @@ from packages.llm.benchmark.gates import (
     AlphaGateResult,
     evaluate_alpha_gates,
     gate_metrics,
+)
+from packages.llm.benchmark.holdout_cases import (
+    HOLDOUT_VERSION,
+    holdout_case_count,
+    load_holdout_cases,
 )
 from packages.llm.benchmark.report import BenchmarkReport
 from packages.llm.benchmark.runner import (
@@ -43,6 +48,7 @@ __all__ = [
     "AlphaGateResult",
     "BenchmarkReport",
     "FailureKind",
+    "HOLDOUT_VERSION",
     "AssumptionHit",
     "CaseScore",
     "FieldScore",
@@ -50,7 +56,9 @@ __all__ = [
     "benchmark_case_count",
     "evaluate_alpha_gates",
     "gate_metrics",
+    "holdout_case_count",
     "load_benchmark_cases",
+    "load_holdout_cases",
     "expect_to_draft",
     "make_oracle_provider",
     "run_benchmark",

@@ -46,7 +46,7 @@ def test_allow_site_size_and_target_area():
 
 def test_ingest_happy_path_to_requirement_spec():
     raw = {
-        "raw_text": "两层三卧，客厅朝南",
+        "raw_text": "两层三卧，厨房靠近餐厅，客厅朝南",
         "known": {
             "floor_count": 2,
             "household": {"bedrooms": 3},
@@ -63,7 +63,7 @@ def test_ingest_happy_path_to_requirement_spec():
                 {
                     "a": "厨房",
                     "b": "餐厅",
-                    "kind": "adjacency",
+                    "kind": "near",
                     "strength": "preferred",
                 }
             ],
@@ -73,6 +73,7 @@ def test_ingest_happy_path_to_requirement_spec():
                 "key": "bathrooms",
                 "value": 2,
                 "reason": "用户未指定，住宅默认",
+                "source": "llm_inference",
             }
         ],
         "unknowns": [
@@ -82,14 +83,14 @@ def test_ingest_happy_path_to_requirement_spec():
     result = ingest_llm_requirement(raw)
     assert result.spec.floor_count == 2
     assert result.spec.household.bedrooms == 3
-    assert result.spec.raw_text == "两层三卧，客厅朝南"
-    assert len(result.spec.assumptions) == 1
-    # enrich 对未提供场地补列 unknowns（不编造宽深）
+    assert result.spec.raw_text == "两层三卧，厨房靠近餐厅，客厅朝南"
+    # Alpha：丢弃 llm_inference assumptions；无场地不确定语义不主动补 site
+    assert result.spec.assumptions == []
     unk = {u.key for u in result.spec.unknowns}
     assert "site.entrance_edge" in unk
-    assert "site.width" in unk
-    assert "site.depth" in unk
+    assert "site.width" not in unk
     assert len(result.spec.relation_intents) == 1
+    assert result.spec.relation_intents[0].kind == "near"
     assert result.semantic.ok
 
 

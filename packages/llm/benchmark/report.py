@@ -11,8 +11,9 @@ from packages.llm.benchmark.score import CaseScore
 @dataclass
 class BenchmarkReport:
     case_scores: list[CaseScore] = field(default_factory=list)
-    mode: str = "oracle"  # oracle | real
+    mode: str = "oracle"  # oracle | real | pipeline | model_raw
     model: str | None = None
+    case_set: str = "development"  # development | holdout
 
     @property
     def case_count(self) -> int:
@@ -82,6 +83,76 @@ class BenchmarkReport:
         if not self.case_scores:
             return 0.0
         return sum(c.latency_s for c in self.case_scores) / len(self.case_scores)
+
+    def _latency_percentile(self, p: float) -> float:
+        if not self.case_scores:
+            return 0.0
+        xs = sorted(c.latency_s for c in self.case_scores)
+        if len(xs) == 1:
+            return xs[0]
+        # nearest-rank
+        k = max(0, min(len(xs) - 1, int(round(p * (len(xs) - 1)))))
+        return xs[k]
+
+    @property
+    def latency_p50(self) -> float:
+        return self._latency_percentile(0.50)
+
+    @property
+    def latency_p90(self) -> float:
+        return self._latency_percentile(0.90)
+
+    @property
+    def latency_p95(self) -> float:
+        return self._latency_percentile(0.95)
+
+    @property
+    def max_latency(self) -> float:
+        if not self.case_scores:
+            return 0.0
+        return max(c.latency_s for c in self.case_scores)
+
+    def _field_accuracy_named(self, name: str) -> float:
+        hits = 0
+        total = 0
+        for c in self.case_scores:
+            for f in c.fields:
+                if f.name != name:
+                    continue
+                total += 1
+                if f.hit:
+                    hits += 1
+        if total == 0:
+            return 1.0
+        return hits / total
+
+    @property
+    def floor_count_accuracy(self) -> float:
+        return self._field_accuracy_named("floor_count")
+
+    @property
+    def bedrooms_accuracy(self) -> float:
+        return self._field_accuracy_named("bedrooms")
+
+    @property
+    def bathrooms_accuracy(self) -> float:
+        return self._field_accuracy_named("bathrooms")
+
+    @property
+    def site_width_accuracy(self) -> float:
+        return self._field_accuracy_named("site_width")
+
+    @property
+    def site_depth_accuracy(self) -> float:
+        return self._field_accuracy_named("site_depth")
+
+    @property
+    def garage_accuracy(self) -> float:
+        return self._field_accuracy_named("has_garage")
+
+    @property
+    def south_orientation_accuracy(self) -> float:
+        return self._field_accuracy_named("prefer_south_facing_living")
 
     @property
     def schema_fails(self) -> int:
@@ -268,9 +339,17 @@ class BenchmarkReport:
     def summary(self) -> dict[str, float | int | str | None]:
         return {
             "mode": self.mode,
+            "case_set": self.case_set,
             "model": self.model,
             "case_count": self.case_count,
             "field_accuracy": round(self.field_accuracy, 4),
+            "floor_count_accuracy": round(self.floor_count_accuracy, 4),
+            "bedrooms_accuracy": round(self.bedrooms_accuracy, 4),
+            "bathrooms_accuracy": round(self.bathrooms_accuracy, 4),
+            "site_width_accuracy": round(self.site_width_accuracy, 4),
+            "site_depth_accuracy": round(self.site_depth_accuracy, 4),
+            "garage_accuracy": round(self.garage_accuracy, 4),
+            "south_orientation_accuracy": round(self.south_orientation_accuracy, 4),
             "case_pass_rate": round(self.case_pass_rate, 4),
             "hallucination_rate": round(self.hallucination_rate, 4),
             "geometry_fail_rate": round(self.geometry_fail_rate, 4),
@@ -288,6 +367,10 @@ class BenchmarkReport:
             "repair_exhausted_rate": round(self.repair_exhausted_rate, 4),
             "average_attempts": round(self.average_attempts, 4),
             "average_latency_s": round(self.average_latency_s, 4),
+            "latency_p50": round(self.latency_p50, 4),
+            "latency_p90": round(self.latency_p90, 4),
+            "latency_p95": round(self.latency_p95, 4),
+            "max_latency": round(self.max_latency, 4),
             "relation_recall": round(self.relation_recall, 4),
             "relation_precision": round(self.relation_precision, 4),
             "relation_f1": round(self.relation_f1, 4),

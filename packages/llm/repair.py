@@ -86,6 +86,7 @@ def parse_requirement_text_with_repair(
     system: str = SYSTEM_PROMPT_SKELETON,
     validator: RequirementSemanticValidator | None = None,
     max_repairs: int = DEFAULT_MAX_REPAIRS,
+    enrich: bool = True,
 ) -> ParseResult:
     """
     带有限 repair 的 NL→RequirementSpec。
@@ -111,6 +112,7 @@ def parse_requirement_text_with_repair(
                 raw,
                 raw_text=cleaned,
                 validator=validator,
+                enrich=enrich,
             )
             return ParseResult(
                 text=cleaned,
@@ -164,4 +166,5 @@ def parse_with_repair(
         system=parser.system,
         validator=parser.validator,
         max_repairs=max_repairs,
+        enrich=parser.enrich,
     )

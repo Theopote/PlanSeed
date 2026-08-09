@@ -134,11 +134,7 @@ class RequirementSemanticValidator:
         return out
 
 
-_ENDPOINT_ALIASES: dict[str, frozenset[str]] = {
-    "入口": frozenset({"入口", "门厅", "玄关"}),
-    "门厅": frozenset({"入口", "门厅", "玄关"}),
-    "玄关": frozenset({"入口", "门厅", "玄关"}),
-}
+from packages.llm.vocabulary import endpoint_alias_group
 
 
 def _endpoint_resolves(endpoint: str, names: set[str]) -> bool:
@@ -147,7 +143,7 @@ def _endpoint_resolves(endpoint: str, names: set[str]) -> bool:
         return False
     if ep in names:
         return True
-    aliases = _ENDPOINT_ALIASES.get(ep)
-    if aliases and aliases & names:
+    aliases = endpoint_alias_group(ep)
+    if aliases & names:
         return True
     return False

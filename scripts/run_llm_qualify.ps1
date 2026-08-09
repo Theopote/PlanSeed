@@ -1,16 +1,23 @@
-# Phase 6.7 — 真模型 Qualification（Windows）
+# Phase 6.7.1 — Pipeline Qualification（Windows）
 # 前置：本机已装 Ollama，且已显式安装模型（不会自动 pull）
 #
 #   ollama pull qwen2.5:7b
-#   .\scripts\run_llm_qualify.ps1
+#   .\scripts\run_llm_qualify.ps1                  # 默认 holdout + pipeline
 #   .\scripts\run_llm_qualify.ps1 -Gate
+#   .\scripts\run_llm_qualify.ps1 -CaseSet development
+#   .\scripts\run_llm_qualify.ps1 -Mode model_raw
 #   .\scripts\run_llm_qualify.ps1 -Models "qwen2.5:7b,qwen2.5:14b"
 
 param(
     [string]$Model = "qwen2.5:7b",
     [string]$Models = "",
+    [ValidateSet("development", "holdout")]
+    [string]$CaseSet = "holdout",
+    [ValidateSet("pipeline", "model_raw")]
+    [string]$Mode = "pipeline",
     [int]$Limit = 0,
     [switch]$Gate,
+    [switch]$DetailFailed,
     [string]$BaseUrl = "http://127.0.0.1:11434"
 )
 
@@ -56,8 +63,10 @@ if (-not $Models) {
 $args = @("-m", "packages.llm.benchmark.qualify")
 if ($Models) { $args += @("--models", $Models) }
 elseif ($Model) { $args += @("--model", $Model) }
+$args += @("--set", $CaseSet, "--mode", $Mode)
 if ($Limit -gt 0) { $args += @("--limit", "$Limit") }
 if ($Gate) { $args += "--gate" }
+if ($DetailFailed) { $args += "--detail-failed" }
 
 Write-Host ("  uv run python {0}" -f ($args -join " "))
 uv run python @args
