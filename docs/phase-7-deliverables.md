@@ -269,10 +269,15 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 6. [x] `sanitize_report_svg` 纵深防御（print / srcDoc）  
 7. [x] `revision_id` / `source_revision_id` 溯源；mismatch → 409  
 8. [x] Report 层成体系测试：`backend/tests/test_report_layer.py`（含 dirty / area / score / findings / sanitize / escape）  
-9. [x] 报告 Header 总分 **只取** `DesignScore.total_score`（`candidate.score` 仅为 ranking cache，不得覆盖）
+9. [x] 报告 Header 总分 **只取** `DesignScore.total_score`（`candidate.score` 仅为 ranking cache，不得覆盖）  
+10. [x] `validation` 存在且 `valid=false` → `INVALID_CANDIDATE`（正式报告拒绝；不依赖「正常 pipeline 不会出现」）
 
 原则：**Report renderer ≠ Evaluator** — Finding 直接消费 `DesignFinding.title/message/severity`，不重算分。
 
 实现落点：`packages/schema/report.py` · `backend/services/report_builder.py` · `backend/services/report_html.py` · `backend/routes/reports.py` · Desktop「报告」按钮。
 
 → **进入 7.1 Report Presentation**（不重开 Phase 6）。
+
+## 已知 P2（不挡 7.1）
+
+- **`ProjectMetadata.generated_at` 命名不准**：实际是**报告构建时间**，不是 Candidate 生成时间。后续宜改为 `report_generated_at`，并另留 `candidate_created_at` / `revision_created_at`（需 schema / HTML / API 一并改）。

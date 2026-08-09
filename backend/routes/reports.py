@@ -266,7 +266,10 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
             status_code=409,
             detail={
                 "code": "invalid_candidate",
-                "message": "候选无效（缺 id 或 placements），无法导出正式报告。",
+                "message": (
+                    "候选无效（缺 id / placements，或 validation.valid=false），"
+                    "无法导出正式报告。"
+                ),
                 "candidate_id": candidate.get("id"),
             },
         )

@@ -63,13 +63,17 @@ class ReportAreaMissingError(ReportBuildError):
 
 
 def report_status_for_candidate(candidate: dict[str, Any]) -> ReportStatus:
-    """根据 revision / 结构完整性判定报告有效性（Integrity Gate）。"""
+    """根据 revision / 结构完整性 / validation 判定报告有效性（Integrity Gate）。"""
     if not isinstance(candidate, dict):
         return ReportStatus.INVALID_CANDIDATE
     if not candidate.get("id"):
         return ReportStatus.INVALID_CANDIDATE
     placements = candidate.get("placements")
     if not isinstance(placements, list) or len(placements) == 0:
+        return ReportStatus.INVALID_CANDIDATE
+    # validation 存在且 valid=False → 无效（不依赖「正常 pipeline 不会出现」）
+    validation = candidate.get("validation")
+    if isinstance(validation, dict) and validation.get("valid") is False:
         return ReportStatus.INVALID_CANDIDATE
     revision = candidate.get("revision_status")
     if revision == "dirty":
@@ -118,7 +122,7 @@ def build_design_report(
     if status == ReportStatus.INVALID_CANDIDATE:
         raise ReportBuildError(
             "invalid_candidate",
-            "候选无效（缺 id 或 placements），无法组装报告",
+            "候选无效（缺 id / placements，或 validation.valid=false），无法组装报告",
             candidate_id=cand_id,
         )
 

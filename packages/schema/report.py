@@ -64,6 +64,7 @@ class ProjectMetadata(BaseModel):
 
     project_id: str | None = None
     project_name: str = "Untitled"
+    # 实际为报告构建时间（非 candidate 生成时间）；P2 宜改名 report_generated_at
     generated_at: str | None = None
     app_version: str | None = None
     locale: ReportLocale = Field(

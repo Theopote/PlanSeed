@@ -203,6 +203,54 @@ def test_dirty_candidate_rejected(client: TestClient):
     assert r.json()["detail"]["code"] == "candidate_requires_revalidation"
 
 
+def test_invalid_validation_rejected():
+    """validation.valid=false → INVALID；即便 revision_status=validated + design_score 残留。"""
+    from backend.services.report_builder import (
+        ReportBuildError,
+        report_status_for_candidate,
+    )
+    from packages.schema.report import ReportStatus
+
+    cand = _candidate(
+        revision_status="validated",
+        mutations=[{"id": "m1", "kind": "move"}],
+        validation={"valid": False, "hard_violations": [], "soft_violations": [], "warnings": []},
+    )
+    assert report_status_for_candidate(cand) == ReportStatus.INVALID_CANDIDATE
+    with raises(ReportBuildError) as ei:
+        build_design_report(
+            project_name="InvalidValidation",
+            requirement_spec=_requirement_spec(),
+            program=_program(),
+            candidate=cand,
+            export_mode="final",
+        )
+    assert ei.value.code == "invalid_candidate"
+
+
+def test_invalid_validation_rejected_via_api(client: TestClient):
+    """正式导出 API 拒绝 validation.valid=false。"""
+    payload = _payload(
+        _candidate(
+            revision_status="validated",
+            validation={"valid": False, "hard_violations": [], "soft_violations": [], "warnings": []},
+        )
+    )
+    pid = _save(client, payload)
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "mode": "final",
+            "project_id": pid,
+            "candidate_id": "c-a",
+            "revision_id": "c-a:gen:test",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["code"] == "invalid_candidate"
+
+
 def test_missing_candidate_id_rejected(client: TestClient):
     pid = _save(client)
     r = client.post(
