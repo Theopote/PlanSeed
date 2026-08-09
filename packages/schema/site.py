@@ -48,6 +48,25 @@ class Rect2D(BaseModel):
         return self.y + self.depth
 
 
+class Point2D(BaseModel):
+    """二维点（米）。Phase 8.4 不规则场地用。"""
+
+    x: float
+    y: float
+
+
+class Polygon2D(BaseModel):
+    """
+    简单多边形（可含洞）。
+
+    约定：外环逆时针或顺时针均可；洞为内环。
+    Alpha 仅保证**正交边**（轴对齐）完整支持；斜边可表示但不保证分解质量。
+    """
+
+    exterior: list[Point2D] = Field(min_length=3)
+    holes: list[list[Point2D]] = Field(default_factory=list)
+
+
 class SiteSpec(BaseModel):
     """
     矩形地块规格。
@@ -94,6 +113,15 @@ class SiteSpec(BaseModel):
     building_footprint: Rect2D | None = Field(
         default=None,
         description="建筑占地（solver 输出回填，输入可为空）",
+    )
+    # Phase 8.4 — 不规则场地（opt-in；默认仍用矩形 width×depth）
+    site_polygon: Polygon2D | None = Field(
+        default=None,
+        description="不规则用地多边形；为空则沿用矩形 site_boundary",
+    )
+    buildable_polygon: Polygon2D | None = Field(
+        default=None,
+        description="不规则可建多边形；可由 site_polygon + 退线推导（solver.geometry.irregular）",
     )
 
     stair_width: float = Field(

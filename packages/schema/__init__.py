@@ -96,6 +96,9 @@ from packages.schema.scoring import (
 from packages.schema.site import (
     CardinalEdge,
     CardinalOrientation,
+    Point2D,
+    Polygon2D,
+    Rect2D,
     SetbackSpec,
     SiteSpec,
 )
@@ -120,6 +123,8 @@ __all__ = [
     "CandidateValidation",
     "CardinalEdge",
     "CardinalOrientation",
+    "Point2D",
+    "Polygon2D",
     "ConnectionState",
     "Constraint",
     "ConstraintKind",
@@ -161,6 +166,7 @@ __all__ = [
     "ProjectMetadata",
     "RUNTIME_LIMITS",
     "RealizedConnection",
+    "Rect2D",
     "RelationIntent",
     "RepairRecord",
     "REPORT_BOUNDARY_LINES",

@@ -32,7 +32,8 @@ class LayoutGenerator(Protocol):
 - Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅）
 - Pareto：`rank_mode=pareto` 非支配前沿（8.2 ✅；非 GA 进化）
 - CP-SAT floor assignment（opt-in，`solver.assignment`，8.3 ✅）
-- 下一：**8.4 Advanced Geometry**；**禁止** CP-SAT/GA 输出坐标
+- 不规则场地：`solver.geometry.irregular`（Shapely opt-in，8.4 ✅）
+- Phase 8 收口；**禁止** CP-SAT/GA/Shapely 替代默认 Rect packing
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 

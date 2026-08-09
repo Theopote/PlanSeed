@@ -46,6 +46,7 @@ dev = [
 ]
 research = [
     "ortools>=9.11",
+    "shapely>=2.0",
 ]
 build = [
     "pyinstaller>=6.0",

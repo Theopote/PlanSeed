@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：▶ 8.3 CP-SAT Research ✅ · 下一 8.4 Advanced Geometry · 8.0–8.2 ✅ · CP-SAT≠几何**  
+> **状态：✅ Phase 8 完成（8.0–8.4）· CP-SAT≠几何 · Rect 默认 · Shapely opt-in**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -8,7 +8,7 @@
 - 本阶段才吸收原评审中的**算法类**建议  
 - **不要**一上来 GA / NSGA-II  
 - **不要**用 CP-SAT 直接替代整个几何 solver  
-- **不要**现在迁 Shapely / 整库 Rect engine  
+- **不要**把整库 Rect engine 迁到 Shapely（8.4 仅为 opt-in）  
 - **禁止**把 Design Heuristic 说成 Code Compliance（无 Jurisdiction / CodeProfile 前）
 
 ## 顺序
@@ -20,7 +20,7 @@
 8.1 Diversity Selection（top-score + diverse alternatives） ✅
 8.2 Pareto Frontier（非支配集） ✅
 8.3 CP-SAT Research（floor assignment opt-in） ✅
-8.4 Advanced Geometry（不规则场地才 Shapely） ← 当前
+8.4 Advanced Geometry（不规则场地 Shapely opt-in） ✅
 ```
 
 | 项 | 主题 | 状态 |
@@ -31,7 +31,7 @@
 | **8.1** | Diversity Selection | ✅ |
 | **8.2** | Pareto Frontier | ✅ |
 | **8.3** | CP-SAT Research | ✅ |
-| **8.4** | Advanced Geometry（Shapely） | **← 当前** |
+| **8.4** | Advanced Geometry（Shapely） | ✅ |
 
 ## 8.0-A — Generator Interface
 
@@ -158,10 +158,19 @@ Repair → Evaluation
 
 后续可扩：zone assignment · topology · orientation eligibility — **仍禁止**输出坐标。
 
-## 8.4 — Advanced Geometry（预告）
+## 8.4 — Advanced Geometry ✅
 
-仅当进入不规则场地 / 庭院多边形 / 非矩形 footprint / 复杂退线时，才考虑 Shapely / GEOS。  
-**不要**现在迁移整个 Rect engine。
+默认仍为 Rect engine。Shapely **opt-in**：
+
+- Schema：`Point2D` / `Polygon2D`；`SiteSpec.site_polygon` / `buildable_polygon`
+- 模块：`solver/geometry/irregular.py`
+  - 均匀退线 inset
+  - 轴对齐矩形 containment
+  - **正交**多边形 → free rects（供 packing 消费，不改写 Guillotine）
+- 依赖：`uv sync --group research`（shapely）
+- ADR：[adr/009-rect-default-shapely-irregular.md](../adr/009-rect-default-shapely-irregular.md)
+
+**禁止**把整个 Rect / packing 内核迁到 Shapely。
 
 ## 明确不做（Phase 8）
 
@@ -179,4 +188,4 @@ Repair → Evaluation
 - [x] 8.1 Diversity Selection
 - [x] 8.2 Pareto Frontier
 - [x] 8.3 CP-SAT Research
-- [ ] 8.4 Advanced Geometry
+- [x] 8.4 Advanced Geometry
