@@ -21,11 +21,11 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 | 子阶段 | 主题 | 状态 |
 |--------|------|------|
 | **7.0** | Deliverable Model | ✅ |
-| **7.0.1** | Report Integrity | ✅ |
+| **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
 | **7.1** | Report Presentation | **← 当前** |
-| **7.2** | Export Formats | 下一 |
+| **7.2** | Export Formats | 下一（7.2.1 SVG → 7.2.2 PNG → 7.2.3 JSON → 7.2.4 Print polish） |
 
-**不做（本 Phase）：** DXF / DWG / IFC · ReportLab / WeasyPrint / Chromium headless / PDF canvas 引擎 · Phase 6 抠分。
+**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor。
 
 ## 第一刀：Export Design Report
 
@@ -339,7 +339,23 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 3. [x] 面积表：目标/实际/差值/宽×深；主表无 room_id  
 4. [x] `report_evaluation_presenter`：档位 + top strengths/concerns（仅 DesignFinding）  
 5. [x] Assumptions/Unknowns 后置；blocking 首页提示  
-6. [ ] 打印预览手测（Desktop WebView）— 工程验收项  
-7. [ ] 中文关系/轴名持续打磨（可随 Blind 文案迭代，不挡呈现骨架）
+6. [x] Print fallback：`iframe.contentWindow.print()` 优先；**禁止** `window.print()` 打主壳  
+7. [x] 楼层标题本地化 · Cover 目录 · 轴名建筑化 · 报告生成时间 · Desktop 预览中文  
 
-实现落点：`report_html.py` · `report_evaluation_presenter.py` · `report_i18n.py` · `RoomScheduleRow`。
+实现落点：`report_html.py` · `report_evaluation_presenter.py` · `report_i18n.py` · `RoomScheduleRow` · `ReportPreview.tsx`。
+
+手测：Desktop「报告」→ 打印分页与版式（验收，不挡代码合入）。
+
+## 7.2 — Export Formats（下一；等 7.1 结构稳定）
+
+真正的多格式导出。**PDF 仍坚持 HTML → Print**，不引入专业 PDF 引擎。  
+**禁止：** DXF / DWG / IFC / Revit / BIM。
+
+| 子阶段 | 主题 | 说明 |
+|--------|------|------|
+| **7.2.1** | SVG export | 单层 / 整图 SVG 下载 |
+| **7.2.2** | PNG rasterize | **可先于 PDF**：单层平面 PNG（微信 / PPT / Word / 发客户） |
+| **7.2.3** | DesignReport JSON | 权威快照导出 |
+| **7.2.4** | Print / PDF polish | HTML Print 体验硬化（非新引擎） |
+
+优先级：**PNG 单层平面** 对建筑师极实用，可早于 Print polish。

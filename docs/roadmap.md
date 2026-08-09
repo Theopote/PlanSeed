@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
 > **当前焦点：Phase 7.1 Report Presentation → 7.2 Export Formats**  
-> Phase 6 **彻底冻结**（工程资格 ✅；`qualify --gate` 要求 worktree clean；**不开** 6.7.3+ 抠分）  
-> Phase 7.0 Deliverable Model ✅ · 7.0.1 Report Integrity ✅  
+> Phase 6 **彻底冻结**（Hybrid Requirement Parsing ✅；`qualify --gate` 拒 dirty；**不开** 抠分）  
+> 7.0 DesignReport ✅ · 7.0.1 Integrity ✅（score / validation 小补丁已收）  
 > 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)  
 > 契约：[api-contract.md](api-contract.md)
 
@@ -11,27 +11,28 @@
 | 阶段 | 主题 | 状态 |
 |------|------|------|
 | **0–5.1.1** | **Design Kernel** | **✅** |
-| **6.0–6.6** | **LLM Infrastructure** | **✅** |
-| **6.7.1** | **Precision Pipeline** | **✅** |
-| **6.7.2** | **Blind engineering pass** | **✅ 冻结**（`--gate` 拒 dirty worktree） |
-| **7.0** | **Deliverable Model** | **✅** |
+| **6** | **Hybrid Requirement Parsing** | **✅ Frozen** |
+| **7.0** | **DesignReport Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
-| **7.1** | **Report Presentation** | **← 当前** |
-| **7.2** | **Export Formats** | 下一 |
+| **7.1** | **Report Presentation** | **← CURRENT** |
+| **7.2** | **Export Formats** | **NEXT** |
+| **8+** | Advanced Site / Code / Interop | deferred |
 
 ```text
-0–5.1.1   Design Kernel              ✅
-6.0–6.7.2 Local LLM / Blind          ✅ 彻底冻结
-7.0       Deliverable Model          ✅
-7.0.1     Report Integrity           ✅
-7.1       Report Presentation        ← 当前
-7.2       Export Formats             下一
+0–5.1.1   Design Kernel                  ✅
+6         Hybrid Requirement Parsing     ✅ Frozen
+7.0       DesignReport Model             ✅
+7.0.1     Report Integrity               ✅
+7.1       Report Presentation            ← CURRENT
+7.2       Export Formats                 NEXT
+8+        Advanced Site / Code / Interop deferred
 ```
 
 ```text
-现在做：7.1 报告呈现（信息层级 · 平面为核心 · 建筑化面积表 · 评价 Presenter · 阅读顺序）
-下一：7.2 HTML/Print-PDF/JSON/SVG·PNG
-不做：DXF/DWG/IFC · ReportLab/WeasyPrint/Chromium PDF 引擎 · 重开 Phase 6 Blind 抠分 · 云端 LLM
+现在做：7.1 专业呈现（结构已落地；手测打印版式）
+下一：7.2.1 SVG → 7.2.2 PNG（可先于 PDF）→ 7.2.3 JSON → 7.2.4 Print polish
+不做：DXF/DWG/IFC/BIM · 专业 PDF 引擎 · 新评价轴 · 新 LLM · solver refactor · 重开 Report Integrity 大阶段
+产品问题：把「已经能设计」转化为「能够交付」
 ```
 ## 阶段总览（以代码为准）
 
@@ -307,7 +308,7 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 ```text
 6.0–6.6  ✅ LLM Infrastructure
 6.7.1    ✅ Precision Pipeline
-6.7.2    ✅ Blind engineering pass（严格可复现 ⚠）
+6.7.2    ✅ Blind engineering pass（彻底冻结；--gate 拒 dirty）
 Phase 6  冻结 — 不开 6.7.3 / 6.7.4；产品主线 → Phase 7
 工程任务  Reproducible Blind Qualification（qualify --gate 要求 git_dirty=false）
 ```
@@ -323,7 +324,7 @@ Phase 6  冻结 — 不开 6.7.3 / 6.7.4；产品主线 → Phase 7
 | **6.6** | Requirement Benchmark（oracle harness ≠ 真模型准确率） | ✅ |
 | **6.7** | Real Model Qualification & Runtime Hardening | ✅ 工程 |
 | **6.7.1** | Parser Precision & Holdout | ✅ Engineering（Holdout 泄漏） |
-| **6.7.2** | Blind Requalification | ✅ 工程 PASS；严格可复现 ⚠ |
+| **6.7.2** | Blind Requalification | ✅ 彻底冻结（`--gate` 拒 dirty） |
 
 详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
@@ -426,15 +427,14 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | 子阶段 | 主题 | 状态 |
 |--------|------|------|
 | **7.0** | Deliverable Model（`DesignReport`） | ✅ |
-| **7.0.1** | Report Integrity（Dirty / id / area / SVG / revision / score / validation） | ✅ |
-| **7.1** | Report Presentation（信息层级 · 平面核心 · 面积表 · Evaluation Presenter · 阅读顺序） | **← 当前** |
-| **7.2** | Export Formats（HTML · Print→PDF · JSON · SVG/PNG） | 下一 |
+| **7.0.1** | Report Integrity | ✅ |
+| **7.1** | Report Presentation | **← CURRENT** |
+| **7.2** | Export Formats | NEXT：7.2.1 SVG · 7.2.2 PNG · 7.2.3 JSON · 7.2.4 Print polish |
+| **8+** | Advanced Site / Code Profiles / Interop… | deferred |
 
-**PDF：** `DesignReport → HTML → WebView → Print/PDF`。**禁止**本阶段引入 ReportLab / WeasyPrint / Chromium headless / PDF canvas。  
-**禁止：** DXF / DWG / IFC / BIM · 前端重算面积 · 重开 Phase 6 Blind 抠分 · 云端 LLM。
-
-报告目标：建筑师愿意给客户 / 同事 / 自己归档的设计成果（非开发面板导出）。  
-**Report renderer ≠ Evaluator。** 总分只取 `DesignScore.total_score`；优缺点只来自 deterministic `DesignFinding`。详案 A–E 见 [phase-7-deliverables.md](phase-7-deliverables.md)。
+**PDF：** 始终 `HTML → Print`。**禁止**专业 PDF 引擎与 DXF/DWG/IFC/BIM。  
+**PNG 可先于 PDF polish**（单层平面发客户 / PPT / 微信）。  
+不再开「Report Integrity 大阶段」；P0 小补丁（score 事实源 · `validation.valid`）已收。
 
 **明确不塞进 Phase 7：** Advanced Site · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · LLM 性能专项。
 ---

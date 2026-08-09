@@ -225,6 +225,18 @@ def render_report_html(report: DesignReport) -> str:
         <p class="executive"><strong>{html.escape(tr(locale, "cover.summary"))}</strong>
           — {executive or html.escape(tr(locale, "empty.list"))}</p>
         <ul class="cover-intents">{cover_intents}</ul>
+        <nav class="toc" aria-label="{html.escape(tr(locale, 'meta.toc'))}">
+          <div class="toc-title">{html.escape(tr(locale, "meta.toc"))}</div>
+          <ol>
+            <li><a href="#brief">{html.escape(tr(locale, "section.brief"))}</a></li>
+            <li><a href="#plans">{html.escape(plans_heading)}</a></li>
+            <li><a href="#schedule">{html.escape(tr(locale, "section.room_schedule"))}</a></li>
+            <li><a href="#evaluation">{html.escape(tr(locale, "section.evaluation"))}</a></li>
+            <li><a href="#findings">{html.escape(tr(locale, "section.findings"))}</a></li>
+            <li><a href="#assumptions">{html.escape(tr(locale, "section.assumptions_unknowns"))}</a></li>
+            <li><a href="#provenance">{html.escape(tr(locale, "section.provenance"))}</a></li>
+          </ol>
+        </nav>
       </div>
     </header>
 
@@ -271,6 +283,8 @@ def render_report_html(report: DesignReport) -> str:
     <footer class="boundary chapter" id="provenance">
       <h2>{html.escape(tr(locale, "section.provenance"))}</h2>
       <div class="prov-grid">
+        <div>{html.escape(tr(locale, "meta.report_generated_at"))}:
+          {html.escape(r.project.generated_at or "—")}</div>
         <div>{html.escape(tr(locale, "meta.id"))}: {cid}</div>
         <div>{html.escape(tr(locale, "meta.source_revision"))}:
           {html.escape(r.source_revision_id or "—")}</div>
@@ -334,6 +348,17 @@ _REPORT_CSS = """
   .cover-line { font-size: 1rem; margin-bottom: 0.75rem; }
   .executive { margin: 0.5rem 0 0.75rem; font-size: 1.02rem; }
   .cover-intents { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+  .toc {
+    margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line);
+    font-family: "Segoe UI", "PingFang SC", sans-serif; font-size: 0.88rem;
+  }
+  .toc-title {
+    color: var(--muted); font-size: 0.72rem; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 0.35rem;
+  }
+  .toc ol { margin: 0; padding-left: 1.2rem; color: var(--ink); }
+  .toc a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--line); }
+  .toc a:hover { border-bottom-color: var(--ink); }
   .score {
     display: inline-block; font-size: 1.85rem; font-weight: 700;
     border: 1.5px solid var(--ink); padding: 0.1rem 0.55rem; margin-left: 0.55rem;

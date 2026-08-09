@@ -531,3 +531,30 @@ def test_evaluation_presenter_deterministic():
     assert presented.concerns[0].title == "流线偏长"
     assert "76" in presented.executive_summary
     assert "客厅朝南" in presented.executive_summary
+
+
+def test_floor_plan_labels_localized():
+    from packages.schema.report_i18n import present_floor_plan_label
+
+    assert present_floor_plan_label("zh-CN", "F1") == "一楼平面"
+    assert present_floor_plan_label("zh-CN", "F2") == "二楼平面"
+    assert present_floor_plan_label("en-US", "F1") == "Level 1 plan"
+
+    cand = _candidate(
+        floor_svgs={
+            "F1": '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>',
+            "F2": '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>',
+        }
+    )
+    report = build_design_report(
+        project_name="Floors",
+        requirement_spec=_requirement_spec(),
+        program=_program(),
+        candidate=cand,
+    )
+    assert [b.label for b in report.floor_plans] == ["一楼平面", "二楼平面"]
+    doc = render_report_html(report)
+    assert "一楼平面" in doc
+    assert "目录" in doc
+    assert "报告生成时间" in doc
+    assert "功能配置" in doc or "空间品质" in doc

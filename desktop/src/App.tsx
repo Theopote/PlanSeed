@@ -1455,7 +1455,7 @@ function App() {
       {reportHtml ? (
         <ReportPreview
           html={reportHtml}
-          title={`${projectName.trim() || "未命名"} · Design Report`}
+          title={`${projectName.trim() || "未命名"} · 设计报告`}
           onClose={() => setReportHtml(null)}
         />
       ) : null}

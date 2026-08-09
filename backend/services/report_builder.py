@@ -27,6 +27,7 @@ from packages.schema.report_i18n import (
     boundary_lines_for_locale,
     format_key_intents,
     normalize_report_locale,
+    present_floor_plan_label,
     tr,
 )
 from packages.schema.scoring import DesignScore
@@ -413,18 +414,17 @@ def _floor_plan_blocks(
             blocks.append(
                 FloorPlanBlock(
                     floor_id=fid_s,
-                    label=fid_s,
+                    label=present_floor_plan_label(locale, fid_s),
                     svg=floor_svg,
                 )
             )
         if blocks:
             blocks.sort(key=lambda b: b.floor_id)
             return blocks
-    snap = candidate.get("label") or tr(locale, "label.candidate_snapshot")
     return [
         FloorPlanBlock(
             floor_id="all",
-            label=str(snap),
+            label=tr(locale, "label.candidate_snapshot"),
             svg=svg,
         )
     ]

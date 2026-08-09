@@ -92,6 +92,8 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "meta.north": "北",
         "meta.scale": "单位：米 · 图示为方案示意（打印时请以标注尺寸为准）",
         "meta.legend": "图例：房间填充 · 墙体边界 · 标注为房间名与面积",
+        "meta.report_generated_at": "报告生成时间",
+        "meta.toc": "目录",
         "band.good": "良好",
         "band.fair": "尚可",
         "band.improve": "可改善",
@@ -120,18 +122,23 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "intent.space_floor": "{name} 位于 {floors}",
         "intent.space_orient": "{name} 朝向 {ori}",
         "axis.program": "功能配置",
-        "axis.spatial": "空间",
-        "axis.circulation": "流线",
-        "axis.privacy": "私密",
-        "axis.environment": "环境",
-        "axis.technical": "技术",
-        "axis.robustness": "稳健",
+        "axis.spatial": "空间品质",
+        "axis.circulation": "流线组织",
+        "axis.privacy": "私密分区",
+        "axis.environment": "环境与朝向",
+        "axis.technical": "技术可行性",
+        "axis.robustness": "方案稳健性",
         "boundary.req": "需求解释：本地 LLM + 确定性语义流水线",
         "boundary.geom": "几何：PlanSeed 确定性求解器",
         "boundary.eval": "评价：PlanSeed 住宅启发式评价器",
         "boundary.summary": "AI 解释设计意图；确定性求解器生成并评价几何。",
         "label.candidate_snapshot": "方案平面快照",
         "label.plan": "平面",
+        "label.floor_plan": "{name}平面",
+        "label.floor_1": "一楼",
+        "label.floor_2": "二楼",
+        "label.floor_3": "三楼",
+        "label.floor_n": "{n}楼",
     },
     ReportLocale.EN_US: {
         "geometry.solver_generated": "Solver Generated",
@@ -183,6 +190,8 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "meta.north": "N",
         "meta.scale": "Units: metres · Diagrammatic (use dimension labels when printing)",
         "meta.legend": "Legend: room fill · wall boundary · labels show name and area",
+        "meta.report_generated_at": "Report generated at",
+        "meta.toc": "Contents",
         "band.good": "Good",
         "band.fair": "Fair",
         "band.improve": "Needs work",
@@ -219,11 +228,11 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "intent.space_floor": "{name} on {floors}",
         "intent.space_orient": "{name} faces {ori}",
         "axis.program": "Program",
-        "axis.spatial": "Spatial",
+        "axis.spatial": "Spatial quality",
         "axis.circulation": "Circulation",
         "axis.privacy": "Privacy",
-        "axis.environment": "Environment",
-        "axis.technical": "Technical",
+        "axis.environment": "Environment & orientation",
+        "axis.technical": "Technical feasibility",
         "axis.robustness": "Robustness",
         "boundary.req": "Requirement interpretation: Local LLM + deterministic semantic pipeline",
         "boundary.geom": "Geometry: PlanSeed deterministic solver",
@@ -234,6 +243,11 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         ),
         "label.candidate_snapshot": "Candidate plan snapshot",
         "label.plan": "Plan",
+        "label.floor_plan": "{name} plan",
+        "label.floor_1": "Level 1",
+        "label.floor_2": "Level 2",
+        "label.floor_3": "Level 3",
+        "label.floor_n": "Level {n}",
     },
 }
 
@@ -302,6 +316,26 @@ def present_relation_intent(
         b=b,
         kind=relation_kind_label(loc, kind_s),
     )
+
+
+def present_floor_plan_label(locale: ReportLocale | str, floor_id: str) -> str:
+    """楼层平面标题：F1 → 一楼平面 / Level 1 plan；禁止只甩裸 id。"""
+    loc = normalize_report_locale(locale)
+    fid = str(floor_id).strip()
+    if not fid or fid == "all":
+        return tr(loc, "label.candidate_snapshot")
+    digits = "".join(ch for ch in fid if ch.isdigit())
+    if digits == "1":
+        name = tr(loc, "label.floor_1")
+    elif digits == "2":
+        name = tr(loc, "label.floor_2")
+    elif digits == "3":
+        name = tr(loc, "label.floor_3")
+    elif digits:
+        name = tr(loc, "label.floor_n", n=digits)
+    else:
+        name = fid
+    return tr(loc, "label.floor_plan", name=name)
 
 
 def boundary_lines_for_locale(locale: ReportLocale) -> list[str]:
