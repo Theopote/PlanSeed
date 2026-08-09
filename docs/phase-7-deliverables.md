@@ -339,6 +339,10 @@ DesignScore + DesignFinding
 Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。  
 仅 **blocking** unknown 在 Cover 醒目标出。
 
+**事实链：** Desktop `RequirementSpecPayload` / `ProgramSummary` 须携带
+`unknown.priority` 与 `assumption.source`（与 Phase 6 schema 一致）；
+编辑假设时不得丢弃 `source`。报告 Cover 的 blocking banner 依赖完整 priority。
+
 ### Definition of Done（7.1）
 
 1. [x] Cover / 编号章节信息层级（HTML）  

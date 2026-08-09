@@ -189,6 +189,28 @@ export type CandidatePayload = {
   zones?: ZonePlacementPayload[];
 };
 
+export type AssumptionSource =
+  | "user_authorized"
+  | "planseed_default"
+  | "llm_inference";
+
+export type UnknownPriority = "blocking" | "recommended" | "optional";
+
+export type AssumptionPayload = {
+  key: string;
+  value: unknown;
+  reason?: string;
+  /** Phase 6：假设来源；报告 / Gaps 须保留 */
+  source?: AssumptionSource | string | null;
+};
+
+export type UnknownPayload = {
+  key: string;
+  description?: string;
+  /** Phase 6：blocking 会上报告 Cover；须保留完整事实链 */
+  priority?: UnknownPriority | string | null;
+};
+
 export type ProgramSummary = {
   project_id: string;
   site_width: number;
@@ -202,8 +224,8 @@ export type ProgramSummary = {
     floor_id: string | null;
   }>;
   floors: Array<{ id: string; label: string | null; room_ids: string[] }>;
-  assumptions: Array<{ key: string; value: unknown; reason: string }>;
-  unknowns: Array<{ key: string; description: string }>;
+  assumptions: AssumptionPayload[];
+  unknowns: UnknownPayload[];
 };
 
 export type GenerateResponse = {
@@ -342,8 +364,8 @@ export type RequirementSpecPayload = {
     wet_stack_preference?: boolean | null;
   };
   floor_count?: number | null;
-  assumptions?: Array<{ key: string; value: unknown; reason?: string }>;
-  unknowns?: Array<{ key: string; description?: string }>;
+  assumptions?: AssumptionPayload[];
+  unknowns?: UnknownPayload[];
 };
 
 /** 用 ProgramSummary 房间面积/楼层补丁 spaces（Inspector 改面积后保持 spec 同步）。 */

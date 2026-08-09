@@ -386,6 +386,26 @@ button.secondary {
   line-height: 1.35;
 }
 
+.gaps-badge {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(120, 113, 108, 0.35);
+  border-radius: 2px;
+}
+
+.gaps-badge-blocking {
+  color: #9f1239;
+  border-color: rgba(159, 18, 57, 0.45);
+  background: #fff1f2;
+}
+
+.gaps-row-blocking {
+  border-left: 2px solid #9f1239;
+  padding-left: 0.4rem;
+}
+
 .gaps-actions {
   display: flex;
   flex-wrap: wrap;

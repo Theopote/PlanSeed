@@ -517,7 +517,13 @@ function App() {
       );
       const nextAssumptions = prevList.map((a) =>
         a.key === key
-          ? { key, value: nextValue, reason: patch.reason }
+          ? {
+              key,
+              value: nextValue,
+              reason: patch.reason,
+              // 编辑值/理由时保留 Phase 6 source，避免事实链断裂
+              source: a.source ?? existing?.source,
+            }
           : a,
       );
       setRequirementSpec({ ...base, assumptions: nextAssumptions });
@@ -529,6 +535,7 @@ function App() {
                 key: a.key,
                 value: a.value,
                 reason: a.reason ?? "",
+                source: a.source ?? undefined,
               })),
             }
           : prev,
