@@ -475,6 +475,11 @@ export interface components {
             evaluation_version: string;
             /** Generator Version */
             generator_version: string;
+            /**
+             * Selection Version
+             * @description Top-K 选优策略签名（additive；ranking 后写入）
+             */
+            selection_version?: string | null;
             /** Solver Version */
             solver_version: string;
         };
@@ -884,7 +889,7 @@ export interface components {
             requirement_spec?: components["schemas"]["RequirementSpec"] | null;
             /**
              * Solver Identity
-             * @description solver_version / generator_version / evaluation_version
+             * @description solver_version / generator_version / evaluation_version / selection_version
              */
             solver_identity?: {
                 [key: string]: string;

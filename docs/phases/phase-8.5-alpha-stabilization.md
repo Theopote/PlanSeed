@@ -31,7 +31,8 @@ opt-in：    MaxRect · multi-gen pool · pareto · CP-SAT · Shapely irregular
 
 - [x] 默认 ranking ≠ Pareto  
 - [x] `selection_version` 进入 `solver_identity` / provenance  
-- [ ] 固定 fixture：默认 Top-K 角色分布回归（axis）  
+- [x] 固定 fixture：默认 Top-K 角色分布回归（axis）  
+  （`solver/fixtures/topk_axis_roles.py` · `test_topk_axis_roles_regression.py`）  
 - [ ] 文档：凡写「Phase 8 完成」须注明 **默认语义已 requalify**  
 - [ ] 7.1.1 WebView2 Print Smoke（产品手测，独立于本项）  
 - [ ] **禁止**在稳定化完成前开 Phase 9 / 新算法主线  
