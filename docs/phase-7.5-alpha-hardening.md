@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-H coverage ← 当前 · 7.5-G ✅ · 7.5-F ✅ · 7.5-E ✅ · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：▶ 7.5-I privacy / limits / audit ← 当前 · 7.5-H ✅ · 7.5-G ✅ · 7.5-F ✅ · 7.5-E ✅ · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -33,8 +33,8 @@
 | **7.5-E** | `App.tsx` → hooks 拆分 | ✅ |
 | **7.5-F** | LLM Enricher stage 化 | ✅ |
 | **7.5-G** | Hypothesis 不变量 | ✅ |
-| **7.5-H** | pytest-cov 报告（暂不门槛） | **← 当前** |
-| **7.5-I** | Ollama local 守卫 · RuntimeLimits · audit | |
+| **7.5-H** | pytest-cov 报告（暂不门槛） | ✅ |
+| **7.5-I** | Ollama local 守卫 · RuntimeLimits · audit | **← 当前** |
 
 ## 7.5-A — OpenAPI → TypeScript
 
@@ -151,10 +151,22 @@ scalar → assumptions → unknowns → spaces → relations → floor → orien
 | checker | 生成候选上 check 不崩 |
 | regenerate | Room Lock 矩形不变 |
 
+## 7.5-H — Coverage reporting
+
+依赖：`pytest-cov` / `coverage`（dev）。配置：`pyproject.toml` → `[tool.coverage.*]`。
+
+```bash
+uv run pytest --cov=packages --cov=solver --cov=backend --cov-report=term-missing
+```
+
+CI：`python` job 输出 term 报告 + 上传 `coverage.xml` artifact。  
+**禁止** `fail_under` / coverage&lt;90 红灯（先观察 2–3 个版本）。
+
+重点观察目录：`solver/constraints` · `solver/locks` · `solver/mutation` · `backend/services` · `packages/persistence`。
+
 ## 后续批次（摘要）
 
-- **H**：`pytest-cov` 先报告；**暂不** coverage&lt;90 CI fail  
-- **I**：非 loopback Ollama 警告/可拦；集中 Limits；`pip-audit` + `cargo audit`
+- **I**：非 loopback Ollama 警告/可拦；集中 `RuntimeLimits`；`pip-audit` + `cargo audit`
 
 ## Definition of Done（7.5）
 
@@ -165,7 +177,7 @@ scalar → assumptions → unknowns → spaces → relations → floor → orien
 - [x] App orchestration 拆分  
 - [x] Enricher stage 化  
 - [x] Hypothesis 核心 property tests  
-- [ ] coverage reporting  
+- [x] coverage reporting  
 - [ ] local LLM privacy guard  
 - [ ] dependency audit  
 

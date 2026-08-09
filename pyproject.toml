@@ -41,6 +41,7 @@ dev = [
     "ruff>=0.9",
     "mypy>=1.14",
     "hypothesis>=6.165.2",
+    "pytest-cov>=7.1.0",
 ]
 build = [
     "pyinstaller>=6.0",
@@ -143,3 +144,27 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = "backend.tests.*"
 ignore_errors = true
+
+# Phase 7.5-H：覆盖率报告仅观察；禁止 fail_under / CI 门槛，直至观察 2–3 个版本。
+[tool.coverage.run]
+source = ["packages", "solver", "backend"]
+branch = false
+omit = [
+    "*/tests/*",
+    "solver/tests/*",
+    "packages/*/tests/*",
+    "backend/tests/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+# 重点观察（非门槛）：solver/constraints · solver/locks · mutation ·
+# backend/services（serialization/report）· packages/persistence
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

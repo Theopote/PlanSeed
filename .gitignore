@@ -29,5 +29,8 @@ desktop/src-tauri/resources/planseed-backend/
 dist/
 build/
 *.spec
-.mypy_cache/
-.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.hypothesis/

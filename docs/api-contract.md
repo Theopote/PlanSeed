@@ -76,7 +76,7 @@ evaluation_version
 
 | 标签 | 含义 |
 |------|------|
-| **CI configured** | `.github/workflows/ci.yml` 含 pytest / ruff / mypy / pnpm build / **cargo check** / **OpenAPI contract drift** |
+| **CI configured** | `.github/workflows/ci.yml` 含 pytest(+coverage 报告) / ruff / mypy / pnpm build / **cargo check** / **OpenAPI contract drift**（coverage **无** fail_under） |
 | **CI verified green** | 某次 push/PR 的 GitHub Actions run **实际成功** |
 
 仅「configured」时文档不得写「CI passed / verified green」。

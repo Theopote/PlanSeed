@@ -22,12 +22,16 @@ uv sync --dev
 # 运行全部测试
 uv run pytest
 
+# 覆盖率报告（Phase 7.5-H：仅观察，无门槛）
+uv run pytest --cov=packages --cov=solver --cov=backend --cov-report=term-missing
+
 # 静态检查（与 CI 对齐；mypy 宽松，勿 --strict）
 uv run ruff check .
 uv run mypy packages solver backend
 ```
 
-CI：push / PR 自动跑 pytest · ruff · mypy · **OpenAPI→TS 契约漂移** · `pnpm --dir desktop build` · `cargo check`（见 `.github/workflows/ci.yml`）。  
+CI：push / PR 自动跑 pytest(+coverage 报告) · ruff · mypy · **OpenAPI→TS 契约漂移** · `pnpm --dir desktop build` · `cargo check`（见 `.github/workflows/ci.yml`）。  
+**暂不**因 coverage&lt;90 失败。  
 Windows sidecar（PyInstaller）仅手动 / release 工作流。
 
 改 FastAPI / Pydantic API 模型后须同步契约：
