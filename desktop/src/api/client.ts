@@ -907,6 +907,46 @@ export async function exportSvg(opts: {
   return { blob, filename };
 }
 
+export type PngExportSize = 2048 | 4096;
+
+/** Phase 7.2.2 — Canonical SVG → PNG（resvg；禁止 HTML 截图）。 */
+export async function exportPng(opts: {
+  projectId: string;
+  candidateId: string;
+  revisionId: string;
+  scope: SvgExportScope;
+  floorId?: string | null;
+  size?: PngExportSize;
+}): Promise<{ blob: Blob; filename: string }> {
+  const r = await fetch(`${_apiBase}/api/exports/png`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      project_id: opts.projectId,
+      candidate_id: opts.candidateId,
+      revision_id: opts.revisionId,
+      scope: opts.scope,
+      floor_id: opts.floorId ?? undefined,
+      size: opts.size ?? 2048,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: unknown };
+      msg = formatReportErrorDetail(body.detail, r.status);
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  const blob = await r.blob();
+  const filename =
+    parseContentDispositionFilename(r.headers.get("content-disposition")) ??
+    (opts.scope === "all_floors" ? "export_floors.png.zip" : "export.png");
+  return { blob, filename };
+}
+
 /** 触发浏览器 / WebView 下载。 */
 export function downloadBlob(blob: Blob, filename: string): void {
   triggerBlobDownload(blob, filename);

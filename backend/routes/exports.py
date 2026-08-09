@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
 from backend.services.export.final_gate import load_final_candidate
+from backend.services.export.png_exporter import ALLOWED_PNG_SIZES, export_png
 from backend.services.export.svg_exporter import (
     SvgExportError,
     content_disposition_attachment,
@@ -18,6 +19,7 @@ from backend.services.export.svg_exporter import (
 router = APIRouter(tags=["exports"])
 
 SvgScope = Literal["floor", "snapshot", "all_floors"]
+PngScope = Literal["floor", "snapshot", "all_floors"]
 
 
 class SvgExportRequest(BaseModel):
@@ -42,6 +44,42 @@ class SvgExportRequest(BaseModel):
         return self
 
 
+class PngExportRequest(BaseModel):
+    """正式 PNG 导出：Canonical SVG → resvg 光栅；白底。"""
+
+    project_id: str
+    candidate_id: str
+    revision_id: str
+    scope: PngScope = Field(
+        default="floor",
+        description="floor=单层 · snapshot=整图 · all_floors=各层 zip",
+    )
+    floor_id: str | None = Field(
+        default=None,
+        description="scope=floor 时必填（如 F1）",
+    )
+    size: Literal[2048, 4096] = Field(
+        default=2048,
+        description="最长边像素：2048 或 4096",
+    )
+
+    @model_validator(mode="after")
+    def _validate(self) -> PngExportRequest:
+        if self.scope == "floor" and not (self.floor_id or "").strip():
+            raise ValueError("scope=floor 时 floor_id 必填")
+        if int(self.size) not in ALLOWED_PNG_SIZES:
+            raise ValueError("size 仅支持 2048 或 4096")
+        return self
+
+
+def _export_http_error(exc: SvgExportError) -> HTTPException:
+    status = 404 if exc.code == "floor_not_found" else 400
+    return HTTPException(
+        status_code=status,
+        detail={"code": exc.code, "message": str(exc)},
+    )
+
+
 @router.post("/api/exports/svg")
 def export_svg_endpoint(body: SvgExportRequest) -> Response:
     """
@@ -64,11 +102,7 @@ def export_svg_endpoint(body: SvgExportRequest) -> Response:
             candidate_label=label,
         )
     except SvgExportError as exc:
-        status = 404 if exc.code == "floor_not_found" else 400
-        raise HTTPException(
-            status_code=status,
-            detail={"code": exc.code, "message": str(exc)},
-        ) from exc
+        raise _export_http_error(exc) from exc
 
     return Response(
         content=result.body,
@@ -77,5 +111,43 @@ def export_svg_endpoint(body: SvgExportRequest) -> Response:
             "Content-Disposition": content_disposition_attachment(
                 result.filename
             ),
+        },
+    )
+
+
+@router.post("/api/exports/png")
+def export_png_endpoint(body: PngExportRequest) -> Response:
+    """
+    Canonical SVG → PNG（resvg）。
+
+    禁止 HTML/Workbench 截图；白底；最长边 2048/4096。
+    """
+    _pid, project_name, _payload, candidate = load_final_candidate(
+        project_id=body.project_id,
+        candidate_id=body.candidate_id,
+        revision_id=body.revision_id,
+    )
+    label = str(candidate.get("label") or candidate.get("id") or "A")
+    try:
+        result = export_png(
+            candidate,
+            scope=body.scope,
+            floor_id=body.floor_id,
+            project_name=project_name,
+            candidate_label=label,
+            size=int(body.size),
+        )
+    except SvgExportError as exc:
+        raise _export_http_error(exc) from exc
+
+    return Response(
+        content=result.body,
+        media_type=result.media_type,
+        headers={
+            "Content-Disposition": content_disposition_attachment(
+                result.filename
+            ),
+            "X-PlanSeed-Png-Width": str(result.width),
+            "X-PlanSeed-Png-Height": str(result.height),
         },
     )

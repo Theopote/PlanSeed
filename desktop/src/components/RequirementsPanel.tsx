@@ -44,6 +44,10 @@ type Props = {
   onSaveProject: () => void;
   onExportReport?: () => void;
   onExportSvg?: (scope: "floor" | "snapshot" | "all_floors") => void;
+  onExportPng?: (
+    scope: "floor" | "snapshot" | "all_floors",
+    size: 2048 | 4096,
+  ) => void;
   onOpenProjects: () => void;
   projectBusy?: boolean;
   versionHint?: string | null;
@@ -118,6 +122,7 @@ export function RequirementsPanel({
   onSaveProject,
   onExportReport,
   onExportSvg,
+  onExportPng,
   onOpenProjects,
   projectBusy = false,
   versionHint = null,
@@ -275,6 +280,59 @@ export function RequirementsPanel({
                 onClick={() => onExportSvg?.("snapshot")}
               >
                 整图快照
+              </button>
+            </div>
+          </details>
+          <details className="export-svg-menu">
+            <summary
+              className="secondary"
+              title="导出 PNG（Canonical SVG → resvg；白底）"
+              aria-disabled={
+                !engineReady || reportBusy || !program || !onExportPng
+              }
+            >
+              PNG
+            </summary>
+            <div className="export-svg-menu-panel" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportPng
+                }
+                onClick={() => onExportPng?.("floor", 2048)}
+              >
+                当前层 2048
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportPng
+                }
+                onClick={() => onExportPng?.("floor", 4096)}
+              >
+                当前层 4096
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportPng
+                }
+                onClick={() => onExportPng?.("snapshot", 2048)}
+              >
+                整图 2048
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportPng
+                }
+                onClick={() => onExportPng?.("all_floors", 2048)}
+              >
+                全部楼层 zip
               </button>
             </div>
           </details>

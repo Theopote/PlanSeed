@@ -14,7 +14,7 @@
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **✅ Engineering** |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
-| **7.2** | **Export Formats** | **← 当前主线**（7.2.1 SVG 进行中） |
+| **7.2** | **Export Formats** | **← 当前主线**（SVG/PNG ✅ · 下一 JSON） |
 | **7.5** | **Alpha Engineering Hardening** | **7.2 完成后**（类型/OpenAPI/持久化…） |
 | **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
@@ -26,7 +26,7 @@
 7.0.1     Report Integrity                  ✅
 7.1       Report Presentation               ✅ Engineering
 7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
-7.2       Export Formats                    ← 当前主线（7.2.1 SVG）
+7.2       Export Formats                    ← 当前主线（下一 7.2.3 JSON）
 7.5       Alpha Engineering Hardening       ← 7.2 完成后
 8.0       Solver Diversity / Solver 2.0     ← 后续
 8.x       Advanced Site / Code / Interop    ← 更后
@@ -58,7 +58,7 @@
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **✅ Engineering**（收口 7.1.1） |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
-| **7.2** | **Export Formats** | **← 当前**（7.2.1 SVG） |
+| **7.2** | **Export Formats** | **← 当前**（下一 7.2.3 JSON） |
 | **7.5** | **Alpha Engineering Hardening** | **7.2 后** |
 | **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
@@ -438,7 +438,7 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.0.1** | Report Integrity | ✅ |
 | **7.1** | Report Presentation | ✅ Engineering |
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke 待手测勾选 |
-| **7.2** | Export Formats | **← 当前主线**（7.2.1 SVG → PNG → JSON → Print polish → Export Dialog） |
+| **7.2** | Export Formats | **← 当前主线**（SVG/PNG ✅ → JSON → Print polish → Export Dialog） |
 | **7.5** | Alpha Engineering Hardening | 7.2 后：类型安全 / OpenAPI / 持久化…（审计建议落点） |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续研究；禁止提前塞进 7.x |
 | **8.x** | Advanced Site / Code / Interop | 更后 |

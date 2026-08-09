@@ -1,6 +1,6 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 7.2.1 SVG Export ← 当前 · 7.1.1 Print smoke 人手待勾**
+> **状态：▶ 7.2.3 DesignReport JSON ← 下一 · 7.2.1/7.2.2 ✅ · 7.1.1 Print smoke 人手待勾**
 > **详案：** 本页 · [phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 > **前置：** Phase 6 **彻底冻结**（Blind 工程 PASS；`qualify --gate` 拒 dirty worktree；不开抠分）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
@@ -26,7 +26,7 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
 | **7.1** | Report Presentation | ✅ Engineering（收口见 7.1.1） |
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke ☐ |
-| **7.2** | Export Formats | **← 当前**（7.2.1 SVG） |
+| **7.2** | Export Formats | **← 当前**（下一 7.2.3 JSON） |
 | **7.5** | Alpha Engineering Hardening | 7.2 完成后 |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续 |
 
@@ -386,13 +386,13 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 
 | 子阶段 | 主题 | 状态 |
 |--------|------|------|
-| **7.2.1** | SVG Export | **← 当前** |
-| **7.2.2** | PNG Export | 下一（**最有用户价值**） |
-| **7.2.3** | DesignReport JSON | 交付契约 ≠ Project Snapshot |
+| **7.2.1** | SVG Export | ✅ |
+| **7.2.2** | PNG Export | ✅ |
+| **7.2.3** | DesignReport JSON | **← 下一** |
 | **7.2.4** | Print / PDF Polish | CSS print only；非 PDF 引擎 |
 | **7.2.5** | Export UX Consolidation | Export Dialog；防按钮爆炸 |
 
-### 7.2.1 — SVG Export（当前）
+### 7.2.1 — SVG Export ✅
 
 **导什么（三分）：**
 
@@ -415,17 +415,24 @@ project_id + candidate_id + revision_id (+ floor_id)
 **API：** `POST /api/exports/svg`（不塞进 `/api/reports/build`）  
 **实现：** `backend/services/export/svg_exporter.py` · `final_gate.py` · `backend/routes/exports.py`
 
-### 7.2.2 — PNG Export（核心价值）
+### 7.2.2 — PNG Export ✅
 
 ```text
-Canonical Floor SVG → Rasterizer → PNG
+Canonical Floor SVG → sanitize → resvg → PNG（白底）
 ```
 
-- 分辨率：**2048 / 4096** px；白底  
-- **禁止：** HTML/Workbench 截图 · Chromium 服务 · 透明/暗色/水印/品牌模板（Alpha）  
-- 本地、确定性、Windows 可打包；勿拖重 GUI 依赖进 sidecar
+| 项 | 约定 |
+|----|------|
+| 分辨率 | 最长边 **2048 / 4096** px（保持比例） |
+| 背景 | `#ffffff` |
+| 引擎 | `resvg-py`（本地 wheel；**非** Chromium / HTML 截图） |
+| API | `POST /api/exports/png`（同 SVG 的 scope + `size`） |
+| 实现 | `backend/services/export/png_exporter.py` |
 
-### 7.2.3 — DesignReport JSON
+**禁止：** HTML/Workbench 截图 · Chromium 服务 · 透明/暗色/水印/品牌模板（Alpha）  
+**依赖：** `resvg-py` · `pillow`（测试/像素校验；光栅主路径为 resvg）
+
+### 7.2.3 — DesignReport JSON（← 下一）
 
 | | Project Snapshot | DesignReport JSON |
 |--|------------------|-------------------|
