@@ -37,7 +37,8 @@ uv run python -m packages.llm.benchmark.qualify --set holdout
 Blind / Holdout 默认**不写** per-case `failed_cases`（防逐案过拟合）。
 
 **Engineering Gate：** Blind + Pipeline 的 `alpha_gate.passed`。  
-**冻结可复现：** 还要求跑分时 `meta.git_dirty=false`，且 case set 文件已在该 `git_commit` 内。  
+**冻结可复现（Strict）：** `--gate` 要求 `git status` clean；baseline 须 `meta.git_dirty=false`，且 case set / parser 文件已在该 `git_commit` 内。  
+脏工作区 + `--gate` → `QualificationError`（exit 2），**拒绝跑分**，避免「未 commit 代码 + 旧 SHA」假证据。  
 Blind v4 历史基线：`git_commit=c79c03fd` 但不含 blind-v4 → **工程资格 ✅ / 严格可复现 ⚠**（见 phase-6.7.2）。  
 Holdout 过门 ≠ 严格独立泛化证据。
 ## Phase 6 post-alpha known limitations

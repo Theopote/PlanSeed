@@ -3,6 +3,7 @@
 用法::
 
     # Blind + Pipeline（默认；严格独立资格认证）
+    # --gate 要求干净 git 工作区；脏则 exit 2，不跑分
     uv run python -m packages.llm.benchmark.qualify --gate
 
     # 已泄漏的 Holdout（工程回归，非严格证据）
@@ -43,6 +44,10 @@ CaseSetName = Literal["development", "holdout", "blind"]
 QualifyMode = Literal["pipeline", "model_raw"]
 
 
+class QualificationError(RuntimeError):
+    """严格资格认证前置失败（如脏工作区）。"""
+
+
 def _make_provider(model: str) -> OllamaProvider:
     cfg = replace(
         load_ollama_config(),
@@ -72,28 +77,61 @@ def _git_commit() -> str | None:
         return None
 
 
-def _git_provenance() -> dict[str, Any]:
-    """记录 commit + 工作区是否脏（冻结可复现性证据）。"""
-    commit = _git_commit()
-    dirty = False
-    dirty_paths: list[str] = []
+def git_is_dirty() -> bool:
+    """工作区是否有未提交变更（porcelain 非空）。"""
     try:
         out = subprocess.check_output(
             ["git", "status", "--porcelain"],
             stderr=subprocess.DEVNULL,
             text=True,
         )
-        lines = [ln for ln in out.splitlines() if ln.strip()]
-        dirty = bool(lines)
-        for ln in lines[:40]:
-            # porcelain: XY PATH 或 rename
-            path = ln[3:].strip()
-            if " -> " in path:
-                path = path.split(" -> ", 1)[-1].strip()
-            if path:
-                dirty_paths.append(path)
+        return any(ln.strip() for ln in out.splitlines())
     except Exception:
-        pass
+        # 无法探测时不当作 clean，避免假严格资格
+        return True
+
+
+def _git_dirty_paths(limit: int = 40) -> list[str]:
+    try:
+        out = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except Exception:
+        return []
+    paths: list[str] = []
+    for ln in out.splitlines():
+        if not ln.strip():
+            continue
+        path = ln[3:].strip()
+        if " -> " in path:
+            path = path.split(" -> ", 1)[-1].strip()
+        if path:
+            paths.append(path)
+        if len(paths) >= limit:
+            break
+    return paths
+
+
+def require_clean_worktree_for_gate() -> None:
+    """`--gate` 硬门：脏工作区禁止声称严格资格（避免 baseline 记旧 SHA）。"""
+    if not git_is_dirty():
+        return
+    paths = _git_dirty_paths()
+    sample = ", ".join(paths[:8]) if paths else "(unknown paths)"
+    raise QualificationError(
+        "Strict qualification requires clean git worktree "
+        f"(git_dirty=true; sample: {sample}). "
+        "Commit or stash, then re-run with --gate."
+    )
+
+
+def _git_provenance() -> dict[str, Any]:
+    """记录 commit + 工作区是否脏（冻结可复现性证据）。"""
+    commit = _git_commit()
+    dirty = git_is_dirty()
+    dirty_paths = _git_dirty_paths() if dirty else []
     note = None
     if dirty:
         note = (
@@ -304,9 +342,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--gate",
         action="store_true",
-        help="Alpha Gate 未通过时非零退出",
+        help=(
+            "严格资格：脏工作区立即拒绝；"
+            "Alpha Gate 未通过时非零退出"
+        ),
     )
     args = parser.parse_args(argv)
+
+    # 硬门：--gate 时禁止脏工作区跑分并写入「过门」基线（防旧 SHA + 未提交代码）
+    if args.gate:
+        try:
+            require_clean_worktree_for_gate()
+        except QualificationError as exc:
+            print(f"QualificationError: {exc}", flush=True)
+            return 2
 
     limit_env = os.environ.get("PLANSEED_LLM_QUALIFY_LIMIT", "").strip()
     limit = args.limit

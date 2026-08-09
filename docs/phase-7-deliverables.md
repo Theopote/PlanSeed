@@ -1,7 +1,7 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 进行中（7.0 落地；当前 P0 = 7.0.1 Report Integrity Gate）**  
-> **前置：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 Gate **工程 PASS**；严格可复现资格 ⚠（见该文）  
+> **状态：▶ 7.0.1 Report Integrity（当前）→ 7.1 Presentation → 7.2 Formats**  
+> **前置：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 **工程 PASS**；严格可复现 ⚠（Phase 6 冻结，仅修 qualify）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ## 产品闭环
@@ -10,19 +10,30 @@
 
 ```text
 NL → RequirementSpec → Generate → Evaluate → Compare
-  → Edit → Revalidate → Save
+  → Edit → Revalidate → Save → Deliver
 ```
 
-下一步自然是 **Deliver**。Phase 7 = Deliverable Layer，不是高级分析或再扩 LLM。
+Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不会误导用户的交付物），  
+不是高级分析、再扩 LLM，也不是 Interoperability Platform。
+
+## 子阶段优先级
+
+| 子阶段 | 主题 | 做 |
+|--------|------|-----|
+| **7.0.1** | Report Integrity | Dirty/Stale export · Candidate identity · Canonical area · SVG trust · Revision provenance · Tests |
+| **7.1** | Report Presentation | 中文文案 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印 |
+| **7.2** | Export Formats | HTML · PDF via Print · JSON · SVG / PNG |
+
+**不做（本 Phase）：** DXF / DWG / IFC · ReportLab / WeasyPrint / Chromium headless / PDF canvas 引擎。
 
 ## 第一刀：Export Design Report
 
-格式优先级（**不要**被建筑软件惯性拖进 DWG / IFC / Revit）：
+格式优先级：
 
-1. **HTML → Print / PDF**（Alpha 首选，见下）  
+1. **HTML → WebView → Print / PDF**（Alpha 正确路径）  
 2. SVG / PNG 平面图  
 3. JSON（`DesignReportPayload` 快照）  
-4. DXF — **later**，不挡 7.0
+4. DXF — **later**，不挡主线
 
 ## 7.0 先建 Deliverable Model
 
@@ -46,9 +57,10 @@ DesignReport
 之后：
 
 ```text
-DesignReport → HTML Renderer
+DesignReport → HTML Renderer（→ Print / PDF）
 DesignReport → JSON export
-DesignReport →（未来）专业 PDF / DXF
+DesignReport → SVG / PNG（7.2）
+# 不做：专业 PDF 引擎 · DXF/DWG/IFC
 ```
 
 同一事实源，多 renderer。
@@ -141,18 +153,17 @@ Report Preview（HTML，即所得）
 
 契约写入 [api-contract.md](api-contract.md)（additive）。
 
-## PDF 策略：HTML → Print，不手搓 PDF layout
+## PDF 策略：HTML → Print，不引入专业 PDF 引擎
 
-Phase 7 Alpha **不建议**在 Python 里排版 PDF。
+Phase 7 **正确路径**：
 
 ```text
-DesignReport
-  → HTML template（CSS + 中文字体 + 内嵌 SVG）
-  → Tauri WebView 预览
-  → Print / PDF
+DesignReport → HTML → Tauri WebView → Print / PDF
 ```
 
-优势：排版快、中文易、SVG 原生、预览即所得。专业排版以后再升级。
+**除非** HTML Print 出现解决不了的问题，否则**不**引入：ReportLab · WeasyPrint · Chromium headless service · PDF canvas engine。
+
+优势：排版快、中文易、SVG 原生、预览即所得。
 
 ## 报告要可解释，不是「漂亮」
 
@@ -197,12 +208,13 @@ AI interpreted design intent; deterministic solver generated and evaluated geome
 
 - Advanced Site / Environmental Analysis  
 - Code Profiles / Jurisdiction  
-- BIM / IFC / Revit / DWG  
-- DXF（7.0 不做）  
+- **BIM / IFC / Revit / DWG**（≠ Interop Platform）  
+- **DXF**（7.x 不做）  
+- **ReportLab / WeasyPrint / Chromium headless / 手搓 PDF canvas**  
 - 跨平台 packaging 硬化  
 - 交互编辑加深  
-- solver 重构 · LLM 扩功能 · 性能专项（量化/换模）
-- **不为 Blind 证据链停下来重开 Phase 6 抠分**（可选日后冻结 commit 复跑；见 6.7.2）
+- solver 重构 · LLM 扩功能 · 性能专项（量化/换模）  
+- **Phase 6.7.3+ Blind 抠分**（仅可选：干净 commit 复跑资格认证）
 
 NL 解析进度文案属最小 UX（「正在理解需求…」），见下；**不**把 P90 压到数秒当 Phase 7 门槛。
 

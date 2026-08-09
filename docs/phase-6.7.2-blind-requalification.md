@@ -166,9 +166,29 @@ case_set_version = blind-v4
 | Engineering qualification | ✅ |
 | Strict reproducible qualification | ⚠ |
 
-**后续（可选，非 Phase 7 阻塞）：** 在干净冻结 commit 上复跑 Blind（v4 或 v5）；若无明显坍塌则关闭本缺口。  
-`qualify.py` 现已记录 `git_dirty` / `git_dirty_paths` / `reproducibility_note`。
+**后续工程任务（非 Phase 7 阻塞）：Reproducible Blind Qualification**
 
-**结论：** Phase 6 **工程资格通过**；**不**再宣称 Strict Alpha Qualified；**继续** Phase 7 Deliverables。  
+```text
+clean git checkout
+  → known commit SHA
+  → blind corpus + parser/coerce/prompt 均在该 commit
+  → git status clean
+  → run once（qualify --gate）
+  → baseline stores exact SHA + git_dirty: false
+```
+
+`qualify.py` 硬门：
+
+```text
+if --gate and git_is_dirty():
+    raise QualificationError(
+        "Strict qualification requires clean git worktree"
+    )
+```
+
+否则「代码改了未 commit → 跑分 → baseline 记旧 SHA」会再次发生。  
+非 `--gate` 工程跑分仍可执行，但会写入 `git_dirty` / `reproducibility_note`。
+
+**结论：** Phase 6 **工程资格通过并冻结**；**不**再宣称 Strict Alpha Qualified；**不**开 6.7.3+；**继续** Phase 7。  
 **延迟：** Holdout/Blind 量级十几秒～P90 约 35–40s，**不阻塞** Phase 7；Alpha 用进度反馈，性能后置（见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)）。  
 **bathrooms：** Holdout 分字段 ≈87.5%（整体 field ≈96%）— **Phase 6 post-alpha known limitation**，不回头阻塞；见同文档 § 已知限制。
