@@ -201,11 +201,11 @@ Natural Language → Ollama → RequirementSpec/ProjectSpec
 ```
 
 - 左：需求与 Program（可编辑；含未来 Constraints / Preferences）
-- 中：平面图（SVG；交互编辑属 Phase 7，仍在中栏）
+- 中：平面图（SVG；交互编辑属 Phase 4 Workbench，仍在中栏）
 - 右：评价（七轴 / Findings / Metrics / Rooms）
 - 下：候选条（A / B / C…）
 
-启动见仓库根 `pnpm dev`。AI 推断的需求必须可编辑；禁止 black box 直接出图（LLM → Phase 6）。
+启动见仓库根 `pnpm dev`。AI 推断的需求必须可编辑；禁止 black box 直接出图（LLM → Phase 6）。下一产品闭环见 Phase 7 Deliverables / Export。
 
 ## 10. 与旧版开发手册的冲突
 
