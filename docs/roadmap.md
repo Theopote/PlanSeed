@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6.7.1 Parser Precision & Holdout Qualification**  
+> **当前焦点：Phase 6 ✅ Alpha Qualified（Holdout + Pipeline 过门）**  
 > 详案：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)  
-> **下一：Phase 7 Deliverables / Export**（Holdout + Pipeline 过 Alpha Gate 之后）· 契约：[api-contract.md](api-contract.md)
+> **下一：Phase 7 Deliverables / Export** · 契约：[api-contract.md](api-contract.md)
 
 ## 项目状态（阶段判断）
 
@@ -10,13 +10,12 @@
 |------|------|------|
 | **0–5.1.1** | **Design Kernel**（求解 · 评价 · 工作台 · 持久化） | **✅** |
 | **6.0–6.6** | **LLM Infrastructure**（契约 · Provider · Gate · Harness） | **✅ Engineering Complete** |
-| **6.7** | **Real Model Qualification & Runtime Hardening** | 🚧 baseline 已有，Gate 未过 |
-| **6.7.1** | **Parser Precision & Holdout** | **← 当前** |
-| **7** | **Deliverables / Export** | 下一（过门后） |
+| **6.7 / 6.7.1** | **Real Model Qualification · Parser Precision** | **✅ Alpha Qualified**（`qwen2.5:7b` Holdout+Pipeline） |
+| **7** | **Deliverables / Export** | **← 下一** |
 
 ```text
-现在做：抬高 relation/unknown/assumption precision；用 Holdout 判定 Gate
-不做：开工 Phase 7 · 先拉 14B · 对 holdout 逐案调 regex · 回头改 solver
+现在做：Phase 7 Export / Deliverables
+不做：继续堆 LLM feature · 回头大改 solver · 为抬分盯 holdout 调 regex
 ```
 
 ## 阶段总览（以代码为准）
@@ -31,9 +30,9 @@
 | **5.1** | **Revision Integrity & Mutation Single Source** | **✅ P0** |
 | **5.1.1** | **Program Fidelity Gate** | **✅ P0** |
 | **6.0–6.6** | **LLM Infrastructure** | **✅ Engineering Complete** |
-| **6.7** | **Real Model Qualification & Runtime Hardening** | 🚧 |
-| **6.7.1** | **Parser Precision & Holdout** | **← 当前** |
-| **7** | **Deliverables / Export** | 下一 |
+| **6.7** | **Real Model Qualification & Runtime Hardening** | ✅ |
+| **6.7.1** | **Parser Precision & Holdout** | **✅ Alpha Qualified** |
+| **7** | **Deliverables / Export** | **← 当前** |
 | **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（避免失焦） |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -365,57 +364,39 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 
 **目标：证明本地 LLM 真正好用。** 不扩 LLM 产品功能；不回头重构 solver。
 
-### Phase 6.7.1 — Parser Precision & Holdout ← 当前
+### Phase 6.7.1 — Parser Precision & Holdout ✅ Alpha Qualified
 
 详案：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md)
 
 **判定对象：Requirement Parsing Pipeline（LLM + Gate + Enrich），不是裸模型。**  
-**Gate 证据：Holdout（≥30）；Development 62 条仅供调规则。**
-
-**Alpha Gate（扩展；Geometry = 0 为架构硬边界）：**
-
-| 指标 | Gate |
-|------|------|
-| Geometry violation | 0% |
-| Parse success | ≥ 95% |
-| Scalar field accuracy | ≥ 90% |
-| Relation F1 | ≥ 80% |
-| Relation precision | ≥ 75% |
-| Unknown hallucination | ≤ 5% |
-| Unknown precision | ≥ 70% |
-| Unknown recall | ≥ 70% |
-| Assumption precision | ≥ 80% |
-| Repair exhausted | ≤ 5% |
-| Case pass rate | ≥ 70% |
+**Gate 证据：Holdout（≥30）+ Pipeline；`qwen2.5:7b` 已过门（2026-08-09）。**
 
 **清单：**
 
-- [x] 6.7 工程项（runtime / UI / qualify / 首轮 baseline）
-- [x] Development vs Holdout 分集；`qualify --set holdout|development`
-- [x] Pipeline vs `model_raw`（`--mode`）
-- [x] precision-first enricher + 细化 RelationKind / AssumptionSource
-- [x] Gate 扩展 + latency p50/p90/p95 + 分字段准确率
-- [ ] Holdout + Pipeline 重跑 baseline（勿逐案盯 holdout 调 regex）
-- [ ] 至少一 Pipeline 过 Holdout Alpha Gate → **Phase 6 ✅** → Phase 7
+- [x] Development vs Holdout 分集；`qualify --set` / `--mode`
+- [x] precision-first enricher + 细化 RelationKind
+- [x] Gate 扩展 + latency percentiles
+- [x] Holdout + Pipeline 过 Alpha Gate → **Phase 6 ✅** → Phase 7
 
-**qwen2.5:7b Holdout + Pipeline（precision-first，2026-08-09 重跑）：**
+**qwen2.5:7b Holdout + Pipeline（过门，2026-08-09）：**
 
-| 指标 | 首轮 holdout | 本轮 | Gate | |
-|------|-------------|------|------|--|
-| Geometry | 0% | **0%** | 0% | ✅ |
-| Parse success | 100% | **96.7%** | ≥95% | ✅ |
-| Field accuracy | 96.2% | 89.7% | ≥90% | ❌（差一点） |
-| Relation F1 / precision | 48% / 42% | **73% / 69%** | ≥80% / ≥75% | ❌ |
-| Unknown precision / recall | 48% / 70% | **100% / 89%** | ≥70% | ✅ |
-| Assumption precision | 100% | **100%** | ≥80% | ✅ |
-| Case pass | 30% | **50%** | ≥70% | ❌ |
-| Repair exhausted | 0% | 3.3% | ≤5% | ✅ |
+| 指标 | 结果 | Gate |
+|------|------|------|
+| Geometry | **0%** | ✅ |
+| Parse success | **96.7%** | ✅ |
+| Field accuracy | **96.2%** | ✅ |
+| Relation F1 / precision | **82.4% / 75.0%** | ✅ |
+| Unknown precision / recall | **100% / 89%** | ✅ |
+| Assumption precision | **100%** | ✅ |
+| Case pass | **76.7%** | ✅ |
+| Repair exhausted | **3.3%** | ✅ |
+| Floor preference / orientation | **100% / 88.9%** | （报告项） |
 
-主失分：relation precision/F1、整案通过率、标量尾差；floor_preference 仍弱（0.4）。**勿对 holdout 逐案调 regex。**
+Baseline：`docs/baselines/llm-alpha-baseline.json`
 
 ---
 
-## Phase 7 — Deliverables / Export（下一 · Holdout Gate 通过后）
+## Phase 7 — Deliverables / Export（← 当前）
 
 详案：[phase-7-deliverables.md](phase-7-deliverables.md)
 
@@ -521,7 +502,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 6.7.1** Holdout + Precision；过门后 **Phase 7 Export** |
+| **当前主线** | **Phase 7** Deliverables / Export（Phase 6 ✅ Alpha Qualified） |
 
 ---
 

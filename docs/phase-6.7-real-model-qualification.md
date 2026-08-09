@@ -1,10 +1,10 @@
 # Phase 6.7 — Real Model Qualification & LLM Runtime Hardening
 
-> **状态：🚧 In Progress（真模型 baseline 已有；Alpha Gate 未过）**  
-> **当前细化：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md)**  
+> **状态：✅ Alpha Qualified（真模型 Holdout + Pipeline 过门；见 6.7.1）**  
+> **细化完成：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md)**  
 > 总览：[phase-6-local-llm.md](phase-6-local-llm.md) · [roadmap.md](roadmap.md)  
 > 前置：[phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md)  
-> 下一：过 Gate 后才进 [phase-7-deliverables.md](phase-7-deliverables.md)
+> 下一：[phase-7-deliverables.md](phase-7-deliverables.md)
 
 ## 完成标准（比代码更重要）
 

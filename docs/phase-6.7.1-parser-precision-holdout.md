@@ -1,9 +1,9 @@
 # PlanSeed — Phase 6.7.1: Parser Precision & Holdout Qualification
 
-> **状态：🚧 Engineering landed；待 Holdout + Pipeline 重跑判定 Gate**  
+> **状态：✅ Alpha Qualified（`qwen2.5:7b` Holdout + Pipeline 过门，2026-08-09）**  
 > 相关：[phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md) · [roadmap.md](roadmap.md)
 
-Current real-model baseline (Development 62，enrich 激进版，已过时):
+Current real-model baseline (Holdout + Pipeline, precision-first):
 
 qwen2.5:7b  
 62 cases
