@@ -27,7 +27,9 @@ class LayoutGenerator(Protocol):
 - 默认实现：`GuillotineGenerator`（`strategy_id="guillotine"`）
 - `CandidateGenerator` 为兼容别名
 - `run_pipeline(..., generator=)` 可注入 Strategy
-- 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B **实现 ✅ / 产品验收 ❌**；aspect penalty 显著劣化，非 Alpha 默认）
+- 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B **实现 ✅ / 产品验收 ❌**）  
+  - Alpha / API 默认：**Guillotine only**（`backend.services.generation` → `run_pipeline` 不传 MaxRect）  
+  - Research：显式 `generator=MaxRectGenerator()` 或 `generators=[Guillotine, MaxRect]`
 - Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
 - Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅；**Alpha 默认** `rank_mode=axis`）
 - Pareto：`rank_mode=pareto` Experimental（slot1=最高分 + 七轴非支配 crowding；非默认）

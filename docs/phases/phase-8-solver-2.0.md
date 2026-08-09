@@ -85,7 +85,9 @@ MaxRect product qualified   ❌
 ```
 
 **正确表述：** 代码路径可用、可 benchmark；**不得**写成 Alpha 默认或「已验证更优/可用」。  
-Alpha 默认生成器仍为 **Guillotine**。MaxRect 仅 research / opt-in。
+Alpha 默认生成器仍为 **Guillotine only**（API / `run_pipeline()` 不传 MaxRect）。  
+MaxRect 仅 research：`generator=MaxRectGenerator()` 或显式 `generators=[Guillotine, MaxRect]`。  
+**禁止**因「实现已存在」就自动混入生产多 generator 候选池。
 
 ## 8.0-C — Generator Benchmark ✅
 
@@ -167,7 +169,8 @@ slot 2–k = 非支配集 crowding（pareto）
 
 - `solver/optimization/pareto.py` — `pareto_front` / crowding / `select_pareto_frontier`
 - `SolverConfig.rank_mode = "pareto"`（**Experimental**；Alpha 默认仍为 `axis`）
-- `run_pipeline(..., generators=[GuillotineGenerator(), MaxRectGenerator()])` 合并池再选
+- **Research only：** `run_pipeline(..., generators=[GuillotineGenerator(), MaxRectGenerator()])` 合并池再选  
+  → Alpha 默认 **Guillotine only**；Suite v1 验收前禁止把 MaxRect 混入生产候选池
 - `selection_version=pareto-top1-axes-v2`
 - 稳定化：见 [phase-8.5-alpha-stabilization.md](phase-8.5-alpha-stabilization.md)
 

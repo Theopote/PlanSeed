@@ -70,10 +70,21 @@ def run_pipeline(
     generator: LayoutGenerator | None = None,
     generators: list[LayoutGenerator] | None = None,
 ) -> PipelineResult:
+    """生成 → 校验 → 评价 → Top-K。
+
+    Alpha 默认：**仅 Guillotine**（``generator=None`` 且 ``generators=None``）。
+
+    Research / opt-in 才显式注入::
+
+        run_pipeline(program, generator=MaxRectGenerator())
+        run_pipeline(program, generators=[GuillotineGenerator(), MaxRectGenerator()])
+
+    **禁止**在 Suite v1 产品验收前把 MaxRect 混入 Alpha 默认候选池。
+    """
     from solver.constraints.checker import ConstraintEvaluationResult
     from solver.locks import assert_valid_layout_locks, check_lock_invariants
 
-    # 默认 Guillotine；可注入 MaxRect；多 generator 池合并后再按 rank_mode 选 Top-K
+    # Alpha default = Guillotine only；multi-gen / MaxRect 须调用方显式传入
     if generators:
         gens: list[LayoutGenerator] = list(generators)
     else:

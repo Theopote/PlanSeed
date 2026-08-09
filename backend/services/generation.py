@@ -70,7 +70,10 @@ def generate_layouts(
     program: DesignProgram,
     locks: LayoutLocks | None = None,
 ) -> PipelineResult:
-    """单次评价在 pipeline 内完成；此处不调用 CompositeEvaluator。"""
+    """单次评价在 pipeline 内完成；此处不调用 CompositeEvaluator。
+
+    Alpha 默认：Guillotine only（不传 MaxRect / multi-gen 池）。
+    """
     from solver.locks import LockValidationError
 
     try:

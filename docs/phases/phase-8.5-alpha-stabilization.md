@@ -30,9 +30,12 @@ rank_mode:
   axis      ← Alpha default（最高分 + 轴优势 + 几何 diversity）
   pareto    ← Experimental（slot1=最高分 + 前沿 crowding）
 
-默认路径：  Guillotine + axis selection
-research：  MaxRect（实现 ✅ · 未产品验收）· multi-gen · pareto · CP-SAT · Shapely
+默认路径：  Guillotine only + axis selection
+research：  MaxRect 单策略 · Guillotine+MaxRect multi-gen 池 · pareto · CP-SAT · Shapely
 ```
+
+**纪律：** Suite v1 产品验收前，**禁止**把 MaxRect 自动混入 Alpha / API 默认候选池。  
+`generators=[Guillotine, MaxRect]` 仅显式 research。
 
 ## Requalification 清单（后续）
 
@@ -41,6 +44,7 @@ research：  MaxRect（实现 ✅ · 未产品验收）· multi-gen · pareto ·
 - [x] 固定 fixture：默认 Top-K 角色分布回归（axis）  
   （`solver/fixtures/topk_axis_roles.py` · `test_topk_axis_roles_regression.py`）  
 - [x] **SolverProvenance** 升级（strategy 层：generator / selection / assignment / geometry）  
+- [x] Alpha 默认候选池 = **Guillotine only**（MaxRect multi-gen 仅显式 research）  
 - [ ] MaxRect **product qualification**（须过 [Layout Suite v1](../baselines/layout-benchmark-suite-v1.md)；单 case aspect 劣化不足据）  
 - [ ] 文档：凡写「Phase 8 完成」须注明 **默认语义已 requalify**  
 - [ ] 7.1.1 WebView2 Print Smoke（产品手测，独立于本项）  

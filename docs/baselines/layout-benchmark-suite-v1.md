@@ -75,4 +75,4 @@ MaxRect product qualified   ❌ 直到 Suite v1（建议 n=32 与 n=64）通过�
 3. locks cases（B11/B12）可复现且不崩溃  
 4. 不得仅因 B03 好看就宣称合格  
 
-Alpha 默认 generator **仍为 Guillotine**。
+Alpha 默认 generator **仍为 Guillotine only**（禁止自动 multi-gen 混入 MaxRect）。
