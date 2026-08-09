@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-E App hooks ← 当前 · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：▶ 7.5-G Hypothesis ← 当前 · 7.5-F ✅ · 7.5-E ✅ · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -30,9 +30,9 @@
 | **7.5-B** | 渐进 mypy（三轮） | ✅ |
 | **7.5-C** | `PRAGMA user_version` migrations | ✅ |
 | **7.5-D** | `.planseed` ZIP 项目包 | ✅ |
-| **7.5-E** | `App.tsx` → hooks 拆分 | **← 当前** |
-| **7.5-F** | LLM Enricher stage 化 | |
-| **7.5-G** | Hypothesis 不变量 | |
+| **7.5-E** | `App.tsx` → hooks 拆分 | ✅ |
+| **7.5-F** | LLM Enricher stage 化 | ✅ |
+| **7.5-G** | Hypothesis 不变量 | **← 当前** |
 | **7.5-H** | pytest-cov 报告（暂不门槛） | |
 | **7.5-I** | Ollama local 守卫 · RuntimeLimits · audit | |
 
@@ -112,10 +112,34 @@ previews/       # 可选预览
 
 实现：`packages/persistence/planseed_package.py`；桌面「导出包 / 导入包」。
 
+## 7.5-E — App orchestration hooks
+
+不上 Zustand。`App.tsx` 只保留 layout / composition；逻辑进 `desktop/src/hooks/`：
+
+| Hook | 职责 |
+|------|------|
+| `useEngineSession` | 引擎 boot / health / LLM 状态 |
+| `useRequirementWorkflow` | form / NL / assumptions |
+| `useCandidateWorkflow` | generate / locks / 候选选择 |
+| `useMutationWorkflow` | 拖拽预览 / revalidate |
+| `useProjectSession` | 保存 / 打开 / `.planseed` |
+| `useReportWorkflow` | HTML 报告预览 |
+| `useExportWorkflow` | SVG / PNG / report-json |
+
+共享：`sessionHelpers.ts`；跨 hook 依赖用 args + ref bridge。
+
+## 7.5-F — LLM Enricher stage 化
+
+`packages/llm/enrich.py` → `packages/llm/enrich/`（行为不变；无 pydantic-ai）。
+
+```text
+scalar → assumptions → unknowns → spaces → relations → floor → orientation
+```
+
+`EnrichmentStage` Protocol + 可选 `StageProvenance`；公开 API 仍为 `enrich_requirement_draft` / `extract_space_names` 等。
+
 ## 后续批次（摘要）
 
-- **E**：hooks 七件套；不上 Zustand 除非 prop drilling 仍严重  
-- **F**：拆 `packages/llm/enrich.py`；行为不变；stage provenance  
 - **G/H**：Hypothesis 核心不变量；coverage 先观察  
 - **I**：非 loopback Ollama 警告/可拦；集中 Limits；`pip-audit` + `cargo audit`
 
@@ -125,8 +149,8 @@ previews/       # 可选预览
 - [x] mypy 第一轮收紧（含 Round 1–3 目录 overrides）  
 - [x] persistence migration  
 - [x] `.planseed` project package  
-- [ ] App orchestration 拆分  
-- [ ] Enricher stage 化  
+- [x] App orchestration 拆分  
+- [x] Enricher stage 化  
 - [ ] Hypothesis 核心 property tests  
 - [ ] coverage reporting  
 - [ ] local LLM privacy guard  
