@@ -55,7 +55,7 @@ import {
 } from "./components/FloorplanView";
 import { Inspector } from "./components/Inspector";
 import { RequirementsPanel } from "./components/RequirementsPanel";
-import { coerceAssumptionValue } from "./components/RequirementGapsPanel";
+import { coerceAssumptionValue } from "./lib/requirementGaps";
 import "./App.css";
 
 const DEFAULT_FORM: RequirementForm = {

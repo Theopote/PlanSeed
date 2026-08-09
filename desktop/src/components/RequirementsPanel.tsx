@@ -7,10 +7,8 @@ import type {
   RequirementForm,
   RequirementSpecPayload,
 } from "../api/client";
-import {
-  RequirementGapsPanel,
-  resolveRequirementGaps,
-} from "./RequirementGapsPanel";
+import { resolveRequirementGaps } from "../lib/requirementGaps";
+import { RequirementGapsPanel } from "./RequirementGapsPanel";
 
 type Props = {
   form: RequirementForm;

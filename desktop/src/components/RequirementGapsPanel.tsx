@@ -5,19 +5,10 @@
  */
 import { useState } from "react";
 import type {
-  AssumptionPayload,
   AssumptionSource,
-  RequirementSpecPayload,
-  UnknownPayload,
   UnknownPriority,
 } from "../api/client";
-import {
-  cloneAssumptionPayload,
-  cloneUnknownPayload,
-} from "../api/client";
-
-export type AssumptionRow = AssumptionPayload;
-export type UnknownRow = UnknownPayload;
+import type { AssumptionRow, UnknownRow } from "../lib/requirementGaps";
 
 type Props = {
   assumptions: AssumptionRow[];
@@ -40,21 +31,6 @@ function valueToEditString(value: unknown): string {
 }
 
 /** App 回调用：把编辑框字符串还原为较合理的 JSON 值。 */
-export function coerceAssumptionValue(
-  raw: string,
-  previous: unknown,
-): unknown {
-  const t = raw.trim();
-  if (t === "") return previous;
-  if (t === "true") return true;
-  if (t === "false") return false;
-  if (/^-?\d+(\.\d+)?$/.test(t)) {
-    const n = Number(t);
-    if (!Number.isNaN(n)) return n;
-  }
-  return raw;
-}
-
 const ASSUMPTION_SOURCE_LABEL: Record<string, string> = {
   user_authorized: "用户授权",
   planseed_default: "产品默认",
@@ -79,42 +55,6 @@ function unknownPriorityLabel(
 ): string | null {
   if (!priority) return null;
   return UNKNOWN_PRIORITY_LABEL[priority] ?? priority;
-}
-
-export function resolveRequirementGaps(
-  spec: RequirementSpecPayload | null,
-  program: {
-    assumptions: AssumptionRow[];
-    unknowns: UnknownRow[];
-  } | null,
-): {
-  assumptions: AssumptionRow[];
-  unknowns: UnknownRow[];
-  sourceLabel: "requirementSpec" | "program" | null;
-} {
-  if (spec) {
-    const assumptions =
-      spec.assumptions !== undefined
-        ? spec.assumptions
-        : (program?.assumptions ?? []);
-    const unknowns =
-      spec.unknowns !== undefined
-        ? (spec.unknowns ?? []).map(cloneUnknownPayload)
-        : (program?.unknowns ?? []);
-    return {
-      assumptions: assumptions.map(cloneAssumptionPayload),
-      unknowns,
-      sourceLabel: "requirementSpec",
-    };
-  }
-  if (program) {
-    return {
-      assumptions: program.assumptions,
-      unknowns: program.unknowns,
-      sourceLabel: "program",
-    };
-  }
-  return { assumptions: [], unknowns: [], sourceLabel: null };
 }
 
 export function RequirementGapsPanel({

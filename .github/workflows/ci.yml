@@ -62,6 +62,9 @@ jobs:
       - name: Build (tsc + vite)
         run: pnpm build
 
+      - name: Lint
+        run: pnpm lint
+
   rust:
     name: Tauri (cargo check)
     runs-on: ubuntu-latest

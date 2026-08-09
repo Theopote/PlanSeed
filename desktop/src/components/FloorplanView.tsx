@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoomPlacementPayload } from "../api/client";
 import {
   VISUAL_MIN_EDGE,
@@ -222,19 +222,21 @@ export function FloorplanView({
   const [liveHint, setLiveHint] = useState<string | null>(null);
   const [liveConflict, setLiveConflict] = useState(false);
 
-  const placementById = (id: string) =>
-    placements.find((p) => p.room_id === id) ?? null;
+  const placementById = useCallback(
+    (id: string) => placements.find((p) => p.room_id === id) ?? null,
+    [placements],
+  );
 
-  const floorIndexOf = (floorId: string, fallbackSvgY: number): number => {
+  const floorIndexOf = useCallback((floorId: string, fallbackSvgY: number): number => {
     const idx = floorIds.indexOf(floorId);
     if (idx >= 0) return idx;
     if (floorDepth > 0) {
       return Math.max(0, Math.round(fallbackSvgY / (floorDepth + FLOOR_GAP)));
     }
     return 0;
-  };
+  }, [floorIds, floorDepth]);
 
-  const applyNodeGeometry = (
+  const applyNodeGeometry = useCallback((
     roomId: string,
     modelX: number,
     modelY: number,
@@ -272,9 +274,9 @@ export function FloorplanView({
       else if (i === 1) t.setAttribute("y", String(cy));
       else t.setAttribute("y", String(cy + 0.28));
     });
-  };
+  }, [floorDepth]);
 
-  const syncFromPlacements = () => {
+  const syncFromPlacements = useCallback(() => {
     const root = stageRef.current;
     if (!root || floorDepth <= 0) return;
     for (const [roomId] of basesRef.current) {
@@ -288,7 +290,7 @@ export function FloorplanView({
       }
       applyNodeGeometry(roomId, pl.x, pl.y, pl.width, pl.depth);
     }
-  };
+  }, [floorDepth, placementById, applyNodeGeometry]);
 
   const captureBases = () => {
     const root = stageRef.current;
@@ -315,7 +317,7 @@ export function FloorplanView({
     basesRef.current = map;
   };
 
-  const syncHandles = () => {
+  const syncHandles = useCallback(() => {
     const root = stageRef.current;
     if (!root) return;
     const svgEl = root.querySelector("svg");
@@ -419,7 +421,15 @@ export function FloorplanView({
       c.style.cursor = EDGE_CURSOR[p.edge];
       layer.appendChild(c);
     }
-  };
+  }, [
+    onProposeMove,
+    onProposeWall,
+    floorDepth,
+    placements,
+    floorIndexOf,
+    selectedRoomId,
+    placementById,
+  ]);
 
   const clearLiveFeedback = () => {
     setLiveHint(null);
@@ -434,7 +444,7 @@ export function FloorplanView({
     layer?.replaceChildren();
   };
 
-  const syncPreviewOverlay = (
+  const syncPreviewOverlay = useCallback((
     floorIndex: number,
     snapped: { x: number; y: number; width: number; depth: number } | null,
     ok: boolean,
@@ -492,7 +502,7 @@ export function FloorplanView({
     };
     if (snapped) addRect(snapped);
     if (snappedPartner) addRect(snappedPartner);
-  };
+  }, [floorDepth]);
 
   useEffect(() => {
     const root = stageRef.current;
@@ -998,6 +1008,12 @@ export function FloorplanView({
     onProposeWall,
     onLivePreview,
     onLiveWallPreview,
+    syncPreviewOverlay,
+    syncHandles,
+    syncFromPlacements,
+    placementById,
+    floorIndexOf,
+    applyNodeGeometry,
   ]);
 
   const canEdit = (!!onProposeMove || !!onProposeWall) && floorDepth > 0;
