@@ -131,8 +131,8 @@ def place_in_free_rects(
     if not free_rects:
         return None
     if fill:
-        best = max(free_rects, key=lambda r: (r.area, r.width, r.depth, -r.x, -r.y))
-        return Rect(x=best.x, y=best.y, width=best.width, depth=best.depth)
+        largest = max(free_rects, key=lambda r: (r.area, r.width, r.depth, -r.x, -r.y))
+        return Rect(x=largest.x, y=largest.y, width=largest.width, depth=largest.depth)
 
     best: tuple[tuple[float, float], int, Rect, float, float, int] | None = None
     # key: (score_short, score_long), free_idx, free, w, d, corner_idx
