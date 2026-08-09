@@ -251,7 +251,7 @@ environment 0.10 | technical 0.16 | robustness 0.14
 | 字段 | 当前值 | 含义 |
 |------|--------|------|
 | `solver_version` | `0.5` | Solver 管线总签名（含 Solver 2.0 能力面；默认语义见 selection） |
-| `generator_strategy` | `guillotine` | 生成策略（`maxrect` 等为 opt-in） |
+| `generator_strategy` | `guillotine` | Alpha 默认；`maxrect` = research（实现 ✅ · 未产品验收） |
 | `generator_version` | `guillotine-lock-v4` | 当前主生成器规则包 |
 | `selection_strategy` | `axis-diverse` | Alpha 默认 Top-K 策略 |
 | `selection_version` | `axis-diversity-v1` | 选优规则包；Pareto Experimental=`pareto-top1-axes-v2` |

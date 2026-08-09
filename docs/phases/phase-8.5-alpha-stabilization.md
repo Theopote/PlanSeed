@@ -31,7 +31,7 @@ rank_mode:
   pareto    ← Experimental（slot1=最高分 + 前沿 crowding）
 
 默认路径：  Guillotine + axis selection
-opt-in：    MaxRect · multi-gen pool · pareto · CP-SAT · Shapely irregular
+research：  MaxRect（实现 ✅ · 未产品验收）· multi-gen · pareto · CP-SAT · Shapely
 ```
 
 ## Requalification 清单（后续）
@@ -41,6 +41,7 @@ opt-in：    MaxRect · multi-gen pool · pareto · CP-SAT · Shapely irregular
 - [x] 固定 fixture：默认 Top-K 角色分布回归（axis）  
   （`solver/fixtures/topk_axis_roles.py` · `test_topk_axis_roles_regression.py`）  
 - [x] **SolverProvenance** 升级（strategy 层：generator / selection / assignment / geometry）  
+- [ ] MaxRect **product qualification**（当前 aspect penalty 约 5.8× 劣于 Guillotine；保持 research）  
 - [ ] 文档：凡写「Phase 8 完成」须注明 **默认语义已 requalify**  
 - [ ] 7.1.1 WebView2 Print Smoke（产品手测，独立于本项）  
 - [ ] **禁止**在稳定化完成前开 Phase 9 / 新算法主线  

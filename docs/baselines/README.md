@@ -59,3 +59,12 @@ uv run python -m solver.benchmark --count 32 --out docs/baselines/layout_generat
 | 文件 | 含义 |
 |------|------|
 | `layout_generation_guillotine_vs_maxrect.json` | Guillotine vs MaxRect 同 case 对比快照 |
+
+**资格判定（勿与「实现完成」混淆）：**
+
+| Strategy | Implementation | Product qualified |
+|----------|----------------|-------------------|
+| Guillotine | ✅（Alpha 默认） | ✅（当前默认路径） |
+| MaxRect | ✅ | **❌**（`mean_aspect_ratio_penalty` 166.8 vs Guillotine 28.7） |
+
+MaxRect 仅 research / opt-in；禁止因「8.0-B ✅」写成产品已验收。

@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：✅ 能力面 8.0–8.4 已落地 · ▶ 默认语义由 [phase-8.5-alpha-stabilization.md](phase-8.5-alpha-stabilization.md) requalify**  
+> **状态：✅ 能力面 8.0–8.4 已落地 · MaxRect 未产品验收 · ▶ [phase-8.5](phase-8.5-alpha-stabilization.md) requalify**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -15,10 +15,10 @@
 
 ```text
 8.0-A LayoutGenerator Interface     ✅
-  → 8.0-B MaxRect packing strategy    ✅
-  → 8.0-C Generator Benchmark         ✅（Guillotine vs MaxRect）
+  → 8.0-B MaxRect packing strategy    ✅ 实现 / ❌ 未产品验收
+  → 8.0-C Generator Benchmark         ✅（Guillotine vs MaxRect；暴露 MaxRect 比例劣化）
 8.1 Diversity Selection（top-score + diverse alternatives） ✅
-8.2 Pareto Frontier（非支配集） ✅
+8.2 Pareto Frontier（非支配集） ✅ Experimental
 8.3 CP-SAT Research（floor assignment opt-in） ✅
 8.4 Advanced Geometry（不规则场地 Shapely opt-in） ✅
 ```
@@ -26,10 +26,10 @@
 | 项 | 主题 | 状态 |
 |----|------|------|
 | **8.0-A** | `LayoutGenerator` Protocol；Guillotine = Strategy | ✅ |
-| **8.0-B** | MaxRect / Maximal Rectangles | ✅ |
-| **8.0-C** | `layout-generation-benchmark` | ✅ |
-| **8.1** | Diversity Selection | ✅ |
-| **8.2** | Pareto Frontier | ✅ |
+| **8.0-B** | MaxRect / Maximal Rectangles | ✅ 实现 · **❌ product qualified** |
+| **8.0-C** | `layout-generation-benchmark` | ✅（基线已冻结；结论见下） |
+| **8.1** | Diversity Selection | ✅ Alpha 默认 |
+| **8.2** | Pareto Frontier | ✅ Experimental |
 | **8.3** | CP-SAT Research | ✅ |
 | **8.4** | Advanced Geometry（Shapely） | ✅ |
 
@@ -69,7 +69,7 @@ class LayoutGenerator(Protocol):
 
 **不改变**默认几何 / 评分行为。
 
-## 8.0-B — MaxRect ✅
+## 8.0-B — MaxRect（实现 ✅ · 产品验收 ❌）
 
 第一个新增 strategy：**Maximal Rectangles**（不是遗传算法）。
 
@@ -79,7 +79,13 @@ class LayoutGenerator(Protocol):
 - `run_pipeline(..., generator=MaxRectGenerator())`  
 - `generator_version = "maxrect-v1"`（与 Guillotine 的 provenance 区分）
 
-理由：确定性 · 易 debug · 易 benchmark · 与 Guillotine 分布差异明显。
+```text
+MaxRect implementation      ✅
+MaxRect product qualified   ❌
+```
+
+**正确表述：** 代码路径可用、可 benchmark；**不得**写成 Alpha 默认或「已验证更优/可用」。  
+Alpha 默认生成器仍为 **Guillotine**。MaxRect 仅 research / opt-in。
 
 ## 8.0-C — Generator Benchmark ✅
 
@@ -101,7 +107,21 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 | diversity | 几何指纹去重数 / generated |
 | runtime_s | 墙钟时间 |
 
-基线快照：`docs/baselines/layout_generation_guillotine_vs_maxrect.json`  
+基线快照：`docs/baselines/layout_generation_guillotine_vs_maxrect.json`（n=32，同 case）
+
+| | Guillotine | MaxRect |
+|--|------------|---------|
+| valid_rate | 1.0 | 1.0 |
+| area_fit | 0.7533 | 0.7518 |
+| aspect_ratio_quality | 0.037 | **0.007** |
+| **mean_aspect_ratio_penalty** | **28.67** | **166.79** |
+| circulation | 75.59 | 75.38 |
+| top_score | 92.31 | 89.08 |
+| mean_score | 88.24 | 87.17 |
+
+**结论：** MaxRect 与 Guillotine 几何完全可分（pairwise diff=1.0），但 **长宽比惩罚约 5.8× 更差**，总分略低。  
+→ **未产品验收**；禁止默认启用或宣称 MaxRect 已合格。
+
 **禁止**凭感觉宣称某 strategy 全面更优；以报告数字为准。
 
 ## 8.1 — Diversity Selection ✅
@@ -194,7 +214,7 @@ Repair → Evaluation
 - [x] `GuillotineGenerator` 实现该接口（含 `strategy_id`）  
 - [x] `run_pipeline` 可注入 generator  
 - [x] 默认路径仍为 Guillotine，行为不变  
-- [x] 8.0-B MaxRect
+- [x] 8.0-B MaxRect **implementation**（**未** product qualify；aspect penalty 劣化）
 - [x] 8.0-C Generator Benchmark
 - [x] 8.1 Diversity Selection
 - [x] 8.2 Pareto Frontier
