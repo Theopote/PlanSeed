@@ -1,6 +1,6 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 7.0.1 Report Integrity（当前）→ 7.1 Presentation → 7.2 Formats**  
+> **状态：▶ 7.1 Report Presentation（当前）← 7.0 / 7.0.1 ✅ → 7.2 Formats**  
 > **前置：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 **工程 PASS**；严格可复现 ⚠（Phase 6 冻结，仅修 qualify）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
@@ -20,8 +20,8 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 
 | 子阶段 | 主题 | 做 |
 |--------|------|-----|
-| **7.0.1** | Report Integrity | Dirty/Stale export · Candidate identity · Canonical area · SVG trust · Revision provenance · Tests |
-| **7.1** | Report Presentation | 中文文案 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印 |
+| **7.0 / 7.0.1** | Deliverable Model + Report Integrity | ✅ 关闭（含总分事实源 = `DesignScore.total_score`） |
+| **7.1** | Report Presentation | 中文文案 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印 ← 当前 |
 | **7.2** | Export Formats | HTML · PDF via Print · JSON · SVG / PNG |
 
 **不做（本 Phase）：** DXF / DWG / IFC · ReportLab / WeasyPrint / Chromium headless / PDF canvas 引擎。
@@ -259,7 +259,7 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 6. [x] per-floor：`render_floor_svg` → `CandidatePayload.floor_svgs` → 报告只消费（禁止 builder 切 DOM）  
 
 
-## Definition of Done（7.0.1）
+## Definition of Done（7.0.1）— ✅ 关闭
 
 1. [x] `DesignReport.status` / `evaluation_fresh` / `source_revision_id`  
 2. [x] Dirty → `409 candidate_requires_revalidation`（默认）  
@@ -268,8 +268,11 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 5. [x] Preview（payload）vs Final（`project_id` + `candidate_id` + `revision_id`）  
 6. [x] `sanitize_report_svg` 纵深防御（print / srcDoc）  
 7. [x] `revision_id` / `source_revision_id` 溯源；mismatch → 409  
-8. [x] Report 层成体系测试：`backend/tests/test_report_layer.py`（含 dirty / area / score / findings / sanitize / escape）
+8. [x] Report 层成体系测试：`backend/tests/test_report_layer.py`（含 dirty / area / score / findings / sanitize / escape）  
+9. [x] 报告 Header 总分 **只取** `DesignScore.total_score`（`candidate.score` 仅为 ranking cache，不得覆盖）
 
 原则：**Report renderer ≠ Evaluator** — Finding 直接消费 `DesignFinding.title/message/severity`，不重算分。
 
 实现落点：`packages/schema/report.py` · `backend/services/report_builder.py` · `backend/services/report_html.py` · `backend/routes/reports.py` · Desktop「报告」按钮。
+
+→ **进入 7.1 Report Presentation**（不重开 Phase 6）。

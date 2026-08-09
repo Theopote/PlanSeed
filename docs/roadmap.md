@@ -1,7 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 7.0.1 Report Integrity → 7.1 Presentation → 7.2 Export Formats**  
+> **当前焦点：Phase 7.1 Report Presentation → 7.2 Export Formats**  
 > Phase 6 冻结（工程资格 ✅；严格可复现 ⚠ — 仅修 qualify 证据链，不开 6.7.3+）  
+> Phase 7.0 / 7.0.1 Report Integrity ✅ 关闭  
 > 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)  
 > 契约：[api-contract.md](api-contract.md)
 
@@ -14,8 +15,8 @@
 | **6.7.1** | **Precision Pipeline** | **✅** |
 | **6.7.2** | **Blind engineering pass** | **✅**；reproducibility caveat **⚠** |
 | **7.0** | **Deliverable Model** | **✅ MVP** |
-| **7.0.1** | **Report Integrity** | **← 当前** |
-| **7.1** | **Report Presentation** | 下一 |
+| **7.0.1** | **Report Integrity** | **✅** |
+| **7.1** | **Report Presentation** | **← 当前** |
 | **7.2** | **Export Formats** | 后续 |
 
 ```text
@@ -25,13 +26,13 @@
 6.7.2     Blind engineering pass     ✅
            reproducibility caveat    ⚠
 7.0       Deliverable Model          ✅ MVP
-7.0.1     Report Integrity           ← 当前
-7.1       Report Presentation        下一
+7.0.1     Report Integrity           ✅
+7.1       Report Presentation        ← 当前
 7.2       Export Formats             后续
 ```
 
 ```text
-现在做：7.0.1 Integrity（Dirty/id/area/SVG/revision/tests）→ 7.1 文案与分页 → 7.2 HTML/Print-PDF/JSON/SVG·PNG
+现在做：7.1 文案与分页 → 7.2 HTML/Print-PDF/JSON/SVG·PNG
 不做：DXF/DWG/IFC · ReportLab/WeasyPrint/Chromium PDF 引擎 · 重开 Phase 6 Blind 抠分 · 云端 LLM
 产品问题已从「AI 能不能理解需求？」转为「能否把真实 revision 变成不会误导用户的交付物？」
 ```
@@ -51,8 +52,8 @@
 | **6.7.1** | **Parser Precision & Holdout** | ✅ Engineering（Holdout 泄漏 → 非严格独立） |
 | **6.7.2** | **Blind Requalification** | ✅ 工程 PASS；严格可复现 ⚠（冻结；仅修 qualify） |
 | **7.0** | **Deliverable Model** | **✅ MVP** |
-| **7.0.1** | **Report Integrity** | **← 当前** |
-| **7.1** | **Report Presentation** | 下一 |
+| **7.0.1** | **Report Integrity** | **✅** |
+| **7.1** | **Report Presentation** | **← 当前** |
 | **7.2** | **Export Formats** | 后续（HTML · Print/PDF · JSON · SVG/PNG；**无 DXF**） |
 | **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（≠ Interoperability Platform） |
 | — | SVG Debug | ✅ 开发工具 |
@@ -430,15 +431,15 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | 子阶段 | 主题 | 状态 |
 |--------|------|------|
 | **7.0** | Deliverable Model（`DesignReport`） | ✅ MVP |
-| **7.0.1** | Report Integrity（Dirty / id / area / SVG / revision / tests） | **← 当前** |
-| **7.1** | Report Presentation（中文 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印） | 下一 |
+| **7.0.1** | Report Integrity（Dirty / id / area / SVG / revision / score 事实源 / tests） | ✅ |
+| **7.1** | Report Presentation（中文 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印） | **← 当前** |
 | **7.2** | Export Formats（HTML · Print→PDF · JSON · SVG/PNG） | 后续 |
 
 **PDF：** `DesignReport → HTML → WebView → Print/PDF`。**禁止**本阶段引入 ReportLab / WeasyPrint / Chromium headless / PDF canvas。  
 **禁止：** DXF / DWG / IFC / BIM · 前端重算面积 · 重开 Phase 6 Blind 抠分 · 云端 LLM。
 
 报告内容：项目需求 · 平面（`floor_svgs` / snapshot）· 房间面积表 · 评分 · Findings · Assumptions · Unknowns · provenance。  
-**Report renderer ≠ Evaluator。** 当前 P0：7.0.1 Integrity。NL 进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。
+**Report renderer ≠ Evaluator。** 报告总分只取 `DesignScore.total_score`。当前 P0：7.1 Presentation。NL 进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。
 
 **明确不塞进 Phase 7：** Advanced Site · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · LLM 性能专项。
 ---

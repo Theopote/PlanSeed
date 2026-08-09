@@ -249,7 +249,7 @@ def test_missing_area_rejected():
 
 
 def test_score_not_recomputed():
-    """报告层不得另发明总分；沿用 design_score / candidate.score。"""
+    """报告层不得另发明总分；Header / Evaluation 均取 DesignScore.total_score。"""
     report = build_design_report(
         project_name="Score",
         requirement_spec=_requirement_spec(),
@@ -261,6 +261,24 @@ def test_score_not_recomputed():
     assert report.evaluation.design_score.total_score == 76.5
     assert report.evaluation.design_score.program_score == 80
     assert report.evaluation.design_score.spatial_score == 78
+
+
+def test_header_score_ignores_stale_candidate_score_cache():
+    """candidate.score 仅为 ranking cache；与 DesignScore 冲突时不得写入报告 Header。"""
+    report = build_design_report(
+        project_name="ScoreMismatch",
+        requirement_spec=_requirement_spec(),
+        program=_program(),
+        candidate=_candidate(score=81.0),
+    )
+    assert report.evaluation.design_score is not None
+    assert report.evaluation.design_score.total_score == 76.5
+    assert report.candidate.total_score == 76.5
+    assert report.candidate.total_score != 81.0
+    doc = render_report_html(report)
+    assert '<span class="score">76</span>' in doc
+    assert '<span class="score">81</span>' not in doc
+    assert "81" not in doc
 
 
 def test_findings_preserved():

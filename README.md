@@ -76,9 +76,7 @@ LLM 不直接输出 DesignProgram 或坐标。详见 [docs/hybrid-semantic-parse
 
 ## 当前阶段
 
-**Desktop UI MVP**（进行中）：四区壳 + `POST /api/generate`。
-
-Solver 拓扑与 Phase 3 评价已可用。见 [docs/roadmap.md](docs/roadmap.md)。
+**Phase 7.1 Report Presentation**（当前）：7.0 / 7.0.1 Integrity ✅。见 [docs/roadmap.md](docs/roadmap.md)。
 
 ## 文档
 

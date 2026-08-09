@@ -206,9 +206,8 @@ def build_design_report(
         boundary_lines=boundary_lines_for_locale(report_locale),
     )
 
-    total = candidate.get("score")
-    if total is None:
-        total = design_score.total_score
+    # 报告总分只取 DesignScore（评价事实源）；candidate.score 仅为 ranking cache，不得覆盖。
+    total = design_score.total_score
 
     rev_id = resolve_revision_id(candidate) or cand_id
 
@@ -240,7 +239,7 @@ def build_design_report(
             candidate_id=cand_id or "",
             label=str(candidate.get("label") or candidate.get("id") or "?"),
             seed=candidate.get("seed") if isinstance(candidate.get("seed"), int) else None,
-            total_score=float(total) if isinstance(total, (int, float)) else None,
+            total_score=float(total),
             revision_status=str(revision) if revision else None,
             revision_parent_id=str(parent) if parent else None,
         ),
