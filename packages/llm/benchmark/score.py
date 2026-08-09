@@ -1,17 +1,18 @@
-"""Requirement Benchmark 评分（标量字段 + 设计意图 + 反幻觉）。"""
+"""Requirement Benchmark 评分（标量字段 + 设计意图 + Known/Assumption/Unknown）。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from packages.llm.benchmark.cases import (
+    ExpectAssumption,
     ExpectFloorPreference,
     ExpectKnown,
     ExpectOrientation,
     ExpectRelation,
     RequirementBenchmarkCase,
 )
-from packages.schema.requirements import RelationIntent, RequirementSpec
+from packages.schema.requirements import Assumption, RelationIntent, RequirementSpec
 
 
 @dataclass
@@ -29,6 +30,13 @@ class RelationHit:
 
 
 @dataclass
+class AssumptionHit:
+    expected: ExpectAssumption
+    hit: bool
+    notes: str = ""
+
+
+@dataclass
 class CaseScore:
     case_id: str
     fields: list[FieldScore] = field(default_factory=list)
@@ -43,6 +51,8 @@ class CaseScore:
     orientations: list[FieldScore] = field(default_factory=list)
     unknown_expected: list[str] = field(default_factory=list)
     unknown_predicted: list[str] = field(default_factory=list)
+    assumptions: list[AssumptionHit] = field(default_factory=list)
+    assumption_predicted: int = 0
     # 真模型 qualification 元数据
     attempts: int = 1
     parse_failed: bool = False
@@ -75,10 +85,32 @@ class CaseScore:
         return len(exp & pred)
 
     @property
+    def missed_unknowns(self) -> list[str]:
+        """应列入 unknowns 但未列出的 key（Detection 漏检）。"""
+        pred = set(self.unknown_predicted)
+        return [k for k in self.unknown_expected if k not in pred]
+
+    @property
+    def unknown_false_positives(self) -> list[str]:
+        """列入 unknowns 但不在 must_unknown 中的 key。"""
+        exp = set(self.unknown_expected)
+        return [k for k in self.unknown_predicted if k not in exp]
+
+    @property
+    def assumption_hits(self) -> int:
+        return sum(1 for a in self.assumptions if a.hit)
+
+    @property
+    def assumption_total(self) -> int:
+        return len(self.assumptions)
+
+    @property
     def passed(self) -> bool:
         if self.geometry_fail or self.parse_failed:
             return False
         if self.hallucinations:
+            return False
+        if self.missed_unknowns:
             return False
         if not self.space_ok:
             return False
@@ -89,6 +121,8 @@ class CaseScore:
         if not all(f.hit for f in self.floor_prefs):
             return False
         if not all(f.hit for f in self.orientations):
+            return False
+        if not all(a.hit for a in self.assumptions):
             return False
         return True
 
@@ -224,6 +258,44 @@ def _score_orientations(
     return out
 
 
+def _assumption_matches(expected: ExpectAssumption, actual: Assumption) -> tuple[bool, str]:
+    if actual.key != expected.key:
+        return False, "key 不匹配"
+    if expected.value is not None and actual.value != expected.value:
+        return False, f"value 期望 {expected.value!r} 实际 {actual.value!r}"
+    if expected.require_reason and not (actual.reason and str(actual.reason).strip()):
+        return False, "缺少 reason"
+    return True, ""
+
+
+def _score_assumptions(
+    expected: list[ExpectAssumption],
+    actual: list[Assumption],
+) -> list[AssumptionHit]:
+    remaining = list(actual)
+    hits: list[AssumptionHit] = []
+    for exp in expected:
+        matched_i: int | None = None
+        note = ""
+        for i, act in enumerate(remaining):
+            ok, note = _assumption_matches(exp, act)
+            if ok:
+                matched_i = i
+                break
+        if matched_i is not None:
+            remaining.pop(matched_i)
+            hits.append(AssumptionHit(expected=exp, hit=True))
+        else:
+            hits.append(
+                AssumptionHit(
+                    expected=exp,
+                    hit=False,
+                    notes=note or "未找到匹配 assumption",
+                )
+            )
+    return hits
+
+
 def score_requirement_case(
     case: RequirementBenchmarkCase,
     spec: RequirementSpec,
@@ -258,6 +330,11 @@ def score_requirement_case(
         if got is not None:
             score.hallucinations.append(key)
 
+    if score.missed_unknowns:
+        score.notes.append(
+            "unknowns 漏列：" + ", ".join(score.missed_unknowns)
+        )
+
     names = {s.name for s in spec.spaces}
     for need in case.expect.space_names_contains:
         if need not in names:
@@ -275,5 +352,12 @@ def score_requirement_case(
     score.relations = _score_relations(case.expect.relations, actual_rels)
     score.floor_prefs = _score_floor_prefs(case.expect.floor_preferences, spec)
     score.orientations = _score_orientations(case.expect.orientations, spec)
+
+    actual_assumps = list(spec.assumptions)
+    score.assumption_predicted = len(actual_assumps)
+    score.assumptions = _score_assumptions(case.expect_assumptions, actual_assumps)
+    for a in score.assumptions:
+        if not a.hit and a.notes:
+            score.notes.append(f"assumption {a.expected.key}: {a.notes}")
 
     return score

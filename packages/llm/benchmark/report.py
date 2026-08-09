@@ -146,15 +146,58 @@ class BenchmarkReport:
 
     @property
     def unknown_recall(self) -> float:
+        """Unknown Detection Recall：must_unknown 被列入 unknowns 的比例。"""
         if self.unknown_expected_total == 0:
             return 1.0
         return self.unknown_tp / self.unknown_expected_total
+
+    @property
+    def unknown_detection_recall(self) -> float:
+        return self.unknown_recall
 
     @property
     def unknown_precision(self) -> float:
         if self.unknown_predicted_total == 0:
             return 1.0 if self.unknown_expected_total == 0 else 0.0
         return self.unknown_tp / self.unknown_predicted_total
+
+    @property
+    def unknown_false_positive_rate(self) -> float:
+        """列入 unknowns 但不在 must_unknown 中的比例（相对预测集）。"""
+        if self.unknown_predicted_total == 0:
+            return 0.0
+        fp = sum(len(c.unknown_false_positives) for c in self.case_scores)
+        return fp / self.unknown_predicted_total
+
+    @property
+    def assumption_tp(self) -> int:
+        return sum(c.assumption_hits for c in self.case_scores)
+
+    @property
+    def assumption_expected_total(self) -> int:
+        return sum(c.assumption_total for c in self.case_scores)
+
+    @property
+    def assumption_predicted_total(self) -> int:
+        return sum(c.assumption_predicted for c in self.case_scores)
+
+    @property
+    def assumption_precision(self) -> float:
+        """
+        Assumption Precision：预测 assumptions 中命中期望的比例。
+
+        无期望且无预测 → 1.0；有预测无期望 → 0.0（多余假设视为 FP）。
+        """
+        predicted = self.assumption_predicted_total
+        if predicted == 0:
+            return 1.0 if self.assumption_expected_total == 0 else 0.0
+        return self.assumption_tp / predicted
+
+    @property
+    def assumption_recall(self) -> float:
+        if self.assumption_expected_total == 0:
+            return 1.0
+        return self.assumption_tp / self.assumption_expected_total
 
     def summary(self) -> dict[str, float | int | str | None]:
         return {
@@ -174,8 +217,11 @@ class BenchmarkReport:
             "relation_precision": round(self.relation_precision, 4),
             "floor_preference_accuracy": round(self.floor_preference_accuracy, 4),
             "orientation_accuracy": round(self.orientation_accuracy, 4),
+            "unknown_detection_recall": round(self.unknown_detection_recall, 4),
             "unknown_precision": round(self.unknown_precision, 4),
-            "unknown_recall": round(self.unknown_recall, 4),
+            "unknown_false_positive_rate": round(self.unknown_false_positive_rate, 4),
+            "assumption_precision": round(self.assumption_precision, 4),
+            "assumption_recall": round(self.assumption_recall, 4),
             "field_hits": self.field_hits,
             "field_total": self.field_total,
         }

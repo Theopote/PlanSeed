@@ -93,9 +93,17 @@ def expect_to_draft(
     unknowns = [
         {"key": k, "description": "用例要求保持未知"} for k in case.must_unknown
     ]
+    assumptions = [
+        {
+            "key": a.key,
+            "value": a.value if a.value is not None else True,
+            "reason": a.reason or "用例期望的显式假设",
+        }
+        for a in case.expect_assumptions
+    ]
     draft: dict[str, Any] = {
         "known": known,
-        "assumptions": [],
+        "assumptions": assumptions,
         "unknowns": unknowns,
     }
     if include_raw_text:

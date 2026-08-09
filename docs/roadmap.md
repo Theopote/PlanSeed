@@ -339,6 +339,7 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 - [x] 文档纠偏：Harness Oracle Pass ≠ Real Model Accuracy
 - [x] relation 端点分别 soft 校验（`req.relation_a_unknown` / `b`）
 - [x] Benchmark v2：`relations` / `floor_preferences` / `orientations` + unknown P·R
+- [x] Unknown Detection Recall / FPR；Assumption Precision（缺 reason 不计命中）
 - [x] `uv run python -m packages.llm.benchmark.qualify` 真模型 CLI
 - [ ] 完整 `qwen2.5:7b` 跑分写入 `docs/baselines/llm-alpha-baseline.json`
 

@@ -1,6 +1,7 @@
 """Phase 6.6 — Requirement Benchmark 包。"""
 
 from packages.llm.benchmark.cases import (
+    ExpectAssumption,
     ExpectFloorPreference,
     ExpectKnown,
     ExpectOrientation,
@@ -17,6 +18,7 @@ from packages.llm.benchmark.runner import (
     score_draft_against_case,
 )
 from packages.llm.benchmark.score import (
+    AssumptionHit,
     CaseScore,
     FieldScore,
     RelationHit,
@@ -24,12 +26,14 @@ from packages.llm.benchmark.score import (
 )
 
 __all__ = [
+    "ExpectAssumption",
     "ExpectFloorPreference",
     "ExpectKnown",
     "ExpectOrientation",
     "ExpectRelation",
     "RequirementBenchmarkCase",
     "BenchmarkReport",
+    "AssumptionHit",
     "CaseScore",
     "FieldScore",
     "RelationHit",

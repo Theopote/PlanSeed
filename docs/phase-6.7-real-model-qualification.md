@@ -27,9 +27,10 @@ Phase 6 框架完成    ≠  LLM 已可靠
 
 1. **文档纠偏**：明确 oracle 100% 只验证 harness  
 2. **真模型跑分**：`use_oracle=False` + repair，产出 latency / repair / parse failure 等  
-3. **Benchmark v2（设计意图）**：评分 `relations` / `floor_preferences` / `orientations` / unknown P·R  
-4. **P0**：relation 端点分别 soft 校验（一端幻觉不可被掩盖）  
-5. **CI 不变**：默认 pytest 仍走 oracle；真模型不挡 merge
+3. **Benchmark v2（设计意图）**：评分 `relations` / `floor_preferences` / `orientations`  
+4. **Known / Assumption / Unknown 严格化**：Detection Recall、Unknown FPR、Assumption Precision（缺 reason 不算命中）  
+5. **P0**：relation 端点分别 soft 校验（一端幻觉不可被掩盖）  
+6. **CI 不变**：默认 pytest 仍走 oracle；真模型不挡 merge
 
 ## 指标（Alpha Baseline）
 
@@ -45,7 +46,10 @@ Phase 6 框架完成    ≠  LLM 已可靠
 | `relation_precision` / `relation_recall` | 关系意图 |
 | `floor_preference_accuracy` | 楼层偏好 |
 | `orientation_accuracy` | 空间朝向 |
-| `unknown_precision` / `unknown_recall` | unknowns 列表 vs `must_unknown` |
+| `unknown_detection_recall` | `must_unknown` 被显式列入 `unknowns` 的比例 |
+| `unknown_false_positive_rate` | 列入 `unknowns` 但不在 `must_unknown` 的比例 |
+| `assumption_precision` / `assumption_recall` | 显式假设命中；缺 reason 不算命中 |
+| `unknown_precision` | unknowns 列表精确率（与 FPR 互补） |
 
 ## 运行
 
