@@ -1,4 +1,4 @@
-"""Phase 5 — 本地项目快照（SQLite）。"""
+"""Phase 5 — 本地项目快照（SQLite）+ Phase 7.5-C migrations。"""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from packages.persistence.migrations import CURRENT_VERSION, get_user_version, migrate
 
 
 def default_db_path() -> Path:
@@ -27,7 +29,7 @@ class ProjectMeta:
 
 
 class ProjectStore:
-    """projects(id, name, updated_at, payload_json)。"""
+    """projects(id, name, updated_at, payload_json)；打开时自动 migrate。"""
 
     def __init__(self, db_path: Path | None = None) -> None:
         self.db_path = db_path or default_db_path()
@@ -41,17 +43,13 @@ class ProjectStore:
 
     def _init_db(self) -> None:
         with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS projects (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    payload_json TEXT NOT NULL
-                )
-                """
-            )
+            migrate(conn)
             conn.commit()
+
+    @property
+    def schema_version(self) -> int:
+        with self._connect() as conn:
+            return get_user_version(conn)
 
     def list_projects(self) -> list[ProjectMeta]:
         with self._connect() as conn:
@@ -109,3 +107,12 @@ class ProjectStore:
             cur = conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
             conn.commit()
             return cur.rowcount > 0
+
+
+__all__ = [
+    "CURRENT_VERSION",
+    "ProjectMeta",
+    "ProjectStore",
+    "default_db_path",
+    "migrate",
+]

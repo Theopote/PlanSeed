@@ -38,6 +38,7 @@ LayoutLocks → model_dump / 等价 JSON → sort_keys → sha256 → 前 16 hex
 - 默认路径：`~/.planseed/projects.db`  
 - 覆盖：环境变量 `PLANSEED_DB`  
 - 表：`projects(id, name, updated_at, payload_json)`  
+- **Schema 版本**：`PRAGMA user_version`；打开时 `migrate(conn)`（Phase 7.5-C，见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） 
 
 `payload` 形状：
 

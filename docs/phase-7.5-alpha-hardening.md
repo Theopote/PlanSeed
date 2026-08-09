@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-C persistence migrations ← 当前 · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：▶ 7.5-D .planseed package ← 当前 · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -28,8 +28,8 @@
 |----|------|------|
 | **7.5-A** | OpenAPI → TypeScript + CI drift | ✅ |
 | **7.5-B** | 渐进 mypy（三轮） | ✅ |
-| **7.5-C** | `PRAGMA user_version` migrations | **← 当前** |
-| **7.5-D** | `.planseed` ZIP 项目包 | |
+| **7.5-C** | `PRAGMA user_version` migrations | ✅ |
+| **7.5-D** | `.planseed` ZIP 项目包 | **← 当前** |
 | **7.5-E** | `App.tsx` → hooks 拆分 | |
 | **7.5-F** | LLM Enricher stage 化 | |
 | **7.5-G** | Hypothesis 不变量 | |
@@ -76,9 +76,26 @@ pnpm --dir desktop generate:api
 
 配置：`pyproject.toml` → `[[tool.mypy.overrides]]` + `enable_error_code`。
 
+## 7.5-C — Persistence migrations
+
+不上 Alembic。`PRAGMA user_version` + `packages/persistence/migrations/`。
+
+```text
+ProjectStore._init_db()
+  → migrate(conn)   # 0 → … → CURRENT_VERSION
+  → v001_initial.upgrade  # CREATE TABLE IF NOT EXISTS projects …
+```
+
+| 产物 | 说明 |
+|------|------|
+| `migrate(conn, from_version?, to_version?)` | 逐步 upgrade + 写 `user_version` |
+| `v001_initial.py` | 与 Phase 5 表结构一致（`IF NOT EXISTS`，兼容旧库） |
+| 测试 | 旧 `user_version=0` 库打开 → migrate → 行数据保留 |
+
+后续加列：新增 `v002_….py`，登记到 `_MIGRATIONS`，抬高 `CURRENT_VERSION`。
+
 ## 后续批次（摘要）
 
-- **C**：不上 Alembic；`migrations/v001_…` + `migrate(conn, …)`  
 - **D**：ZIP = `manifest.json` + `project.json` + `assets/` + `previews/`  
 - **E**：hooks 七件套；不上 Zustand 除非 prop drilling 仍严重  
 - **F**：拆 `packages/llm/enrich.py`；行为不变；stage provenance  
@@ -89,7 +106,7 @@ pnpm --dir desktop generate:api
 
 - [x] OpenAPI → generated TypeScript + CI drift  
 - [x] mypy 第一轮收紧（含 Round 1–3 目录 overrides）  
-- [ ] persistence migration  
+- [x] persistence migration  
 - [ ] `.planseed` project package  
 - [ ] App orchestration 拆分  
 - [ ] Enricher stage 化  
