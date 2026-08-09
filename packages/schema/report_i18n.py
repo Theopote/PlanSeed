@@ -92,6 +92,7 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "meta.north": "北",
         "meta.north_undefined": "北向未定义",
         "meta.scale": "单位：米 · 图示为方案示意（打印时请以标注尺寸为准）",
+        # 禁止改成「比例 1:100」等 — HTML/SVG 未做物理打印尺度校准（见 7.2.4）
         "meta.legend": "图例：房间填充 · 墙体边界 · 标注为房间名与面积",
         "meta.report_generated_at": "报告生成时间",
         "meta.toc": "目录",

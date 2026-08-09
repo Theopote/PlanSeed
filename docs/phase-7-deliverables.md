@@ -315,6 +315,9 @@ Cover / Executive Summary
 （或 assumption）。HTML 用 `rotate(-north_angle)` 指向世界北。  
 **未知 → 显示「北向未定义」，禁止默认 ↑N。** Renderer 不重新解释坐标系。
 
+**尺度文案：** 保持「单位：米 · 图示为方案示意…」即可。  
+**禁止**冒充 `1:100` / `1:50`，除非 7.2.4 真正做了打印物理尺度校准。
+
 ### C. Space Schedule 建筑化
 
 主表列：房间 · 楼层 · 目标面积 · 实际面积 · 差值 · 宽 × 深。  
@@ -360,6 +363,6 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 | **7.2.1** | SVG export | 单层 / 整图 SVG 下载 |
 | **7.2.2** | PNG rasterize | **可先于 PDF**：单层平面 PNG（微信 / PPT / Word / 发客户） |
 | **7.2.3** | DesignReport JSON | 权威快照导出 |
-| **7.2.4** | Print / PDF polish | HTML Print 体验硬化（非新引擎） |
+| **7.2.4** | Print / PDF polish | HTML Print 体验硬化（非新引擎）；**仅在此阶段**才可谈物理打印比例校准；此前禁止冒充 1:100 / 1:50 |
 
 优先级：**PNG 单层平面** 对建筑师极实用，可早于 Print polish。
