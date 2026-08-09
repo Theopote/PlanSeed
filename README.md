@@ -41,7 +41,8 @@ uv run python scripts/export_openapi.py
 pnpm --dir desktop generate:api
 ```
 
-详案：[docs/phase-7.5-alpha-hardening.md](docs/phase-7.5-alpha-hardening.md)。
+当前主线 Phase 8：[docs/phases/phase-8-solver-2.0.md](docs/phases/phase-8-solver-2.0.md) · ADR：[docs/adr/](docs/adr/) · C4：[docs/c4.md](docs/c4.md)。
+7.5 硬化：[docs/phase-7.5-alpha-hardening.md](docs/phase-7.5-alpha-hardening.md)。
 
 ```bash
 # 运行 solver demo
@@ -95,6 +96,8 @@ Phase 6 Frozen · 7.0 / 7.0.1 ✅。见 [docs/roadmap.md](docs/roadmap.md)。
 
 ## 文档
 
+- [phases/phase-8-solver-2.0.md](docs/phases/phase-8-solver-2.0.md)
+- [adr/](docs/adr/) · [c4.md](docs/c4.md)
 - [architecture.md](docs/architecture.md)
 - [schema.md](docs/schema.md)
 - [solver.md](docs/solver.md)

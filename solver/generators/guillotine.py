@@ -22,6 +22,7 @@ from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
 from packages.schema.topology import TopologyPlan
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometry
+
 from solver.circulation.stair_core import (
     CorePlacementFailure,
     choose_core_placement,
@@ -70,11 +71,14 @@ class _LayoutRoom:
 
 class GuillotineGenerator:
     """
-    Generator #1 — Baseline Guillotine（RoomLayout strategy）。
+    Generator #1 — Baseline Guillotine packing strategy（LayoutGenerator）。
 
     流水线：
       StairCore → free rects → ZonePlanner → TopologyPlan 序/簇 → Guillotine
     """
+
+    strategy_id = "guillotine"
+
 
     def __init__(self) -> None:
         self._zone_planner = ZonePlanner()
@@ -85,6 +89,7 @@ class GuillotineGenerator:
         program: DesignProgram,
         seed: int,
         locks: LayoutLocks | None = None,
+        topology: TopologyPlan | None = None,
     ) -> LayoutCandidate:
         assert_all_rooms_placed(program.rooms, program.floors)
         rng = random.Random(seed)
@@ -96,7 +101,8 @@ class GuillotineGenerator:
         locked_ids = locks.locked_room_ids
 
         ensure_access_graph(program)
-        topology = self._topology_planner.plan(program)
+        if topology is None:
+            topology = self._topology_planner.plan(program)
 
         if locks.stair is not None:
             core = core_from_locked_rect(

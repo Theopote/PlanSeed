@@ -1,0 +1,101 @@
+# Phase 8 — Solver 2.0 / Design Kernel Next Generation
+
+> **状态：▶ 8.0-A LayoutGenerator Interface ← 当前 · 7.5 ✅ · 禁止一上来 GA / NSGA-II · 禁止 Code Compliance**  
+> 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
+
+## 原则
+
+- 本阶段才吸收原评审中的**算法类**建议  
+- **不要**一上来 GA / NSGA-II  
+- **不要**用 CP-SAT 直接替代整个几何 solver  
+- **不要**现在迁 Shapely / 整库 Rect engine  
+- **禁止**把 Design Heuristic 说成 Code Compliance（无 Jurisdiction / CodeProfile 前）
+
+## 顺序
+
+```text
+8.0-A LayoutGenerator Interface     ← 当前
+  → 8.0-B MaxRect packing strategy
+  → 8.0-C Generator Benchmark（Guillotine vs MaxRect）
+8.1 Diversity Selection（top-score + diverse alternatives）
+8.2 Pareto Frontier（多 generator 之后）
+8.3 CP-SAT Research（topology / assignment，非整几何）
+8.4 Advanced Geometry（不规则场地才 Shapely）
+```
+
+| 项 | 主题 | 状态 |
+|----|------|------|
+| **8.0-A** | `LayoutGenerator` Protocol；Guillotine = Strategy | **← 当前** |
+| **8.0-B** | MaxRect / Maximal Rectangles | 后续 |
+| **8.0-C** | `layout-generation-benchmark` | 后续 |
+| **8.1** | Diversity Selection | 后续 |
+| **8.2** | Pareto Frontier | 后续 |
+| **8.3** | CP-SAT Research | 研究 |
+| **8.4** | Advanced Geometry（Shapely） | 更后 |
+
+## 8.0-A — Generator Interface
+
+目标：Guillotine 从「唯一生成器」变为「一个 Strategy」。
+
+```python
+@runtime_checkable
+class LayoutGenerator(Protocol):
+    @property
+    def strategy_id(self) -> str: ...
+
+    def generate(
+        self,
+        program: DesignProgram,
+        seed: int,
+        locks: LayoutLocks | None = None,
+        topology: TopologyPlan | None = None,
+    ) -> LayoutCandidate: ...
+```
+
+约定（相对早期草图的落地差异）：
+
+| 草图 | 落地 |
+|------|------|
+| `Topology` | 仓库类型为 `TopologyPlan` |
+| 显式 `config: SolverConfig` | 用 `program.solver_config`（单源） |
+| `-> list[LayoutCandidate]` | **一次 seed → 一个 candidate**；多样本由 `run_pipeline` 换 seed |
+| — | 保留 `locks`（Workbench 契约） |
+
+落地：
+
+- `solver/generators/base.py` — `LayoutGenerator`（`CandidateGenerator` 别名）  
+- `GuillotineGenerator.strategy_id = "guillotine"`；可选注入 `topology`  
+- `run_pipeline(..., generator=None)` — 默认 Guillotine，可注入其他 Strategy  
+
+**不改变**默认几何 / 评分行为。
+
+## 8.0-B — MaxRect（预告）
+
+第一个新增 strategy：**Maximal Rectangles**，不是遗传算法。
+
+理由：确定性 · 易 debug · 易 benchmark · 与 Guillotine 分布差异明显。
+
+## 8.0-C — Benchmark（预告）
+
+`layout-generation-benchmark`：valid rate · hard violation · area fit · aspect · circulation · orientation · runtime · diversity。  
+比较 Guillotine vs MaxRect — **禁止凭感觉**。
+
+## 8.1–8.4（摘要）
+
+- **8.1**：top-score + diverse alternatives（流线 / 隐私等叙事轴），先于 Pareto  
+- **8.2**：Efficiency / Privacy / Circulation / Environment 非支配集  
+- **8.3**：CP-SAT 做 floor/zone/topology/adjacency；几何仍 packing + repair  
+- **8.4**：不规则场地 / 庭院多边形才考虑 Shapely  
+
+## 明确不做（Phase 8）
+
+- Code Compliance（「三层必须电梯」等）  
+- 无 Jurisdiction / CodeProfile / Rule / Source / Version / Applicability 前禁止声称「符合某规范」
+
+## Definition of Done（8.0-A）
+
+- [x] `LayoutGenerator` Protocol  
+- [x] `GuillotineGenerator` 实现该接口（含 `strategy_id`）  
+- [x] `run_pipeline` 可注入 generator  
+- [x] 默认路径仍为 Guillotine，行为不变  
+- [ ] 8.0-B MaxRect（未开始）

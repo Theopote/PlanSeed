@@ -10,6 +10,7 @@ from packages.schema.program import DesignProgram
 
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.score import CompositeEvaluator
+from solver.generators.base import LayoutGenerator
 from solver.generators.guillotine import GuillotineGenerator
 from solver.optimization.rank import rank_candidates
 
@@ -65,11 +66,14 @@ class PipelineResult:
 def run_pipeline(
     program: DesignProgram,
     locks: LayoutLocks | None = None,
+    *,
+    generator: LayoutGenerator | None = None,
 ) -> PipelineResult:
     from solver.constraints.checker import ConstraintEvaluationResult
     from solver.locks import assert_valid_layout_locks, check_lock_invariants
 
-    generator = GuillotineGenerator()
+    # Alpha 默认 Guillotine；8.0-B+ 可注入 MaxRect 等 Strategy
+    generator = generator or GuillotineGenerator()
     checker = DefaultConstraintChecker()
     evaluator = CompositeEvaluator()
 
