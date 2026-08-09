@@ -82,11 +82,17 @@ def rank_candidates(
     buildable_width: float | None = None,
     buildable_depth: float | None = None,
     axis_alternatives: bool = True,
+    mode: str | None = None,
 ) -> list[LayoutCandidate]:
-    """按 total_score；默认启用 8.1 轴叙事替代 + 几何 diversity。
+    """Top-K 选择。
 
-    ``min_diversity_threshold=None`` → 纯分数 Top-K（测试 / 调试）。
-    ``axis_alternatives=False`` → 仅几何 diversity（Phase 1.5 行为）。
+    ``mode``：
+      - ``score``：纯总分
+      - ``axis``：8.1 叙事轴 + 几何 diversity
+      - ``pareto``：8.2 非支配前沿（默认，当 diversity 开启时）
+
+    兼容：``min_diversity_threshold=None`` → 纯分数；
+    ``axis_alternatives=False`` 且未显式 mode → 仅几何 diversity。
     """
     valid = [
         c
@@ -98,27 +104,41 @@ def rank_candidates(
     valid.sort(key=lambda c: c.score or 0.0, reverse=True)
     invalid.sort(key=lambda c: c.score or 0.0, reverse=True)
 
-    if min_diversity_threshold is not None and valid:
-        if axis_alternatives:
-            from solver.optimization.diversity_select import select_diverse_alternatives
+    if min_diversity_threshold is None:
+        resolved = "score"
+    elif mode in ("score", "axis", "pareto"):
+        resolved = mode
+    elif not axis_alternatives:
+        resolved = "geom"
+    else:
+        resolved = "pareto"
 
-            selected = select_diverse_alternatives(
-                valid,
-                top_k,
-                min_diversity_threshold=min_diversity_threshold,
-                buildable_width=buildable_width,
-                buildable_depth=buildable_depth,
-            )
-        else:
-            selected = _select_diverse(
-                valid,
-                top_k,
-                min_diversity_threshold,
-                buildable_width=buildable_width,
-                buildable_depth=buildable_depth,
-            )
-        if len(selected) < top_k:
-            selected.extend(invalid[: top_k - len(selected)])
-        return selected
+    if resolved == "score" or not valid:
+        return (valid + invalid)[:top_k]
 
-    return (valid + invalid)[:top_k]
+    if resolved == "pareto":
+        from solver.optimization.pareto import select_pareto_frontier
+
+        selected = select_pareto_frontier(valid, top_k)
+    elif resolved == "axis":
+        from solver.optimization.diversity_select import select_diverse_alternatives
+
+        selected = select_diverse_alternatives(
+            valid,
+            top_k,
+            min_diversity_threshold=min_diversity_threshold or DEFAULT_MIN_DIVERSITY_THRESHOLD,
+            buildable_width=buildable_width,
+            buildable_depth=buildable_depth,
+        )
+    else:
+        selected = _select_diverse(
+            valid,
+            top_k,
+            min_diversity_threshold or DEFAULT_MIN_DIVERSITY_THRESHOLD,
+            buildable_width=buildable_width,
+            buildable_depth=buildable_depth,
+        )
+
+    if len(selected) < top_k:
+        selected.extend(invalid[: top_k - len(selected)])
+    return selected

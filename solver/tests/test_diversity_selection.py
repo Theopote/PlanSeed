@@ -128,7 +128,9 @@ def test_rank_candidates_tags_roles_by_default():
         _cand(cid="b", seed=1, total=80, circ=90, priv=30, x=7),
         _cand(cid="c", seed=2, total=78, circ=40, priv=95, x=14),
     ]
-    ranked = rank_candidates(cands, top_k=3, min_diversity_threshold=0.5)
+    ranked = rank_candidates(
+        cands, top_k=3, min_diversity_threshold=0.5, mode="axis"
+    )
     assert ranked[0].metrics.get("selection_role") == "top_score"
     roles = {c.metrics.get("selection_role") for c in ranked}
     assert "circulation" in roles or "privacy" in roles or "diverse" in roles

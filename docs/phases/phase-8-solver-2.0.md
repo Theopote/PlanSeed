@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：▶ 8.1 Diversity Selection ✅ · 下一 8.2 Pareto · 8.0 A–C ✅ · 7.5 ✅ · 禁止 GA 先行**  
+> **状态：▶ 8.2 Pareto Frontier ✅ · 下一 8.3 CP-SAT · 8.0–8.1 ✅ · 7.5 ✅ · 禁止 GA 进化生成**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -18,8 +18,8 @@
   → 8.0-B MaxRect packing strategy    ✅
   → 8.0-C Generator Benchmark         ✅（Guillotine vs MaxRect）
 8.1 Diversity Selection（top-score + diverse alternatives） ✅
-8.2 Pareto Frontier（多 generator 之后） ← 当前
-8.3 CP-SAT Research（topology / assignment，非整几何）
+8.2 Pareto Frontier（非支配集） ✅
+8.3 CP-SAT Research（topology / assignment） ← 当前
 8.4 Advanced Geometry（不规则场地才 Shapely）
 ```
 
@@ -29,8 +29,8 @@
 | **8.0-B** | MaxRect / Maximal Rectangles | ✅ |
 | **8.0-C** | `layout-generation-benchmark` | ✅ |
 | **8.1** | Diversity Selection | ✅ |
-| **8.2** | Pareto Frontier | **← 当前** |
-| **8.3** | CP-SAT Research | 研究 |
+| **8.2** | Pareto Frontier | ✅ |
+| **8.3** | CP-SAT Research | **← 当前** |
 | **8.4** | Advanced Geometry（Shapely） | 更后 |
 
 ## 8.0-A — Generator Interface
@@ -119,10 +119,25 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 - 候选 `metrics.selection_role` / `selection_label`；CandidateStrip 展示标签
 - **不是** Pareto（8.2）
 
-## 8.2–8.4（摘要）
+## 8.2 — Pareto Frontier ✅
 
-- **8.2**：Efficiency / Privacy / Circulation / Environment 非支配集 ← 当前预告  
-- **8.3**：CP-SAT 做 floor/zone/topology/adjacency；几何仍 packing + repair  
+静态非支配选择（**不是** NSGA-II 进化）：
+
+| 目标 | DesignScore 字段 |
+|------|------------------|
+| Efficiency | `spatial_score` |
+| Privacy | `privacy_score` |
+| Circulation | `circulation_score` |
+| Environment | `environment_score` |
+
+- `solver/optimization/pareto.py` — `pareto_front` / crowding / `select_pareto_frontier`
+- `SolverConfig.rank_mode = "pareto"`（默认）；`axis` 保留 8.1；`score` 纯总分
+- `run_pipeline(..., generators=[GuillotineGenerator(), MaxRectGenerator()])` 合并池再选
+- 标签：`selection_role=pareto` · `selection_label`（如「效率更好 · 流线更好」）
+
+## 8.3–8.4（摘要）
+
+- **8.3**：CP-SAT 做 floor/zone/topology/adjacency；几何仍 packing + repair ← 当前预告  
 - **8.4**：不规则场地 / 庭院多边形才考虑 Shapely  
 
 ## 明确不做（Phase 8）
@@ -139,4 +154,5 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 - [x] 8.0-B MaxRect
 - [x] 8.0-C Generator Benchmark
 - [x] 8.1 Diversity Selection
-- [ ] 8.2 Pareto Frontier
+- [x] 8.2 Pareto Frontier
+- [ ] 8.3 CP-SAT Research

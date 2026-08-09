@@ -30,7 +30,8 @@ class LayoutGenerator(Protocol):
 - 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B ✅）
 - Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
 - Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅）
-- 下一：**8.2 Pareto Frontier**；**不要**先做 GA / NSGA-II
+- Pareto：`rank_mode=pareto` 非支配前沿（8.2 ✅；非 GA 进化）
+- 下一：**8.3 CP-SAT Research**；**不要**用 GA 替代几何 packing
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 
