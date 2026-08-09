@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from packages.schema.constraints import Constraint
@@ -13,6 +15,9 @@ from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import Rect2D, SiteSpec
 from packages.schema.topology import AccessGraph, RoomGraph, TopologyPlan
+
+RankMode = Literal["score", "axis", "pareto"]
+GeneratorStrategyName = Literal["guillotine", "maxrect"]
 
 
 class SolverConfig(BaseModel):
@@ -26,14 +31,26 @@ class SolverConfig(BaseModel):
         le=1.0,
         description="Top-K 多样性阈值；None 关闭，仅按分数排序",
     )
-    rank_mode: str = Field(
+    rank_mode: RankMode = Field(
         default="axis",
         description=(
             "Top-K selection: "
             "score=纯总分；"
-            "axis=Alpha 默认（最高分+轴优势替代+几何 diversity）；"
-            "pareto=Experimental（slot1=最高分，其余非支配 crowding；非默认）"
+            "axis=Alpha Stable 默认；"
+            "pareto=Experimental（须 experimental=True）"
         ),
+    )
+    generator_strategy: GeneratorStrategyName = Field(
+        default="guillotine",
+        description="Alpha Stable 默认 guillotine；maxrect 为 Experimental",
+    )
+    experimental: bool = Field(
+        default=False,
+        description="True 才允许 Research Lab 策略（MaxRect / Pareto / …）影响求解",
+    )
+    profile_id: str | None = Field(
+        default=None,
+        description="SolverProfile id（如 alpha-stable）；产品路径由 pin 写入",
     )
     max_wet_stacks: int = Field(
         default=1,

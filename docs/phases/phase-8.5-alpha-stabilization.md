@@ -1,9 +1,9 @@
 # Alpha Stabilization / Solver 2.0 Requalification
 
-> **状态：▶ 进行中** · 总览：[roadmap.md](../roadmap.md)  
-> **不是 Phase 9。** 暂停新功能；先把 Solver 2.0 能力面与 Alpha 默认产品语义重新对齐。
+> **状态：✅ P0 语义回稳已落地** · 下一关：[../alpha-v0.1-release-readiness.md](../alpha-v0.1-release-readiness.md)  
+> **不是 Phase 9。** 默认行为回稳后，进入 Release Gate（验证与修正），不开新功能主线。
 
-## 为什么现在停
+## 为什么停过一轮
 
 7.2 / 7.5 / Phase 8（8.0–8.4）功能面已落地，但出现了 **默认行为漂移**：
 
@@ -13,47 +13,43 @@
 | 身份签名不足以描述选优 | P1 | 仅有 `solver` / `generator` / `evaluation`；缺 `selection_version` |
 | 「Phase 8 全部完成」与契约冻结冲突 | P1 | roadmap 仍要求改 ranking 须可追踪 bump |
 
-## P0 处置（本轮）
+## P0 处置（已完成）
 
 1. **Alpha 默认**恢复：`SolverConfig.rank_mode = "axis"`  
-   （score + 轴叙事 + 几何 diversity；8.1）  
-2. **Pareto** 保留为 **Experimental / opt-in**：`rank_mode="pareto"`  
-   - 目标复用七轴语言（禁止 Efficiency 别名）  
-   - slot1 = 全局 top-score；slot2–k = Pareto crowding  
-3. 新增 `SELECTION_VERSION`（默认 `axis-diversity-v1`）；候选 metrics / provenance 写入实际策略  
-4. `SOLVER_VERSION` → `0.5`（Solver 2.0 能力面存在，但默认语义回稳）  
-5. `EVALUATION_VERSION` **不变**（`residential-alpha-v1`；七轴规则未改）
+2. **Pareto** = Experimental / opt-in（`experimental=True`）  
+3. `SELECTION_VERSION` + 模式戳；`SOLVER_VERSION` → `0.5`  
+4. `EVALUATION_VERSION` 不变（`residential-alpha-v1`）  
+5. **`SolverProfile`**：`alpha-stable` / research-*；API `generate_layouts` pin Alpha Stable  
 
 ```text
-rank_mode:
-  score     纯总分
-  axis      ← Alpha default（最高分 + 轴优势 + 几何 diversity）
-  pareto    ← Experimental（slot1=最高分 + 前沿 crowding）
+Alpha Stable（产品默认）:
+  Guillotine + axis + heuristic + rect + residential-alpha-v1
 
-默认路径：  Guillotine only + axis selection
-research：  MaxRect 单策略 · Guillotine+MaxRect multi-gen 池 · pareto · CP-SAT · Shapely foundation（非端到端 irregular）
+Experimental Lab:
+  MaxRect · Pareto · CP-SAT · Shapely foundation
+  （须 experimental=True 或显式 generators=）
 ```
 
-**纪律：** Suite v1 产品验收前，**禁止**把 MaxRect 自动混入 Alpha / API 默认候选池。  
-`generators=[Guillotine, MaxRect]` 仅显式 research。
+## Requalification → Release Gate
 
-## Requalification 清单（后续）
+语义回稳清单：
 
 - [x] 默认 ranking ≠ Pareto  
-- [x] `selection_version` 进入 `solver_identity` / provenance  
-- [x] 固定 fixture：默认 Top-K 角色分布回归（axis）  
-  （`solver/fixtures/topk_axis_roles.py` · `test_topk_axis_roles_regression.py`）  
-- [x] **SolverProvenance** 升级（strategy 层：generator / selection / assignment / geometry）  
-- [x] Alpha 默认候选池 = **Guillotine only**（MaxRect multi-gen 仅显式 research）  
-- [x] CP-SAT 定位保持：**assignment-only research**（不扩 CP-SAT geometry；`ortools` 不进 Alpha runtime）  
-- [x] 8.4 重新定性：**Irregular Geometry Foundation**（非 Advanced Geometry / 非端到端）  
-- [ ] **8.4.1** Irregular Site Pipeline Integration（polygon → free rects → packing → SVG/Report）  
-- [ ] MaxRect **product qualification**（须过 [Layout Suite v1](../baselines/layout-benchmark-suite-v1.md)；单 case aspect 劣化不足据）  
-- [ ] 文档：凡写「Phase 8 完成」须注明 **默认语义已 requalify**  
-- [ ] 7.1.1 WebView2 Print Smoke（产品手测，独立于本项）  
-- [ ] **禁止**在稳定化完成前开 Phase 9 / 新算法主线  
+- [x] `selection_version` / SolverProvenance strategy 层  
+- [x] Top-K axis 角色回归  
+- [x] Alpha 默认候选池 = Guillotine only  
+- [x] `SolverProfile` + 产品路径 pin  
+- [x] CP-SAT = assignment-only research  
+- [x] 8.4 = Irregular Geometry Foundation（非端到端）  
+- [ ] **8.4.1** Irregular Site Pipeline Integration  
+- [ ] MaxRect **product qualification**  
+- [ ] 7.1.1 WebView2 Print Smoke  
+- [ ] 安装包 / `.planseed` 往返（见 Release Gate）  
+- [ ] **禁止**在 Gate 完成前开 Phase 9  
 
-## 契约纪律（修订）
+完整 Gate 清单与通过标准 → [alpha-v0.1-release-readiness.md](../alpha-v0.1-release-readiness.md)
+
+## 契约纪律
 
 | 变更 | 必须 bump |
 |------|-----------|

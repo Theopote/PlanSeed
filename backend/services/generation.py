@@ -72,9 +72,14 @@ def generate_layouts(
 ) -> PipelineResult:
     """单次评价在 pipeline 内完成；此处不调用 CompositeEvaluator。
 
-    Alpha 默认：Guillotine only（不传 MaxRect / multi-gen 池）。
+    Alpha 产品路径：非 experimental 时钉死 ``alpha-stable``（Guillotine + axis + …）。
     """
+    from packages.schema.solver_profile import pin_alpha_stable_if_needed
     from solver.locks import LockValidationError
+
+    cfg = pin_alpha_stable_if_needed(program.solver_config)
+    if cfg is not program.solver_config:
+        program = program.model_copy(update={"solver_config": cfg})
 
     try:
         return run_pipeline(program, locks=locks)

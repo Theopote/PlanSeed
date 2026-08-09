@@ -1,8 +1,9 @@
 # PlanSeed 路线图
 
-> **主线：▶ Alpha Stabilization / Solver 2.0 Requalification · Phase 8 能力面 ✅ · 禁止冲 Phase 9**  
+> **主线：▶ Alpha v0.1 Release Qualification（Release Gate · 非 Phase 9）**  
+> Phase 8 = Engineering 能力面 ✅ · MaxRect/Pareto/Irregular ≠ Product Qualified  
 > Phase 6 **彻底冻结** · **禁止一上来 GA/NSGA-II** · **禁止 Code Compliance 冒充设计启发**  
-> 详案：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
+> Gate：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) · 稳定化：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
 
 ## 项目状态（阶段判断）
 
@@ -16,31 +17,31 @@
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（A–I） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.4=Foundation；8.4.1 ☐；见 8.5） |
-| **8.5** | **Alpha Stabilization / Requalification** | **← 当前**（[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)） |
-| **8.x** | Advanced Site / Code / Interop | **更后** |
+| **8.0–8.4** | **Solver 2.0 能力面** | **✅ Engineering**（8.4.1 ☐；MaxRect 未产品验收） |
+| **8.5** | **Alpha Stabilization（语义回稳）** | **✅ P0 代码** |
+| **Alpha RQ** | **v0.1 Release Qualification** | **← 当前**（[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)） |
+| **8.x** | Advanced Site / Code / Interop | **更后**（Gate 通过后再谈） |
 
 ```text
-0–5.1.1   Design Kernel                     ✅
-6         Hybrid Requirement Parsing        ✅ Frozen
-7.0       DesignReport Model                ✅
-7.0.1     Report Integrity                  ✅
-7.1       Report Presentation               ✅ Engineering
-7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
-7.2       Export Formats                    ✅ Alpha Product Loop
-7.5       Alpha Engineering Hardening       ✅（A–I）
-8.0       Solver Diversity / Solver 2.0     ✅ 能力面（8.4 Foundation；8.4.1 ☐）
-8.5       Alpha Stabilization / Requalify   ← 当前
-8.x       Advanced Site / Code / Interop    ← 更后
+0–7.5     Product + Engineering Core     ✅
+8.0-A/B   Multi-generator foundation     ✅ Engineering
+8.1       Diversity（Alpha 默认）         ✅
+8.2       Pareto                         ✅ Engineering / Experimental
+8.3       CP-SAT                         ✅ Engineering / Experimental
+8.4       Irregular Geometry Foundation  ✅（非端到端）
+8.4.1     Irregular Site Pipeline        ☐
+
+Alpha v0.1 Release Qualification         ← CURRENT
+（不要叫 Phase 9；只做验证与修正）
 ```
 
 ```text
-纪律：发现一个问题 ≠ 新开一个 Phase。
-优化建议（mypy 渐进 / OpenAPI / 持久化 / Solver 多样性 / LLM 可维护性）
-  → 进 backlog；7.2 / 7.5 / 8.0 能力面主线已关闭（8.4.1 / MaxRect 资格仍开放）。
-现在不做：冲 Phase 9 · 重开 Phase 6 · 用 CP-SAT/GA/Shapely 替代默认 Rect packing · 全面 strict mypy · Canva 品牌。
-默认 ranking 不得静默改为 Pareto（见 8.5）。
-产品问题：生成的东西能不能离开 PlanSeed？→ 7.2 已答「能」。
+纪律：implementation complete ≠ product qualified ≠ product default ready。
+发现一个问题 ≠ 新开一个 Phase。
+现在不做：Phase 9 · Advanced AI · BIM · Code 扩面 · 更多算法主线。
+Alpha Stable 默认：Guillotine + axis + heuristic + rect + residential-alpha-v1。
+Experimental Lab：MaxRect · Pareto · CP-SAT · Shapely（须 experimental / 显式注入）。
+产品问题：生成的东西能不能离开 PlanSeed？→ 7.2 已答「能」；能否稳定交给用户？→ 本 Gate。
 ```
 ## 阶段总览（以代码为准）
 
@@ -64,7 +65,8 @@
 | **7.2** | **Export Formats** | **✅** |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
 | **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.4 Foundation；8.4.1 ☐） |
-| **8.5** | **Alpha Stabilization / Requalification** | **← 当前** |
+| **8.5** | **Alpha Stabilization（语义回稳）** | **✅ P0 代码**（见 [phase-8.5](phases/phase-8.5-alpha-stabilization.md)） |
+| **Alpha RQ** | **v0.1 Release Qualification** | **← 当前** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -82,8 +84,8 @@ Solver / Evaluation / API **短暂冻结**，避免 Phase 4 交互编辑时前�
 | API | `GenerateResponse` · `CandidatePayload` · `DesignScore` · `DesignFinding` · `solver_identity` / `CandidateProvenance` |
 | Alias | `DesignEvaluation = DesignScore` **保持**；正式拆 Evaluation 延后 |
 
-**允许：** bugfix、文档、CI 绿、runtime 小修、Workbench UI（只消费冻结契约）、**additive** 身份字段（如 `selection_version`）。  
-**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare **默认**规则却不 bump `selection_version`（及必要时 `solver_version`）；改七轴评分却不 bump `evaluation_version`；前端自创评分逻辑。  
+**允许：** bugfix、文档、CI 绿、runtime 小修、Workbench UI（只消费冻结契约）、**additive** 身份字段（如 `selection_version`）、Release Gate 验证与修正。  
+**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare **默认**规则却不 bump `selection_version`（及必要时 `solver_version`）；改七轴评分却不 bump `evaluation_version`；前端自创评分逻辑；未经 Gate 把 Research Lab 设为产品默认。  
 
 书面契约：[api-contract.md](api-contract.md)
 
@@ -445,7 +447,8 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.2** | Export Formats | **✅**（SVG · PNG · JSON · Print · Export Dialog） |
 | **7.5** | Alpha Engineering Hardening | **✅**（[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
 | **8.0** | Solver Diversity / Solver 2.0 | **✅ 能力面**（8.4 Foundation；8.4.1 ☐） |
-| **8.5** | Alpha Stabilization / Requalification | **← 当前**（[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)） |
+| **8.5** | Alpha Stabilization（语义回稳） | **✅ P0 代码** |
+| **Alpha RQ** | v0.1 Release Qualification | **← 当前**（[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)） |
 | **8.x** | Advanced Site / Code / Interop | 更后 |
 
 **纪律：** 发现问题 → 记入 backlog，**禁止**每发现一问题就新开 Phase。  
@@ -542,7 +545,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **8.5 Alpha Stabilization**（禁止冲 Phase 9；7.1.1 Print ☐） |
+| **当前主线** | **Alpha v0.1 Release Qualification**（[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)；7.1.1 Print ☐） |
 
 ---
 

@@ -15,6 +15,18 @@ from solver.generators.guillotine import GuillotineGenerator
 from solver.optimization.rank import rank_candidates
 
 
+def _generators_from_config(cfg) -> list[LayoutGenerator]:
+    """非 experimental → 始终 Guillotine；experimental 才读 generator_strategy。"""
+    strategy = getattr(cfg, "generator_strategy", "guillotine")
+    if not getattr(cfg, "experimental", False):
+        strategy = "guillotine"
+    if strategy == "maxrect":
+        from solver.generators.maxrect import MaxRectGenerator
+
+        return [MaxRectGenerator()]
+    return [GuillotineGenerator()]
+
+
 @dataclass
 class PipelineMetrics:
     valid_ratio: float
@@ -72,11 +84,13 @@ def run_pipeline(
 ) -> PipelineResult:
     """生成 → 校验 → 评价 → Top-K。
 
-    Alpha 默认：**仅 Guillotine**（``generator=None`` 且 ``generators=None``）。
+    Alpha 产品默认：**Guillotine only**（见 ``SolverProfile`` / ``alpha-stable``）。
 
-    Research / opt-in 才显式注入::
+    Research / opt-in::
 
-        run_pipeline(program, generator=MaxRectGenerator())
+        cfg.experimental = True
+        cfg.generator_strategy = "maxrect"   # 或显式传入 generator(s)
+
         run_pipeline(program, generators=[GuillotineGenerator(), MaxRectGenerator()])
 
     **禁止**在 Suite v1 产品验收前把 MaxRect 混入 Alpha 默认候选池。
@@ -84,11 +98,13 @@ def run_pipeline(
     from solver.constraints.checker import ConstraintEvaluationResult
     from solver.locks import assert_valid_layout_locks, check_lock_invariants
 
-    # Alpha default = Guillotine only；multi-gen / MaxRect 须调用方显式传入
+    # 显式 generators / generator 优先；否则按 config（非 experimental 强制 Guillotine）
     if generators:
         gens: list[LayoutGenerator] = list(generators)
+    elif generator is not None:
+        gens = [generator]
     else:
-        gens = [generator or GuillotineGenerator()]
+        gens = _generators_from_config(program.solver_config)
     checker = DefaultConstraintChecker()
     evaluator = CompositeEvaluator()
 
