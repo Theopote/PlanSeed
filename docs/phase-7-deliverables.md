@@ -255,6 +255,9 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 4. [x] HTML 对 stale 打醒目标记（仅 allow_stale 路径）  
 5. [x] Preview（payload）vs Final（`project_id` + `candidate_id` + `revision_id`）  
 6. [x] `sanitize_report_svg` 纵深防御（print / srcDoc）  
-7. [x] `revision_id` / `source_revision_id` 溯源；mismatch → 409
+7. [x] `revision_id` / `source_revision_id` 溯源；mismatch → 409  
+8. [x] Report 层成体系测试：`backend/tests/test_report_layer.py`（含 dirty / area / score / findings / sanitize / escape）
+
+原则：**Report renderer ≠ Evaluator** — Finding 直接消费 `DesignFinding.title/message/severity`，不重算分。
 
 实现落点：`packages/schema/report.py` · `backend/services/report_builder.py` · `backend/services/report_html.py` · `backend/routes/reports.py` · Desktop「报告」按钮。
