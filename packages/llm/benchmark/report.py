@@ -147,6 +147,30 @@ class BenchmarkReport:
         return self.relation_hits / predicted
 
     @property
+    def relation_f1(self) -> float:
+        p = self.relation_precision
+        r = self.relation_recall
+        if p + r <= 0:
+            return 1.0 if self.relation_total == 0 else 0.0
+        return 2.0 * p * r / (p + r)
+
+    @property
+    def parse_success_rate(self) -> float:
+        return 1.0 - self.parse_failure_rate
+
+    @property
+    def repair_exhausted_rate(self) -> float:
+        if not self.case_scores:
+            return 0.0
+        return self.repair_exhausted_count / len(self.case_scores)
+
+    @property
+    def geometry_violation_rate(self) -> float:
+        if not self.case_scores:
+            return 0.0
+        return self.geometry_violations / len(self.case_scores)
+
+    @property
     def floor_pref_hits(self) -> int:
         return sum(1 for c in self.case_scores for f in c.floor_prefs if f.hit)
 
@@ -251,7 +275,9 @@ class BenchmarkReport:
             "hallucination_rate": round(self.hallucination_rate, 4),
             "geometry_fail_rate": round(self.geometry_fail_rate, 4),
             "geometry_fails": self.geometry_fails,
+            "geometry_violation_rate": round(self.geometry_violation_rate, 4),
             "parse_failure_rate": round(self.parse_failure_rate, 4),
+            "parse_success_rate": round(self.parse_success_rate, 4),
             "repair_rate": round(self.repair_rate, 4),
             "schema_fail": self.schema_fails,
             "semantic_fail": self.semantic_fails,
@@ -259,10 +285,12 @@ class BenchmarkReport:
             "json_parse_fail": self.json_parse_fails,
             "repair_success": self.repair_successes,
             "repair_exhausted": self.repair_exhausted_count,
+            "repair_exhausted_rate": round(self.repair_exhausted_rate, 4),
             "average_attempts": round(self.average_attempts, 4),
             "average_latency_s": round(self.average_latency_s, 4),
             "relation_recall": round(self.relation_recall, 4),
             "relation_precision": round(self.relation_precision, 4),
+            "relation_f1": round(self.relation_f1, 4),
             "floor_preference_accuracy": round(self.floor_preference_accuracy, 4),
             "orientation_accuracy": round(self.orientation_accuracy, 4),
             "unknown_detection_recall": round(self.unknown_detection_recall, 4),

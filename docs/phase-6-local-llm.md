@@ -1,8 +1,18 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：✅ 6.0–6.6 框架收口 · 🚧 6.7 Real Model Qualification**  
+> **状态：✅ 6.0–6.6 Engineering Complete · ← 6.7 Real Model Qualification**  
 > 总览：[roadmap.md](roadmap.md)  
 > 前置：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
+
+## 完成标准
+
+```text
+6.0–6.6  ✅ Engineering Complete
+6.7      ← Real Model Qualification（真模型 + Alpha Gate）
+Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过门
+```
+
+**不要**把 Engineering Complete 写成 Phase 6 ✅。
 
 ## 最高原则
 
@@ -38,7 +48,7 @@ NL → Local LLM → RequirementSpec
 | **6.4** | Assumption / Unknown UI | 显式假设与未知；禁止偷偷补全 | ✅ |
 | **6.5** | NL → Generate | Workbench 接入口 | ✅ |
 | **6.6** | Requirement Benchmark | 语料 + oracle harness（≠ 真模型准确率） | ✅ |
-| **6.7** | Real Model Qualification | 真模型 Alpha Baseline + 设计意图评分 | 🚧 |
+| **6.7** | Real Model Qualification | Alpha Gate · 多模型对比 · 过门才 Alpha Qualified | ← 当前 |
 
 详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)
 
@@ -81,6 +91,7 @@ Prompt 保持短。准确率靠 **Benchmark → 失败模式 → Schema/语义/N
 
 ## Definition of Done（整 Phase）
 
-1. NL → RequirementSpec 稳定、可验证 ✅（框架）  
+1. NL → RequirementSpec 稳定、可验证 ✅（6.0–6.6 Engineering Complete）  
 2. 输出永不含几何 ✅  
-3. 真模型可靠度以 6.7 Alpha Baseline 为准（非 CI oracle 100%）
+3. 某本地模型过 [Alpha Gate](phase-6.7-real-model-qualification.md) → 才可写 **Phase 6 ✅ Alpha Qualified**  
+4. 多模型对比可回答「7B 是否够用」（非排行榜）

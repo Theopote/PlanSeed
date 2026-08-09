@@ -11,6 +11,12 @@ from packages.llm.benchmark.cases import (
     load_benchmark_cases,
 )
 from packages.llm.benchmark.failure import FailureKind
+from packages.llm.benchmark.gates import (
+    ALPHA_GATE_SPECS,
+    AlphaGateResult,
+    evaluate_alpha_gates,
+    gate_metrics,
+)
 from packages.llm.benchmark.report import BenchmarkReport
 from packages.llm.benchmark.runner import (
     expect_to_draft,
@@ -33,6 +39,8 @@ __all__ = [
     "ExpectOrientation",
     "ExpectRelation",
     "RequirementBenchmarkCase",
+    "ALPHA_GATE_SPECS",
+    "AlphaGateResult",
     "BenchmarkReport",
     "FailureKind",
     "AssumptionHit",
@@ -40,6 +48,8 @@ __all__ = [
     "FieldScore",
     "RelationHit",
     "benchmark_case_count",
+    "evaluate_alpha_gates",
+    "gate_metrics",
     "load_benchmark_cases",
     "expect_to_draft",
     "make_oracle_provider",
