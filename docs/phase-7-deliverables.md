@@ -106,7 +106,7 @@ Dirty                  → HTTP 409 candidate_requires_revalidation
 
 `ReportStatus`：`valid` | `stale_evaluation` | `invalid_candidate`  
 `GeometryOrigin`：`solver_generated` | `user_edited_validated` | `user_edited_stale`  
-（报告头显示：Solver Generated / User Edited + Validated / User Edited + Stale；后者禁止正式报告。）  
+`ReportLocale`：Alpha 默认 `zh-CN`（`packages/schema/report_i18n.py`）；预留 `en-US`。  
 Desktop：dirty 时拦截并提示「请先重新验证」。  
 几何-only 导出（不含评分）可后置，本刀默认拒绝正式评价报告。
 
@@ -160,8 +160,10 @@ DesignReport
 
 ```text
 PlanSeed Design Report
-Project · Solver Generated | User Edited + Validated · Candidate A.2 · Score 84
-（User Edited + Stale 禁止正式报告）
+Project · 求解器生成 | 用户编辑 · 已验证 · Candidate A.2 · Score 84
+（用户编辑 · 评价过期 禁止正式报告）
+
+文案由 `ReportLocale` 集中管理（Alpha 默认 `zh-CN`；预留 `en-US`），禁止散落硬编码。
 
 Key Intent
   - Two-story residence

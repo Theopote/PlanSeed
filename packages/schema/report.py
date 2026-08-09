@@ -12,13 +12,15 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from packages.schema.scoring import DesignFinding, DesignScore
+from packages.schema.report_i18n import (
+    DEFAULT_REPORT_LOCALE,
+    ReportLocale,
+    boundary_lines_for_locale,
+)
 
-# 页脚边界声明（产品定位；禁止写成「AI designed this house」）
-REPORT_BOUNDARY_LINES: tuple[str, ...] = (
-    "Requirement interpretation: Local LLM + deterministic semantic pipeline",
-    "Geometry: PlanSeed deterministic solver",
-    "Evaluation: PlanSeed residential heuristic evaluator",
-    "AI interpreted design intent; deterministic solver generated and evaluated geometry.",
+# 兼容旧引用：默认 locale 边界声明（新代码请用 boundary_lines_for_locale）
+REPORT_BOUNDARY_LINES: tuple[str, ...] = tuple(
+    boundary_lines_for_locale(DEFAULT_REPORT_LOCALE)
 )
 
 
@@ -48,10 +50,11 @@ class GeometryOrigin(StrEnum):
     """用户改过且评价过期（dirty）— 禁止正式报告。"""
 
 
+# 兼容：默认 zh-CN 标签；渲染请用 geometry_origin_label(locale, …)
+from packages.schema.report_i18n import geometry_origin_label as _geometry_origin_label
+
 GEOMETRY_ORIGIN_LABELS: dict[GeometryOrigin, str] = {
-    GeometryOrigin.SOLVER_GENERATED: "Solver Generated",
-    GeometryOrigin.USER_EDITED_VALIDATED: "User Edited + Validated",
-    GeometryOrigin.USER_EDITED_STALE: "User Edited + Stale",
+    o: _geometry_origin_label(DEFAULT_REPORT_LOCALE, o) for o in GeometryOrigin
 }
 
 
@@ -62,9 +65,13 @@ class ProjectMetadata(BaseModel):
     project_name: str = "Untitled"
     generated_at: str | None = None
     app_version: str | None = None
+    locale: ReportLocale = Field(
+        default=DEFAULT_REPORT_LOCALE,
+        description="报告文案 locale；Alpha 默认 zh-CN",
+    )
     geometry_origin: GeometryOrigin = Field(
         default=GeometryOrigin.SOLVER_GENERATED,
-        description="Solver Generated | User Edited + Validated | User Edited + Stale",
+        description="求解器生成 | 用户编辑·已验证 | 用户编辑·评价过期",
     )
     edited: bool = Field(
         default=False,

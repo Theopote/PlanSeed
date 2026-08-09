@@ -23,6 +23,13 @@ from packages.schema.report import (
     RequirementSummary,
     RoomScheduleRow,
 )
+from packages.schema.report_i18n import (
+    ReportLocale,
+    boundary_lines_for_locale,
+    format_key_intents,
+    normalize_report_locale,
+    tr,
+)
 from packages.schema.scoring import DesignScore
 from backend.services.serialization import resolve_revision_id
 
@@ -95,6 +102,7 @@ def build_design_report(
     program: dict[str, Any] | None = None,
     candidate: dict[str, Any],
     export_mode: str = "preview",
+    locale: ReportLocale | str | None = None,
 ) -> DesignReport:
     """
     权威组装：面积取 placements.area；评分/Finding 取 design_score。
@@ -102,7 +110,9 @@ def build_design_report(
     缺 requirement_spec / placements.area / design_score / svg 等 → ReportBuildError。
     Dirty 候选仍可组装（status=stale_evaluation），但正式导出须由 API 拒绝。
     export_mode: preview（可 client payload）| final（须 store + revision_id）。
+    locale: Alpha 默认 zh-CN；文案集中在 report_i18n。
     """
+    report_locale = normalize_report_locale(locale)
     cand_id = str(candidate.get("id") or "") or None
     status = report_status_for_candidate(candidate)
     if status == ReportStatus.INVALID_CANDIDATE:
@@ -125,7 +135,8 @@ def build_design_report(
     site_w = site.get("width")
     site_d = site.get("depth")
 
-    key_intents = _key_intents(
+    key_intents = format_key_intents(
+        report_locale,
         floor_count=floor_count,
         bedrooms=bedrooms,
         bathrooms=bathrooms,
@@ -175,7 +186,9 @@ def build_design_report(
         )
     # 优先消费 candidate.floor_svgs（serializer / render_floor_svg）；
     # 否则 Alpha 退回整图 svg（floor_id=all）。禁止在此切 SVG DOM。
-    floor_plans = _floor_plan_blocks(candidate, svg=svg)
+    floor_plans = _floor_plan_blocks(
+        candidate, svg=svg, locale=report_locale
+    )
 
     revision = candidate.get("revision_status")
     origin = geometry_origin_for_candidate(candidate)
@@ -190,7 +203,7 @@ def build_design_report(
         generator_version=prov.get("generator_version") if isinstance(prov, dict) else None,
         evaluation_version=prov.get("evaluation_version") if isinstance(prov, dict) else None,
         export_mode=mode,
-        boundary_lines=list(REPORT_BOUNDARY_LINES),
+        boundary_lines=boundary_lines_for_locale(report_locale),
     )
 
     total = candidate.get("score")
@@ -207,6 +220,7 @@ def build_design_report(
             project_name=project_name or "Untitled",
             generated_at=datetime.now(timezone.utc).isoformat(),
             app_version=app_version,
+            locale=report_locale,
             geometry_origin=origin,
             edited=edited,
         ),
@@ -349,7 +363,12 @@ def _room_schedule(
     return rows
 
 
-def _floor_plan_blocks(candidate: dict[str, Any], *, svg: str) -> list[FloorPlanBlock]:
+def _floor_plan_blocks(
+    candidate: dict[str, Any],
+    *,
+    svg: str,
+    locale: ReportLocale,
+) -> list[FloorPlanBlock]:
     """
     消费候选已序列化的平面 SVG。
 
@@ -374,60 +393,11 @@ def _floor_plan_blocks(candidate: dict[str, Any], *, svg: str) -> list[FloorPlan
         if blocks:
             blocks.sort(key=lambda b: b.floor_id)
             return blocks
+    snap = candidate.get("label") or tr(locale, "label.candidate_snapshot")
     return [
         FloorPlanBlock(
             floor_id="all",
-            label=str(candidate.get("label") or "Candidate plan snapshot"),
+            label=str(snap),
             svg=svg,
         )
     ]
-
-
-def _key_intents(
-    *,
-    floor_count: Any,
-    bedrooms: Any,
-    bathrooms: Any,
-    has_garage: Any,
-    south: Any,
-    site_w: Any,
-    site_d: Any,
-    relations: list[Any],
-    spaces: list[Any],
-) -> list[str]:
-    lines: list[str] = []
-    if isinstance(floor_count, int):
-        lines.append(f"{floor_count}-story residence" if floor_count > 1 else "Single-story residence")
-        if floor_count == 2:
-            lines[-1] = "Two-story residence"
-        elif floor_count == 3:
-            lines[-1] = "Three-story residence"
-    if isinstance(bedrooms, int):
-        lines.append(f"{bedrooms} bedrooms")
-    if isinstance(bathrooms, int):
-        lines.append(f"{bathrooms} bathrooms")
-    if has_garage is True:
-        lines.append("With garage")
-    elif has_garage is False:
-        lines.append("No garage")
-    if south is True:
-        lines.append("Living room south-oriented")
-    if isinstance(site_w, (int, float)) and isinstance(site_d, (int, float)):
-        lines.append(f"Site {site_w:g} × {site_d:g} m")
-    for r in relations:
-        if not isinstance(r, dict):
-            continue
-        a, b, kind = r.get("a"), r.get("b"), r.get("kind")
-        if a and b and kind:
-            lines.append(f"{a} {kind} {b}")
-    for sp in spaces:
-        if not isinstance(sp, dict):
-            continue
-        name = sp.get("name")
-        prefs = sp.get("floor_preference") or []
-        if name and prefs:
-            lines.append(f"{name} on {', '.join(str(p) for p in prefs)}")
-        ori = sp.get("preferred_orientation")
-        if name and ori and name not in ("客厅", "起居室"):
-            lines.append(f"{name} faces {ori}")
-    return lines

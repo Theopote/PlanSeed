@@ -64,6 +64,10 @@ from packages.schema.report import (
     RequirementSummary,
     RoomScheduleRow,
 )
+from packages.schema.report_i18n import (
+    DEFAULT_REPORT_LOCALE,
+    ReportLocale,
+)
 from packages.schema.requirements import (
     Assumption,
     RelationIntent,
@@ -154,6 +158,8 @@ __all__ = [
     "ReportUnknown",
     "GeometryOrigin",
     "GEOMETRY_ORIGIN_LABELS",
+    "ReportLocale",
+    "DEFAULT_REPORT_LOCALE",
     "RequirementSummary",
     "RequirementSpec",
     "RoomCategory",

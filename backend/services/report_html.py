@@ -5,21 +5,24 @@ from __future__ import annotations
 import html
 from typing import Any
 
-from packages.schema.report import DesignReport, GEOMETRY_ORIGIN_LABELS
+from packages.schema.report import DesignReport
+from packages.schema.report_i18n import (
+    DEFAULT_REPORT_LOCALE,
+    geometry_origin_label,
+    normalize_report_locale,
+    tr,
+)
 
 from backend.services.report_svg_sanitize import sanitize_report_svg
 
 
 def render_report_html(report: DesignReport) -> str:
-    """生成自包含 HTML 文档（内嵌消毒后的 SVG + CSS）。"""
+    """生成自包含 HTML 文档（内嵌消毒后的 SVG + CSS）；文案跟 report.project.locale。"""
     r = report
+    locale = normalize_report_locale(getattr(r.project, "locale", None) or DEFAULT_REPORT_LOCALE)
     score = r.candidate.total_score
     score_s = f"{score:.0f}" if isinstance(score, (int, float)) else "—"
-    origin = r.project.geometry_origin
-    origin_label = GEOMETRY_ORIGIN_LABELS.get(
-        origin,
-        "Edited" if r.project.edited else "Generated",
-    )
+    origin_label = geometry_origin_label(locale, r.project.geometry_origin)
     status_val = (
         r.status.value if hasattr(r.status, "value") else str(r.status)
     )
@@ -27,14 +30,15 @@ def render_report_html(report: DesignReport) -> str:
     if status_val == "stale_evaluation" or not r.evaluation.evaluation_fresh:
         stale_banner = (
             "<div class='banner-stale'>"
-            "<strong>STALE EVALUATION</strong> — "
-            "几何已修改；下列评分 / Findings 可能不对应当前平面，"
-            "不得作为正式评价交付。"
+            f"<strong>{html.escape(tr(locale, 'stale.title'))}</strong> — "
+            f"{html.escape(tr(locale, 'stale.body'))}"
             "</div>"
         )
 
+    empty_intents = html.escape(tr(locale, "empty.intents"))
+    empty_list = html.escape(tr(locale, "empty.list"))
     intents = "".join(f"<li>{html.escape(x)}</li>" for x in r.requirement.key_intents) or (
-        "<li class='muted'>（无显式要点）</li>"
+        f"<li class='muted'>{empty_intents}</li>"
     )
     assumptions = (
         "".join(
@@ -45,17 +49,17 @@ def render_report_html(report: DesignReport) -> str:
             )
             for a in r.assumptions
         )
-        or "<li class='muted'>（无）</li>"
+        or f"<li class='muted'>{empty_list}</li>"
     )
     unknowns = (
         "".join(
             "<li><code>{}</code> — {}</li>".format(
                 html.escape(u.key),
-                html.escape(u.description or "未解决"),
+                html.escape(u.description or tr(locale, "section.unresolved")),
             )
             for u in r.unknowns
         )
-        or "<li class='muted'>（无）</li>"
+        or f"<li class='muted'>{empty_list}</li>"
     )
 
     schedule_rows = "".join(
@@ -68,21 +72,27 @@ def render_report_html(report: DesignReport) -> str:
             row.area,
         )
         for row in r.room_schedule
-    ) or "<tr><td colspan='6' class='muted'>（无 placements）</td></tr>"
+    ) or (
+        f"<tr><td colspan='6' class='muted'>"
+        f"{html.escape(tr(locale, 'empty.placements'))}</td></tr>"
+    )
 
     axes = ""
     ds = r.evaluation.design_score
     if ds is not None:
-        for label, val in (
-            ("Program", ds.program_score),
-            ("Spatial", ds.spatial_score),
-            ("Circulation", ds.circulation_score),
-            ("Privacy", ds.privacy_score),
-            ("Environment", ds.environment_score),
-            ("Technical", ds.technical_score),
-            ("Robustness", ds.robustness_score),
+        for axis_key, val in (
+            ("axis.program", ds.program_score),
+            ("axis.spatial", ds.spatial_score),
+            ("axis.circulation", ds.circulation_score),
+            ("axis.privacy", ds.privacy_score),
+            ("axis.environment", ds.environment_score),
+            ("axis.technical", ds.technical_score),
+            ("axis.robustness", ds.robustness_score),
         ):
-            axes += f"<tr><td>{label}</td><td>{val:.1f}</td></tr>"
+            axes += (
+                f"<tr><td>{html.escape(tr(locale, axis_key))}</td>"
+                f"<td>{val:.1f}</td></tr>"
+            )
 
     findings = "".join(
         "<li class='sev-{}'><strong>{}</strong> — {}</li>".format(
@@ -91,11 +101,10 @@ def render_report_html(report: DesignReport) -> str:
             html.escape(f.message),
         )
         for f in r.findings
-    ) or "<li class='muted'>（无）</li>"
+    ) or f"<li class='muted'>{empty_list}</li>"
 
     plans = ""
     for fp in r.floor_plans:
-        # 只嵌入消毒后的 SVG；禁止 script / foreignObject / 外链
         safe_svg = sanitize_report_svg(fp.svg)
         plans += (
             f"<section class='plan'>"
@@ -103,10 +112,11 @@ def render_report_html(report: DesignReport) -> str:
             f" <span class='muted'>({html.escape(fp.floor_id)})</span></h3>"
             f"<div class='svg-wrap'>{safe_svg}</div></section>"
         )
-    plans_heading = (
-        "Floor Plans"
+    plans_heading = tr(
+        locale,
+        "section.floor_plans"
         if any(fp.floor_id != "all" for fp in r.floor_plans)
-        else "Plan Snapshot"
+        else "section.plan_snapshot",
     )
 
     boundary = "".join(
@@ -116,9 +126,10 @@ def render_report_html(report: DesignReport) -> str:
     title = html.escape(r.project.project_name)
     label = html.escape(r.candidate.label)
     cid = html.escape(r.candidate.candidate_id)
+    lang = html.escape(locale.value)
 
     return f"""<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{lang}">
 <head>
 <meta charset="utf-8"/>
 <title>PlanSeed Design Report — {title}</title>
@@ -183,43 +194,53 @@ def render_report_html(report: DesignReport) -> str:
     {stale_banner}
     <div class="meta">
       {html.escape(origin_label)}
-      · Candidate <strong>{label}</strong>
+      · {html.escape(tr(locale, "meta.candidate"))} <strong>{label}</strong>
       <span class="score">{score_s}</span>
-      <div style="margin-top:0.35rem">id: {cid}
-        · evaluation_fresh={str(r.evaluation.evaluation_fresh).lower()}
-        · source_revision={html.escape(r.source_revision_id or "—")}
-        · export={html.escape(r.provenance.export_mode)}</div>
+      <div style="margin-top:0.35rem">{html.escape(tr(locale, "meta.id"))}: {cid}
+        · {html.escape(tr(locale, "meta.evaluation_fresh"))}={str(r.evaluation.evaluation_fresh).lower()}
+        · {html.escape(tr(locale, "meta.source_revision"))}={html.escape(r.source_revision_id or "—")}
+        · {html.escape(tr(locale, "meta.export"))}={html.escape(r.provenance.export_mode)}</div>
     </div>
 
-    <h2>Key Intent</h2>
+    <h2>{html.escape(tr(locale, "section.key_intent"))}</h2>
     <ul>{intents}</ul>
 
-    <h2>Assumptions</h2>
+    <h2>{html.escape(tr(locale, "section.assumptions"))}</h2>
     <ul>{assumptions}</ul>
 
-    <h2>Unresolved</h2>
+    <h2>{html.escape(tr(locale, "section.unresolved"))}</h2>
     <ul>{unknowns}</ul>
 
-    <h2>{plans_heading}</h2>
-    {plans or "<p class='muted'>（无平面图）</p>"}
+    <h2>{html.escape(plans_heading)}</h2>
+    {plans or f"<p class='muted'>{html.escape(tr(locale, 'empty.plans'))}</p>"}
 
-    <h2>Room Schedule</h2>
+    <h2>{html.escape(tr(locale, "section.room_schedule"))}</h2>
     <table>
-      <thead><tr><th>Room</th><th>Floor</th><th>Id</th><th>W</th><th>D</th><th>Area m²</th></tr></thead>
+      <thead><tr>
+        <th>{html.escape(tr(locale, "table.room"))}</th>
+        <th>{html.escape(tr(locale, "table.floor"))}</th>
+        <th>{html.escape(tr(locale, "table.id"))}</th>
+        <th>{html.escape(tr(locale, "table.w"))}</th>
+        <th>{html.escape(tr(locale, "table.d"))}</th>
+        <th>{html.escape(tr(locale, "table.area"))}</th>
+      </tr></thead>
       <tbody>{schedule_rows}</tbody>
     </table>
 
-    <h2>Evaluation</h2>
+    <h2>{html.escape(tr(locale, "section.evaluation"))}</h2>
     <table>
-      <thead><tr><th>Axis</th><th>Score</th></tr></thead>
-      <tbody>{axes or "<tr><td colspan='2' class='muted'>（无评分）</td></tr>"}</tbody>
+      <thead><tr>
+        <th>{html.escape(tr(locale, "table.axis"))}</th>
+        <th>{html.escape(tr(locale, "table.score"))}</th>
+      </tr></thead>
+      <tbody>{axes or f"<tr><td colspan='2' class='muted'>{html.escape(tr(locale, 'empty.scores'))}</td></tr>"}</tbody>
     </table>
 
-    <h2>Findings</h2>
+    <h2>{html.escape(tr(locale, "section.findings"))}</h2>
     <ul>{findings}</ul>
 
     <footer class="boundary">
-      <strong>Provenance</strong>
+      <strong>{html.escape(tr(locale, "section.provenance"))}</strong>
       <div>solver={html.escape(r.provenance.solver_version or "—")}
         · generator={html.escape(r.provenance.generator_version or "—")}
         · evaluation={html.escape(r.provenance.evaluation_version or "—")}</div>

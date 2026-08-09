@@ -23,6 +23,7 @@ from backend.services.report_builder import (
 from backend.services.report_html import render_report_html
 from backend.services.report_svg_sanitize import SvgSanitizeError
 from backend.services.serialization import resolve_revision_id
+from packages.schema.report_i18n import DEFAULT_REPORT_LOCALE, ReportLocale
 
 router = APIRouter(tags=["reports"])
 
@@ -48,6 +49,10 @@ class BuildReportRequest(BaseModel):
     project_name: str | None = None
     payload: ProjectPayload | None = None
     include_html: bool = True
+    locale: ReportLocale = Field(
+        default=DEFAULT_REPORT_LOCALE,
+        description="报告文案 locale；Alpha 默认 zh-CN，预留 en-US",
+    )
     allow_stale_evaluation: bool = Field(
         default=False,
         description=(
@@ -275,6 +280,7 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
             program=payload.program,
             candidate=candidate,
             export_mode=export_mode,
+            locale=body.locale,
         )
         html_out = render_report_html(report) if body.include_html else None
     except ReportBuildError as exc:

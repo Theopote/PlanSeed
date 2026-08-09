@@ -15,6 +15,7 @@ from backend.services.report_html import render_report_html
 from backend.services.report_svg_sanitize import SvgSanitizeError, sanitize_report_svg
 from fastapi.testclient import TestClient
 from packages.schema.scoring import DesignFinding, DesignScore, FindingSeverity
+from packages.schema.report_i18n import ReportLocale
 from pytest import raises
 
 
@@ -134,10 +135,11 @@ def test_build_design_report_uses_placement_area():
     living = next(r for r in report.room_schedule if r.room_id == "r1")
     assert living.name == "客厅"
     assert living.area == 14.0
-    assert "Two-story residence" in report.requirement.key_intents
-    assert any("south" in x.lower() for x in report.requirement.key_intents)
+    assert "两层住宅" in report.requirement.key_intents
+    assert any("朝南" in x for x in report.requirement.key_intents)
     assert report.findings and report.findings[0].title == "比例尚可"
-    assert any("deterministic solver" in line for line in report.provenance.boundary_lines)
+    assert any("确定性求解器" in line for line in report.provenance.boundary_lines)
+    assert report.project.locale == ReportLocale.ZH_CN
 
 
 def test_geometry_origin_labels():
@@ -165,7 +167,8 @@ def test_geometry_origin_labels():
     assert report.project.geometry_origin == GeometryOrigin.USER_EDITED_VALIDATED
     assert report.project.edited is True
     doc = render_report_html(report)
-    assert "User Edited + Validated" in doc
+    assert "用户编辑 · 已验证" in doc
+    assert 'lang="zh-CN"' in doc
 
     stale_report = build_design_report(
         project_name="Demo",
@@ -174,7 +177,21 @@ def test_geometry_origin_labels():
         candidate=stale,
         export_mode="preview",
     )
-    assert "User Edited + Stale" in render_report_html(stale_report)
+    assert "用户编辑 · 评价过期" in render_report_html(stale_report)
+
+
+def test_report_locale_en_us_key_intents():
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=_candidate(),
+        locale=ReportLocale.EN_US,
+    )
+    assert "Two-story residence" in report.requirement.key_intents
+    doc = render_report_html(report)
+    assert 'lang="en-US"' in doc
+    assert "Key Intent" in doc
 
 
 def test_floor_plans_default_to_candidate_snapshot():
@@ -303,9 +320,10 @@ def test_render_report_html_contains_boundary_and_schedule():
     assert "PlanSeed Design Report" in doc
     assert "客厅" in doc
     assert "14.00" in doc
-    assert "AI interpreted design intent" in doc
+    assert "AI 解释设计意图" in doc or "确定性求解器" in doc
     assert "<svg" in doc
     assert "<script" not in doc.lower()
+    assert "设计要点" in doc
 
 
 def test_render_report_html_sanitizes_malicious_svg():
@@ -419,7 +437,7 @@ def test_reports_build_preview_allow_stale_evaluation(client: TestClient):
     body = r.json()
     assert body["report"]["status"] == "stale_evaluation"
     assert body["report"]["evaluation"]["evaluation_fresh"] is False
-    assert "STALE EVALUATION" in body["html"]
+    assert "评价已过期" in body["html"]
 
 
 def test_reports_build_final_revision_mismatch(client: TestClient):
