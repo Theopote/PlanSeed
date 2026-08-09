@@ -5,6 +5,9 @@
 - 禁止制造设计意图（假阳性关系比漏报更贵）
 - 规则须是一般语言规律，禁止为单条 benchmark 句式硬编码
 - Assumption：仅 user_authorized；丢弃 llm_inference（Alpha）
+
+Phase 6.7.2：Blind v1 已 FAIL 入库；允许 Development 一般规律改进后开 Blind v2。
+禁止对着 Blind 失败案逐案加 regex。
 """
 
 from __future__ import annotations
@@ -128,12 +131,44 @@ def normalize_assumption_key(key: str) -> str:
 
 
 def _parse_cn_int(token: str) -> int | None:
+    """解析中文/阿拉伯整数（含十一～十九、二十～三十等常见量词）。"""
     token = (token or "").strip()
     if not token:
         return None
     if token.isdigit():
         return int(token)
-    return _CN_NUM.get(token)
+    if token in _CN_NUM:
+        return _CN_NUM[token]
+    # 十一～十九
+    if token.startswith("十") and len(token) == 2:
+        ones = _CN_NUM.get(token[1])
+        if ones is not None and ones < 10:
+            return 10 + ones
+    if token == "十":
+        return 10
+    # 二十、三十…（场地尺寸偶见）
+    if len(token) >= 2 and token[1] == "十":
+        tens = _CN_NUM.get(token[0])
+        if tens is not None and 2 <= tens <= 5:
+            if len(token) == 2:
+                return tens * 10
+            ones = _CN_NUM.get(token[2])
+            if ones is not None and ones < 10:
+                return tens * 10 + ones
+    return None
+
+
+_CN_NUM_TOKEN = r"[一二两三四五六七八九十]+|\d+(?:\.\d+)?"
+
+
+def _parse_measure_token(token: str) -> float | None:
+    token = (token or "").strip()
+    if not token:
+        return None
+    if re.fullmatch(r"\d+(?:\.\d+)?", token):
+        return float(token)
+    n = _parse_cn_int(token)
+    return float(n) if n is not None else None
 
 
 def _surface_forms_for_space(canon: str) -> tuple[str, ...]:
@@ -160,7 +195,11 @@ def extract_space_names(text: str) -> list[str]:
     # 老人/父母卧室 paraphrase → 老人房
     if re.search(r"老人(?:房|卧室)|父母(?:房|卧室)|给父母准备的卧室", text):
         found.append("老人房")
-    elif re.search(r"老人最好住|老人住楼下|首层安排一间老人", text):
+    elif re.search(
+        r"老人最好住|老人住楼下|首层安排一间老人|"
+        r"一楼留.{0,8}老人|别让老人|不要让老人上楼",
+        text,
+    ):
         found.append("老人房")
     for name in all_space_lexicon_zh():
         if name in text:
@@ -359,6 +398,7 @@ def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
             re.search(r"([一二两三四五六七八九十\d]+)\s*卧", text)
             or re.search(r"卧室\s*([一二两三四五六七八九十\d]+)\s*间", text)
             or re.search(r"([一二两三四五六七八九十\d]+)\s*间卧室", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*个卧室", text)
             or re.search(r"床位\s*([一二两三四五六七八九十\d]+)\s*间", text)
             or re.search(r"卧室数\s*([一二两三四五六七八九十\d]+)", text)
             or re.search(r"([一二两三四五六七八九十\d]+)\s*房(?!屋)", text)
@@ -373,7 +413,14 @@ def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
                 notes.append(f"known.bedrooms={n}")
 
     if known.household.bathrooms is None:
-        m = re.search(r"([一二两三四五六七八九十\d]+)\s*卫", text)
+        m = (
+            re.search(r"([一二两三四五六七八九十\d]+)\s*卫", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*个卫生间", text)
+            or re.search(r"卫浴\s*([一二两三四五六七八九十\d]+)\s*间", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*个浴室", text)
+            or re.search(r"卫生间\s*([一二两三四五六七八九十\d]+)\s*个?", text)
+            or re.search(r"卫生间.{0,8}([一二两三四五六七八九十\d]+)", text)
+        )
         if m:
             n = _parse_cn_int(m.group(1))
             if n is not None and 1 <= n <= 8:
@@ -381,56 +428,78 @@ def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
                 notes.append(f"known.bathrooms={n}")
 
     if known.household.has_garage is None:
+        # 否定优先（避免「没有车位」命中「有车位」子串）
         if (
+            "无车库" in text
+            or "不要车库" in text
+            or "车库不要" in text
+            or "车库暂时不要" in text
+            or ("暂时不要" in text and "车库" in text)
+            or "没有车库" in text
+            or "没有车位" in text
+            or "不要车位" in text
+            or "无车位" in text
+        ):
+            known.household.has_garage = False
+            notes.append("known.has_garage=false")
+        elif (
             "带车库" in text
             or "有车库" in text
             or "要车库" in text
             or "车库要" in text
+            or "车库有" in text
+            or "车位要有" in text
+            or "有车位" in text
+            or "双车位" in text
+            or re.search(r"车位.{0,4}(要|有)", text)
         ):
             known.household.has_garage = True
             notes.append("known.has_garage=true")
-        elif "无车库" in text or "不要车库" in text or "车库不要" in text:
-            known.household.has_garage = False
-            notes.append("known.has_garage=false")
 
     if known.site.width is None or known.site.depth is None:
         m = re.search(
-            r"(?:地块|场地|用地)?\s*(?:约\s*)?"
-            r"(\d+(?:\.\d+)?)\s*[×xX＊*]\s*(\d+(?:\.\d+)?)",
+            rf"(?:地块|场地|用地)?\s*(?:大约|约\s*)?"
+            rf"({_CN_NUM_TOKEN})\s*[×xX＊*乘]\s*({_CN_NUM_TOKEN})\s*米?",
             text,
         )
         if m:
-            w, d = float(m.group(1)), float(m.group(2))
-            if known.site.width is None and 6 <= w <= 60:
+            w, d = _parse_measure_token(m.group(1)), _parse_measure_token(m.group(2))
+            if w is not None and known.site.width is None and 6 <= w <= 60:
                 known.site.width = w
                 notes.append(f"known.site.width={w}")
-            if known.site.depth is None and 6 <= d <= 60:
+            if d is not None and known.site.depth is None and 6 <= d <= 60:
                 known.site.depth = d
                 notes.append(f"known.site.depth={d}")
         else:
-            # 「宽 12 米、深 15 米」/「地块 9 米宽 11 米深」
-            mw = re.search(
-                r"(?:宽|宽度)\s*(\d+(?:\.\d+)?)\s*米?",
-                text,
-            ) or re.search(
-                r"(\d+(?:\.\d+)?)\s*米\s*宽",
-                text,
+            # 「宽 12 米、深 15 米」/「十二米宽、十四米进深」/「宽十五米深十八米」
+            mw = (
+                re.search(
+                    rf"(?:宽|宽度)\s*({_CN_NUM_TOKEN})\s*米?",
+                    text,
+                )
+                or re.search(
+                    rf"({_CN_NUM_TOKEN})\s*米\s*宽",
+                    text,
+                )
             )
-            md = re.search(
-                r"(?:深|进深)\s*(\d+(?:\.\d+)?)\s*米?",
-                text,
-            ) or re.search(
-                r"(\d+(?:\.\d+)?)\s*米\s*深",
-                text,
+            md = (
+                re.search(
+                    rf"(?:深|进深)\s*({_CN_NUM_TOKEN})\s*米?",
+                    text,
+                )
+                or re.search(
+                    rf"({_CN_NUM_TOKEN})\s*米\s*(?:深|进深)",
+                    text,
+                )
             )
             if mw and known.site.width is None:
-                w = float(mw.group(1))
-                if 6 <= w <= 60:
+                w = _parse_measure_token(mw.group(1))
+                if w is not None and 6 <= w <= 60:
                     known.site.width = w
                     notes.append(f"known.site.width={w}")
             if md and known.site.depth is None:
-                d = float(md.group(1))
-                if 6 <= d <= 60:
+                d = _parse_measure_token(md.group(1))
+                if d is not None and 6 <= d <= 60:
                     known.site.depth = d
                     notes.append(f"known.site.depth={d}")
 
@@ -459,11 +528,14 @@ def _extract_user_authorized_assumptions(
 
 def _has_site_dimensions(text: str) -> bool:
     return bool(
-        re.search(r"\d+(?:\.\d+)?\s*[×xX＊*]\s*\d+(?:\.\d+)?", text)
-        or re.search(r"(?:宽|宽度)\s*\d+", text)
-        or re.search(r"(?:深|进深)\s*\d+", text)
-        or re.search(r"\d+(?:\.\d+)?\s*米\s*宽", text)
-        or re.search(r"\d+(?:\.\d+)?\s*米\s*深", text)
+        re.search(
+            rf"(?:大约|约\s*)?({_CN_NUM_TOKEN})\s*[×xX＊*乘]\s*({_CN_NUM_TOKEN})",
+            text,
+        )
+        or re.search(rf"(?:宽|宽度)\s*({_CN_NUM_TOKEN})", text)
+        or re.search(rf"(?:深|进深)\s*({_CN_NUM_TOKEN})", text)
+        or re.search(rf"({_CN_NUM_TOKEN})\s*米\s*宽", text)
+        or re.search(rf"({_CN_NUM_TOKEN})\s*米\s*(?:深|进深)", text)
     )
 
 
@@ -472,6 +544,7 @@ def _text_provides_bedrooms(text: str) -> bool:
         re.search(r"([一二两三四五六七八九十\d]+)\s*卧", text)
         or re.search(r"卧室\s*([一二两三四五六七八九十\d]+)\s*间", text)
         or re.search(r"([一二两三四五六七八九十\d]+)\s*间卧室", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*个卧室", text)
         or re.search(r"([一二两三四五六七八九十\d]+)\s*房(?!屋)", text)
         or re.search(r"([一二两三四五六七八九十\d]+)\s*居", text)
         or re.search(r"([一二两三四五六七八九十\d]+)\s*室(?!内)", text)
@@ -483,7 +556,11 @@ def _text_provides_bedrooms(text: str) -> bool:
 def _text_provides_bathrooms(text: str) -> bool:
     return bool(
         re.search(r"([一二两三四五六七八九十\d]+)\s*卫", text)
-        or re.search(r"卫生间\s*([一二两三四五六七八九十\d]+)", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*个卫生间", text)
+        or re.search(r"卫浴\s*([一二两三四五六七八九十\d]+)\s*间", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*个浴室", text)
+        or re.search(r"卫生间\s*([一二两三四五六七八九十\d]+)\s*个?", text)
+        or re.search(r"卫生间.{0,8}([一二两三四五六七八九十\d]+)", text)
         or re.search(r"\b\d+\s*bath", text, flags=re.IGNORECASE)
     )
 
@@ -604,7 +681,9 @@ def _text_has_floor1_pref(name: str, text: str) -> bool:
     if name == "老人房":
         if re.search(
             r"老人最好住楼下|老人住楼下|父母.{0,10}不要上楼|"
-            r"首层安排一间老人|给父母准备的卧室不要上楼",
+            r"首层安排一间老人|给父母准备的卧室不要上楼|"
+            r"一楼留.{0,8}老人|老人.{0,12}一楼|老人房.{0,6}一楼|"
+            r"别让老人上二楼|不要让老人上楼",
             text,
         ):
             return True
@@ -717,6 +796,15 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
             known.spaces.append(SpaceRequirement(name=name))
             existing_names.add(name)
             added_spaces.append(name)
+    # 车位/双车位等明示有停车时补「车库」空间（词表无「车位」别名）
+    if (
+        known.household.has_garage is True
+        and "车库" not in existing_names
+        and re.search(r"车位|车库", text)
+    ):
+        known.spaces.append(SpaceRequirement(name="车库"))
+        existing_names.add("车库")
+        added_spaces.append("车库")
     if added_spaces:
         notes.append("补空间:" + ",".join(added_spaces))
 

@@ -1,6 +1,8 @@
 """住宅需求词汇表 — 空间别名 / 入口别名（供 enrich · semantic · score 共用）。
 
 Solver 不得直接依赖中文字符串；本模块只服务 Requirement 解析层。
+
+Phase 6.7.2：Blind v1 已归档；当前严格资格语料为 Blind v2。
 """
 
 from __future__ import annotations

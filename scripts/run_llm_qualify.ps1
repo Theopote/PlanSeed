@@ -1,18 +1,21 @@
-# Phase 6.7.1 — Pipeline Qualification（Windows）
+# Phase 6.7.2 — Blind / Pipeline Qualification（Windows）
 # 前置：本机已装 Ollama，且已显式安装模型（不会自动 pull）
 #
 #   ollama pull qwen2.5:7b
-#   .\scripts\run_llm_qualify.ps1                  # 默认 holdout + pipeline
+#   .\scripts\run_llm_qualify.ps1                  # 默认 blind + pipeline
 #   .\scripts\run_llm_qualify.ps1 -Gate
+#   .\scripts\run_llm_qualify.ps1 -CaseSet holdout  # 已泄漏，仅工程回归
 #   .\scripts\run_llm_qualify.ps1 -CaseSet development
 #   .\scripts\run_llm_qualify.ps1 -Mode model_raw
 #   .\scripts\run_llm_qualify.ps1 -Models "qwen2.5:7b,qwen2.5:14b"
+#
+# Blind 纪律：失败时禁止对着 Blind 逐案改 enricher 后再宣称通过。
 
 param(
     [string]$Model = "qwen2.5:7b",
     [string]$Models = "",
-    [ValidateSet("development", "holdout")]
-    [string]$CaseSet = "holdout",
+    [ValidateSet("development", "holdout", "blind")]
+    [string]$CaseSet = "blind",
     [ValidateSet("pipeline", "model_raw")]
     [string]$Mode = "pipeline",
     [int]$Limit = 0,
@@ -25,7 +28,7 @@ $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
 Write-Host "PlanSeed LLM Qualify" -ForegroundColor Cyan
-Write-Host "  base_url=$BaseUrl"
+Write-Host "  base_url=$BaseUrl case_set=$CaseSet mode=$Mode"
 
 try {
     $tags = Invoke-RestMethod -Uri "$BaseUrl/api/tags" -TimeoutSec 5

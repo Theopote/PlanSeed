@@ -1,5 +1,10 @@
-"""Phase 6.6 / 6.7.1 — Requirement Benchmark 包。"""
+"""Phase 6.6–6.7.2 — Requirement Benchmark 包。"""
 
+from packages.llm.benchmark.blind_cases_v2 import (
+    BLIND_VERSION,
+    blind_case_count,
+    load_blind_cases,
+)
 from packages.llm.benchmark.cases import (
     ExpectAssumption,
     ExpectFloorPreference,
@@ -48,16 +53,19 @@ __all__ = [
     "AlphaGateResult",
     "BenchmarkReport",
     "FailureKind",
+    "BLIND_VERSION",
     "HOLDOUT_VERSION",
     "AssumptionHit",
     "CaseScore",
     "FieldScore",
     "RelationHit",
     "benchmark_case_count",
+    "blind_case_count",
     "evaluate_alpha_gates",
     "gate_metrics",
     "holdout_case_count",
     "load_benchmark_cases",
+    "load_blind_cases",
     "load_holdout_cases",
     "expect_to_draft",
     "make_oracle_provider",

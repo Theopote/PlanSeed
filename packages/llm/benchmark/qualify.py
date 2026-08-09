@@ -1,17 +1,18 @@
-"""Phase 6.7.1 — Requirement Parsing Pipeline Qualification。
+"""Phase 6.7.2 — Blind / Pipeline Qualification。
 
 用法::
 
-    # Holdout + Pipeline（默认；Alpha Gate 据此判定）
+    # Blind + Pipeline（默认；严格独立资格认证）
     uv run python -m packages.llm.benchmark.qualify --gate
 
-    # Development 集（调规则用；不作唯一证据）
+    # 已泄漏的 Holdout（工程回归，非严格证据）
+    uv run python -m packages.llm.benchmark.qualify --set holdout
+
+    # Development 集（调规则用）
     uv run python -m packages.llm.benchmark.qualify --set development
 
-    # 仅看模型 Raw（enrich=False，诊断）
-    uv run python -m packages.llm.benchmark.qualify --mode model_raw --set holdout
-
-    uv run python -m packages.llm.benchmark.qualify --models qwen2.5:7b,qwen2.5:14b
+    # 仅模型 Raw（enrich=False，诊断）
+    uv run python -m packages.llm.benchmark.qualify --mode model_raw --set blind
 
 环境变量：PLANSEED_OLLAMA_*、PLANSEED_LLM_QUALIFY_LIMIT
 """
@@ -28,6 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from packages.llm.benchmark.blind_cases_v2 import BLIND_VERSION, load_blind_cases
 from packages.llm.benchmark.cases import load_benchmark_cases
 from packages.llm.benchmark.gates import evaluate_alpha_gates
 from packages.llm.benchmark.holdout_cases import HOLDOUT_VERSION, load_holdout_cases
@@ -37,7 +39,7 @@ from packages.llm.draft_schema import draft_json_schema
 from packages.llm.factory import load_ollama_config
 from packages.llm.ollama import OllamaProvider
 
-CaseSetName = Literal["development", "holdout"]
+CaseSetName = Literal["development", "holdout", "blind"]
 QualifyMode = Literal["pipeline", "model_raw"]
 
 
@@ -51,6 +53,8 @@ def _make_provider(model: str) -> OllamaProvider:
 
 
 def _load_cases(case_set: CaseSetName):
+    if case_set == "blind":
+        return load_blind_cases(), BLIND_VERSION
     if case_set == "holdout":
         return load_holdout_cases(), HOLDOUT_VERSION
     return load_benchmark_cases(), "development-v1"
@@ -109,10 +113,10 @@ def run_qualification(
     model: str | None = None,
     limit: int | None = None,
     with_repair: bool = True,
-    case_set: CaseSetName = "holdout",
+    case_set: CaseSetName = "blind",
     mode: QualifyMode = "pipeline",
 ) -> tuple[BenchmarkReport, str]:
-    """跑真模型；返回 (report, case_set_version)。"""
+    """跑真模型；返回 (report, case_set_version)。默认 Blind。"""
     cases, version = _load_cases(case_set)
     if limit is not None:
         cases = cases[:limit]
@@ -183,8 +187,9 @@ def _write_baseline(
     payload: dict[str, Any] = {
         "note": (
             "Requirement Parsing Pipeline Baseline（真模型）。"
-            "勿与 CI oracle 100% 混淆。Alpha Qualified 仅当 Holdout + Pipeline "
-            "过 Alpha Gate。"
+            "勿与 CI oracle 100% 混淆。"
+            "Strict Alpha Qualified 仅当 Blind + Pipeline 过 Alpha Gate；"
+            "Holdout 已泄漏，仅作工程回归。"
         ),
         "meta": {
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
@@ -194,11 +199,16 @@ def _write_baseline(
             "mode": report.mode,
             "model": report.model,
             "host": _host_metadata(),
+            "blind_discipline": (
+                "Blind 失败时禁止对着本集逐案改 enrich/vocab/prompt 后再宣称通过。"
+                if report.case_set == "blind"
+                else None
+            ),
         },
         "summary": report.summary(),
         "alpha_gate": gate,
     }
-    # Holdout 默认只写 summary；开发集或显式要求才列 failed ids
+    # Blind / Holdout 默认只写 summary；开发集或显式要求才列 failed ids
     if detail_failed:
         payload["failed_cases"] = _failed_cases_payload(report)
     else:
@@ -220,7 +230,7 @@ def _parse_models(raw: str | None, default: str) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="PlanSeed Phase 6.7.1 — Pipeline Qualification",
+        description="PlanSeed Phase 6.7.2 — Blind / Pipeline Qualification",
     )
     parser.add_argument("--limit", type=int, default=None, help="只跑前 N 条（冒烟）")
     parser.add_argument("--model", type=str, default=None, help="单个模型")
@@ -233,9 +243,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--set",
         dest="case_set",
-        choices=("development", "holdout"),
-        default="holdout",
-        help="语料集（默认 holdout；Gate 应以 holdout 为准）",
+        choices=("development", "holdout", "blind"),
+        default="blind",
+        help="语料集（默认 blind；严格 Gate 以 blind 为准）",
     )
     parser.add_argument(
         "--mode",
@@ -246,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--detail-failed",
         action="store_true",
-        help="写出 failed_cases 明细（holdout 默认不写，防逐案过拟合）",
+        help="写出 failed_cases 明细（blind/holdout 默认不写，防逐案过拟合）",
     )
     parser.add_argument(
         "--gate",
@@ -266,11 +276,16 @@ def main(argv: list[str] | None = None) -> int:
     mode: QualifyMode = args.mode
     detail_failed = bool(args.detail_failed) or case_set == "development"
 
-    print("PlanSeed Phase 6.7.1 — Pipeline Qualification", flush=True)
+    print("PlanSeed Phase 6.7.2 — Blind / Pipeline Qualification", flush=True)
     print(
         f"base_url={cfg.base_url} set={case_set} mode={mode} models={models}",
         flush=True,
     )
+    if case_set == "blind":
+        print(
+            "NOTE: Blind set — do not tune enricher from per-case failures.",
+            flush=True,
+        )
     if limit is not None:
         print(f"limit={limit}", flush=True)
 
@@ -306,15 +321,17 @@ def main(argv: list[str] | None = None) -> int:
         parts = ["llm-alpha-baseline", case_set, mode]
         if len(models) > 1:
             parts.append(safe_name)
-        # 单模型 holdout+pipeline 仍写经典文件名，便于文档引用
-        if (
+        # 单模型 blind+pipeline 写经典文件名（严格资格）
+        if len(models) == 1 and case_set == "blind" and mode == "pipeline":
+            out_path = out_dir / "llm-alpha-baseline.json"
+        elif (
             len(models) == 1
             and case_set == "holdout"
             and mode == "pipeline"
         ):
-            out_path = out_dir / "llm-alpha-baseline.json"
+            out_path = out_dir / "llm-alpha-baseline-holdout-pipeline.json"
         else:
-            out_path = out_dir / ( "-".join(parts) + ".json")
+            out_path = out_dir / ("-".join(parts) + ".json")
 
         _write_baseline(
             report,
@@ -341,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         compare_payload = {
             "note": (
                 "多模型对比：判断 Pipeline 是否够用；"
-                "不是排行榜。Gate 以 holdout+pipeline 为准。"
+                "不是排行榜。严格 Gate 以 blind+pipeline 为准。"
             ),
             "models": compare_rows,
             "any_alpha_qualified": any(

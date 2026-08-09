@@ -140,6 +140,40 @@ def test_enrich_extracts_scalars_from_raw_text():
     assert out.draft.known.preferences.prefer_south_facing_living is True
 
 
+def test_enrich_oral_chinese_site_and_scalars():
+    """口语中文数字场地/卫浴/车位（Development 一般规律，非 Blind 逐案）。"""
+    site = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层三卧两卫，地块大约十一乘十三米")
+    )
+    assert site.draft.known.site.width == 11
+    assert site.draft.known.site.depth == 13
+
+    wd = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="宽十五米深十八米，三层楼，六间卧室")
+    )
+    assert wd.draft.known.site.width == 15
+    assert wd.draft.known.site.depth == 18
+    assert wd.draft.known.floor_count == 3
+    assert wd.draft.known.household.bedrooms == 6
+
+    bath = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="四居室复式，两层，三个卫生间")
+    )
+    assert bath.draft.known.household.bathrooms == 3
+    assert bath.draft.known.household.bedrooms == 4
+
+    park = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="三层四卧，卫生间先按三个算，车位要有")
+    )
+    assert park.draft.known.household.has_garage is True
+    assert any(s.name == "车库" for s in park.draft.known.spaces)
+
+    no_park = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="平层两卧，没有车位，场地未定")
+    )
+    assert no_park.draft.known.household.has_garage is False
+
+
 def test_enrich_drops_llm_inference_assumptions():
     draft = LLMRequirementDraft(
         raw_text="两层三卧",

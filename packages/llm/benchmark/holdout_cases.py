@@ -1,9 +1,11 @@
-"""Phase 6.7.1 — Qualification Holdout（≥30；日常开发勿逐案盯失败调规则）。
+"""Phase 6.7.1 — Qualification Holdout（≥30）。
 
-原则：
-- 与 Development（cases.py 62 条）隔离
-- 含 paraphrase：同一意图多种自然说法
-- gold 为人工确认的 known / relation / unknown / floor / orientation
+注意（6.7.2）：本集在创建后仍被用于 enricher paraphrase 迭代，**独立性已泄漏**。
+可作为工程回归，**不得**再作为严格独立泛化证据。严格资格认证见 `blind_cases_v1.py`。
+
+原则（历史）：
+- 与 Development（cases.py）隔离
+- 含 paraphrase；gold 人工确认
 """
 
 from __future__ import annotations

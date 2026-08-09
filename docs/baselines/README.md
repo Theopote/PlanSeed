@@ -1,41 +1,38 @@
 # LLM Alpha Baselines
 
-本目录存放 **真模型 Pipeline** Qualification 结果（Phase 6.7 / 6.7.1）。
+本目录存放 **真模型 Pipeline** Qualification 结果（Phase 6.7 / 6.7.1 / 6.7.2）。
 
 ## 生成
 
 ```powershell
-# 1. 启动 Ollama 并安装模型（须用户显式 pull，PlanSeed 不自动下载）
 ollama pull qwen2.5:7b
 
-# 2. Holdout + Pipeline（默认）+ Alpha Gate
+# 严格独立资格（默认 Blind）
 .\scripts\run_llm_qualify.ps1 -Gate
 
-# Development 集（调规则；不作唯一证据）
+# 已泄漏 Holdout（工程回归）
+.\scripts\run_llm_qualify.ps1 -CaseSet holdout
+
+# Development
 .\scripts\run_llm_qualify.ps1 -CaseSet development
-
-# 仅模型 Raw（enrich=False，诊断）
-.\scripts\run_llm_qualify.ps1 -Mode model_raw
-
-# 多模型对比
-.\scripts\run_llm_qualify.ps1 -Models "qwen2.5:7b,<候选>" -Gate
 ```
-
-等价：
 
 ```bash
 uv run python -m packages.llm.benchmark.qualify --gate
-uv run python -m packages.llm.benchmark.qualify --set development --mode pipeline
+uv run python -m packages.llm.benchmark.qualify --set holdout
 ```
 
 ## 产物
 
 | 文件 | 含义 |
 |------|------|
-| `llm-alpha-baseline.json` | **Holdout + Pipeline** summary + `alpha_gate` + meta |
+| `llm-alpha-baseline.json` | **Blind + Pipeline** 最新一次（严格资格） |
+| `llm-alpha-baseline-blind-v1.json` | Blind v1 归档（FAIL） |
+| `llm-alpha-baseline-blind-v2.json` | Blind v2 归档（FAIL） |
+| `llm-alpha-baseline-holdout-pipeline.json` | Holdout 工程回归 |
 | `llm-alpha-baseline-<set>-<mode>[-model].json` | 其他组合 |
-| `llm-alpha-compare-*.json` | 多模型对照 |
 
-Holdout 默认**不写** per-case `failed_cases`（防逐案过拟合）；需要时加 `-DetailFailed`。
+Blind / Holdout 默认**不写** per-case `failed_cases`（防逐案过拟合）。
 
-**勿与 CI oracle 100% 混淆。** 仅当 **Holdout + Pipeline** 的 `alpha_gate.passed` 为真才可写 Phase 6 ✅ Alpha Qualified。
+**Strict Alpha Qualified** 仅当 Blind + Pipeline 的 `alpha_gate.passed` 为真。  
+Holdout 过门 ≠ 严格独立泛化证据（见 phase-6.7.2）。
