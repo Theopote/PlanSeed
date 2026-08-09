@@ -31,7 +31,7 @@
 | 符号 | 位置 |
 |------|------|
 | `GenerateResponse` | `backend/schemas/api.py` |
-| `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`） |
+| `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`、`svg` 整图、`floor_svgs` 分层） |
 | `CandidatePayload` · 血缘 | Phase 5 additive：`variant_parent_id` / `variant_generation` / `lock_snapshot_id` |
 | `GenerateRequest` · `locks` | Phase 4.1：`LayoutLocks`（rooms + stair + zones）；生成前 `validate_layout_locks`，非法 → **422** |
 | `GenerateRequest` · `base_seed` | Phase 4.2 additive：变体批次种子起点 |

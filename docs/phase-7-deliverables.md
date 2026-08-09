@@ -36,7 +36,7 @@ DesignReport
 ├ Assumptions
 ├ Unknowns
 ├ CandidateSummary            # 如 Candidate A.2 · Score 84
-├ FloorPlans[]                # SVG 引用或内嵌
+├ FloorPlans[]                # 优先 floor_svgs（F1/F2…）；否则 Candidate 整图 snapshot
 ├ RoomSchedule                # 面积表 ← placements / report builder
 ├ EvaluationSummary           # DesignScore 七轴 + evaluation_fresh
 ├ Findings                    # DesignFinding[]
@@ -64,7 +64,7 @@ DesignReport →（未来）专业 PDF / DXF
 | Room area | placements.**area** | 400 `placement_area_missing`（禁止 width×depth） |
 | Evaluation / Findings | `DesignScore` | 400 `design_score_missing` / `design_score_invalid` |
 | Key Intent / Assumptions / Unknowns | `RequirementSpec` | 400 `requirement_spec_missing` |
-| Floor plan SVG | candidate.svg | 400 `floor_plan_svg_missing` |
+| Floor plan SVG | 优先 `floor_svgs`（per-floor）；否则 `candidate.svg` 整图 | 400 `floor_plan_svg_missing` |
 | Dirty evaluation | revision_status | 409 `candidate_requires_revalidation` |
 | Broken candidate | 缺 id / placements | 409 `invalid_candidate` |
 | Wrong candidate id | 查找 | 404 `candidate_not_found` |
@@ -75,6 +75,24 @@ DesignReport →（未来）专业 PDF / DXF
 | Evaluation | exporter 另发明一套分 |
 | Findings | 报告层重写启发式 |
 | Assumptions / Unknowns | 前端臆造 |
+
+## 平面图：Candidate snapshot + per-floor SVG
+
+`floor_plans: list[FloorPlanBlock]` 报告层**只消费**已渲染 SVG，禁止切 DOM。
+
+| 来源 | 含义 |
+|------|------|
+| `candidate.floor_svgs` | serializer 用 `render_floor_svg` 产出的 F1/F2/…（**优先**） |
+| `candidate.svg` | 整候选纵向堆叠 snapshot（Workbench / 无 floor_svgs 时退回 `floor_id=all`） |
+
+```text
+render_floor_svg(candidate, floor_id)
+  → CandidatePayload.floor_svgs
+  → DesignReport.floor_plans[]
+  → HTML
+```
+
+旧项目快照若无 `floor_svgs`，报告仍可用整图 snapshot（可接受）。
 
 ## 7.0.1 — Report Integrity Gate（P0）
 
@@ -205,9 +223,11 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 
 1. [x] Backend 可 `POST /api/reports/build` → `DesignReportPayload`（JSON）  
 2. [x] Desktop 可预览 HTML 报告并 Print/PDF  
-3. [x] 报告含：Key Intent · Assumptions · Unknowns · 平面 · Room schedule · Score · Findings · Provenance（含 AI/Solver 边界）  
+3. [x] 报告含：Key Intent · Assumptions · Unknowns · 平面（`floor_svgs` 或整图 snapshot）· Room schedule · Score · Findings · Provenance  
 4. [x] 面积 / 评分 / Finding **不**由前端重算  
 5. [x] 不引入云端渲染 / 云端 LLM / DXF  
+6. [x] per-floor：`render_floor_svg` → `CandidatePayload.floor_svgs` → 报告只消费（禁止 builder 切 DOM）  
+
 
 ## Definition of Done（7.0.1）
 

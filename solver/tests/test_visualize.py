@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pytest import raises
 from solver.generators.guillotine import GuillotineGenerator
 from solver.tests.test_guillotine import benchmark_program
-from solver.visualize.svg import render_candidate_svg, write_candidate_svg
+from solver.visualize.svg import (
+    render_candidate_svg,
+    render_floor_svg,
+    write_candidate_svg,
+)
 
 
 def test_render_candidate_svg_contains_rooms_and_meta(tmp_path: Path):
@@ -34,3 +39,26 @@ def test_render_candidate_svg_contains_rooms_and_meta(tmp_path: Path):
     )
     assert out.exists()
     assert out.read_text(encoding="utf-8").startswith("<svg")
+
+
+def test_render_floor_svg_is_single_floor():
+    program = benchmark_program()
+    candidate = GuillotineGenerator().generate(program, seed=0)
+    assert len(candidate.floors) >= 1
+    fid = candidate.floors[0].floor_id
+    svg = render_floor_svg(
+        candidate,
+        fid,
+        floor_width=program.buildable.width,
+        floor_depth=program.buildable.depth,
+        floor_labels={fl.id: fl.label or fl.id for fl in program.floors},
+    )
+    assert f'data-floor-id="{fid}"' in svg
+    assert 'class="room-shape"' in svg
+    with raises(ValueError, match="floor_id 不存在"):
+        render_floor_svg(
+            candidate,
+            "no-such-floor",
+            floor_width=program.buildable.width,
+            floor_depth=program.buildable.depth,
+        )

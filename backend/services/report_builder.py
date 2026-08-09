@@ -156,13 +156,9 @@ def build_design_report(
             "候选缺少平面图 SVG，无法组装正式报告",
             candidate_id=cand_id,
         )
-    floor_plans = [
-        FloorPlanBlock(
-            floor_id="all",
-            label=str(candidate.get("label") or "Plan"),
-            svg=svg,
-        )
-    ]
+    # 优先消费 candidate.floor_svgs（serializer / render_floor_svg）；
+    # 否则 Alpha 退回整图 svg（floor_id=all）。禁止在此切 SVG DOM。
+    floor_plans = _floor_plan_blocks(candidate, svg=svg)
 
     revision = candidate.get("revision_status")
     edited = revision in ("dirty", "validated") or bool(candidate.get("mutations"))
@@ -328,6 +324,40 @@ def _room_schedule(
         )
     rows.sort(key=lambda r: (r.floor_id, r.name, r.room_id))
     return rows
+
+
+def _floor_plan_blocks(candidate: dict[str, Any], *, svg: str) -> list[FloorPlanBlock]:
+    """
+    消费候选已序列化的平面 SVG。
+
+    - 若有 `floor_svgs: {floor_id: svg}`（serializer）→ 按楼层展开
+    - 否则：单块 Candidate SVG snapshot（floor_id=all）
+    禁止在此解析/裁剪 SVG DOM。
+    """
+    raw = candidate.get("floor_svgs")
+    if isinstance(raw, dict) and raw:
+        blocks: list[FloorPlanBlock] = []
+        for fid, floor_svg in raw.items():
+            if not isinstance(floor_svg, str) or not floor_svg.strip():
+                continue
+            fid_s = str(fid)
+            blocks.append(
+                FloorPlanBlock(
+                    floor_id=fid_s,
+                    label=fid_s,
+                    svg=floor_svg,
+                )
+            )
+        if blocks:
+            blocks.sort(key=lambda b: b.floor_id)
+            return blocks
+    return [
+        FloorPlanBlock(
+            floor_id="all",
+            label=str(candidate.get("label") or "Candidate plan snapshot"),
+            svg=svg,
+        )
+    ]
 
 
 def _key_intents(

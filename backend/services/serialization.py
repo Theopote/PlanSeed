@@ -9,7 +9,7 @@ from packages.schema.identity import (
 )
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
-from solver.visualize.svg import render_candidate_svg
+from solver.visualize.svg import render_candidate_svg, render_floor_svg
 
 from backend.schemas.api import (
     CandidatePayload,
@@ -58,8 +58,7 @@ def serialize_candidate(
 ) -> CandidatePayload:
     labels = {fl.id: fl.label or fl.id for fl in program.floors}
     targets = {r.id: r.target_area for r in program.rooms}
-    svg = render_candidate_svg(
-        cand,
+    render_kw = dict(
         floor_width=program.buildable.width,
         floor_depth=program.buildable.depth,
         floor_labels=labels,
@@ -67,6 +66,11 @@ def serialize_candidate(
         site=program.site,
         access_graph=program.access_graph,
     )
+    svg = render_candidate_svg(cand, **render_kw)
+    floor_svgs = {
+        fl.floor_id: render_floor_svg(cand, fl.floor_id, **render_kw)
+        for fl in cand.floors
+    }
     validation = None
     if cand.validation is not None:
         validation = {
@@ -85,6 +89,7 @@ def serialize_candidate(
         score=cand.score,
         label=_label_for(index),
         svg=svg,
+        floor_svgs=floor_svgs,
         design_score=cand.evaluation,
         validation=validation,
         metrics=dict(cand.metrics),

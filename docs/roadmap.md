@@ -417,7 +417,8 @@ provenance：baseline git_commit 与 blind-v4 落地不一致 → 非冻结可�
 - JSON 项目快照
 - DXF 后续
 
-报告内容草案：项目需求 · 平面图 · 房间面积表 · 设计评分 · 主要 Findings · Assumptions · Unknowns · Candidate provenance。
+报告内容草案：项目需求 · 平面（`floor_svgs` 优先 / 整图 snapshot 退回）· 房间面积表 · 设计评分 · 主要 Findings · Assumptions · Unknowns · Candidate provenance。
+分层 SVG：`render_floor_svg` → serializer `floor_svgs`；report 只消费（见 phase-7-deliverables）。
 
 **明确不塞进 Phase 7：** Advanced Site 分析 · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · **LLM 性能专项**（量化/换模等）· **重开 Phase 6 Blind 抠分**。这些若需要，以后单独开阶段，**现在不正式规划到 Phase 10**。  
 当前 P0：7.0.1 Report Integrity（Dirty 禁止正式评价导出）。NL 解析进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。

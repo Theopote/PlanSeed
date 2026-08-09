@@ -164,6 +164,8 @@ export type CandidatePayload = {
   score: number | null;
   label: string;
   svg: string;
+  /** 每层独立 SVG（serializer）；报告优先；缺省退回整图 snapshot */
+  floor_svgs?: Record<string, string>;
   design_score: DesignScore | null;
   validation: {
     valid: boolean;

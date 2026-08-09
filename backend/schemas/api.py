@@ -109,6 +109,10 @@ class CandidatePayload(BaseModel):
     score: float | None
     label: str
     svg: str
+    floor_svgs: dict[str, str] = Field(
+        default_factory=dict,
+        description="每层独立 SVG（serializer / render_floor_svg）；报告优先消费，禁止切 DOM",
+    )
     design_score: DesignScore | None = None
     validation: dict[str, Any] | None = None
     metrics: dict[str, Any] = Field(default_factory=dict)

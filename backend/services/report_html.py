@@ -89,11 +89,18 @@ def render_report_html(report: DesignReport) -> str:
 
     plans = ""
     for fp in r.floor_plans:
-        # SVG 来自求解器，已是标记；不做二次几何解释
+        # SVG 来自 serializer，已是标记；不做二次几何解释 / DOM 裁剪
         plans += (
-            f"<section class='plan'><h3>{html.escape(fp.label)}</h3>"
+            f"<section class='plan'>"
+            f"<h3>{html.escape(fp.label)}"
+            f" <span class='muted'>({html.escape(fp.floor_id)})</span></h3>"
             f"<div class='svg-wrap'>{fp.svg}</div></section>"
         )
+    plans_heading = (
+        "Floor Plans"
+        if any(fp.floor_id != "all" for fp in r.floor_plans)
+        else "Plan Snapshot"
+    )
 
     boundary = "".join(
         f"<div>{html.escape(line)}</div>" for line in r.provenance.boundary_lines
@@ -185,7 +192,7 @@ def render_report_html(report: DesignReport) -> str:
     <h2>Unresolved</h2>
     <ul>{unknowns}</ul>
 
-    <h2>Floor Plans</h2>
+    <h2>{plans_heading}</h2>
     {plans or "<p class='muted'>（无平面图）</p>"}
 
     <h2>Room Schedule</h2>

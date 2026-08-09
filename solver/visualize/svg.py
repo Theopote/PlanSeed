@@ -446,34 +446,22 @@ def render_candidate_svg(
     for i, floor in enumerate(candidate.floors):
         oy = i * (floor_depth + gap)
         label = labels.get(floor.floor_id, floor.floor_id)
-        core = floor.core_placement or "—"
         body.append(
-            f'<text x="0.1" y="{oy + 0.35:.3f}" font-size="0.36" fill="{_INK}" '
-            f'font-family="Segoe UI, sans-serif" font-weight="700">'
-            f'{_esc(label)} · core={_esc(core)}</text>'
+            _floor_stack_label(floor, label=label, oy=oy)
         )
-        body.append(
-            f'<rect x="0" y="{oy:.3f}" width="{floor_width:.3f}" '
-            f'height="{floor_depth:.3f}" fill="#fff" stroke="{_INK}" '
-            f'stroke-width="0.08"/>'
-        )
-        for p in floor.placements:
-            body.append(
-                _render_room(p, oy, target_area=targets.get(p.room_id))
-            )
-        body.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
-        body.append(
-            _site_overlays(
+        body.extend(
+            _render_floor_geometry(
                 candidate,
+                floor,
+                floor_index=i,
+                oy=oy,
                 floor_width=floor_width,
                 floor_depth=floor_depth,
-                oy=oy,
+                targets=targets,
                 site=site,
-                floor_index=i,
+                access_graph=access_graph,
             )
         )
-        body.append(_access_overlays(floor, oy, access_graph))
-        body.append(_door_overlays(floor, oy, candidate.door_openings))
 
     body.append(_legend(floor_width + 0.4, 1.6))
 
@@ -490,6 +478,131 @@ def render_candidate_svg(
         + "\n".join(body)
         + "\n</svg>\n"
     )
+
+
+def render_floor_svg(
+    candidate: LayoutCandidate,
+    floor_id: str,
+    *,
+    floor_width: float,
+    floor_depth: float,
+    floor_labels: dict[str, str] | None = None,
+    target_areas: dict[str, float] | None = None,
+    site: SiteSpec | None = None,
+    access_graph: AccessGraph | None = None,
+) -> str:
+    """渲染单层平面 SVG（报告 / 分层消费）；不做 DOM 裁剪整图。"""
+    labels = floor_labels or {}
+    targets = target_areas or {}
+    floor_index, floor = _find_floor(candidate, floor_id)
+    label = labels.get(floor.floor_id, floor.floor_id)
+    north_angle = float(getattr(site, "north_angle", 0.0) or 0.0) if site else 0.0
+
+    header_lines = [
+        f"{_esc(label)}  seed={candidate.seed}  id={_esc(candidate.id)}",
+        f"core={_esc(floor.core_placement or '—')}  north_angle={north_angle:.0f}°",
+    ]
+
+    margin_l, margin_r, margin_t, margin_b = 1.2, 3.5, 1.4, 0.8
+    header_h = 0.4 * len(header_lines) + 0.2
+    margin_t = max(margin_t, header_h + 0.4)
+    vb_w = floor_width + margin_l + margin_r
+    vb_h = floor_depth + margin_t + margin_b
+    oy = 0.0
+
+    body: list[str] = [
+        f'<rect x="{-margin_l:.3f}" y="{-margin_t:.3f}" width="{vb_w:.3f}" '
+        f'height="{vb_h:.3f}" fill="{_BG}"/>'
+    ]
+    for i, line in enumerate(header_lines):
+        body.append(
+            f'<text x="0" y="{-margin_t + 0.35 + i * 0.4:.3f}" font-size="0.32" '
+            f'fill="{_INK}" font-family="Consolas, monospace">{line}</text>'
+        )
+    body.append(
+        _north_arrow(x=floor_width + 1.4, y=0.9, north_angle=north_angle)
+    )
+    body.extend(
+        _render_floor_geometry(
+            candidate,
+            floor,
+            floor_index=floor_index,
+            oy=oy,
+            floor_width=floor_width,
+            floor_depth=floor_depth,
+            targets=targets,
+            site=site,
+            access_graph=access_graph,
+        )
+    )
+    body.append(_legend(floor_width + 0.4, 1.6))
+    body.append(
+        f'<text x="{floor_width / 2:.3f}" y="{floor_depth + 0.4:.3f}" '
+        f'font-size="0.28" fill="{_MUTED}" text-anchor="middle" '
+        f'font-family="Consolas, monospace">'
+        f'{floor_width:.1f} × {floor_depth:.1f} m</text>'
+    )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'data-floor-id="{_esc(floor.floor_id)}" '
+        f'viewBox="{-margin_l:.3f} {-margin_t:.3f} {vb_w:.3f} {vb_h:.3f}">\n'
+        + "\n".join(body)
+        + "\n</svg>\n"
+    )
+
+
+def _find_floor(
+    candidate: LayoutCandidate, floor_id: str
+) -> tuple[int, FloorLayout]:
+    for i, floor in enumerate(candidate.floors):
+        if floor.floor_id == floor_id:
+            return i, floor
+    known = ", ".join(f.floor_id for f in candidate.floors) or "(none)"
+    raise ValueError(f"floor_id 不存在：{floor_id}；已知：{known}")
+
+
+def _floor_stack_label(floor: FloorLayout, *, label: str, oy: float) -> str:
+    core = floor.core_placement or "—"
+    return (
+        f'<text x="0.1" y="{oy + 0.35:.3f}" font-size="0.36" fill="{_INK}" '
+        f'font-family="Segoe UI, sans-serif" font-weight="700">'
+        f'{_esc(label)} · core={_esc(core)}</text>'
+    )
+
+
+def _render_floor_geometry(
+    candidate: LayoutCandidate,
+    floor: FloorLayout,
+    *,
+    floor_index: int,
+    oy: float,
+    floor_width: float,
+    floor_depth: float,
+    targets: dict[str, float],
+    site: SiteSpec | None,
+    access_graph: AccessGraph | None,
+) -> list[str]:
+    parts: list[str] = [
+        f'<rect x="0" y="{oy:.3f}" width="{floor_width:.3f}" '
+        f'height="{floor_depth:.3f}" fill="#fff" stroke="{_INK}" '
+        f'stroke-width="0.08"/>'
+    ]
+    for p in floor.placements:
+        parts.append(_render_room(p, oy, target_area=targets.get(p.room_id)))
+    parts.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
+    parts.append(
+        _site_overlays(
+            candidate,
+            floor_width=floor_width,
+            floor_depth=floor_depth,
+            oy=oy,
+            site=site,
+            floor_index=floor_index,
+        )
+    )
+    parts.append(_access_overlays(floor, oy, access_graph))
+    parts.append(_door_overlays(floor, oy, candidate.door_openings))
+    return parts
 
 
 def write_candidate_svg(

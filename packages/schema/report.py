@@ -87,9 +87,17 @@ class CandidateSummary(BaseModel):
 
 
 class FloorPlanBlock(BaseModel):
-    """平面图块；SVG 由 backend 序列化候选提供，前端不重渲几何。"""
+    """
+    平面图块 — SVG 由 serializer / `render_floor_svg` 提供，报告层只消费，禁止切 SVG DOM。
 
-    floor_id: str = "all"
+    - 有 `candidate.floor_svgs` 时：一块对应一层（floor_id=F1/F2/…）
+    - 否则：单块 `floor_id="all"` = Candidate 整图 snapshot（旧快照兼容）
+    """
+
+    floor_id: str = Field(
+        default="all",
+        description='真实楼层 id（如 F1），或整图 "all"',
+    )
     label: str = "Floor plan"
     svg: str = ""
 

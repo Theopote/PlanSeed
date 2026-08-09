@@ -121,6 +121,34 @@ def test_build_design_report_uses_placement_area():
     assert any("deterministic solver" in line for line in report.provenance.boundary_lines)
 
 
+def test_floor_plans_default_to_candidate_snapshot():
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=_candidate(),
+    )
+    assert len(report.floor_plans) == 1
+    assert report.floor_plans[0].floor_id == "all"
+    assert "<svg" in report.floor_plans[0].svg
+
+
+def test_floor_svgs_consumed_without_dom_slicing():
+    cand = _candidate()
+    cand["floor_svgs"] = {
+        "F2": '<svg id="f2"/>',
+        "F1": '<svg id="f1"/>',
+    }
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=cand,
+    )
+    assert [b.floor_id for b in report.floor_plans] == ["F1", "F2"]
+    assert report.floor_plans[0].svg == '<svg id="f1"/>'
+
+
 def test_dirty_candidate_marks_stale_evaluation():
     dirty = {**_candidate(), "revision_status": "dirty"}
     report = build_design_report(
