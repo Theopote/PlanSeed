@@ -426,9 +426,9 @@ export function RequirementsPanel({
                 {rejectedCandidates.map((r) => (
                   <li key={r.id}>
                     <div className="rejected-seed">Seed {r.seed}</div>
-                    {r.reasons.length > 0 ? (
+                    {(r.reasons ?? []).length > 0 ? (
                       <ul className="rejected-reasons">
-                        {r.reasons.map((msg, i) => (
+                        {(r.reasons ?? []).map((msg, i) => (
                           <li key={`${r.id}-${i}`}>{msg}</li>
                         ))}
                       </ul>

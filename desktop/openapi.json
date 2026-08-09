@@ -1,0 +1,3966 @@
+{
+  "components": {
+    "schemas": {
+      "ArchitecturalZone": {
+        "description": "功能分区（Functional Zone）— 决定与谁相邻、落在哪块平面区。\n\n不再把所有 WET 等同于 SERVICE：厨房属 DAY，主卫属 NIGHT。",
+        "enum": [
+          "day",
+          "night",
+          "service",
+          "circulation"
+        ],
+        "title": "ArchitecturalZone",
+        "type": "string"
+      },
+      "Assumption": {
+        "description": "可解释推断；Alpha 优先 user_authorized / planseed_default。",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "default": "llm_inference",
+            "enum": [
+              "user_authorized",
+              "planseed_default",
+              "llm_inference"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "Assumption",
+        "type": "object"
+      },
+      "AxisCompareRowPayload": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "score_a": {
+            "title": "Score A",
+            "type": "number"
+          },
+          "score_b": {
+            "title": "Score B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "score_a",
+          "score_b"
+        ],
+        "title": "AxisCompareRowPayload",
+        "type": "object"
+      },
+      "BuildReportRequest": {
+        "description": "preview — payload 或 project_id（可无 revision_id）\nfinal — 仅 project_id + candidate_id + revision_id（禁止 payload）",
+        "properties": {
+          "allow_stale_evaluation": {
+            "default": false,
+            "description": "False（默认）：dirty 拒绝正式评价报告（HTTP 409）。preview 调试可 true；final 仍建议 false。",
+            "title": "Allow Stale Evaluation",
+            "type": "boolean"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "include_html": {
+            "default": true,
+            "title": "Include Html",
+            "type": "boolean"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/ReportLocale",
+            "default": "zh-CN",
+            "description": "报告文案 locale；Alpha 默认 zh-CN，预留 en-US"
+          },
+          "mode": {
+            "default": "final",
+            "description": "preview=可 payload；final=必须从 ProjectStore 读且校验 revision_id",
+            "enum": [
+              "preview",
+              "final"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "final 必填；须与 store 中候选 revision_id 一致",
+            "title": "Revision Id"
+          }
+        },
+        "title": "BuildReportRequest",
+        "type": "object"
+      },
+      "BuildReportResponse": {
+        "properties": {
+          "html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "HTML 预览（Print/PDF）；include_html=false 时为 null",
+            "title": "Html"
+          },
+          "report": {
+            "$ref": "#/components/schemas/DesignReport"
+          }
+        },
+        "required": [
+          "report"
+        ],
+        "title": "BuildReportResponse",
+        "type": "object"
+      },
+      "CandidatePayload": {
+        "properties": {
+          "design_score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DesignScore"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "floor_svgs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "每层独立 SVG（serializer / render_floor_svg）；报告优先消费，禁止切 DOM",
+            "title": "Floor Svgs",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lock_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 5：生成时 locks 指纹",
+            "title": "Lock Snapshot Id"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "mutations": {
+            "description": "Phase 5.1：相对 generated 基线的 mutation 日志",
+            "items": {
+              "$ref": "#/components/schemas/MutationRecordPayload"
+            },
+            "title": "Mutations",
+            "type": "array"
+          },
+          "placements": {
+            "description": "RoomPlacement 摘要；前端点选房间用",
+            "items": {
+              "$ref": "#/components/schemas/RoomPlacementPayload"
+            },
+            "title": "Placements",
+            "type": "array"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 7：几何+评价 revision 标识；Final Export 须与 store 一致。缺省时兼容旧快照，视为等于 candidate.id",
+            "title": "Revision Id"
+          },
+          "revision_parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 5.1：用户编辑派生自哪个候选 revision",
+            "title": "Revision Parent Id"
+          },
+          "revision_status": {
+            "default": "generated",
+            "description": "Phase 5.1：generated | dirty | validated",
+            "enum": [
+              "generated",
+              "dirty",
+              "validated"
+            ],
+            "title": "Revision Status",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "svg": {
+            "title": "Svg",
+            "type": "string"
+          },
+          "validation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation"
+          },
+          "variant_generation": {
+            "default": 0,
+            "description": "Phase 5：相对根代数",
+            "minimum": 0.0,
+            "title": "Variant Generation",
+            "type": "integer"
+          },
+          "variant_parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 5：父候选 id",
+            "title": "Variant Parent Id"
+          },
+          "zones": {
+            "description": "功能分区几何；Lock Zone 用",
+            "items": {
+              "$ref": "#/components/schemas/ZonePlacementPayload"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "seed",
+          "score",
+          "label",
+          "svg"
+        ],
+        "title": "CandidatePayload",
+        "type": "object"
+      },
+      "CandidateProvenance": {
+        "description": "算法契约版本；与 LayoutCandidate.provenance / metrics 对齐。",
+        "properties": {
+          "evaluation_version": {
+            "title": "Evaluation Version",
+            "type": "string"
+          },
+          "generator_version": {
+            "title": "Generator Version",
+            "type": "string"
+          },
+          "solver_version": {
+            "title": "Solver Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "solver_version",
+          "generator_version",
+          "evaluation_version"
+        ],
+        "title": "CandidateProvenance",
+        "type": "object"
+      },
+      "CandidateSummary": {
+        "properties": {
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "revision_parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Parent Id"
+          },
+          "revision_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Status"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "total_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Score"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "label"
+        ],
+        "title": "CandidateSummary",
+        "type": "object"
+      },
+      "CardinalEdge": {
+        "enum": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "title": "CardinalEdge",
+        "type": "string"
+      },
+      "CardinalOrientation": {
+        "enum": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "title": "CardinalOrientation",
+        "type": "string"
+      },
+      "CompareRequest": {
+        "description": "比较请求：只传两侧 evaluation，API 不做重评。",
+        "properties": {
+          "evaluation_a": {
+            "$ref": "#/components/schemas/DesignScore"
+          },
+          "evaluation_b": {
+            "$ref": "#/components/schemas/DesignScore"
+          },
+          "label_a": {
+            "default": "A",
+            "title": "Label A",
+            "type": "string"
+          },
+          "label_b": {
+            "default": "B",
+            "title": "Label B",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evaluation_a",
+          "evaluation_b"
+        ],
+        "title": "CompareRequest",
+        "type": "object"
+      },
+      "CompareResponse": {
+        "properties": {
+          "advantages_a": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Advantages A",
+            "type": "array"
+          },
+          "advantages_b": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Advantages B",
+            "type": "array"
+          },
+          "label_a": {
+            "title": "Label A",
+            "type": "string"
+          },
+          "label_b": {
+            "title": "Label B",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/AxisCompareRowPayload"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label_a",
+          "label_b",
+          "rows"
+        ],
+        "title": "CompareResponse",
+        "type": "object"
+      },
+      "DesignFinding": {
+        "description": "可解释设计发现（≠ 单纯报分数；≠ 法规合规结论）。\n\ncategory 应对齐 EvaluationAxis（或子域，如仍兼容旧 id）。\n文案须保持 design heuristic；禁止无 CodeProfile / Jurisdiction / Rule source\n时声称「符合规范 / 合法 / 消防 / 无障碍」等。",
+        "properties": {
+          "category": {
+            "description": "program | spatial | circulation | privacy | environment | technical | robustness",
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "description": "稳定 id，如 privacy.private_through_room",
+            "title": "Id",
+            "type": "string"
+          },
+          "measured_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Value"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric"
+          },
+          "recommended_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Action"
+          },
+          "room_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Room Ids",
+            "type": "array"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/FindingSeverity"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "severity",
+          "title",
+          "message"
+        ],
+        "title": "DesignFinding",
+        "type": "object"
+      },
+      "DesignMetrics": {
+        "description": "底层 metrics — 可扩展；总分按七轴聚合，不按本表直接加权。",
+        "properties": {
+          "area_error": {
+            "default": 0.0,
+            "title": "Area Error",
+            "type": "number"
+          },
+          "aspect_ratio_penalty": {
+            "default": 0.0,
+            "title": "Aspect Ratio Penalty",
+            "type": "number"
+          },
+          "boundary_violation": {
+            "default": 0,
+            "title": "Boundary Violation",
+            "type": "integer"
+          },
+          "compactness": {
+            "default": 0.0,
+            "title": "Compactness",
+            "type": "number"
+          },
+          "layout_stability": {
+            "default": 1.0,
+            "title": "Layout Stability",
+            "type": "number"
+          },
+          "min_width_violation": {
+            "default": 0,
+            "title": "Min Width Violation",
+            "type": "integer"
+          },
+          "orientation_satisfaction": {
+            "default": 1.0,
+            "title": "Orientation Satisfaction",
+            "type": "number"
+          },
+          "overlap_count": {
+            "default": 0,
+            "title": "Overlap Count",
+            "type": "integer"
+          },
+          "preferred_adjacency_satisfaction": {
+            "default": 0.0,
+            "title": "Preferred Adjacency Satisfaction",
+            "type": "number"
+          },
+          "privacy_transition_score": {
+            "default": 1.0,
+            "title": "Privacy Transition Score",
+            "type": "number"
+          },
+          "program_fit": {
+            "default": 1.0,
+            "title": "Program Fit",
+            "type": "number"
+          },
+          "reachable_ratio": {
+            "default": 1.0,
+            "title": "Reachable Ratio",
+            "type": "number"
+          },
+          "required_adjacency_satisfaction": {
+            "default": 0.0,
+            "title": "Required Adjacency Satisfaction",
+            "type": "number"
+          },
+          "setback_compliance": {
+            "default": 1.0,
+            "title": "Setback Compliance",
+            "type": "number"
+          },
+          "space_efficiency": {
+            "default": 1.0,
+            "title": "Space Efficiency",
+            "type": "number"
+          },
+          "stair_alignment": {
+            "default": 0.0,
+            "title": "Stair Alignment",
+            "type": "number"
+          },
+          "wet_stack_alignment": {
+            "default": 0.0,
+            "title": "Wet Stack Alignment",
+            "type": "number"
+          },
+          "wet_zone_alignment": {
+            "default": 0.0,
+            "description": "[deprecated] wet_stack_alignment 的别名",
+            "title": "Wet Zone Alignment",
+            "type": "number"
+          }
+        },
+        "title": "DesignMetrics",
+        "type": "object"
+      },
+      "DesignPreferences": {
+        "properties": {
+          "prefer_compact_footprint": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefer Compact Footprint"
+          },
+          "prefer_open_kitchen_dining": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefer Open Kitchen Dining"
+          },
+          "prefer_short_corridor": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefer Short Corridor"
+          },
+          "prefer_south_facing_living": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefer South Facing Living"
+          },
+          "quiet_zone_away_from_entry": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Zone Away From Entry"
+          },
+          "wet_stack_preference": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wet Stack Preference"
+          }
+        },
+        "title": "DesignPreferences",
+        "type": "object"
+      },
+      "DesignReport": {
+        "description": "Phase 7 权威交付文档。\n\nDesignReport → HTML / JSON /（未来）专业 PDF",
+        "properties": {
+          "assumptions": {
+            "items": {
+              "$ref": "#/components/schemas/ReportAssumption"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/CandidateSummary"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/EvaluationSummary"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/DesignFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "floor_plans": {
+            "items": {
+              "$ref": "#/components/schemas/FloorPlanBlock"
+            },
+            "title": "Floor Plans",
+            "type": "array"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectMetadata"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ReportProvenance"
+          },
+          "report_schema_version": {
+            "default": "1.0.0",
+            "description": "DesignReport 交付契约版本（≠ Project Snapshot format_version）",
+            "title": "Report Schema Version",
+            "type": "string"
+          },
+          "requirement": {
+            "$ref": "#/components/schemas/RequirementSummary"
+          },
+          "room_schedule": {
+            "items": {
+              "$ref": "#/components/schemas/RoomScheduleRow"
+            },
+            "title": "Room Schedule",
+            "type": "array"
+          },
+          "source_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "候选 revision_id（Final Export 溯源；旧快照可等于 candidate.id）",
+            "title": "Source Revision Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus",
+            "default": "valid"
+          },
+          "unknowns": {
+            "items": {
+              "$ref": "#/components/schemas/ReportUnknown"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidate"
+        ],
+        "title": "DesignReport",
+        "type": "object"
+      },
+      "DesignScore": {
+        "description": "七轴建筑评价（用户层）。轴名冻结，见 EvaluationAxis。\n\nProgram / Spatial / Circulation / Privacy / Environment / Technical / Robustness",
+        "properties": {
+          "circulation_score": {
+            "default": 0.0,
+            "description": "可达 / 深度 / 穿堂",
+            "title": "Circulation Score",
+            "type": "number"
+          },
+          "environment_score": {
+            "default": 0.0,
+            "description": "Environment (Orientation MVP)：朝向 / 外墙；不含日照/通风/景观模拟",
+            "title": "Environment Score",
+            "type": "number"
+          },
+          "evaluation_version": {
+            "default": "residential-alpha-v1",
+            "description": "评价规则签名（packages.schema.identity.EVALUATION_VERSION）；相同几何在不同版本下分数可不同。由 Evaluator 写入。",
+            "title": "Evaluation Version",
+            "type": "string"
+          },
+          "explanations": {
+            "description": "[compat] 由 findings 派生",
+            "items": {
+              "type": "string"
+            },
+            "title": "Explanations",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/DesignFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/DesignMetrics"
+          },
+          "privacy_score": {
+            "default": 0.0,
+            "description": "动静分区 / 过渡 / 穿卧",
+            "title": "Privacy Score",
+            "type": "number"
+          },
+          "program_score": {
+            "default": 0.0,
+            "description": "空间清单 / 面积份额 / 邻接",
+            "title": "Program Score",
+            "type": "number"
+          },
+          "robustness_score": {
+            "default": 0.0,
+            "description": "repair / reslice / 稳定性",
+            "title": "Robustness Score",
+            "type": "number"
+          },
+          "spatial_score": {
+            "default": 0.0,
+            "description": "比例 / 紧凑度 / 形状",
+            "title": "Spatial Score",
+            "type": "number"
+          },
+          "technical_score": {
+            "default": 0.0,
+            "description": "Technical Logic：楼梯 / 湿区叠置 / 入口与场地；不含结构/设备/消防/法规",
+            "title": "Technical Score",
+            "type": "number"
+          },
+          "total_score": {
+            "default": 0.0,
+            "title": "Total Score",
+            "type": "number"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/Violation"
+            },
+            "title": "Violations",
+            "type": "array"
+          },
+          "warnings": {
+            "description": "[compat] WARNING/PROBLEM 摘要",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "title": "DesignScore",
+        "type": "object"
+      },
+      "EvaluationSummary": {
+        "description": "直接挂 DesignScore；不另发明分制。",
+        "properties": {
+          "design_score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DesignScore"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation_fresh": {
+            "default": true,
+            "description": "False = dirty 几何；评分可能不对应当前平面",
+            "title": "Evaluation Fresh",
+            "type": "boolean"
+          }
+        },
+        "title": "EvaluationSummary",
+        "type": "object"
+      },
+      "FindingSeverity": {
+        "description": "设计发现严重度 — Inspector 分组用。",
+        "enum": [
+          "info",
+          "positive",
+          "warning",
+          "problem"
+        ],
+        "title": "FindingSeverity",
+        "type": "string"
+      },
+      "FloorPlanBlock": {
+        "description": "平面图块 — SVG 由 serializer / `render_floor_svg` 提供，报告层只消费，禁止切 SVG DOM。\n\n- 有 `candidate.floor_svgs` 时：一块对应一层（floor_id=F1/F2/…）\n- 否则：单块 `floor_id=\"all\"` = Candidate 整图 snapshot（旧快照兼容）",
+        "properties": {
+          "floor_id": {
+            "default": "all",
+            "description": "真实楼层 id（如 F1），或整图 \"all\"",
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "label": {
+            "default": "Floor plan",
+            "title": "Label",
+            "type": "string"
+          },
+          "north_angle_deg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "正北相对 model north（图上方 / −Y）的顺时针角（度），与 SiteCoordinateSystem.north_angle 一致。None = 未定义：报告不得画默认 ↑N",
+            "title": "North Angle Deg"
+          },
+          "orientation_defined": {
+            "default": false,
+            "description": "True = north_angle_deg 已知；False = 北向未定义。HTML 只读此字段，禁止自行猜 0°",
+            "title": "Orientation Defined",
+            "type": "boolean"
+          },
+          "svg": {
+            "default": "",
+            "title": "Svg",
+            "type": "string"
+          }
+        },
+        "title": "FloorPlanBlock",
+        "type": "object"
+      },
+      "GenerateRequest": {
+        "description": "生成请求：基准案例或 RequirementSpec。",
+        "properties": {
+          "base_seed": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 4.2：候选种子起点；默认沿用 SolverConfig.base_seed",
+            "title": "Base Seed"
+          },
+          "candidate_count": {
+            "anyOf": [
+              {
+                "maximum": 64.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Count"
+          },
+          "locks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LayoutLocks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 4.1：锁定房间/楼梯后只重生成其余空间"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "return_top_k": {
+            "anyOf": [
+              {
+                "maximum": 16.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Top K"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "title": "GenerateRequest",
+        "type": "object"
+      },
+      "GenerateResponse": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidatePayload"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "generated": {
+            "title": "Generated",
+            "type": "integer"
+          },
+          "program_summary": {
+            "$ref": "#/components/schemas/ProgramSummary"
+          },
+          "rejected": {
+            "title": "Rejected",
+            "type": "integer"
+          },
+          "rejected_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RejectedCandidatePayload"
+            },
+            "title": "Rejected Candidates",
+            "type": "array"
+          },
+          "requirement_spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSpec"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 5.1.1：求解用 canonical RequirementSpec（UI ProgramSummary 不可替代）"
+          },
+          "solver_identity": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "solver_version / generator_version / evaluation_version",
+            "title": "Solver Identity",
+            "type": "object"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "integer"
+          },
+          "violation_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Violation Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "generated",
+          "valid",
+          "rejected",
+          "program_summary",
+          "candidates"
+        ],
+        "title": "GenerateResponse",
+        "type": "object"
+      },
+      "GeometryMutation": {
+        "description": "Proposed 或已提交的几何变更。",
+        "properties": {
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementRect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "floor_id": {
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MutationKind"
+          },
+          "partner_room_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner Room Id"
+          },
+          "proposed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementRect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposed_partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementRect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/MutationSource",
+            "default": "pointer"
+          },
+          "wall_axis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "x",
+                  "y"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wall Axis"
+          },
+          "wall_coord": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wall Coord"
+          }
+        },
+        "required": [
+          "kind",
+          "floor_id"
+        ],
+        "title": "GeometryMutation",
+        "type": "object"
+      },
+      "GeometryOrigin": {
+        "description": "几何相对 Solver 的编辑状态（报告头；细于 bool edited）。",
+        "enum": [
+          "solver_generated",
+          "user_edited_validated",
+          "user_edited_stale"
+        ],
+        "title": "GeometryOrigin",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HouseholdRequirements": {
+        "properties": {
+          "bathrooms": {
+            "anyOf": [
+              {
+                "maximum": 8.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bathrooms"
+          },
+          "bedrooms": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedrooms"
+          },
+          "has_garage": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Garage"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "occupants": {
+            "anyOf": [
+              {
+                "maximum": 20.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupants"
+          }
+        },
+        "title": "HouseholdRequirements",
+        "type": "object"
+      },
+      "LayoutLocks": {
+        "description": "Generate 时尊重的锁；空 = 全自由生成。",
+        "properties": {
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/LockedRoomRect"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "stair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LockedStairCore"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/LockedZoneRect"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "title": "LayoutLocks",
+        "type": "object"
+      },
+      "LockedRoomRect": {
+        "description": "钉死的房间矩形（来自当前候选 Placement）。",
+        "properties": {
+          "depth": {
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "type": "number"
+          },
+          "floor_id": {
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "room_id": {
+            "title": "Room Id",
+            "type": "string"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "room_id",
+          "floor_id",
+          "x",
+          "y",
+          "width",
+          "depth"
+        ],
+        "title": "LockedRoomRect",
+        "type": "object"
+      },
+      "LockedStairCore": {
+        "description": "钉死的楼梯核（跨层对齐；几何以 rect 为准）。",
+        "properties": {
+          "core_placement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "north|south|east|west|center；可空，仅元数据",
+            "title": "Core Placement"
+          },
+          "depth": {
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "type": "number"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "depth"
+        ],
+        "title": "LockedStairCore",
+        "type": "object"
+      },
+      "LockedZoneRect": {
+        "description": "钉死的功能分区组件矩形。\n\n同 floor_id + zone 的多条共同构成 FunctionalZoneGroup 锁。\nzone_id 对应 ZonePlacement.id（如 F1-day-0）；可空以兼容旧客户端。",
+        "properties": {
+          "depth": {
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "type": "number"
+          },
+          "floor_id": {
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "room_ids": {
+            "description": "锁定时归属该组件的房间；空则按 classify 回填",
+            "items": {
+              "type": "string"
+            },
+            "title": "Room Ids",
+            "type": "array"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/ArchitecturalZone",
+            "description": "day | night | service（非 circulation）"
+          },
+          "zone_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "分区组件 id（ZonePlacement.id）；空则按 floor+kind+几何匹配",
+            "title": "Zone Id"
+          }
+        },
+        "required": [
+          "zone",
+          "floor_id",
+          "x",
+          "y",
+          "width",
+          "depth"
+        ],
+        "title": "LockedZoneRect",
+        "type": "object"
+      },
+      "MutationKind": {
+        "enum": [
+          "move",
+          "resize",
+          "adjust_wall",
+          "lock",
+          "unlock"
+        ],
+        "title": "MutationKind",
+        "type": "string"
+      },
+      "MutationPreviewRequest": {
+        "description": "与 generate 相同方式解析 DesignProgram；placements 为当前会话几何。",
+        "properties": {
+          "locks": {
+            "$ref": "#/components/schemas/LayoutLocks"
+          },
+          "mutation": {
+            "$ref": "#/components/schemas/GeometryMutation"
+          },
+          "placements": {
+            "items": {
+              "$ref": "#/components/schemas/RoomPlacementPayload"
+            },
+            "title": "Placements",
+            "type": "array"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snap_module": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snap Module"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mutation"
+        ],
+        "title": "MutationPreviewRequest",
+        "type": "object"
+      },
+      "MutationPreviewResult": {
+        "description": "Authority 预览结果；ok 才可 Commit。warnings 为 soft（不阻挡 Commit）。",
+        "properties": {
+          "conflict_room_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflict Room Ids",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/MutationReject"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "snapped": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementRect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapped_partner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementRect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/MutationReject"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "MutationPreviewResult",
+        "type": "object"
+      },
+      "MutationRecordPayload": {
+        "description": "会话 mutation 历史条目（Phase 5.1）；非完整事件溯源。",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "after_partner": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Partner"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "partner_room_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner Room Id"
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "MutationRecordPayload",
+        "type": "object"
+      },
+      "MutationReject": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "MutationReject",
+        "type": "object"
+      },
+      "MutationRevalidateRequest": {
+        "description": "对 dirty draft 重算 openings / access / evaluation（不改用户几何）。",
+        "properties": {
+          "candidate_id": {
+            "default": "revalidated",
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "label_index": {
+            "default": 0,
+            "maximum": 25.0,
+            "minimum": 0.0,
+            "title": "Label Index",
+            "type": "integer"
+          },
+          "lock_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lock Snapshot Id"
+          },
+          "locks": {
+            "$ref": "#/components/schemas/LayoutLocks"
+          },
+          "mutations": {
+            "items": {
+              "$ref": "#/components/schemas/MutationRecordPayload"
+            },
+            "title": "Mutations",
+            "type": "array"
+          },
+          "placements": {
+            "items": {
+              "$ref": "#/components/schemas/RoomPlacementPayload"
+            },
+            "title": "Placements",
+            "type": "array"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision_parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Parent Id"
+          },
+          "seed": {
+            "default": 0,
+            "title": "Seed",
+            "type": "integer"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          },
+          "variant_generation": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Variant Generation",
+            "type": "integer"
+          },
+          "variant_parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Parent Id"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/ZonePlacementPayload"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "title": "MutationRevalidateRequest",
+        "type": "object"
+      },
+      "MutationSource": {
+        "enum": [
+          "pointer",
+          "inspector",
+          "system"
+        ],
+        "title": "MutationSource",
+        "type": "string"
+      },
+      "ParseNLRequest": {
+        "properties": {
+          "max_repairs": {
+            "default": 2,
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Max Repairs",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ParseNLRequest",
+        "type": "object"
+      },
+      "ParseNLResponse": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "title": "Raw",
+            "type": "object"
+          },
+          "repair_notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Repair Notes",
+            "type": "array"
+          },
+          "requirement_spec": {
+            "$ref": "#/components/schemas/RequirementSpec"
+          }
+        },
+        "required": [
+          "requirement_spec",
+          "attempts",
+          "provider"
+        ],
+        "title": "ParseNLResponse",
+        "type": "object"
+      },
+      "PlacementRect": {
+        "properties": {
+          "depth": {
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "type": "number"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "depth"
+        ],
+        "title": "PlacementRect",
+        "type": "object"
+      },
+      "PngExportRequest": {
+        "description": "正式 PNG 导出：Canonical SVG → resvg 光栅；白底。",
+        "properties": {
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "floor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "scope=floor 时必填（如 F1）",
+            "title": "Floor Id"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope": {
+            "default": "floor",
+            "description": "floor=单层 · snapshot=整图 · all_floors=各层 zip",
+            "enum": [
+              "floor",
+              "snapshot",
+              "all_floors"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "size": {
+            "default": 2048,
+            "description": "最长边像素：2048 或 4096",
+            "enum": [
+              2048,
+              4096
+            ],
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id",
+          "candidate_id",
+          "revision_id"
+        ],
+        "title": "PngExportRequest",
+        "type": "object"
+      },
+      "ProgramSummary": {
+        "properties": {
+          "assumptions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "floor_count": {
+            "title": "Floor Count",
+            "type": "integer"
+          },
+          "floors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Floors",
+            "type": "array"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/RoomSummary"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "site_depth": {
+            "title": "Site Depth",
+            "type": "number"
+          },
+          "site_width": {
+            "title": "Site Width",
+            "type": "number"
+          },
+          "unknowns": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "site_width",
+          "site_depth",
+          "floor_count",
+          "rooms",
+          "floors"
+        ],
+        "title": "ProgramSummary",
+        "type": "object"
+      },
+      "ProjectDetail": {
+        "properties": {
+          "current_evaluation_version": {
+            "title": "Current Evaluation Version",
+            "type": "string"
+          },
+          "evaluation_version_mismatch": {
+            "default": false,
+            "title": "Evaluation Version Mismatch",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ProjectPayload"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "updated_at",
+          "payload"
+        ],
+        "title": "ProjectDetail",
+        "type": "object"
+      },
+      "ProjectMeta": {
+        "properties": {
+          "app_version": {
+            "default": "0.1.0",
+            "title": "App Version",
+            "type": "string"
+          },
+          "format_version": {
+            "default": "1",
+            "title": "Format Version",
+            "type": "string"
+          }
+        },
+        "title": "ProjectMeta",
+        "type": "object"
+      },
+      "ProjectMetadata": {
+        "description": "报告头：项目与生成语境。",
+        "properties": {
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
+          "edited": {
+            "default": false,
+            "description": "兼容字段：geometry_origin != solver_generated（勿再单独依赖）",
+            "title": "Edited",
+            "type": "boolean"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "geometry_origin": {
+            "$ref": "#/components/schemas/GeometryOrigin",
+            "default": "solver_generated",
+            "description": "求解器生成 | 用户编辑·已验证 | 用户编辑·评价过期"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/ReportLocale",
+            "default": "zh-CN",
+            "description": "报告文案 locale；Alpha 默认 zh-CN"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_name": {
+            "default": "Untitled",
+            "title": "Project Name",
+            "type": "string"
+          }
+        },
+        "title": "ProjectMetadata",
+        "type": "object"
+      },
+      "ProjectPayload": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "compare_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compare Id"
+          },
+          "form": {
+            "additionalProperties": true,
+            "title": "Form",
+            "type": "object"
+          },
+          "locks": {
+            "additionalProperties": true,
+            "title": "Locks",
+            "type": "object"
+          },
+          "program": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Program"
+          },
+          "project_meta": {
+            "$ref": "#/components/schemas/ProjectMeta"
+          },
+          "requirement_spec": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 5.1.1：canonical RequirementSpec；不可用 ProgramSummary 替代",
+            "title": "Requirement Spec"
+          },
+          "schema_versions": {
+            "$ref": "#/components/schemas/SchemaVersions"
+          },
+          "selected_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Id"
+          }
+        },
+        "title": "ProjectPayload",
+        "type": "object"
+      },
+      "ProjectSummaryOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "updated_at"
+        ],
+        "title": "ProjectSummaryOut",
+        "type": "object"
+      },
+      "RejectedCandidatePayload": {
+        "description": "Hard-fail 无效候选摘要（≠ 有效但未进 Top-K）。",
+        "properties": {
+          "constraint_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Constraint Ids",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "seed"
+        ],
+        "title": "RejectedCandidatePayload",
+        "type": "object"
+      },
+      "RelationIntent": {
+        "description": "软关系意图（名称级）；Normalizer 后续可编译为 Constraint。",
+        "properties": {
+          "a": {
+            "description": "空间名或 id",
+            "minLength": 1,
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "minLength": 1,
+            "title": "B",
+            "type": "string"
+          },
+          "kind": {
+            "default": "adjacency",
+            "enum": [
+              "adjacency",
+              "near",
+              "separation",
+              "access",
+              "open_connection",
+              "visual_connection"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "strength": {
+            "default": "preferred",
+            "enum": [
+              "required",
+              "preferred"
+            ],
+            "title": "Strength",
+            "type": "string"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "RelationIntent",
+        "type": "object"
+      },
+      "ReportAssumption": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "ReportAssumption",
+        "type": "object"
+      },
+      "ReportJsonExportRequest": {
+        "description": "正式 DesignReport JSON：Store + revision；≠ Project Snapshot。",
+        "properties": {
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "include_svg": {
+            "default": true,
+            "description": "Alpha 默认内嵌 floor_plans[].svg（经 sanitize）",
+            "title": "Include Svg",
+            "type": "boolean"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/ReportLocale",
+            "default": "zh-CN",
+            "description": "报告文案 locale；Alpha 默认 zh-CN"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "candidate_id",
+          "revision_id"
+        ],
+        "title": "ReportJsonExportRequest",
+        "type": "object"
+      },
+      "ReportLocale": {
+        "enum": [
+          "zh-CN",
+          "en-US"
+        ],
+        "title": "ReportLocale",
+        "type": "string"
+      },
+      "ReportProvenance": {
+        "properties": {
+          "boundary_lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Boundary Lines",
+            "type": "array"
+          },
+          "evaluation_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Version"
+          },
+          "export_mode": {
+            "default": "preview",
+            "description": "preview | final；final 须来自 ProjectStore + revision_id",
+            "title": "Export Mode",
+            "type": "string"
+          },
+          "generator_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator Version"
+          },
+          "solver_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solver Version"
+          }
+        },
+        "title": "ReportProvenance",
+        "type": "object"
+      },
+      "ReportStatus": {
+        "description": "报告相对候选 revision 的评价新鲜度。",
+        "enum": [
+          "valid",
+          "stale_evaluation",
+          "invalid_candidate"
+        ],
+        "title": "ReportStatus",
+        "type": "string"
+      },
+      "ReportUnknown": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "ReportUnknown",
+        "type": "object"
+      },
+      "RequirementSpec": {
+        "description": "用户自然语言或表单表达的需求。\n\nRequirementSpec → normalize → DesignProgram",
+        "properties": {
+          "assumptions": {
+            "items": {
+              "$ref": "#/components/schemas/Assumption"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "floor_count": {
+            "anyOf": [
+              {
+                "maximum": 3.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Count"
+          },
+          "household": {
+            "$ref": "#/components/schemas/HouseholdRequirements"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/DesignPreferences"
+          },
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
+          },
+          "relation_intents": {
+            "description": "Phase 6：名称级邻接/通行意图；Normalizer 可暂忽略",
+            "items": {
+              "$ref": "#/components/schemas/RelationIntent"
+            },
+            "title": "Relation Intents",
+            "type": "array"
+          },
+          "site": {
+            "$ref": "#/components/schemas/SiteRequirements"
+          },
+          "spaces": {
+            "items": {
+              "$ref": "#/components/schemas/SpaceRequirement"
+            },
+            "title": "Spaces",
+            "type": "array"
+          },
+          "unknowns": {
+            "items": {
+              "$ref": "#/components/schemas/UnknownRequirement"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          }
+        },
+        "title": "RequirementSpec",
+        "type": "object"
+      },
+      "RequirementSummary": {
+        "description": "Key Intent — 用户可读要点，非完整 RequirementSpec。",
+        "properties": {
+          "bathrooms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bathrooms"
+          },
+          "bedrooms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedrooms"
+          },
+          "floor_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Count"
+          },
+          "has_garage": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Garage"
+          },
+          "key_intents": {
+            "description": "短句要点（层数/朝南/厨餐 near 等）",
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Intents",
+            "type": "array"
+          },
+          "prefer_south_facing_living": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefer South Facing Living"
+          },
+          "site_depth": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Depth"
+          },
+          "site_width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Width"
+          }
+        },
+        "title": "RequirementSummary",
+        "type": "object"
+      },
+      "RoomPlacementPayload": {
+        "description": "候选上的房间放置摘要（Phase 4.0 Inspector；additive）。",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "number"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "number"
+          },
+          "floor_id": {
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "room_id": {
+            "title": "Room Id",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "room_id",
+          "floor_id",
+          "x",
+          "y",
+          "width",
+          "depth",
+          "area"
+        ],
+        "title": "RoomPlacementPayload",
+        "type": "object"
+      },
+      "RoomScheduleRow": {
+        "description": "面积表行 — area 必须来自 placements 权威字段；缺 area 则报告组装失败，禁止 width×depth。",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "number"
+          },
+          "area_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际面积 − 目标面积（仅 target_area 已知时）",
+            "title": "Area Delta"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "number"
+          },
+          "floor_id": {
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "room_id": {
+            "description": "调试 / Provenance 用；主表不作为首列展示",
+            "title": "Room Id",
+            "type": "string"
+          },
+          "target_area": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "来自 DesignProgram.rooms[].target_area；缺省则差值为空",
+            "title": "Target Area"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "room_id",
+          "name",
+          "floor_id",
+          "width",
+          "depth",
+          "area"
+        ],
+        "title": "RoomScheduleRow",
+        "type": "object"
+      },
+      "RoomSummary": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "floor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "target_area": {
+            "title": "Target Area",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "target_area"
+        ],
+        "title": "RoomSummary",
+        "type": "object"
+      },
+      "SaveProjectRequest": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ProjectPayload"
+          }
+        },
+        "required": [
+          "name",
+          "payload"
+        ],
+        "title": "SaveProjectRequest",
+        "type": "object"
+      },
+      "SchemaVersions": {
+        "description": "快照内设计溯源；Save 不得仅因保存而改写为 current。",
+        "properties": {
+          "evaluation_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Version"
+          },
+          "generator_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator Version"
+          },
+          "solver_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solver Version"
+          }
+        },
+        "title": "SchemaVersions",
+        "type": "object"
+      },
+      "SetbackSpec": {
+        "description": "退线距离（米），从对应边界向内收缩。",
+        "properties": {
+          "east": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "East",
+            "type": "number"
+          },
+          "north": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "North",
+            "type": "number"
+          },
+          "south": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "South",
+            "type": "number"
+          },
+          "west": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "West",
+            "type": "number"
+          }
+        },
+        "title": "SetbackSpec",
+        "type": "object"
+      },
+      "SiteRequirements": {
+        "properties": {
+          "depth": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": 6.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth"
+          },
+          "entrance_edge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardinalEdge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "north_angle": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 360.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "North Angle"
+          },
+          "road_edges": {
+            "items": {
+              "$ref": "#/components/schemas/CardinalEdge"
+            },
+            "title": "Road Edges",
+            "type": "array"
+          },
+          "setbacks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetbackSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": 6.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "title": "SiteRequirements",
+        "type": "object"
+      },
+      "SpaceRequirement": {
+        "description": "用户表达的空间需求（不含坐标）。",
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "floor_preference": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Floor Preference",
+            "type": "array"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "min_width": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Width"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "preferred_orientation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardinalOrientation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "target_area": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Area"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SpaceRequirement",
+        "type": "object"
+      },
+      "SvgExportRequest": {
+        "description": "正式 SVG 导出：必须绑定 ProjectStore revision。",
+        "properties": {
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "floor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "scope=floor 时必填（如 F1）",
+            "title": "Floor Id"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope": {
+            "default": "floor",
+            "description": "floor=单层 · snapshot=整图 · all_floors=各层 zip",
+            "enum": [
+              "floor",
+              "snapshot",
+              "all_floors"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "candidate_id",
+          "revision_id"
+        ],
+        "title": "SvgExportRequest",
+        "type": "object"
+      },
+      "UnknownRequirement": {
+        "description": "用户未提供且未推断的信息。",
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "priority": {
+            "default": "recommended",
+            "enum": [
+              "blocking",
+              "recommended",
+              "optional"
+            ],
+            "title": "Priority",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "UnknownRequirement",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Violation": {
+        "properties": {
+          "constraint_id": {
+            "title": "Constraint Id",
+            "type": "string"
+          },
+          "hard": {
+            "default": true,
+            "title": "Hard",
+            "type": "boolean"
+          },
+          "measured_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Value"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "required_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Value"
+          },
+          "room_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Room Ids",
+            "type": "array"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "constraint_id",
+          "message"
+        ],
+        "title": "Violation",
+        "type": "object"
+      },
+      "ZonePlacementPayload": {
+        "description": "功能分区容器摘要（Phase 4 Lock Zone；additive）。",
+        "properties": {
+          "depth": {
+            "title": "Depth",
+            "type": "number"
+          },
+          "floor_id": {
+            "title": "Floor Id",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "如 F1-day-0",
+            "title": "Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "与 zone 同义",
+            "title": "Kind"
+          },
+          "room_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Room Ids",
+            "type": "array"
+          },
+          "width": {
+            "title": "Width",
+            "type": "number"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          },
+          "zone": {
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone",
+          "floor_id",
+          "x",
+          "y",
+          "width",
+          "depth"
+        ],
+        "title": "ZonePlacementPayload",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "PlanSeed API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/compare": {
+      "post": {
+        "operationId": "compare_candidates_api_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compare Candidates",
+        "tags": [
+          "compare"
+        ]
+      }
+    },
+    "/api/exports/png": {
+      "post": {
+        "description": "Canonical SVG → PNG（resvg）。\n\n禁止 HTML/Workbench 截图；白底；最长边 2048/4096。",
+        "operationId": "export_png_endpoint_api_exports_png_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PngExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Png Endpoint",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/exports/report-json": {
+      "post": {
+        "description": "DesignReport JSON 下载（交付 / 归档 / 审计）。\n\n禁止 Project Snapshot / candidate dump；须含 report_schema_version。",
+        "operationId": "export_report_json_endpoint_api_exports_report_json_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportJsonExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Report Json Endpoint",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/exports/svg": {
+      "post": {
+        "description": "Canonical SVG 下载。\n\n禁止前端 DOM outerHTML；仅 ProjectStore → floor_svgs / svg → sanitize。",
+        "operationId": "export_svg_endpoint_api_exports_svg_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SvgExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Svg Endpoint",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/generate": {
+      "post": {
+        "operationId": "generate_api_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate",
+        "tags": [
+          "generate"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/llm/status": {
+      "get": {
+        "description": "探测 Ollama / 配置模型是否就绪。\n\n不下载模型；ModelMissing 时 detail 提示用户自行 ollama pull。",
+        "operationId": "llm_status_api_llm_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Llm Status Api Llm Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Llm Status",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/mutations/preview": {
+      "post": {
+        "operationId": "mutations_preview_api_mutations_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutationPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationPreviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mutations Preview",
+        "tags": [
+          "mutations"
+        ]
+      }
+    },
+    "/api/mutations/revalidate": {
+      "post": {
+        "operationId": "mutations_revalidate_api_mutations_revalidate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutationRevalidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatePayload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mutations Revalidate",
+        "tags": [
+          "mutations"
+        ]
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "operationId": "list_projects_api_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummaryOut"
+                  },
+                  "title": "Response List Projects Api Projects Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Projects",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "operationId": "save_project_api_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{project_id}": {
+      "delete": {
+        "operationId": "delete_project_api_projects__project_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Delete Project Api Projects  Project Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Project",
+        "tags": [
+          "projects"
+        ]
+      },
+      "get": {
+        "operationId": "get_project_api_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/reports/build": {
+      "post": {
+        "description": "Preview 可 payload；Final 仅 ProjectStore + revision_id 校验。",
+        "operationId": "build_report_api_reports_build_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Build Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/requirements/parse": {
+      "post": {
+        "description": "自然语言 → RequirementSpec（含有限 repair；无几何）。",
+        "operationId": "parse_requirements_nl_api_requirements_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParseNLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseNLResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Requirements Nl",
+        "tags": [
+          "requirements"
+        ]
+      }
+    }
+  }
+}

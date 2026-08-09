@@ -120,11 +120,11 @@ export function ComparePanel({ a, b, onClear }: Props) {
 
       <section className="finding-block sev-positive">
         <h3>{cmp.label_a} 的优势</h3>
-        {cmp.advantages_a.length === 0 ? (
+        {(cmp.advantages_a ?? []).length === 0 ? (
           <p className="muted tiny">无明显领先项</p>
         ) : (
           <ul className="adv-list">
-            {cmp.advantages_a.map((x) => (
+            {(cmp.advantages_a ?? []).map((x) => (
               <li key={x}>+ {x}</li>
             ))}
           </ul>
@@ -133,11 +133,11 @@ export function ComparePanel({ a, b, onClear }: Props) {
 
       <section className="finding-block sev-positive">
         <h3>{cmp.label_b} 的优势</h3>
-        {cmp.advantages_b.length === 0 ? (
+        {(cmp.advantages_b ?? []).length === 0 ? (
           <p className="muted tiny">无明显领先项</p>
         ) : (
           <ul className="adv-list">
-            {cmp.advantages_b.map((x) => (
+            {(cmp.advantages_b ?? []).map((x) => (
               <li key={x}>+ {x}</li>
             ))}
           </ul>

@@ -32,14 +32,16 @@ function zoneGroups(zones: ZonePlacementPayload[]): ZoneGroupRow[] {
         floor_id: z.floor_id,
         width: z.width,
         depth: z.depth,
-        room_ids: [...z.room_ids],
+        room_ids: [...(z.room_ids ?? [])],
         componentCount: 1,
         ids: z.id ? [z.id] : [],
       });
       continue;
     }
     prev.componentCount += 1;
-    prev.room_ids = [...new Set([...prev.room_ids, ...z.room_ids])];
+    prev.room_ids = [
+      ...new Set([...prev.room_ids, ...(z.room_ids ?? [])]),
+    ];
     prev.width = Math.max(prev.width, z.width);
     prev.depth = Math.max(prev.depth, z.depth);
     if (z.id) prev.ids.push(z.id);

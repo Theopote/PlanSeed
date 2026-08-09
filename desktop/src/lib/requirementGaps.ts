@@ -8,9 +8,22 @@ import { cloneAssumptionPayload, cloneUnknownPayload } from "../api/client";
 export type AssumptionRow = AssumptionPayload;
 export type UnknownRow = UnknownPayload;
 
-export function coerceAssumptionValue(raw: string, previous: unknown): unknown {
+export function coerceAssumptionValue(
+  raw: string,
+  previous: unknown,
+): string | number | boolean | null {
   const value = raw.trim();
-  if (value === "") return previous;
+  if (value === "") {
+    if (
+      typeof previous === "string" ||
+      typeof previous === "number" ||
+      typeof previous === "boolean" ||
+      previous === null
+    ) {
+      return previous;
+    }
+    return null;
+  }
   if (value === "true") return true;
   if (value === "false") return false;
   if (/^-?\d+(\.\d+)?$/.test(value)) {

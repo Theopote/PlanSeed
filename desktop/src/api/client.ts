@@ -1,4 +1,73 @@
-/** PlanSeed API 客户端类型与调用。 */
+/** PlanSeed API 客户端：fetch / 错误处理 / UI·domain helper。
+ *
+ * 核心 DTO 来自 OpenAPI → generated.ts → schemas.ts（Phase 7.5-A）。
+ * 勿在本文件手抄与后端重复的字段表。
+ */
+
+export type {
+  AssumptionPayload,
+  AssumptionSource,
+  AxisCompareRow,
+  BuildReportResponse,
+  CandidatePayload,
+  CandidateProvenance,
+  CompareResponse,
+  DesignFinding,
+  DesignScore,
+  GenerateResponse,
+  GeometryMutationRequest,
+  LayoutLocks,
+  LockedRoomRect,
+  LockedStairCore,
+  LockedZoneRect,
+  MutationPreviewApiResult,
+  MutationRecordPayload,
+  ParseNLResponse,
+  PngExportSize,
+  ProgramSummary,
+  ProjectDetail,
+  ProjectPayload,
+  ProjectSummary,
+  RejectedCandidatePayload,
+  RelationIntentPayload,
+  RelationKind,
+  RelationStrength,
+  ReportExportMode,
+  RequirementSpecPayload,
+  RevisionStatus,
+  RoomPlacementPayload,
+  SetbackPayload,
+  SpaceRequirementPayload,
+  SvgExportScope,
+  UnknownPayload,
+  UnknownPriority,
+  ZonePlacementPayload,
+} from "./schemas";
+
+import type {
+  AssumptionPayload,
+  BuildReportResponse,
+  CandidatePayload,
+  CompareResponse,
+  DesignScore,
+  GenerateResponse,
+  GeometryMutationRequest,
+  LayoutLocks,
+  MutationPreviewApiResult,
+  MutationRecordPayload,
+  ParseNLResponse,
+  PngExportSize,
+  ProgramSummary,
+  ProjectDetail,
+  ProjectPayload,
+  ProjectSummary,
+  RequirementSpecPayload,
+  RoomPlacementPayload,
+  SvgExportScope,
+  UnknownPayload,
+  ReportExportMode,
+  ZonePlacementPayload,
+} from "./schemas";
 
 let _apiBase =
   import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "http://127.0.0.1:8787";
@@ -49,210 +118,7 @@ export async function retryEngine(): Promise<void> {
   await invoke("retry_engine");
 }
 
-export type DesignFinding = {
-  id: string;
-  category: string;
-  severity: "info" | "positive" | "warning" | "problem";
-  title: string;
-  message: string;
-  room_ids: string[];
-  metric: string | null;
-  measured_value: number | null;
-  recommended_action: string | null;
-};
-
-export type DesignScore = {
-  program_score: number;
-  spatial_score: number;
-  circulation_score: number;
-  privacy_score: number;
-  environment_score: number;
-  technical_score: number;
-  robustness_score: number;
-  total_score: number;
-  evaluation_version?: string;
-  findings: DesignFinding[];
-  explanations: string[];
-  warnings: string[];
-  violations: Array<{
-    constraint_id: string;
-    message: string;
-    hard: boolean;
-  }>;
-};
-
-export type CandidateProvenance = {
-  solver_version: string;
-  generator_version: string;
-  evaluation_version?: string | null;
-};
-
-export type RoomPlacementPayload = {
-  room_id: string;
-  floor_id: string;
-  x: number;
-  y: number;
-  width: number;
-  depth: number;
-  area: number;
-};
-
-/** Phase 4.1 — 会话锁（不进 RequirementSpec）。 */
-export type LockedRoomRect = {
-  room_id: string;
-  floor_id: string;
-  x: number;
-  y: number;
-  width: number;
-  depth: number;
-};
-
-export type LockedStairCore = {
-  x: number;
-  y: number;
-  width: number;
-  depth: number;
-  core_placement?: string | null;
-};
-
-export type LockedZoneRect = {
-  zone: string;
-  floor_id: string;
-  x: number;
-  y: number;
-  width: number;
-  depth: number;
-  room_ids?: string[];
-  /** ZonePlacement.id，如 F1-day-0 */
-  zone_id?: string | null;
-};
-
-export type LayoutLocks = {
-  rooms: LockedRoomRect[];
-  stair?: LockedStairCore | null;
-  zones: LockedZoneRect[];
-};
-
-export type ZonePlacementPayload = {
-  id?: string | null;
-  zone: string;
-  kind?: string | null;
-  floor_id: string;
-  x: number;
-  y: number;
-  width: number;
-  depth: number;
-  room_ids: string[];
-};
-
-export type MutationRecordPayload = {
-  id: string;
-  kind: string;
-  room_id?: string | null;
-  partner_room_id?: string | null;
-  before?: Record<string, number> | null;
-  after?: Record<string, number> | null;
-  after_partner?: Record<string, number> | null;
-  created_at?: string | null;
-};
-
-export type RevisionStatus = "generated" | "dirty" | "validated";
-
-export type CandidatePayload = {
-  id: string;
-  seed: number;
-  score: number | null;
-  label: string;
-  svg: string;
-  /** 每层独立 SVG（serializer）；报告优先；缺省退回整图 snapshot */
-  floor_svgs?: Record<string, string>;
-  design_score: DesignScore | null;
-  validation: {
-    valid: boolean;
-    hard_violations: Array<{ constraint_id: string; message: string }>;
-    soft_violations: Array<{ constraint_id: string; message: string }>;
-    warnings: string[];
-  } | null;
-  metrics: Record<string, unknown>;
-  provenance?: CandidateProvenance | null;
-  /** Phase 5 血缘 */
-  variant_parent_id?: string | null;
-  variant_generation?: number;
-  lock_snapshot_id?: string | null;
-  /** Phase 5.1 revision */
-  revision_status?: RevisionStatus;
-  /** Final Export 溯源；缺省兼容为 candidate.id */
-  revision_id?: string | null;
-  revision_parent_id?: string | null;
-  mutations?: MutationRecordPayload[];
-  placements?: RoomPlacementPayload[];
-  zones?: ZonePlacementPayload[];
-};
-
-export type AssumptionSource =
-  | "user_authorized"
-  | "planseed_default"
-  | "llm_inference";
-
-export type UnknownPriority = "blocking" | "recommended" | "optional";
-
-export type AssumptionPayload = {
-  key: string;
-  value: unknown;
-  reason?: string;
-  /** Phase 6：假设来源；报告 / Gaps 须保留 */
-  source?: AssumptionSource | string | null;
-};
-
-export type UnknownPayload = {
-  key: string;
-  description?: string;
-  /** Phase 6：blocking 会上报告 Cover；须保留完整事实链 */
-  priority?: UnknownPriority | string | null;
-};
-
-export type ProgramSummary = {
-  project_id: string;
-  site_width: number;
-  site_depth: number;
-  floor_count: number;
-  rooms: Array<{
-    id: string;
-    name: string;
-    category: string;
-    target_area: number;
-    floor_id: string | null;
-  }>;
-  floors: Array<{ id: string; label: string | null; room_ids: string[] }>;
-  assumptions: AssumptionPayload[];
-  unknowns: UnknownPayload[];
-};
-
-export type GenerateResponse = {
-  generated: number;
-  valid: number;
-  rejected: number;
-  program_summary: ProgramSummary;
-  /** Phase 5.1.1：求解用 canonical RequirementSpec */
-  requirement_spec?: RequirementSpecPayload | null;
-  candidates: CandidatePayload[];
-  violation_summary?: Record<string, number>;
-  rejected_candidates?: RejectedCandidatePayload[];
-  solver_identity?: {
-    solver_version: string;
-    generator_version: string;
-    evaluation_version: string;
-  };
-};
-
-/** Hard-fail 无效候选（≠ 有效但未进 Top-K）。 */
-export type RejectedCandidatePayload = {
-  id: string;
-  seed: number;
-  reasons: string[];
-  constraint_ids: string[];
-};
-
+/** UI 简表（非 OpenAPI schema；仅桌面表单状态）。 */
 export type RequirementForm = {
   width: number;
   depth: number;
@@ -261,14 +127,6 @@ export type RequirementForm = {
   bathrooms: number;
   has_garage: boolean;
   prefer_south_facing_living: boolean;
-};
-
-export type ParseNLResponse = {
-  requirement_spec: RequirementSpecPayload;
-  attempts: number;
-  repair_notes: string[];
-  provider: string;
-  raw?: Record<string, unknown>;
 };
 
 /** 用 RequirementSpec 的 known 字段回填简表（不覆盖未提供的项）。 */
@@ -327,101 +185,7 @@ export async function parseRequirementsNl(
   return r.json() as Promise<ParseNLResponse>;
 }
 
-/** Phase 5.1.1 / 7.1.1-B — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。
- *
- * ## TS Fidelity Audit（对照 Python；禁止瘦 map 重建子对象）
- *
- * 共享契约 fixture：`fixtures/requirement_spec_full.json`
- * - Python：`backend/tests/test_requirement_spec_fidelity.py`
- * - Desktop：`pnpm check:fidelity` → `scripts/check-requirement-fidelity.mjs`
- *
- * | Python field                         | TS field                                      | 状态 |
- * |--------------------------------------|-----------------------------------------------|------|
- * | assumptions[].source                 | AssumptionPayload.source                      | ✅   |
- * | unknowns[].priority                  | UnknownPayload.priority                       | ✅   |
- * | relation_intents[].a/b/kind/strength/note | RelationIntentPayload                    | ✅   |
- * | spaces[].preferred_orientation       | spaces[].preferred_orientation                | ✅   |
- * | spaces[].floor_preference            | spaces[].floor_preference                     | ✅   |
- * | spaces[].min_width                   | spaces[].min_width                            | ✅   |
- * | spaces[].tags                        | spaces[].tags                                 | ✅   |
- * | site.north_angle                     | site.north_angle                              | ✅   |
- * | site.entrance_edge / road_edges      | site.entrance_edge / road_edges               | ✅   |
- * | site.setbacks                        | site.setbacks (SetbackPayload)                | ✅   |
- * | household.notes                      | household.notes                               | ✅   |
- * | preferences.*                        | preferences.*                                 | ✅   |
- *
- * 规则：复制 / 编辑时用 `{ ...row, ...patch }`；禁止 `{ key, description }` 之类缩字段。
- * 报告 Cover blocking / 北向 / Key Intent 关系句均依赖完整语义。
- * **不做**本任务顺手 OpenAPI codegen。
- */
-export type RelationKind =
-  | "adjacency"
-  | "near"
-  | "separation"
-  | "access"
-  | "open_connection"
-  | "visual_connection";
-
-export type RelationStrength = "required" | "preferred";
-
-export type RelationIntentPayload = {
-  a: string;
-  b: string;
-  kind?: RelationKind | string;
-  strength?: RelationStrength | string;
-  note?: string;
-};
-
-export type SetbackPayload = {
-  north?: number;
-  south?: number;
-  east?: number;
-  west?: number;
-};
-
-export type SpaceRequirementPayload = {
-  id?: string | null;
-  name: string;
-  category?: string | null;
-  target_area?: number | null;
-  floor_preference?: string[];
-  tags?: string[];
-  preferred_orientation?: string | null;
-  min_width?: number | null;
-};
-
-export type RequirementSpecPayload = {
-  raw_text?: string | null;
-  site?: {
-    width?: number | null;
-    depth?: number | null;
-    north_angle?: number | null;
-    entrance_edge?: string | null;
-    road_edges?: string[];
-    setbacks?: SetbackPayload | null;
-  };
-  household?: {
-    occupants?: number | null;
-    bedrooms?: number | null;
-    bathrooms?: number | null;
-    has_garage?: boolean | null;
-    notes?: string;
-  };
-  spaces?: SpaceRequirementPayload[];
-  preferences?: {
-    prefer_south_facing_living?: boolean | null;
-    prefer_open_kitchen_dining?: boolean | null;
-    prefer_compact_footprint?: boolean | null;
-    prefer_short_corridor?: boolean | null;
-    quiet_zone_away_from_entry?: boolean | null;
-    wet_stack_preference?: boolean | null;
-  };
-  floor_count?: number | null;
-  assumptions?: AssumptionPayload[];
-  unknowns?: UnknownPayload[];
-  /** Phase 6：名称级关系意图；报告 Key Intent / Normalizer 消费 */
-  relation_intents?: RelationIntentPayload[];
-};
+/** RequirementSpec DTO 见 schemas.ts（OpenAPI）；复制时禁止瘦 map。 */
 
 /** 保真复制：不得丢掉 priority。 */
 export function cloneUnknownPayload(u: UnknownPayload): UnknownPayload {
@@ -491,6 +255,7 @@ export function fallbackRequirementFromForm(
         bedrooms: form.bedrooms,
         bathrooms: form.bathrooms,
         has_garage: form.has_garage,
+        notes: "",
       },
       preferences: {
         prefer_south_facing_living: form.prefer_south_facing_living,
@@ -513,6 +278,7 @@ export function fallbackRequirementFromForm(
       bedrooms: form.bedrooms,
       bathrooms: form.bathrooms,
       has_garage: form.has_garage,
+      notes: "",
     },
     preferences: {
       prefer_south_facing_living: form.prefer_south_facing_living,
@@ -520,21 +286,6 @@ export function fallbackRequirementFromForm(
     floor_count: form.floor_count,
   };
 }
-
-export type AxisCompareRow = {
-  key: string;
-  label: string;
-  score_a: number;
-  score_b: number;
-};
-
-export type CompareResponse = {
-  label_a: string;
-  label_b: string;
-  rows: AxisCompareRow[];
-  advantages_a: string[];
-  advantages_b: string[];
-};
 
 export async function checkHealth(): Promise<boolean> {
   try {
@@ -651,6 +402,7 @@ export async function generateFromForm(
           bedrooms: form.bedrooms,
           bathrooms: form.bathrooms,
           has_garage: form.has_garage,
+          notes: "",
         },
         preferences: {
           prefer_south_facing_living: form.prefer_south_facing_living,
@@ -721,40 +473,6 @@ export async function generateFromProgram(
   return r.json() as Promise<GenerateResponse>;
 }
 
-export type ProjectSummary = {
-  id: string;
-  name: string;
-  updated_at: string;
-};
-
-export type ProjectPayload = {
-  form: RequirementForm | Record<string, unknown>;
-  program: ProgramSummary | null;
-  requirement_spec?: RequirementSpecPayload | null;
-  locks: LayoutLocks;
-  candidates: CandidatePayload[];
-  selected_id: string | null;
-  compare_id?: string | null;
-  schema_versions?: {
-    solver_version?: string | null;
-    generator_version?: string | null;
-    evaluation_version?: string | null;
-  };
-  project_meta?: {
-    format_version: string;
-    app_version: string;
-  };
-};
-
-export type ProjectDetail = {
-  id: string;
-  name: string;
-  updated_at: string;
-  payload: ProjectPayload;
-  evaluation_version_mismatch: boolean;
-  current_evaluation_version: string;
-};
-
 export async function listProjects(): Promise<ProjectSummary[]> {
   const r = await fetch(`${_apiBase}/api/projects`);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -804,21 +522,6 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
 }
 
 /** Phase 7 — Design Report。 */
-export type ReportExportMode = "preview" | "final";
-
-export type BuildReportResponse = {
-  report: {
-    status?: string;
-    source_revision_id?: string | null;
-    project: { project_name: string; edited?: boolean };
-    candidate: { candidate_id: string; label: string; total_score: number | null };
-    requirement: { key_intents: string[] };
-    evaluation?: { evaluation_fresh?: boolean };
-    provenance?: { export_mode?: string };
-  };
-  html: string | null;
-};
-
 function formatReportErrorDetail(detail: unknown, status: number): string {
   if (typeof detail === "string") return detail;
   if (detail && typeof detail === "object") {
@@ -840,8 +543,6 @@ function formatReportErrorDetail(detail: unknown, status: number): string {
   }
   return `HTTP ${status}`;
 }
-
-export type SvgExportScope = "floor" | "snapshot" | "all_floors";
 
 function parseContentDispositionFilename(header: string | null): string | null {
   if (!header) return null;
@@ -906,8 +607,6 @@ export async function exportSvg(opts: {
     (opts.scope === "all_floors" ? "export_floors.svg.zip" : "export.svg");
   return { blob, filename };
 }
-
-export type PngExportSize = 2048 | 4096;
 
 /** Phase 7.2.2 — Canonical SVG → PNG（resvg；禁止 HTML 截图）。 */
 export async function exportPng(opts: {
@@ -1054,47 +753,6 @@ export async function previewReport(opts: {
   }
   return r.json() as Promise<BuildReportResponse>;
 }
-
-export type GeometryMutationRequest = {
-  kind: "move" | "resize" | "adjust_wall" | "lock" | "unlock";
-  room_id?: string | null;
-  partner_room_id?: string | null;
-  floor_id: string;
-  before?: {
-    x: number;
-    y: number;
-    width: number;
-    depth: number;
-  } | null;
-  proposed?: {
-    x: number;
-    y: number;
-    width: number;
-    depth: number;
-  } | null;
-  wall_axis?: "x" | "y" | null;
-  wall_coord?: number | null;
-  source?: "pointer" | "inspector" | "system";
-};
-
-export type MutationPreviewApiResult = {
-  ok: boolean;
-  reasons: Array<{ code: string; message: string }>;
-  warnings: Array<{ code: string; message: string }>;
-  snapped: {
-    x: number;
-    y: number;
-    width: number;
-    depth: number;
-  } | null;
-  snapped_partner: {
-    x: number;
-    y: number;
-    width: number;
-    depth: number;
-  } | null;
-  conflict_room_ids: string[];
-};
 
 /** Phase 5.1 — Python Geometry Mutation Authority。 */
 export async function previewMutation(opts: {

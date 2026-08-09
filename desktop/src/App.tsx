@@ -357,7 +357,12 @@ function App() {
         setRequirementSpec(spec);
       }
       if (data.solver_identity) {
-        setSolverIdentity(data.solver_identity);
+        const sid = data.solver_identity;
+        setSolverIdentity({
+          solver_version: String(sid.solver_version ?? ""),
+          generator_version: String(sid.generator_version ?? ""),
+          evaluation_version: String(sid.evaluation_version ?? ""),
+        });
       }
       const fp = locksFingerprint(locks);
       setCandidates(stampRootLineage(relabel(data.candidates), fp));
@@ -409,7 +414,14 @@ function App() {
           });
           if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
           setProgram(data.program_summary);
-          if (data.solver_identity) setSolverIdentity(data.solver_identity);
+          if (data.solver_identity) {
+            const sid = data.solver_identity;
+            setSolverIdentity({
+              solver_version: String(sid.solver_version ?? ""),
+              generator_version: String(sid.generator_version ?? ""),
+              evaluation_version: String(sid.evaluation_version ?? ""),
+            });
+          }
           const fresh = data.candidates
             .filter((c) => !candidates.some((e) => e.id === c.id))
             .map((c) => ({
@@ -1069,7 +1081,7 @@ function App() {
           y: z.y,
           width: z.width,
           depth: z.depth,
-          room_ids: [...z.room_ids],
+          room_ids: [...(z.room_ids ?? [])],
           zone_id: z.id ?? null,
         }));
         return { ...prev, zones: [...prev.zones, ...next] };
@@ -1085,7 +1097,9 @@ function App() {
           (z) => (z.kind ?? z.zone) === zone && z.floor_id === floorId,
         ) ?? [];
       if (!matches.length) return;
-      const rooms = [...new Set(matches.flatMap((z) => z.room_ids))];
+      const rooms = [
+        ...new Set(matches.flatMap((z) => z.room_ids ?? []).filter(Boolean)),
+      ];
       setHighlightRoomIds(rooms);
       setSelectedRoomId(null);
     },

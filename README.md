@@ -27,8 +27,17 @@ uv run ruff check .
 uv run mypy packages solver backend
 ```
 
-CI：push / PR 自动跑 pytest · ruff · mypy · `pnpm --dir desktop build` · `cargo check`（见 `.github/workflows/ci.yml`）。  
+CI：push / PR 自动跑 pytest · ruff · mypy · **OpenAPI→TS 契约漂移** · `pnpm --dir desktop build` · `cargo check`（见 `.github/workflows/ci.yml`）。  
 Windows sidecar（PyInstaller）仅手动 / release 工作流。
+
+改 FastAPI / Pydantic API 模型后须同步契约：
+
+```bash
+uv run python scripts/export_openapi.py
+pnpm --dir desktop generate:api
+```
+
+详案：[docs/phase-7.5-alpha-hardening.md](docs/phase-7.5-alpha-hardening.md)。
 
 ```bash
 # 运行 solver demo

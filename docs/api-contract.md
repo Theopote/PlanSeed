@@ -48,6 +48,17 @@
 | `POST /api/exports/png` | Phase 7.2.2：同上 + `size`∈{2048,4096}；Canonical SVG → `resvg` 白底 PNG；禁止 HTML 截图 |
 | `POST /api/exports/report-json` | Phase 7.2.3：`DesignReport` + `report_schema_version` 文件下载；≠ Project Snapshot；禁止 candidate dump |
 
+### OpenAPI → TypeScript（Phase 7.5-A）
+
+| 产物 | 位置 |
+|------|------|
+| OpenAPI dump | `desktop/openapi.json`（`uv run python scripts/export_openapi.py`） |
+| Generated TS | `desktop/src/api/generated.ts`（`pnpm --dir desktop generate:api`） |
+| 消费侧窄化 | `desktop/src/api/schemas.ts`（默认值/宽类型；不另发明契约） |
+| 手写客户端 | `desktop/src/api/client.ts`：fetch / 错误 / domain helper；**核心 DTO 经 schemas 再导出** |
+
+CI：`contract` job 再生成后 `git diff --exit-code`。详：[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)。
+
 ### SolverIdentity（算法契约，≠ engine_version）
 
 ```text
@@ -64,7 +75,7 @@ evaluation_version
 
 | 标签 | 含义 |
 |------|------|
-| **CI configured** | `.github/workflows/ci.yml` 含 pytest / ruff / mypy / pnpm build / **cargo check** |
+| **CI configured** | `.github/workflows/ci.yml` 含 pytest / ruff / mypy / pnpm build / **cargo check** / **OpenAPI contract drift** |
 | **CI verified green** | 某次 push/PR 的 GitHub Actions run **实际成功** |
 
 仅「configured」时文档不得写「CI passed / verified green」。

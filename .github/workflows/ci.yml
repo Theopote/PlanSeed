@@ -37,6 +37,44 @@ jobs:
       - name: Mypy (loose baseline — not --strict)
         run: uv run mypy packages solver backend
 
+  contract:
+    name: OpenAPI → TS contract drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync Python deps
+        run: uv sync
+
+      - name: Export OpenAPI
+        run: uv run python scripts/export_openapi.py
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+
+      - name: Install desktop deps
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate TypeScript from OpenAPI
+        working-directory: desktop
+        run: pnpm generate:api
+
+      - name: Fail on contract drift
+        run: git diff --exit-code -- desktop/openapi.json desktop/src/api/generated.ts
+
   frontend:
     name: Desktop (pnpm build)
     runs-on: ubuntu-latest
