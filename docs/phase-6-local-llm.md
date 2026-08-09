@@ -1,18 +1,21 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：✅ 6.0–6.6 Engineering Complete · ← 6.7 Real Model Qualification**  
-> 总览：[roadmap.md](roadmap.md)  
+> **状态：✅ 6.0–6.6 LLM Infrastructure · ← 6.7 Qualification & Runtime Hardening**  
+> 总览：[roadmap.md](roadmap.md) · 下一：[phase-7-deliverables.md](phase-7-deliverables.md)  
 > 前置：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
 
 ## 完成标准
 
 ```text
-6.0–6.6  ✅ Engineering Complete
-6.7      ← Real Model Qualification（真模型 + Alpha Gate）
+0–5.1.1  ✅ Design Kernel
+6.0–6.6  ✅ LLM Infrastructure
+6.7      ← Real Model Qualification & Runtime Hardening
 Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过门
+Phase 7  Deliverables / Export
 ```
 
-**不要**把 Engineering Complete 写成 Phase 6 ✅。
+**不要**把 Infrastructure Complete 写成 Phase 6 ✅。  
+**6.7 期间不做：** 扩 LLM 功能 · 重构 solver · 提前开工 Phase 7。
 
 ## 最高原则
 
@@ -48,7 +51,7 @@ NL → Local LLM → RequirementSpec
 | **6.4** | Assumption / Unknown UI | 显式假设与未知；禁止偷偷补全 | ✅ |
 | **6.5** | NL → Generate | Workbench 接入口 | ✅ |
 | **6.6** | Requirement Benchmark | 语料 + oracle harness（≠ 真模型准确率） | ✅ |
-| **6.7** | Real Model Qualification | Alpha Gate · 多模型对比 · 过门才 Alpha Qualified | ← 当前 |
+| **6.7** | Real Model Qualification & Runtime Hardening | Alpha Gate · 真模型跑分 · 过门后 Phase 7 Export | ← 当前 |
 
 详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)
 
@@ -91,7 +94,7 @@ Prompt 保持短。准确率靠 **Benchmark → 失败模式 → Schema/语义/N
 
 ## Definition of Done（整 Phase）
 
-1. NL → RequirementSpec 稳定、可验证 ✅（6.0–6.6 Engineering Complete）  
+1. NL → RequirementSpec 稳定、可验证 ✅（6.0–6.6 LLM Infrastructure）  
 2. 输出永不含几何 ✅  
-3. 某本地模型过 [Alpha Gate](phase-6.7-real-model-qualification.md) → 才可写 **Phase 6 ✅ Alpha Qualified**  
-4. 多模型对比可回答「7B 是否够用」（非排行榜）
+3. 某本地模型过 [Alpha Gate](phase-6.7-real-model-qualification.md) → **Phase 6 ✅ Alpha Qualified**  
+4. 然后进入 [Phase 7 Deliverables / Export](phase-7-deliverables.md)（不是高级分析大杂烩）

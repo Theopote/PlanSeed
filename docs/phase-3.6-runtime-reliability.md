@@ -136,4 +136,4 @@ Rust 三态：
 5. pytest + ruff + mypy（宽松）+ desktop tsc 绿  
 6. **GitHub Actions CI**（`.github/workflows/ci.yml`）已配置 pytest / ruff / mypy / pnpm build / cargo check；**是否通过以该次 push 的 Actions run 为准**，勿把「配置存在」写成「已绿」。sidecar 仅手动/release。
 
-下一阶段：**Phase 4** Workbench 加深；Packaging 硬化仍属 7+。
+下一阶段：**Phase 4** Workbench 加深；Packaging 硬化**不属于**当前 Phase 7 Export，另议。

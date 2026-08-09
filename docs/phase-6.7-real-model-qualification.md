@@ -1,19 +1,23 @@
-# Phase 6.7 — Real Model Qualification
+# Phase 6.7 — Real Model Qualification & LLM Runtime Hardening
 
-> **状态：🚧 In Progress（Engineering Complete ≠ Alpha Qualified）**  
+> **状态：🚧 In Progress（工程项多已落地；缺本机真模型全量跑分）**  
 > 总览：[phase-6-local-llm.md](phase-6-local-llm.md) · [roadmap.md](roadmap.md)  
-> 前置：[phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md)
+> 前置：[phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md)  
+> 下一：[phase-7-deliverables.md](phase-7-deliverables.md)
 
 ## 完成标准（比代码更重要）
 
 ```text
-Phase 6.0–6.6  ✅ Engineering Complete   （契约 / Provider / Gate / Harness）
-Phase 6.7      ← Real Model Qualification （真模型数字 + Alpha Gate）
-Phase 6        ✅ Alpha Qualified         （仅当某本地模型过门）
+0–5.1.1    ✅ Design Kernel
+6.0–6.6    ✅ LLM Infrastructure
+6.7        ← Real Model Qualification & Runtime Hardening
+Phase 6    ✅ Alpha Qualified   ← 仅当某本地模型过门
+Phase 7    Deliverables / Export ← 其后
 ```
 
 Harness oracle 100% **只证明工程闭环**，不证明 LLM 可靠。  
-**禁止**在未过 Alpha Gate 时把路线图写成「Phase 6 ✅」。
+**禁止**在未过 Alpha Gate 时写「Phase 6 ✅」。  
+**本阶段不做：** 扩 LLM 产品功能 · 回头重构 solver · 提前开工 Phase 7。
 
 ## 为什么要有 6.7
 
@@ -29,10 +33,10 @@ Provider Boundary + Schema Gate + Semantic Gate + Benchmark Harness
 
 ```text
 Harness Oracle Pass  ≠  Real Model Accuracy
-Engineering Complete ≠  Alpha Qualified
+LLM Infrastructure   ≠  Alpha Qualified
 ```
 
-6.7 的目标：用真实本地模型跑语料，对照 **Alpha Gate**；可选对比多个候选，判断 **7B 是否已够用**。
+6.7 的目标：用真实本地模型跑语料，对照 **Alpha Gate**；可选对比多个候选，判断 **7B 是否已够用**；硬化 Ollama 生命周期与 UI 状态。过门后进入 **Phase 7 Export**，而不是继续扩 LLM。
 
 ## Alpha Gate（PlanSeed 内部门槛）
 
@@ -132,12 +136,13 @@ uv run pytest packages/llm/tests/test_requirement_benchmark.py packages/llm/test
 
 ## Definition of Done
 
-1. Alpha Gate 规格文档化 + `evaluate_alpha_gates` 可测  
-2. `qualify` 支持 `--gate` / `--model` / `--models`  
-3. relation 端点 soft 告警 + Benchmark 设计意图评分；oracle 仍 100%  
-4. 路线图写明：**6.0–6.6 Engineering Complete**；**6.7 ← Qualification**；过门后才 **Phase 6 ✅ Alpha Qualified**  
-5. （本机）至少一份真模型 baseline JSON；可选 compare JSON
+1. Alpha Gate 规格文档化 + `evaluate_alpha_gates` 可测 ✅  
+2. `qualify` 支持 `--gate` / `--model` / `--models` ✅  
+3. Runtime：共享 Provider / close；server+model 两级健康；UI 状态 ✅  
+4. Benchmark 设计意图 + 失败归因；oracle 仍 100%（≠ 模型质量）✅  
+5. **本机** `qwen2.5:7b` 全量跑分检入 `docs/baselines/`；过门 → Phase 6 ✅ Alpha Qualified  
+6. 然后进入 [Phase 7 Deliverables](phase-7-deliverables.md)——**不是**高级分析大杂烩
 
 ## 不做
 
-调参竞赛 · 云端 API · CAD/BIM · 几何生成 · 把真模型 100% / Alpha Gate 设为默认 CI 门槛 · 模型排行榜产品化
+调参竞赛 · 云端 API · CAD/BIM · 几何生成 · 把真模型设为默认 CI 门槛 · 模型排行榜产品化 · 扩 LLM feature · 重构 solver · 提前做 Export 以外的「7+」杂项

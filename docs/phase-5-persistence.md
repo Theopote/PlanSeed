@@ -64,7 +64,7 @@ LayoutLocks → model_dump / 等价 JSON → sort_keys → sha256 → 前 16 hex
 
 - 云同步 / 多用户  
 - 文件选择器复杂 UX（本轮为应用内项目列表）  
-- Packaging / CSP / macOS（Phase 7+）  
+- Packaging / CSP / macOS（**非** Phase 7 Export；另阶段）  
 - LLM
 
 ## Definition of Done

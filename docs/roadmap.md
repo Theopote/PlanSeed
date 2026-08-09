@@ -1,26 +1,42 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6.7 Real Model Qualification** · LLM 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
-> **6.0–6.6 ✅ Engineering Complete** · **6.7 ← Qualification** · **Phase 6 尚未 Alpha Qualified** · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6.7 Real Model Qualification & LLM Runtime Hardening**  
+> 详案：[phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md) · [phase-6-local-llm.md](phase-6-local-llm.md)  
+> **下一：Phase 7 Deliverables / Export**（过 Alpha Gate 之后）· 契约：[api-contract.md](api-contract.md)
+
+## 项目状态（阶段判断）
+
+| 阶段 | 主题 | 状态 |
+|------|------|------|
+| **0–5.1.1** | **Design Kernel**（求解 · 评价 · 工作台 · 持久化） | **✅** |
+| **6.0–6.6** | **LLM Infrastructure**（契约 · Provider · Gate · Harness） | **✅ Engineering Complete** |
+| **6.7** | **Real Model Qualification & Runtime Hardening** | **← 当前** |
+| **7** | **Deliverables / Export** | 下一（6.7 过门后） |
+
+```text
+现在做：证明本地 LLM 真正好用（真模型跑分 + Alpha Gate）
+不做：回头重构 solver · 继续扩 LLM feature · 把 7+ 做成大杂烩
+```
 
 ## 阶段总览（以代码为准）
 
 | Phase | 主题 | 状态 |
 |-------|------|------|
-| 0–3 | Core / Solver / Evaluation | ✅ Alpha foundation |
+| 0–3 | Core / Solver / Evaluation | ✅ Design Kernel |
 | **3.5** | **Core Consolidation** | **✅** |
 | **3.6** | **Desktop Runtime Reliability** | **✅**（勿再扩 runtime 主线） |
 | **4** | **Interactive Design Workbench** | **✅ 4.3 / 4.3.1** |
 | **5** | **Project Persistence** | **✅ P0/P1** |
 | **5.1** | **Revision Integrity & Mutation Single Source** | **✅ P0** |
 | **5.1.1** | **Program Fidelity Gate** | **✅ P0** |
-| **6.0–6.6** | **Local LLM Engineering** | **✅ Engineering Complete** |
-| **6.7** | **Real Model Qualification** | **← 当前**（过 Alpha Gate 后才写 Phase 6 ✅） |
-| **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 其后 |
+| **6.0–6.6** | **LLM Infrastructure** | **✅ Engineering Complete** |
+| **6.7** | **Real Model Qualification & Runtime Hardening** | **← 当前** |
+| **7** | **Deliverables / Export** | 下一 |
+| **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（避免失焦） |
 | — | SVG Debug | ✅ 开发工具 |
 
 **平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
-**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；runtime 与 solver **同时快速改**。Phase 6 前须保持 RequirementSpec 为意图事实源。
+**禁止：** 因 UI 已出现就堆按钮；推倒四区工作台；runtime 与 solver **同时快速改**；在 6.7 未完成前扩 LLM 产品功能或回头大改 solver。
 
 ### Desktop Alpha v0.1 — 契约冻结（至少到 v0.1 发布）
 
@@ -256,7 +272,7 @@ LLM 前极短闸门：canonical `RequirementSpec` 往返 + revalidate 楼梯 met
 
 ---
 
-## Phase 6 — Local LLM Requirement Parsing（6.0–6.6 ✅ Engineering Complete · 6.7 ← Qualification）
+## Phase 6 — Local LLM Requirement Parsing（Infrastructure ✅ · Qualification ←）
 
 详案：[phase-6-local-llm.md](phase-6-local-llm.md)
 
@@ -269,9 +285,10 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 **完成标准：**
 
 ```text
-6.0–6.6  ✅ Engineering Complete
-6.7      ← Real Model Qualification + Alpha Gate
-Phase 6  ✅ Alpha Qualified     ← 仅当某本地模型过门（见 6.7）
+6.0–6.6  ✅ LLM Infrastructure（Engineering Complete）
+6.7      ← Real Model Qualification & Runtime Hardening
+Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
+然后     → Phase 7 Deliverables / Export
 ```
 
 | 子阶段 | 主题 | 状态 |
@@ -283,7 +300,7 @@ Phase 6  ✅ Alpha Qualified     ← 仅当某本地模型过门（见 6.7）
 | **6.4** | Assumption / Unknown UI | ✅ |
 | **6.5** | NL → Generate | ✅ |
 | **6.6** | Requirement Benchmark（oracle harness ≠ 真模型准确率） | ✅ |
-| **6.7** | Real Model Qualification（Alpha Gate · 多模型对比） | ← 当前 |
+| **6.7** | Real Model Qualification & Runtime Hardening | ← 当前 |
 
 详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
@@ -338,11 +355,13 @@ Phase 6  ✅ Alpha Qualified     ← 仅当某本地模型过门（见 6.7）
 - [x] CI oracle Mock：`field_accuracy` / `case_pass_rate` = 1.0（**仅 harness**）
 - [x] 真模型可选：`run_benchmark(use_oracle=False, provider=…)`
 
-**6.0–6.6 Engineering Complete；可靠度不由 oracle 100% 代表。过 Alpha Gate 前不要写 Phase 6 ✅。**
+**6.0–6.6 LLM Infrastructure Complete；可靠度不由 oracle 100% 代表。过 Alpha Gate 前不要写 Phase 6 ✅。**
 
-### Phase 6.7 — Real Model Qualification ← 当前
+### Phase 6.7 — Real Model Qualification & LLM Runtime Hardening ← 当前
 
 详案：[phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)
+
+**本阶段唯一目标：证明本地 LLM 真正好用。** 不扩 LLM 产品功能；不回头重构 solver。
 
 **Alpha Gate（内部门槛；Geometry = 0 为架构硬边界）：**
 
@@ -356,26 +375,37 @@ Phase 6  ✅ Alpha Qualified     ← 仅当某本地模型过门（见 6.7）
 | Repair exhausted | ≤ 5% |
 | Case pass rate | ≥ 70% |
 
-- [x] 文档纠偏：Harness Oracle Pass ≠ Real Model Accuracy；完成标准分层
-- [x] relation 端点分别 soft 校验（`req.relation_a_unknown` / `b`）
-- [x] Benchmark v2：`relations` / `floor_preferences` / `orientations` + unknown P·R
-- [x] Unknown Detection Recall / FPR；Assumption Precision（缺 reason 不计命中）
-- [x] 失败归因：`schema_fail` / `semantic_fail` / `geometry_violation` / `json_parse_fail` / repair
-- [x] Alpha Gate：`evaluate_alpha_gates` + `qualify --gate`
-- [x] 多模型对比：`qualify --models a,b` → `llm-alpha-compare.json`（判断 7B 是否够用）
-- [x] 改进纪律：Benchmark→失败模式→Schema/语义；禁止靠堆 Prompt 提准确率
-- [x] Application LLM Runtime：共享 OllamaProvider / httpx（防连接泄漏）
-- [x] `uv run python -m packages.llm.benchmark.qualify` 真模型 CLI
-- [ ] 完整真模型跑分写入 `docs/baselines/`；至少一模型过 Alpha Gate → **Phase 6 ✅ Alpha Qualified**
+**清单（与「下一步具体做什么」对齐）：**
+
+- [x] 文档纠偏：oracle 100% ≠ 模型质量；完成标准分层（Infrastructure / Qualification / Alpha Qualified）
+- [x] Benchmark：`relation_intents` / `floor_preference` / Unknown·Assumption 准确率
+- [x] Semantic：关系 endpoint 分别 soft（一端未知也报警）
+- [x] 失败归因：schema / semantic / geometry / JSON / repair success·exhausted
+- [x] OllamaProvider 生命周期：共享 runtime / 正确 close httpx
+- [x] Ollama server / model 两级状态（`is_available` · `is_model_available` · `/api/llm/status`）
+- [x] UI：本地 AI 未启动 / 模型未安装 / 解析中 / 解析失败 / 修复后成功
+- [x] Alpha Gate + `qualify --gate`；多模型 `--models`（判断 7B 是否够用）
+- [ ] **本机** `qwen2.5:7b` 跑完全部语料（≥50）并写入 `docs/baselines/llm-alpha-baseline.json`
+- [ ] 至少一模型过 Alpha Gate → **Phase 6 ✅ Alpha Qualified** → 进入 Phase 7
 
 ---
 
-## Phase 7+ — Export / Advanced Analysis（Phase 6 Alpha Qualified 之后）
+## Phase 7 — Deliverables / Export（下一 · 6.7 过门后）
 
-- Export（图纸 / 数据）  
-- Advanced analysis  
-- Packaging 硬化（Windows 签名、CSP；其后 macOS / Linux）  
-- Interactive editing 加深（仍在中栏 Floorplan）
+详案：[phase-7-deliverables.md](phase-7-deliverables.md)
+
+**产品闭环：** 用户已能理解需求 → 生成 → 比较 → 修改 → 评价 → 保存；下一步问「怎么把方案带走？」
+
+**第一版价值最高的不是高级分析，而是 Export / Deliverable Layer：**
+
+- Design Report（PDF 优先；或 HTML→打印）
+- SVG / PNG 平面图
+- JSON 项目快照
+- DXF 后续
+
+报告内容草案：项目需求 · 平面图 · 房间面积表 · 设计评分 · 主要 Findings · Assumptions · Unknowns · Candidate provenance。
+
+**明确不塞进 Phase 7：** Advanced Site 分析 · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深。这些若需要，以后单独开阶段，**现在不正式规划到 Phase 10**。
 
 ---
 
@@ -466,7 +496,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 6.7** Real Model Qualification；过 Alpha Gate 前勿写 Phase 6 ✅ |
+| **当前主线** | **Phase 6.7** 真模型 Qualification；过门后 **Phase 7 Export** |
 
 ---
 
