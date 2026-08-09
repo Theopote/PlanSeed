@@ -43,7 +43,7 @@
 | Projects CRUD | Phase 5 / 5.1.1：`GET/POST /api/projects`；payload 含 `requirement_spec`；详见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md) |
 | Mutation preview / revalidate | Phase 5.1：`POST /api/mutations/preview`、`POST /api/mutations/revalidate`；详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md) |
 | `POST /api/requirements/parse` | Phase 6.5 additive：NL → `RequirementSpec`（含 repair）；详见 [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) |
-| `POST /api/reports/build` | Phase 7：→ `DesignReportPayload`；**fail loudly**（缺 area / RequirementSpec / DesignScore / SVG → 400；dirty → 409；id 不存在 → 404）；详见 [phase-7-deliverables.md](phase-7-deliverables.md) |
+| `POST /api/reports/build` | Phase 7：`mode=preview` 可 payload；`mode=final` 须 `project_id`+`candidate_id`+`revision_id`（只读 store，禁止 payload）；SVG sanitize；详见 [phase-7-deliverables.md](phase-7-deliverables.md) |
 
 ### SolverIdentity（算法契约，≠ engine_version）
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+
 from packages.schema.identity import (
     EVALUATION_VERSION,
     GENERATOR_VERSION,
@@ -20,6 +22,21 @@ from backend.schemas.api import (
     RoomSummary,
     ZonePlacementPayload,
 )
+
+
+def make_revision_id(candidate_id: str, *, kind: str = "gen") -> str:
+    """生成 revision_id（Final Export 溯源）。"""
+    return f"{candidate_id}:{kind}:{secrets.token_hex(4)}"
+
+
+def resolve_revision_id(candidate: dict) -> str:
+    """旧快照无 revision_id 时回退 candidate.id。"""
+    rid = candidate.get("revision_id")
+    if isinstance(rid, str) and rid.strip():
+        return rid.strip()
+    cid = candidate.get("id")
+    return str(cid) if cid else ""
+
 
 
 def _label_for(index: int) -> str:
@@ -98,6 +115,7 @@ def serialize_candidate(
         variant_generation=cand.variant_generation,
         lock_snapshot_id=cand.lock_snapshot_id,
         revision_status="generated",
+        revision_id=make_revision_id(cand.id, kind="gen"),
         mutations=[],
         placements=_placements_payload(cand),
         zones=_zones_payload(cand),

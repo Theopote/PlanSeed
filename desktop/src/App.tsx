@@ -1167,6 +1167,10 @@ function App() {
       setError("请先 Generate 再导出报告");
       return;
     }
+    if (!selectedId) {
+      setError("请先选择要导出的候选");
+      return;
+    }
     const selected = candidates.find((c) => c.id === selectedId);
     if (selected?.revision_status === "dirty") {
       setError(
@@ -1177,6 +1181,7 @@ function App() {
     setReportBusy(true);
     setError(null);
     try {
+      // 正式报告只引用已保存快照（禁止 client 任意 SVG payload）
       const fromCand = candidates.find((c) => c.provenance)?.provenance;
       const schema_versions = {
         solver_version:
@@ -1188,9 +1193,9 @@ function App() {
           fromCand?.evaluation_version ??
           null,
       };
-      const out = await buildReport({
-        projectName: projectName.trim() || "未命名项目",
-        candidateId: selectedId,
+      const saved = await saveProject({
+        name: projectName.trim() || "未命名项目",
+        id: projectId,
         payload: {
           form,
           program,
@@ -1201,6 +1206,18 @@ function App() {
           compare_id: compareId,
           schema_versions,
         },
+      });
+      setProjectId(saved.id);
+      setProjectName(saved.name);
+      const stored = saved.payload.candidates?.find((c) => c.id === selectedId);
+      const revisionId =
+        stored?.revision_id ?? selected?.revision_id ?? selectedId;
+      const out = await buildReport({
+        mode: "final",
+        projectId: saved.id,
+        candidateId: selectedId,
+        revisionId,
+        projectName: saved.name,
       });
       if (!out.html) {
         setError("报告未返回 HTML");
@@ -1216,6 +1233,7 @@ function App() {
     program,
     candidates,
     projectName,
+    projectId,
     selectedId,
     form,
     locks,

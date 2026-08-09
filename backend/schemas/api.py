@@ -130,6 +130,13 @@ class CandidatePayload(BaseModel):
         default="generated",
         description="Phase 5.1：generated | dirty | validated",
     )
+    revision_id: str | None = Field(
+        default=None,
+        description=(
+            "Phase 7：几何+评价 revision 标识；Final Export 须与 store 一致。"
+            "缺省时兼容旧快照，视为等于 candidate.id"
+        ),
+    )
     revision_parent_id: str | None = Field(
         default=None,
         description="Phase 5.1：用户编辑派生自哪个候选 revision",

@@ -23,6 +23,7 @@ from packages.schema.report import (
     RoomScheduleRow,
 )
 from packages.schema.scoring import DesignScore
+from backend.services.serialization import resolve_revision_id
 
 
 class ReportBuildError(ValueError):
@@ -79,12 +80,14 @@ def build_design_report(
     requirement_spec: dict[str, Any] | None = None,
     program: dict[str, Any] | None = None,
     candidate: dict[str, Any],
+    export_mode: str = "preview",
 ) -> DesignReport:
     """
     权威组装：面积取 placements.area；评分/Finding 取 design_score。
 
     缺 requirement_spec / placements.area / design_score / svg 等 → ReportBuildError。
     Dirty 候选仍可组装（status=stale_evaluation），但正式导出须由 API 拒绝。
+    export_mode: preview（可 client payload）| final（须 store + revision_id）。
     """
     cand_id = str(candidate.get("id") or "") or None
     status = report_status_for_candidate(candidate)
@@ -166,10 +169,12 @@ def build_design_report(
     parent = candidate.get("revision_parent_id")
 
     prov = candidate.get("provenance") or {}
+    mode = export_mode if export_mode in ("preview", "final") else "preview"
     provenance = ReportProvenance(
         solver_version=prov.get("solver_version") if isinstance(prov, dict) else None,
         generator_version=prov.get("generator_version") if isinstance(prov, dict) else None,
         evaluation_version=prov.get("evaluation_version") if isinstance(prov, dict) else None,
+        export_mode=mode,
         boundary_lines=list(REPORT_BOUNDARY_LINES),
     )
 
@@ -177,9 +182,11 @@ def build_design_report(
     if total is None:
         total = design_score.total_score
 
+    rev_id = resolve_revision_id(candidate) or cand_id
+
     return DesignReport(
         status=status,
-        source_revision_id=cand_id,
+        source_revision_id=rev_id,
         project=ProjectMetadata(
             project_id=project_id,
             project_name=project_name or "Untitled",

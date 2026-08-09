@@ -23,7 +23,7 @@ from backend.schemas.api import (
     ZonePlacementPayload,
 )
 from backend.services.generation import resolve_solve_input
-from backend.services.serialization import serialize_candidate
+from backend.services.serialization import make_revision_id, serialize_candidate
 
 router = APIRouter(tags=["mutations"])
 
@@ -145,6 +145,7 @@ def mutations_revalidate(body: MutationRevalidateRequest) -> CandidatePayload:
     return payload.model_copy(
         update={
             "revision_status": "validated",
+            "revision_id": make_revision_id(body.candidate_id, kind="val"),
             "revision_parent_id": body.revision_parent_id or body.candidate_id,
             "mutations": list(body.mutations),
         }

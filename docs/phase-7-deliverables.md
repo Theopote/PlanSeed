@@ -64,7 +64,7 @@ DesignReport →（未来）专业 PDF / DXF
 | Room area | placements.**area** | 400 `placement_area_missing`（禁止 width×depth） |
 | Evaluation / Findings | `DesignScore` | 400 `design_score_missing` / `design_score_invalid` |
 | Key Intent / Assumptions / Unknowns | `RequirementSpec` | 400 `requirement_spec_missing` |
-| Floor plan SVG | 优先 `floor_svgs`（per-floor）；否则 `candidate.svg` 整图 | 400 `floor_plan_svg_missing` |
+| Floor plan SVG | 已保存候选的 `floor_svgs` / `svg`（经 sanitize） | 400 `floor_plan_svg_missing` / `svg_sanitize_failed` |
 | Dirty evaluation | revision_status | 409 `candidate_requires_revalidation` |
 | Broken candidate | 缺 id / placements | 409 `invalid_candidate` |
 | Wrong candidate id | 查找 | 404 `candidate_not_found` |
@@ -108,15 +108,27 @@ Dirty                  → HTTP 409 candidate_requires_revalidation
 Desktop：dirty 时拦截并提示「请先重新验证」。  
 几何-only 导出（不含评分）可后置，本刀默认拒绝正式评价报告。
 
-## Export API（additive，保持简单）
+## Export API（additive）
+
+两种模式：
 
 ```text
-POST /api/reports/build
-  in:  { project_id | project payload, candidate_id, allow_stale_evaluation?=false }
-  out: DesignReportPayload   # 或 409 Integrity Gate / 404 candidate_not_found
+Preview
+  mode=preview
+  in:  { payload } 或 { project_id }  + optional candidate_id
+  → 开发 / 工作台预览；可带 client 几何快照
+
+Final Export
+  mode=final
+  in:  { project_id, candidate_id, revision_id }
+  → 必须从 ProjectStore 读取；禁止 client payload
+  → revision_id 须与 store 候选一致（否则 409 revision_mismatch）
 ```
 
-候选解析：**禁止**「id 找不到 → 静默用第一个」。`candidate_id` 或 `selected_id` 任一指定但缺失 → **404**。仅二者皆空时暂时 fallback 第一个（日后宜取消）。
+Desktop「报告」= Final：先 Save，再 `project_id + candidate_id + revision_id`。  
+`CandidatePayload.revision_id` 在 generate / revalidate 时由 serializer 写入；旧快照缺省回退 `candidate.id`。
+
+HTML 内嵌平面图另经 `sanitize_report_svg`（拒绝 script / foreignObject / 外链等）。
 
 Desktop：
 
@@ -234,6 +246,9 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 1. [x] `DesignReport.status` / `evaluation_fresh` / `source_revision_id`  
 2. [x] Dirty → `409 candidate_requires_revalidation`（默认）  
 3. [x] Desktop dirty 拦截 + 文案  
-4. [x] HTML 对 stale 打醒目标记（仅 allow_stale 路径）
+4. [x] HTML 对 stale 打醒目标记（仅 allow_stale 路径）  
+5. [x] Preview（payload）vs Final（`project_id` + `candidate_id` + `revision_id`）  
+6. [x] `sanitize_report_svg` 纵深防御（print / srcDoc）  
+7. [x] `revision_id` / `source_revision_id` 溯源；mismatch → 409
 
 实现落点：`packages/schema/report.py` · `backend/services/report_builder.py` · `backend/services/report_html.py` · `backend/routes/reports.py` · Desktop「报告」按钮。

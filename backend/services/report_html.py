@@ -7,9 +7,11 @@ from typing import Any
 
 from packages.schema.report import DesignReport
 
+from backend.services.report_svg_sanitize import sanitize_report_svg
+
 
 def render_report_html(report: DesignReport) -> str:
-    """生成自包含 HTML 文档（内嵌 SVG + CSS）。"""
+    """生成自包含 HTML 文档（内嵌消毒后的 SVG + CSS）。"""
     r = report
     score = r.candidate.total_score
     score_s = f"{score:.0f}" if isinstance(score, (int, float)) else "—"
@@ -89,12 +91,13 @@ def render_report_html(report: DesignReport) -> str:
 
     plans = ""
     for fp in r.floor_plans:
-        # SVG 来自 serializer，已是标记；不做二次几何解释 / DOM 裁剪
+        # 只嵌入消毒后的 SVG；禁止 script / foreignObject / 外链
+        safe_svg = sanitize_report_svg(fp.svg)
         plans += (
             f"<section class='plan'>"
             f"<h3>{html.escape(fp.label)}"
             f" <span class='muted'>({html.escape(fp.floor_id)})</span></h3>"
-            f"<div class='svg-wrap'>{fp.svg}</div></section>"
+            f"<div class='svg-wrap'>{safe_svg}</div></section>"
         )
     plans_heading = (
         "Floor Plans"
@@ -180,7 +183,8 @@ def render_report_html(report: DesignReport) -> str:
       <span class="score">{score_s}</span>
       <div style="margin-top:0.35rem">id: {cid}
         · evaluation_fresh={str(r.evaluation.evaluation_fresh).lower()}
-        · source_revision={html.escape(r.source_revision_id or "—")}</div>
+        · source_revision={html.escape(r.source_revision_id or "—")}
+        · export={html.escape(r.provenance.export_mode)}</div>
     </div>
 
     <h2>Key Intent</h2>

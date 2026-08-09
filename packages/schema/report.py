@@ -127,6 +127,10 @@ class ReportProvenance(BaseModel):
     solver_version: str | None = None
     generator_version: str | None = None
     evaluation_version: str | None = None
+    export_mode: str = Field(
+        default="preview",
+        description="preview | final；final 须来自 ProjectStore + revision_id",
+    )
     boundary_lines: list[str] = Field(
         default_factory=lambda: list(REPORT_BOUNDARY_LINES),
     )
@@ -142,7 +146,7 @@ class DesignReport(BaseModel):
     status: ReportStatus = ReportStatus.VALID
     source_revision_id: str | None = Field(
         default=None,
-        description="对应候选 id（交付物溯源）",
+        description="候选 revision_id（Final Export 溯源；旧快照可等于 candidate.id）",
     )
     project: ProjectMetadata = Field(default_factory=ProjectMetadata)
     requirement: RequirementSummary = Field(default_factory=RequirementSummary)

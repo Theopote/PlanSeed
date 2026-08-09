@@ -181,6 +181,8 @@ export type CandidatePayload = {
   lock_snapshot_id?: string | null;
   /** Phase 5.1 revision */
   revision_status?: RevisionStatus;
+  /** Final Export 溯源；缺省兼容为 candidate.id */
+  revision_id?: string | null;
   revision_parent_id?: string | null;
   mutations?: MutationRecordPayload[];
   placements?: RoomPlacementPayload[];
@@ -710,7 +712,9 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
   return r.json() as Promise<ProjectDetail>;
 }
 
-/** Phase 7 — Design Report（权威 JSON + HTML 预览）。 */
+/** Phase 7 — Design Report。 */
+export type ReportExportMode = "preview" | "final";
+
 export type BuildReportResponse = {
   report: {
     status?: string;
@@ -719,6 +723,7 @@ export type BuildReportResponse = {
     candidate: { candidate_id: string; label: string; total_score: number | null };
     requirement: { key_intents: string[] };
     evaluation?: { evaluation_fresh?: boolean };
+    provenance?: { export_mode?: string };
   };
   html: string | null;
 };
@@ -733,24 +738,67 @@ function formatReportErrorDetail(detail: unknown, status: number): string {
         "方案已修改，评价结果已过期。请先重新验证后再导出正式评价报告。"
       );
     }
+    if (d.code === "revision_mismatch") {
+      return (
+        d.message ??
+        "revision_id 与已保存候选不一致；请重新保存后再导出正式报告。"
+      );
+    }
     if (typeof d.message === "string") return d.message;
     return JSON.stringify(detail);
   }
   return `HTTP ${status}`;
 }
 
+/** Final Export：project_id + candidate_id + revision_id（从 store 读取）。 */
 export async function buildReport(opts: {
+  mode?: ReportExportMode;
+  projectId: string;
+  candidateId: string;
+  revisionId: string;
   projectName?: string;
-  payload: ProjectPayload;
-  candidateId?: string | null;
   includeHtml?: boolean;
-  /** 默认 false：dirty 候选由后端 409 拒绝正式评价报告 */
   allowStaleEvaluation?: boolean;
 }): Promise<BuildReportResponse> {
   const r = await fetch(`${_apiBase}/api/reports/build`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      mode: opts.mode ?? "final",
+      project_id: opts.projectId,
+      candidate_id: opts.candidateId,
+      revision_id: opts.revisionId,
+      project_name: opts.projectName,
+      include_html: opts.includeHtml ?? true,
+      allow_stale_evaluation: opts.allowStaleEvaluation ?? false,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: unknown };
+      msg = formatReportErrorDetail(body.detail, r.status);
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<BuildReportResponse>;
+}
+
+/** Preview：可直接传 payload（开发预览；非正式交付）。 */
+export async function previewReport(opts: {
+  projectName?: string;
+  payload: ProjectPayload;
+  candidateId?: string | null;
+  includeHtml?: boolean;
+  allowStaleEvaluation?: boolean;
+}): Promise<BuildReportResponse> {
+  const r = await fetch(`${_apiBase}/api/reports/build`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      mode: "preview",
       project_name: opts.projectName ?? "Untitled",
       payload: opts.payload,
       candidate_id: opts.candidateId ?? opts.payload.selected_id,

@@ -1,7 +1,10 @@
-"""Phase 7 — Design Report API / builder 测试。"""
+"""Phase 7 — Design Report API / builder / SVG sanitize 测试。"""
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
 from backend.main import create_app
 from backend.services.report_builder import (
     ReportAreaMissingError,
@@ -9,6 +12,7 @@ from backend.services.report_builder import (
     build_design_report,
 )
 from backend.services.report_html import render_report_html
+from backend.services.report_svg_sanitize import SvgSanitizeError, sanitize_report_svg
 from fastapi.testclient import TestClient
 from packages.schema.scoring import DesignFinding, DesignScore, FindingSeverity
 from pytest import raises
@@ -99,6 +103,21 @@ def _payload() -> dict:
     }
 
 
+@pytest.fixture()
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "reports.db"))
+    return TestClient(create_app())
+
+
+def _save_project(client: TestClient, payload: dict | None = None, name: str = "Demo") -> str:
+    r = client.post(
+        "/api/projects",
+        json={"name": name, "payload": payload or _payload()},
+    )
+    assert r.status_code == 200, r.text
+    return r.json()["id"]
+
+
 def test_build_design_report_uses_placement_area():
     report = build_design_report(
         project_name="Demo",
@@ -114,7 +133,7 @@ def test_build_design_report_uses_placement_area():
     assert len(report.room_schedule) == 2
     living = next(r for r in report.room_schedule if r.room_id == "r1")
     assert living.name == "客厅"
-    assert living.area == 14.0  # 非前端重算
+    assert living.area == 14.0
     assert "Two-story residence" in report.requirement.key_intents
     assert any("south" in x.lower() for x in report.requirement.key_intents)
     assert report.findings and report.findings[0].title == "比例尚可"
@@ -212,6 +231,30 @@ def test_empty_placements_is_invalid_candidate():
     assert ei.value.code == "invalid_candidate"
 
 
+def test_sanitize_strips_script_and_keeps_geometry():
+    dirty = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<script>alert(1)</script>'
+        '<rect width="10" height="10" onclick="evil()" fill="#eee"/>'
+        '<a href="javascript:alert(1)"><text>x</text></a>'
+        '<image href="https://evil.example/x.png"/>'
+        "</svg>"
+    )
+    out = sanitize_report_svg(dirty)
+    assert "<script" not in out.lower()
+    assert "onclick" not in out.lower()
+    assert "javascript:" not in out.lower()
+    assert "<image" not in out.lower()
+    assert "<a" not in out.lower()
+    assert "<rect" in out
+    assert 'fill="#eee"' in out or "fill='#eee'" in out or 'fill="#eee"' in out
+
+
+def test_sanitize_rejects_non_svg_root():
+    with raises(SvgSanitizeError):
+        sanitize_report_svg("<div><svg/></div>")
+
+
 def test_render_report_html_contains_boundary_and_schedule():
     report = build_design_report(
         project_name="Demo",
@@ -225,16 +268,36 @@ def test_render_report_html_contains_boundary_and_schedule():
     assert "14.00" in doc
     assert "AI interpreted design intent" in doc
     assert "<svg" in doc
+    assert "<script" not in doc.lower()
 
 
-def test_reports_build_api():
-    client = TestClient(create_app())
+def test_render_report_html_sanitizes_malicious_svg():
+    cand = _candidate()
+    cand["svg"] = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<script>alert(1)</script><rect width="1" height="1"/></svg>'
+    )
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=cand,
+    )
+    doc = render_report_html(report)
+    assert "<script" not in doc.lower()
+    assert "<rect" in doc
+
+
+def test_reports_build_final_api(client: TestClient):
+    pid = _save_project(client, name="API Demo")
     r = client.post(
         "/api/reports/build",
         json={
+            "mode": "final",
+            "project_id": pid,
             "project_name": "API Demo",
-            "payload": _payload(),
             "candidate_id": "c-a",
+            "revision_id": "c-a",  # 旧快照无 revision_id → 回退 id
             "include_html": True,
         },
     )
@@ -242,41 +305,73 @@ def test_reports_build_api():
     body = r.json()
     assert body["report"]["project"]["project_name"] == "API Demo"
     assert body["report"]["candidate"]["candidate_id"] == "c-a"
+    assert body["report"]["source_revision_id"] == "c-a"
+    assert body["report"]["provenance"]["export_mode"] == "final"
     assert body["html"] and "PlanSeed Design Report" in body["html"]
 
 
-def test_reports_build_requires_source():
-    client = TestClient(create_app())
-    r = client.post("/api/reports/build", json={"include_html": False})
-    assert r.status_code == 422
-
-
-def test_reports_build_rejects_dirty_candidate():
-    client = TestClient(create_app())
-    payload = _payload()
-    payload["candidates"][0]["revision_status"] = "dirty"
+def test_reports_build_preview_allows_payload(client: TestClient):
     r = client.post(
         "/api/reports/build",
         json={
-            "project_name": "Dirty",
-            "payload": payload,
+            "mode": "preview",
+            "payload": _payload(),
             "candidate_id": "c-a",
             "include_html": False,
         },
     )
+    assert r.status_code == 200, r.text
+    assert r.json()["report"]["provenance"]["export_mode"] == "preview"
+
+
+def test_reports_build_final_rejects_client_payload(client: TestClient):
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "mode": "final",
+            "project_id": "x",
+            "candidate_id": "c-a",
+            "revision_id": "c-a",
+            "payload": _payload(),
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_reports_build_final_requires_triple(client: TestClient):
+    r = client.post(
+        "/api/reports/build",
+        json={"mode": "final", "include_html": False},
+    )
+    assert r.status_code == 422
+
+
+def test_reports_build_rejects_dirty_candidate(client: TestClient):
+    payload = _payload()
+    payload["candidates"][0]["revision_status"] = "dirty"
+    pid = _save_project(client, payload)
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "mode": "final",
+            "project_id": pid,
+            "candidate_id": "c-a",
+            "revision_id": "c-a",
+            "include_html": False,
+        },
+    )
     assert r.status_code == 409, r.text
-    detail = r.json()["detail"]
-    assert detail["code"] == "candidate_requires_revalidation"
+    assert r.json()["detail"]["code"] == "candidate_requires_revalidation"
 
 
-def test_reports_build_allow_stale_evaluation():
-    client = TestClient(create_app())
+def test_reports_build_preview_allow_stale_evaluation(client: TestClient):
     payload = _payload()
     payload["candidates"][0]["revision_status"] = "dirty"
     r = client.post(
         "/api/reports/build",
         json={
-            "project_name": "Stale OK",
+            "mode": "preview",
             "payload": payload,
             "candidate_id": "c-a",
             "include_html": True,
@@ -290,15 +385,33 @@ def test_reports_build_allow_stale_evaluation():
     assert "STALE EVALUATION" in body["html"]
 
 
-def test_reports_build_missing_candidate_id_is_404():
-    """指定候选 id 不存在时禁止静默导出第一个。"""
-    client = TestClient(create_app())
+def test_reports_build_final_revision_mismatch(client: TestClient):
+    payload = _payload()
+    payload["candidates"][0]["revision_id"] = "c-a:gen:deadbeef"
+    pid = _save_project(client, payload)
     r = client.post(
         "/api/reports/build",
         json={
-            "project_name": "Missing",
-            "payload": _payload(),
+            "mode": "final",
+            "project_id": pid,
+            "candidate_id": "c-a",
+            "revision_id": "wrong-rev",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["code"] == "revision_mismatch"
+
+
+def test_reports_build_missing_candidate_id_is_404(client: TestClient):
+    pid = _save_project(client)
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "mode": "final",
+            "project_id": pid,
             "candidate_id": "c-missing",
+            "revision_id": "c-missing",
             "include_html": False,
         },
     )
@@ -308,50 +421,17 @@ def test_reports_build_missing_candidate_id_is_404():
     assert detail["candidate_id"] == "c-missing"
 
 
-def test_reports_build_stale_selected_id_is_404():
-    """selected_id 指向不存在候选时同样 404，不 fallback。"""
-    client = TestClient(create_app())
-    payload = _payload()
-    payload["selected_id"] = "c-gone"
-    r = client.post(
-        "/api/reports/build",
-        json={
-            "project_name": "Stale sel",
-            "payload": payload,
-            "include_html": False,
-        },
-    )
-    assert r.status_code == 404, r.text
-    assert r.json()["detail"]["code"] == "candidate_not_found"
-
-
-def test_reports_build_fallback_only_when_no_ids():
-    """仅 candidate_id 与 selected_id 皆空时允许用第一个候选。"""
-    client = TestClient(create_app())
-    payload = _payload()
-    payload["selected_id"] = None
-    r = client.post(
-        "/api/reports/build",
-        json={
-            "project_name": "Fallback",
-            "payload": payload,
-            "include_html": False,
-        },
-    )
-    assert r.status_code == 200, r.text
-    assert r.json()["report"]["candidate"]["candidate_id"] == "c-a"
-
-
-def test_reports_build_missing_area_is_400():
-    client = TestClient(create_app())
+def test_reports_build_missing_area_is_400(client: TestClient):
     payload = _payload()
     del payload["candidates"][0]["placements"][1]["area"]
+    pid = _save_project(client, payload)
     r = client.post(
         "/api/reports/build",
         json={
-            "project_name": "No area",
-            "payload": payload,
+            "mode": "final",
+            "project_id": pid,
             "candidate_id": "c-a",
+            "revision_id": "c-a",
             "include_html": False,
         },
     )
@@ -361,16 +441,17 @@ def test_reports_build_missing_area_is_400():
     assert detail["room_id"] == "r2"
 
 
-def test_reports_build_missing_requirement_spec_is_400():
-    client = TestClient(create_app())
+def test_reports_build_missing_requirement_spec_is_400(client: TestClient):
     payload = _payload()
     payload["requirement_spec"] = None
+    pid = _save_project(client, payload)
     r = client.post(
         "/api/reports/build",
         json={
-            "project_name": "No req",
-            "payload": payload,
+            "mode": "final",
+            "project_id": pid,
             "candidate_id": "c-a",
+            "revision_id": "c-a",
             "include_html": False,
         },
     )
@@ -378,18 +459,54 @@ def test_reports_build_missing_requirement_spec_is_400():
     assert r.json()["detail"]["code"] == "requirement_spec_missing"
 
 
-def test_reports_build_empty_placements_is_409():
-    client = TestClient(create_app())
+def test_reports_build_empty_placements_is_409(client: TestClient):
     payload = _payload()
     payload["candidates"][0]["placements"] = []
+    pid = _save_project(client, payload)
     r = client.post(
         "/api/reports/build",
         json={
-            "project_name": "No place",
-            "payload": payload,
+            "mode": "final",
+            "project_id": pid,
             "candidate_id": "c-a",
+            "revision_id": "c-a",
             "include_html": False,
         },
     )
     assert r.status_code == 409, r.text
     assert r.json()["detail"]["code"] == "invalid_candidate"
+
+
+def test_reports_build_sanitizes_stored_malicious_svg(client: TestClient):
+    payload = _payload()
+    payload["candidates"][0]["svg"] = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<script>alert(1)</script><rect width="2" height="2"/></svg>'
+    )
+    pid = _save_project(client, payload)
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "mode": "final",
+            "project_id": pid,
+            "candidate_id": "c-a",
+            "revision_id": "c-a",
+            "include_html": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert "<script" not in r.json()["html"].lower()
+
+
+def test_source_revision_id_uses_revision_id_field():
+    cand = _candidate()
+    cand["revision_id"] = "c-a:gen:abc"
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=cand,
+        export_mode="final",
+    )
+    assert report.source_revision_id == "c-a:gen:abc"
+    assert report.provenance.export_mode == "final"
