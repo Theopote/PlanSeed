@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：✅ 能力面 8.0–8.4 已落地 · MaxRect 未产品验收 · ▶ [phase-8.5](phase-8.5-alpha-stabilization.md) requalify**  
+> **状态：✅ 能力面主线落地 · 8.4=Foundation（非端到端 irregular）· MaxRect 未产品验收 · ▶ [phase-8.5](phase-8.5-alpha-stabilization.md)**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -8,7 +8,7 @@
 - 本阶段才吸收原评审中的**算法类**建议  
 - **不要**一上来 GA / NSGA-II  
 - **不要**用 CP-SAT 直接替代整个几何 solver  
-- **不要**把整库 Rect engine 迁到 Shapely（8.4 仅为 opt-in）  
+- **不要**把整库 Rect engine 迁到 Shapely（8.4 Foundation 仅为工具层）  
 - **禁止**把 Design Heuristic 说成 Code Compliance（无 Jurisdiction / CodeProfile 前）
 
 ## 顺序
@@ -20,7 +20,8 @@
 8.1 Diversity Selection（top-score + diverse alternatives） ✅
 8.2 Pareto Frontier（非支配集） ✅ Experimental
 8.3 CP-SAT Research（floor assignment opt-in） ✅
-8.4 Advanced Geometry（不规则场地 Shapely opt-in） ✅
+8.4 Irregular Geometry Foundation（Shapely tools） ✅
+8.4.1 Irregular Site Pipeline Integration          ☐
 ```
 
 | 项 | 主题 | 状态 |
@@ -31,7 +32,8 @@
 | **8.1** | Diversity Selection | ✅ Alpha 默认 |
 | **8.2** | Pareto Frontier | ✅ Experimental |
 | **8.3** | CP-SAT Research | ✅ |
-| **8.4** | Advanced Geometry（Shapely） | ✅ |
+| **8.4** | Irregular Geometry Foundation | ✅（schema + Shapely utils；**非**端到端） |
+| **8.4.1** | Irregular Site Pipeline Integration | **☐** |
 
 ## 8.0-A — Generator Interface
 
@@ -200,19 +202,58 @@ Repair → Evaluation
 
 后续若扩：仅离散归属（zone / topology eligibility）— **仍禁止**输出坐标。
 
-## 8.4 — Advanced Geometry ✅
+## 8.4 — Irregular Geometry Foundation ✅
 
-默认仍为 Rect engine。Shapely **opt-in**：
+**不是**「Advanced Geometry 完成 / irregular site supported」。  
+当前只是 foundation：
+
+| 层 | 状态 |
+|----|------|
+| Polygon schema（`site_polygon` / `buildable_polygon`） | ✅ |
+| Shapely geometry utilities | ✅ |
+| Orthogonal free-rect decomposition | ✅ |
+| End-to-end irregular-site generation | **❌ / 未证明** |
+
+事实边界：
+
+- `DesignProgram.buildable` 仍是 **`Rect2D`**
+- `DesignProgram.from_project()` 仍取 `spec.site.buildable_envelope` 作为唯一 `buildable`
+- **`prepare_buildable_rects()` 未接入**标准 packing pipeline（Guillotine / MaxRect）
+- `inset_with_setbacks()` 用 `max(N,S,E,W)` 做 **均匀 inset 近似**（故意 conservative；≠ 各向真实退线）
+
+落地：
 
 - Schema：`Point2D` / `Polygon2D`；`SiteSpec.site_polygon` / `buildable_polygon`
-- 模块：`solver/geometry/irregular.py`
-  - 均匀退线 inset
-  - 轴对齐矩形 containment
-  - **正交**多边形 → free rects（供 packing 消费，不改写 Guillotine）
+- 模块：`solver/geometry/irregular.py`（`uniform_inset` · `contains_axis_aligned_rect` · `orthogonal_free_rects` · `prepare_buildable_rects`）
 - 依赖：`uv sync --group research`（shapely）
 - ADR：[adr/009-rect-default-shapely-irregular.md](../adr/009-rect-default-shapely-irregular.md)
 
-**禁止**把整个 Rect / packing 内核迁到 Shapely。
+**禁止**把整个 Rect / packing 内核迁到 Shapely。  
+**禁止**因 foundation 存在就宣称「不规则场地已支持」。
+
+## 8.4.1 — Irregular Site Pipeline Integration ☐
+
+端到端跑通后才可写「Irregular site supported」：
+
+```text
+RequirementSpec
+      ↓
+Site Polygon
+      ↓
+Buildable Polygon（含真实/约定退线语义）
+      ↓
+Free Rect decomposition
+      ↓
+Packing（消费 free rects；默认仍 Rect engine）
+      ↓
+Constraint Checker
+      ↓
+SVG
+      ↓
+Report
+```
+
+未完成前：`geometry_backend=shapely-orthogonal` 仅表示场地**意图/工具可用**，不代表 pipeline 已走多边形路径。
 
 ## 明确不做（Phase 8）
 
@@ -230,4 +271,5 @@ Repair → Evaluation
 - [x] 8.1 Diversity Selection
 - [x] 8.2 Pareto Frontier
 - [x] 8.3 CP-SAT Research
-- [x] 8.4 Advanced Geometry
+- [x] 8.4 Irregular Geometry Foundation（**非**端到端 irregular）
+- [ ] 8.4.1 Irregular Site Pipeline Integration

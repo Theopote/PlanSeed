@@ -11,6 +11,6 @@
 | [005](005-geometry-mutation-authority.md) | Geometry Mutation Authority |
 | [006](006-designreport-canonical-deliverable.md) | DesignReport canonical deliverable |
 | [008](008-cpsat-assignment-not-geometry.md) | CP-SAT scopes assignment, not geometry |
-| [009](009-rect-default-shapely-irregular.md) | Rect default; Shapely for irregular only |
+| [009](009-rect-default-shapely-irregular.md) | Rect default; Shapely = irregular **foundation**（非端到端） |
 
 格式：Context → Decision → Consequences。

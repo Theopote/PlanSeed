@@ -34,7 +34,9 @@ class LayoutGenerator(Protocol):
 - Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅；**Alpha 默认** `rank_mode=axis`）
 - Pareto：`rank_mode=pareto` Experimental（slot1=最高分 + 七轴非支配 crowding；非默认）
 - CP-SAT floor assignment（opt-in research，8.3 ✅；**不**输出坐标；**不**扩 CP-SAT geometry）
-- 不规则场地：`solver.geometry.irregular`（Shapely opt-in，8.4 ✅）
+- 不规则场地：**8.4 Foundation**（`solver.geometry.irregular` + polygon schema ✅）  
+  - **8.4.1 Pipeline Integration ☐** — `prepare_buildable_rects` 尚未接入 packing；`DesignProgram.buildable` 仍为 `Rect2D`  
+  - setback = max-edge 均匀近似，≠ 完整 Advanced Site
 - **8.5**：Alpha Stabilization — SolverProvenance + 禁止静默改默认 ranking；见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
 - Phase 8 能力面收口；**禁止** CP-SAT/GA/Shapely 替代默认 Rect packing
 

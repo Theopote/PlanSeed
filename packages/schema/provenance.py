@@ -81,7 +81,11 @@ def assignment_strategy_for(program: Any) -> str:
 
 
 def geometry_backend_for(program: Any) -> str:
-    """Alpha 默认 Rect packing；不规则多边形场地标记 shapely-orthogonal 意图。"""
+    """场地模型意图：有多边形则标 shapely-orthogonal。
+
+    **注意：** 这不等于 packing 已走 irregular pipeline（8.4.1 ☐）。
+    Alpha 默认仍消费 ``DesignProgram.buildable: Rect2D``。
+    """
     site = getattr(program, "site", None)
     if site is None:
         return GEOMETRY_BACKEND_RECT

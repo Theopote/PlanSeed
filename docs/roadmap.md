@@ -16,7 +16,7 @@
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（A–I） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.0–8.4；默认语义见 8.5） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.4=Foundation；8.4.1 ☐；见 8.5） |
 | **8.5** | **Alpha Stabilization / Requalification** | **← 当前**（[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)） |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 
@@ -29,7 +29,7 @@
 7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
 7.2       Export Formats                    ✅ Alpha Product Loop
 7.5       Alpha Engineering Hardening       ✅（A–I）
-8.0       Solver Diversity / Solver 2.0     ✅ 能力面（8.0–8.4）
+8.0       Solver Diversity / Solver 2.0     ✅ 能力面（8.4 Foundation；8.4.1 ☐）
 8.5       Alpha Stabilization / Requalify   ← 当前
 8.x       Advanced Site / Code / Interop    ← 更后
 ```
@@ -37,7 +37,7 @@
 ```text
 纪律：发现一个问题 ≠ 新开一个 Phase。
 优化建议（mypy 渐进 / OpenAPI / 持久化 / Solver 多样性 / LLM 可维护性）
-  → 进 backlog；7.2 / 7.5 / 8.0–8.4 能力面已关闭。
+  → 进 backlog；7.2 / 7.5 / 8.0 能力面主线已关闭（8.4.1 / MaxRect 资格仍开放）。
 现在不做：冲 Phase 9 · 重开 Phase 6 · 用 CP-SAT/GA/Shapely 替代默认 Rect packing · 全面 strict mypy · Canva 品牌。
 默认 ranking 不得静默改为 Pareto（见 8.5）。
 产品问题：生成的东西能不能离开 PlanSeed？→ 7.2 已答「能」。
@@ -63,7 +63,7 @@
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅** |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.0–8.4） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.4 Foundation；8.4.1 ☐） |
 | **8.5** | **Alpha Stabilization / Requalification** | **← 当前** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 | — | SVG Debug | ✅ 开发工具 |
@@ -444,7 +444,7 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke 待手测勾选 |
 | **7.2** | Export Formats | **✅**（SVG · PNG · JSON · Print · Export Dialog） |
 | **7.5** | Alpha Engineering Hardening | **✅**（[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | Solver Diversity / Solver 2.0 | **✅ 能力面**（8.0–8.4） |
+| **8.0** | Solver Diversity / Solver 2.0 | **✅ 能力面**（8.4 Foundation；8.4.1 ☐） |
 | **8.5** | Alpha Stabilization / Requalification | **← 当前**（[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)） |
 | **8.x** | Advanced Site / Code / Interop | 更后 |
 
