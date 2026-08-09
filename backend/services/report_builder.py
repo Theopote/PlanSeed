@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from packages.schema.report import (
+    REPORT_SCHEMA_VERSION,
     CandidateSummary,
     DesignReport,
     EvaluationSummary,
@@ -227,6 +228,7 @@ def build_design_report(
     rev_id = resolve_revision_id(candidate) or cand_id
 
     return DesignReport(
+        report_schema_version=REPORT_SCHEMA_VERSION,
         status=status,
         source_revision_id=rev_id,
         project=ProjectMetadata(

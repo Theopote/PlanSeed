@@ -10,6 +10,7 @@ import {
   buildReport,
   downloadBlob,
   exportPng,
+  exportReportJson,
   exportSvg,
   parseRequirementsNl,
   patchFormFromRequirementSpec,
@@ -1437,6 +1438,82 @@ function App() {
     ],
   );
 
+  const onExportReportJson = useCallback(async () => {
+    if (!program || candidates.length === 0) {
+      setError("请先 Generate 再导出 DesignReport JSON");
+      return;
+    }
+    if (!selectedId) {
+      setError("请先选择要导出的候选");
+      return;
+    }
+    const selected = candidates.find((c) => c.id === selectedId);
+    if (selected?.revision_status === "dirty") {
+      setError(
+        "方案已修改，评价结果已过期。请先重新验证后再导出 JSON。",
+      );
+      return;
+    }
+    setReportBusy(true);
+    setError(null);
+    try {
+      const fromCand = candidates.find((c) => c.provenance)?.provenance;
+      const schema_versions = {
+        solver_version:
+          solverIdentity?.solver_version ?? fromCand?.solver_version ?? null,
+        generator_version:
+          solverIdentity?.generator_version ??
+          fromCand?.generator_version ??
+          null,
+        evaluation_version:
+          solverIdentity?.evaluation_version ??
+          fromCand?.evaluation_version ??
+          null,
+      };
+      const saved = await saveProject({
+        name: projectName.trim() || "未命名项目",
+        id: projectId,
+        payload: {
+          form,
+          program,
+          requirement_spec: resolveCanonicalSpec(),
+          locks: cloneLayoutLocks(locks),
+          candidates,
+          selected_id: selectedId,
+          compare_id: compareId,
+          schema_versions,
+        },
+      });
+      setProjectId(saved.id);
+      setProjectName(saved.name);
+      const stored = saved.payload.candidates?.find((c) => c.id === selectedId);
+      const revisionId =
+        stored?.revision_id ?? selected?.revision_id ?? selectedId;
+      const out = await exportReportJson({
+        projectId: saved.id,
+        candidateId: selectedId,
+        revisionId,
+        includeSvg: true,
+      });
+      downloadBlob(out.blob, out.filename);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReportBusy(false);
+    }
+  }, [
+    program,
+    candidates,
+    projectName,
+    projectId,
+    selectedId,
+    form,
+    locks,
+    compareId,
+    solverIdentity,
+    resolveCanonicalSpec,
+  ]);
+
   const onOpenProjects = useCallback(async () => {
     setProjectBusy(true);
     setError(null);
@@ -1685,6 +1762,7 @@ function App() {
           onProjectNameChange={setProjectName}
           onSaveProject={() => void onSaveProject()}
           onExportReport={() => void onExportReport()}
+          onExportReportJson={() => void onExportReportJson()}
           onExportSvg={(scope) => void onExportSvg(scope)}
           onExportPng={(scope, size) => void onExportPng(scope, size)}
           onOpenProjects={() => void onOpenProjects()}

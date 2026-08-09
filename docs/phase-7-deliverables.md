@@ -1,6 +1,6 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 7.2.3 DesignReport JSON ← 下一 · 7.2.1/7.2.2 ✅ · 7.1.1 Print smoke 人手待勾**
+> **状态：▶ 7.2.4 Print polish ← 下一 · 7.2.1–7.2.3 ✅ · 7.1.1 Print smoke 人手待勾**
 > **详案：** 本页 · [phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 > **前置：** Phase 6 **彻底冻结**（Blind 工程 PASS；`qualify --gate` 拒 dirty worktree；不开抠分）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
@@ -26,7 +26,7 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
 | **7.1** | Report Presentation | ✅ Engineering（收口见 7.1.1） |
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke ☐ |
-| **7.2** | Export Formats | **← 当前**（下一 7.2.3 JSON） |
+| **7.2** | Export Formats | **← 当前**（下一 7.2.4 Print polish） |
 | **7.5** | Alpha Engineering Hardening | 7.2 完成后 |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续 |
 
@@ -388,8 +388,8 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 |--------|------|------|
 | **7.2.1** | SVG Export | ✅ |
 | **7.2.2** | PNG Export | ✅ |
-| **7.2.3** | DesignReport JSON | **← 下一** |
-| **7.2.4** | Print / PDF Polish | CSS print only；非 PDF 引擎 |
+| **7.2.3** | DesignReport JSON | ✅ |
+| **7.2.4** | Print / PDF Polish | **← 下一** |
 | **7.2.5** | Export UX Consolidation | Export Dialog；防按钮爆炸 |
 
 ### 7.2.1 — SVG Export ✅
@@ -432,17 +432,20 @@ Canonical Floor SVG → sanitize → resvg → PNG（白底）
 **禁止：** HTML/Workbench 截图 · Chromium 服务 · 透明/暗色/水印/品牌模板（Alpha）  
 **依赖：** `resvg-py` · `pillow`（测试/像素校验；光栅主路径为 resvg）
 
-### 7.2.3 — DesignReport JSON（← 下一）
+### 7.2.3 — DesignReport JSON ✅
 
 | | Project Snapshot | DesignReport JSON |
 |--|------------------|-------------------|
 | 用途 | 继续编辑 / 恢复 | 交付 / 归档 / 审计 |
 | 内容 | 工作台 payload | `DesignReport` + `report_schema_version` |
 
-含：schema_version · project · source_revision_id · requirement · assumptions/unknowns · candidate · floor meta · schedule · evaluation · findings · provenance。  
-Alpha 可内嵌 SVG；禁止 `candidate.model_dump()` 冒充。
+含：`report_schema_version` · project · source_revision_id · requirement · assumptions/unknowns · candidate · floor meta · schedule · evaluation · findings · provenance。  
+Alpha 默认内嵌 SVG（sanitize）；禁止 `candidate.model_dump()` / Project Snapshot 冒充。
 
-### 7.2.4 — Print / PDF Polish
+**API：** `POST /api/exports/report-json`  
+**实现：** `backend/services/export/json_exporter.py` · 字段 `REPORT_SCHEMA_VERSION`（`packages/schema/report.py`）
+
+### 7.2.4 — Print / PDF Polish（← 下一）
 
 继续 `HTML → WebView2 → Print → PDF`。  
 只做 `@page` / break / orphans / widows / 表头 / 封面。  

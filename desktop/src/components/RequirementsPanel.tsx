@@ -43,6 +43,7 @@ type Props = {
   onProjectNameChange: (name: string) => void;
   onSaveProject: () => void;
   onExportReport?: () => void;
+  onExportReportJson?: () => void;
   onExportSvg?: (scope: "floor" | "snapshot" | "all_floors") => void;
   onExportPng?: (
     scope: "floor" | "snapshot" | "all_floors",
@@ -121,6 +122,7 @@ export function RequirementsPanel({
   onProjectNameChange,
   onSaveProject,
   onExportReport,
+  onExportReportJson,
   onExportSvg,
   onExportPng,
   onOpenProjects,
@@ -239,6 +241,17 @@ export function RequirementsPanel({
             title="导出 Design Report（HTML / Print PDF）"
           >
             {reportBusy ? "…" : "报告"}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={
+              !engineReady || reportBusy || !program || !onExportReportJson
+            }
+            onClick={onExportReportJson}
+            title="导出 DesignReport JSON（交付契约，≠ 项目快照）"
+          >
+            JSON
           </button>
           <details className="export-svg-menu">
             <summary

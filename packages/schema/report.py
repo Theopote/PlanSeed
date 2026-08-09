@@ -21,6 +21,9 @@ from packages.schema.report_i18n import (
 )
 from packages.schema.scoring import DesignFinding, DesignScore
 
+# DesignReport 交付契约版本（≠ ProjectPayload.format_version / APP_VERSION）
+REPORT_SCHEMA_VERSION = "1.0.0"
+
 # 兼容旧引用：默认 locale 边界声明（新代码请用 boundary_lines_for_locale）
 REPORT_BOUNDARY_LINES: tuple[str, ...] = tuple(
     boundary_lines_for_locale(DEFAULT_REPORT_LOCALE)
@@ -199,6 +202,10 @@ class DesignReport(BaseModel):
     DesignReport → HTML / JSON /（未来）专业 PDF
     """
 
+    report_schema_version: str = Field(
+        default=REPORT_SCHEMA_VERSION,
+        description="DesignReport 交付契约版本（≠ Project Snapshot format_version）",
+    )
     status: ReportStatus = ReportStatus.VALID
     source_revision_id: str | None = Field(
         default=None,

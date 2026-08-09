@@ -50,6 +50,7 @@ from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.report import (
     GEOMETRY_ORIGIN_LABELS,
     REPORT_BOUNDARY_LINES,
+    REPORT_SCHEMA_VERSION,
     CandidateSummary,
     DesignReport,
     DesignReportPayload,
@@ -152,6 +153,7 @@ __all__ = [
     "RelationIntent",
     "RepairRecord",
     "REPORT_BOUNDARY_LINES",
+    "REPORT_SCHEMA_VERSION",
     "ReportAssumption",
     "ReportProvenance",
     "ReportStatus",

@@ -947,6 +947,40 @@ export async function exportPng(opts: {
   return { blob, filename };
 }
 
+/** Phase 7.2.3 — DesignReport JSON（≠ Project Snapshot）。 */
+export async function exportReportJson(opts: {
+  projectId: string;
+  candidateId: string;
+  revisionId: string;
+  includeSvg?: boolean;
+}): Promise<{ blob: Blob; filename: string }> {
+  const r = await fetch(`${_apiBase}/api/exports/report-json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      project_id: opts.projectId,
+      candidate_id: opts.candidateId,
+      revision_id: opts.revisionId,
+      include_svg: opts.includeSvg ?? true,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: unknown };
+      msg = formatReportErrorDetail(body.detail, r.status);
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  const blob = await r.blob();
+  const filename =
+    parseContentDispositionFilename(r.headers.get("content-disposition")) ??
+    "DesignReport.json";
+  return { blob, filename };
+}
+
 /** 触发浏览器 / WebView 下载。 */
 export function downloadBlob(blob: Blob, filename: string): void {
   triggerBlobDownload(blob, filename);

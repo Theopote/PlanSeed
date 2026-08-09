@@ -46,6 +46,7 @@
 | `POST /api/reports/build` | Phase 7：`mode=preview` 可 payload；`mode=final` 须 `project_id`+`candidate_id`+`revision_id`（只读 store，禁止 payload）；SVG sanitize；详见 [phase-7-deliverables.md](phase-7-deliverables.md) |
 | `POST /api/exports/svg` | Phase 7.2.1：`project_id`+`candidate_id`+`revision_id`+`scope`（`floor`/`snapshot`/`all_floors`）；`scope=floor` 须 `floor_id`；只读 store → sanitize → 文件；禁止 DOM outerHTML |
 | `POST /api/exports/png` | Phase 7.2.2：同上 + `size`∈{2048,4096}；Canonical SVG → `resvg` 白底 PNG；禁止 HTML 截图 |
+| `POST /api/exports/report-json` | Phase 7.2.3：`DesignReport` + `report_schema_version` 文件下载；≠ Project Snapshot；禁止 candidate dump |
 
 ### SolverIdentity（算法契约，≠ engine_version）
 
