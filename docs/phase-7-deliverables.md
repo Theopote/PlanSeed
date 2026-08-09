@@ -341,7 +341,8 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 
 **事实链：** Desktop `RequirementSpecPayload` / `ProgramSummary` 须携带
 `unknown.priority` 与 `assumption.source`（与 Phase 6 schema 一致）；
-编辑假设时不得丢弃 `source`。报告 Cover 的 blocking banner 依赖完整 priority。
+编辑假设时不得丢弃 `source`。报告 Cover 的 blocking banner 依赖完整 priority。  
+详见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)「TS Fidelity Audit」。
 
 ### Definition of Done（7.1）
 

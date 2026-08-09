@@ -11,6 +11,10 @@ import type {
   UnknownPayload,
   UnknownPriority,
 } from "../api/client";
+import {
+  cloneAssumptionPayload,
+  cloneUnknownPayload,
+} from "../api/client";
 
 export type AssumptionRow = AssumptionPayload;
 export type UnknownRow = UnknownPayload;
@@ -95,14 +99,10 @@ export function resolveRequirementGaps(
         : (program?.assumptions ?? []);
     const unknowns =
       spec.unknowns !== undefined
-        ? (spec.unknowns ?? []).map((u) => ({
-            key: u.key,
-            description: u.description ?? "",
-            priority: u.priority ?? undefined,
-          }))
+        ? (spec.unknowns ?? []).map(cloneUnknownPayload)
         : (program?.unknowns ?? []);
     return {
-      assumptions,
+      assumptions: assumptions.map(cloneAssumptionPayload),
       unknowns,
       sourceLabel: "requirementSpec",
     };

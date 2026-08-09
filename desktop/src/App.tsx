@@ -518,11 +518,10 @@ function App() {
       const nextAssumptions = prevList.map((a) =>
         a.key === key
           ? {
+              ...a,
               key,
               value: nextValue,
               reason: patch.reason,
-              // 编辑值/理由时保留 Phase 6 source，避免事实链断裂
-              source: a.source ?? existing?.source,
             }
           : a,
       );
@@ -531,12 +530,7 @@ function App() {
         prev
           ? {
               ...prev,
-              assumptions: nextAssumptions.map((a) => ({
-                key: a.key,
-                value: a.value,
-                reason: a.reason ?? "",
-                source: a.source ?? undefined,
-              })),
+              assumptions: nextAssumptions.map((a) => ({ ...a })),
             }
           : prev,
       );

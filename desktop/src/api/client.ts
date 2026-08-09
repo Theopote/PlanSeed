@@ -327,7 +327,62 @@ export async function parseRequirementsNl(
   return r.json() as Promise<ParseNLResponse>;
 }
 
-/** Phase 5.1.1 — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。 */
+/** Phase 5.1.1 — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。
+ *
+ * ## TS Fidelity Audit（对照 Python；禁止瘦 map 重建子对象）
+ *
+ * | Python field                         | TS field                                      | 状态 |
+ * |--------------------------------------|-----------------------------------------------|------|
+ * | assumptions[].source                 | AssumptionPayload.source                      | ✅   |
+ * | unknowns[].priority                  | UnknownPayload.priority                       | ✅   |
+ * | relation_intents[].a/b/kind/strength/note | RelationIntentPayload                    | ✅   |
+ * | spaces[].preferred_orientation       | spaces[].preferred_orientation                | ✅   |
+ * | spaces[].floor_preference            | spaces[].floor_preference                     | ✅   |
+ * | spaces[].min_width                   | spaces[].min_width                            | ✅   |
+ * | spaces[].tags                        | spaces[].tags                                 | ✅   |
+ * | site.north_angle                     | site.north_angle                              | ✅   |
+ * | site.entrance_edge / road_edges      | site.entrance_edge / road_edges               | ✅   |
+ * | site.setbacks                        | site.setbacks (SetbackPayload)                | ✅   |
+ *
+ * 规则：复制 / 编辑时用 `{ ...row, ...patch }`；禁止 `{ key, description }` 之类缩字段。
+ * 报告 Cover blocking / 北向 / Key Intent 关系句均依赖完整语义。
+ */
+export type RelationKind =
+  | "adjacency"
+  | "near"
+  | "separation"
+  | "access"
+  | "open_connection"
+  | "visual_connection";
+
+export type RelationStrength = "required" | "preferred";
+
+export type RelationIntentPayload = {
+  a: string;
+  b: string;
+  kind?: RelationKind | string;
+  strength?: RelationStrength | string;
+  note?: string;
+};
+
+export type SetbackPayload = {
+  north?: number;
+  south?: number;
+  east?: number;
+  west?: number;
+};
+
+export type SpaceRequirementPayload = {
+  id?: string | null;
+  name: string;
+  category?: string | null;
+  target_area?: number | null;
+  floor_preference?: string[];
+  tags?: string[];
+  preferred_orientation?: string | null;
+  min_width?: number | null;
+};
+
 export type RequirementSpecPayload = {
   raw_text?: string | null;
   site?: {
@@ -336,7 +391,7 @@ export type RequirementSpecPayload = {
     north_angle?: number | null;
     entrance_edge?: string | null;
     road_edges?: string[];
-    setbacks?: Record<string, unknown> | null;
+    setbacks?: SetbackPayload | null;
   };
   household?: {
     occupants?: number | null;
@@ -345,16 +400,7 @@ export type RequirementSpecPayload = {
     has_garage?: boolean | null;
     notes?: string;
   };
-  spaces?: Array<{
-    id?: string | null;
-    name: string;
-    category?: string | null;
-    target_area?: number | null;
-    floor_preference?: string[];
-    tags?: string[];
-    preferred_orientation?: string | null;
-    min_width?: number | null;
-  }>;
+  spaces?: SpaceRequirementPayload[];
   preferences?: {
     prefer_south_facing_living?: boolean | null;
     prefer_open_kitchen_dining?: boolean | null;
@@ -366,7 +412,19 @@ export type RequirementSpecPayload = {
   floor_count?: number | null;
   assumptions?: AssumptionPayload[];
   unknowns?: UnknownPayload[];
+  /** Phase 6：名称级关系意图；报告 Key Intent / Normalizer 消费 */
+  relation_intents?: RelationIntentPayload[];
 };
+
+/** 保真复制：不得丢掉 priority。 */
+export function cloneUnknownPayload(u: UnknownPayload): UnknownPayload {
+  return { ...u, description: u.description ?? "" };
+}
+
+/** 保真复制：不得丢掉 source。 */
+export function cloneAssumptionPayload(a: AssumptionPayload): AssumptionPayload {
+  return { ...a, reason: a.reason ?? "" };
+}
 
 /** 用 ProgramSummary 房间面积/楼层补丁 spaces（Inspector 改面积后保持 spec 同步）。 */
 export function syncRequirementSpacesFromProgram(
@@ -412,7 +470,9 @@ export function syncRequirementSpacesFromProgram(
   };
 }
 
-/** 仅在尚无 canonical spec 时的降级（旧项目）；新会话禁止依赖此路径。 */
+/** 仅在尚无 canonical spec 时的降级（旧项目）；新会话禁止依赖此路径。
+ * 若有 ProgramSummary，必须带回 assumptions / unknowns（含 source / priority）。
+ */
 export function fallbackRequirementFromForm(
   form: RequirementForm,
   program?: ProgramSummary | null,
@@ -436,6 +496,8 @@ export function fallbackRequirementFromForm(
         target_area: room.target_area,
         floor_preference: room.floor_id ? [room.floor_id] : [],
       })),
+      assumptions: (program.assumptions ?? []).map(cloneAssumptionPayload),
+      unknowns: (program.unknowns ?? []).map(cloneUnknownPayload),
     };
   }
   return {
