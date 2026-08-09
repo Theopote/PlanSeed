@@ -189,12 +189,46 @@ _UNKNOWN_TO_FIELD = {
 
 
 def _relation_matches(expected: ExpectRelation, actual: RelationIntent) -> bool:
-    ends_e = {expected.a.strip(), expected.b.strip()}
-    ends_a = {actual.a.strip(), actual.b.strip()}
-    if ends_e != ends_a:
+    ends_e = {_canonical_space_token(expected.a), _canonical_space_token(expected.b)}
+    ends_a = {_canonical_space_token(actual.a), _canonical_space_token(actual.b)}
+    if not _endpoint_sets_match(ends_e, ends_a):
         return False
     if expected.kind is not None and actual.kind != expected.kind:
         return False
+    return True
+
+
+_SPACE_ALIAS_GROUPS: tuple[frozenset[str], ...] = (
+    frozenset({"入口", "门厅", "玄关"}),
+)
+
+
+def _canonical_space_token(name: str) -> str:
+    return (name or "").strip()
+
+
+def _alias_group(token: str) -> frozenset[str]:
+    for g in _SPACE_ALIAS_GROUPS:
+        if token in g:
+            return g
+    return frozenset({token})
+
+
+def _endpoint_sets_match(expected: set[str], actual: set[str]) -> bool:
+    """两端匹配；允许入口/门厅/玄关同组别名。"""
+    if expected == actual:
+        return True
+    if len(expected) != 2 or len(actual) != 2:
+        return False
+    e1, e2 = tuple(expected)
+    # 对 expected 每一端，actual 中须有同组别名
+    used: set[str] = set()
+    for e in (e1, e2):
+        group = _alias_group(e)
+        hit = next((a for a in actual if a not in used and a in group), None)
+        if hit is None:
+            return False
+        used.add(hit)
     return True
 
 
@@ -219,9 +253,16 @@ def _score_relations(
 
 
 def _space_by_name(spec: RequirementSpec, name: str):
+    target = (name or "").strip()
     for sp in spec.spaces:
-        if sp.name == name or sp.id == name:
+        if sp.name == target or sp.id == target:
             return sp
+    # 入口/门厅/玄关别名
+    group = _alias_group(target)
+    if len(group) > 1:
+        for sp in spec.spaces:
+            if sp.name in group:
+                return sp
     return None
 
 

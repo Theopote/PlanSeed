@@ -84,7 +84,11 @@ def test_ingest_happy_path_to_requirement_spec():
     assert result.spec.household.bedrooms == 3
     assert result.spec.raw_text == "两层三卧，客厅朝南"
     assert len(result.spec.assumptions) == 1
-    assert len(result.spec.unknowns) == 1
+    # enrich 对未提供场地补列 unknowns（不编造宽深）
+    unk = {u.key for u in result.spec.unknowns}
+    assert "site.entrance_edge" in unk
+    assert "site.width" in unk
+    assert "site.depth" in unk
     assert len(result.spec.relation_intents) == 1
     assert result.semantic.ok
 

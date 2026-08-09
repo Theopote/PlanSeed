@@ -7,6 +7,7 @@ from packages.llm.boundary import (
     assert_no_geometry_payload,
 )
 from packages.llm.draft_schema import draft_json_schema
+from packages.llm.enrich import enrich_requirement_draft, extract_space_names
 from packages.llm.factory import (
     create_llm_provider,
     create_requirement_llm_provider,
@@ -84,6 +85,8 @@ __all__ = [
     "create_llm_provider",
     "create_requirement_llm_provider",
     "draft_json_schema",
+    "enrich_requirement_draft",
+    "extract_space_names",
     "get_shared_requirement_provider",
     "load_ollama_config",
     "model_missing_message",

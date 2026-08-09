@@ -1,0 +1,792 @@
+{
+  "note": "LLM Alpha Baseline（真模型）。勿与 CI oracle 100% 混淆：oracle 只验证 harness。Phase 6 ✅ Alpha Qualified 仅当 Alpha Gate 全部通过。",
+  "summary": {
+    "mode": "real",
+    "model": "qwen2.5:7b",
+    "case_count": 62,
+    "field_accuracy": 0.4273,
+    "case_pass_rate": 0.0806,
+    "hallucination_rate": 0.0161,
+    "geometry_fail_rate": 0.0,
+    "geometry_fails": 0,
+    "geometry_violation_rate": 0.0,
+    "parse_failure_rate": 0.0645,
+    "parse_success_rate": 0.9355,
+    "repair_rate": 0.3387,
+    "schema_fail": 3,
+    "semantic_fail": 1,
+    "geometry_violation": 0,
+    "json_parse_fail": 0,
+    "repair_success": 17,
+    "repair_exhausted": 4,
+    "repair_exhausted_rate": 0.0645,
+    "average_attempts": 1.4032,
+    "average_latency_s": 19.2025,
+    "relation_recall": 0.3,
+    "relation_precision": 0.0577,
+    "relation_f1": 0.0968,
+    "floor_preference_accuracy": 0.0,
+    "orientation_accuracy": 0.0,
+    "unknown_detection_recall": 0.5102,
+    "unknown_precision": 0.1543,
+    "unknown_false_positive_rate": 0.8457,
+    "assumption_precision": 0.0,
+    "assumption_recall": 0.0,
+    "field_hits": 94,
+    "field_total": 220
+  },
+  "alpha_gate": {
+    "passed": false,
+    "checks": [
+      {
+        "key": "geometry_violation_rate",
+        "label": "Geometry violation",
+        "actual": 0.0,
+        "threshold": 0.0,
+        "cmp": "eq",
+        "passed": true,
+        "note": "架构边界：应接近绝对要求"
+      },
+      {
+        "key": "parse_success_rate",
+        "label": "Parse success",
+        "actual": 0.9355,
+        "threshold": 0.95,
+        "cmp": "ge",
+        "passed": false,
+        "note": ""
+      },
+      {
+        "key": "field_accuracy",
+        "label": "Scalar field accuracy",
+        "actual": 0.4273,
+        "threshold": 0.9,
+        "cmp": "ge",
+        "passed": false,
+        "note": ""
+      },
+      {
+        "key": "relation_f1",
+        "label": "Relation F1",
+        "actual": 0.0968,
+        "threshold": 0.8,
+        "cmp": "ge",
+        "passed": false,
+        "note": ""
+      },
+      {
+        "key": "hallucination_rate",
+        "label": "Unknown hallucination",
+        "actual": 0.0161,
+        "threshold": 0.05,
+        "cmp": "le",
+        "passed": true,
+        "note": ""
+      },
+      {
+        "key": "repair_exhausted_rate",
+        "label": "Repair exhausted",
+        "actual": 0.0645,
+        "threshold": 0.05,
+        "cmp": "le",
+        "passed": false,
+        "note": ""
+      },
+      {
+        "key": "case_pass_rate",
+        "label": "Case pass rate",
+        "actual": 0.0806,
+        "threshold": 0.7,
+        "cmp": "ge",
+        "passed": false,
+        "note": ""
+      }
+    ],
+    "metrics": {
+      "geometry_violation_rate": 0.0,
+      "parse_success_rate": 0.9355,
+      "field_accuracy": 0.4273,
+      "relation_f1": 0.0968,
+      "hallucination_rate": 0.0161,
+      "repair_exhausted_rate": 0.0645,
+      "case_pass_rate": 0.0806,
+      "relation_precision": 0.0577,
+      "relation_recall": 0.3
+    }
+  },
+  "failed_cases": [
+    {
+      "id": "rb-001",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 29.578
+    },
+    {
+      "id": "rb-002",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.26
+    },
+    {
+      "id": "rb-003",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 25.853
+    },
+    {
+      "id": "rb-004",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：site.width, site.depth"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 11.655
+    },
+    {
+      "id": "rb-006",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.bedrooms, site.width"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 21.429
+    },
+    {
+      "id": "rb-008",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 8.564
+    },
+    {
+      "id": "rb-009",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 12.165
+    },
+    {
+      "id": "rb-010",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：site.width"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 29.366
+    },
+    {
+      "id": "rb-011",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.74
+    },
+    {
+      "id": "rb-012",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": true,
+      "geometry_fail": false,
+      "failure_kind": "schema_fail",
+      "repair_exhausted": true,
+      "attempts": 3,
+      "latency_s": 29.348
+    },
+    {
+      "id": "rb-013",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：site.width, site.depth"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.936
+    },
+    {
+      "id": "rb-014",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 20.685
+    },
+    {
+      "id": "rb-015",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.bedrooms"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 8.249
+    },
+    {
+      "id": "rb-016",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 38.627
+    },
+    {
+      "id": "rb-017",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.bedrooms, site.width"
+      ],
+      "parse_failed": true,
+      "geometry_fail": false,
+      "failure_kind": "schema_fail",
+      "repair_exhausted": true,
+      "attempts": 3,
+      "latency_s": 25.405
+    },
+    {
+      "id": "rb-018",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 40.841
+    },
+    {
+      "id": "rb-020",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 10.457
+    },
+    {
+      "id": "rb-021",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 12.233
+    },
+    {
+      "id": "rb-022",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 10.693
+    },
+    {
+      "id": "rb-024",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.has_garage"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 11.576
+    },
+    {
+      "id": "rb-025",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.614
+    },
+    {
+      "id": "rb-027",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 31.054
+    },
+    {
+      "id": "rb-028",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.bedrooms, floor_count"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 9.02
+    },
+    {
+      "id": "rb-029",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 12.176
+    },
+    {
+      "id": "rb-030",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.bathrooms, site.width"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 18.486
+    },
+    {
+      "id": "rb-031",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 11.688
+    },
+    {
+      "id": "rb-032",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 36.221
+    },
+    {
+      "id": "rb-033",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 9.022
+    },
+    {
+      "id": "rb-034",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 27.889
+    },
+    {
+      "id": "rb-035",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 26.346
+    },
+    {
+      "id": "rb-036",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 13.406
+    },
+    {
+      "id": "rb-037",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 10.519
+    },
+    {
+      "id": "rb-038",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：site.width"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 12.166
+    },
+    {
+      "id": "rb-039",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": true,
+      "geometry_fail": false,
+      "failure_kind": "semantic_fail",
+      "repair_exhausted": true,
+      "attempts": 3,
+      "latency_s": 37.011
+    },
+    {
+      "id": "rb-040",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 10.972
+    },
+    {
+      "id": "rb-041",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 40.414
+    },
+    {
+      "id": "rb-042",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 10.484
+    },
+    {
+      "id": "rb-043",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 15.289
+    },
+    {
+      "id": "rb-044",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": true,
+      "geometry_fail": false,
+      "failure_kind": "schema_fail",
+      "repair_exhausted": true,
+      "attempts": 3,
+      "latency_s": 39.49
+    },
+    {
+      "id": "rb-045",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 15.291
+    },
+    {
+      "id": "rb-046",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 13.521
+    },
+    {
+      "id": "rb-047",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：site.width, household.bathrooms"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 9.277
+    },
+    {
+      "id": "rb-048",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 26.248
+    },
+    {
+      "id": "rb-049",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 12.893
+    },
+    {
+      "id": "rb-050",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.604
+    },
+    {
+      "id": "rb-051",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 12.709
+    },
+    {
+      "id": "rb-052",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 21.608
+    },
+    {
+      "id": "rb-053",
+      "hallucinations": [],
+      "notes": [
+        "缺少空间名 '厨房'",
+        "缺少空间名 '餐厅'",
+        "缺少空间名 '客厅'"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.013
+    },
+    {
+      "id": "rb-054",
+      "hallucinations": [],
+      "notes": [
+        "缺少空间名 '入口'"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 16.354
+    },
+    {
+      "id": "rb-055",
+      "hallucinations": [],
+      "notes": [],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 14.503
+    },
+    {
+      "id": "rb-056",
+      "hallucinations": [],
+      "notes": [
+        "缺少空间名 '车库'",
+        "缺少空间名 '门厅'"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 37.617
+    },
+    {
+      "id": "rb-057",
+      "hallucinations": [],
+      "notes": [
+        "缺少空间名 '客厅'"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 15.694
+    },
+    {
+      "id": "rb-058",
+      "hallucinations": [],
+      "notes": [
+        "缺少空间名 '客房'"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 16.752
+    },
+    {
+      "id": "rb-059",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：site.width, site.depth"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 31.317
+    },
+    {
+      "id": "rb-060",
+      "hallucinations": [],
+      "notes": [
+        "缺少空间名 '老人房'"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 2,
+      "latency_s": 28.933
+    },
+    {
+      "id": "rb-061",
+      "hallucinations": [
+        "floor_count"
+      ],
+      "notes": [
+        "unknowns 漏列：floor_count, household.bedrooms, household.bathrooms"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 13.0
+    },
+    {
+      "id": "rb-062",
+      "hallucinations": [],
+      "notes": [
+        "unknowns 漏列：household.bathrooms",
+        "assumption household.bedrooms: key 不匹配"
+      ],
+      "parse_failed": false,
+      "geometry_fail": false,
+      "failure_kind": null,
+      "repair_exhausted": false,
+      "attempts": 1,
+      "latency_s": 10.61
+    }
+  ]
+}

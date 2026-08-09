@@ -107,13 +107,14 @@ class RequirementSemanticValidator:
             )
 
         # relation 端点分别 soft 校验（一端幻觉不可被另一端掩盖）
+        # enrich 后应用别名：入口≈门厅≈玄关
         names = {s.name for s in spec.spaces} | {
             s.id for s in spec.spaces if s.id
         }
         for rel in spec.relation_intents:
             if not names:
                 continue
-            if rel.a not in names:
+            if not _endpoint_resolves(rel.a, names):
                 out.issues.append(
                     SemanticIssue(
                         code="req.relation_a_unknown",
@@ -121,7 +122,7 @@ class RequirementSemanticValidator:
                         hard=False,
                     )
                 )
-            if rel.b not in names:
+            if not _endpoint_resolves(rel.b, names):
                 out.issues.append(
                     SemanticIssue(
                         code="req.relation_b_unknown",
@@ -131,3 +132,22 @@ class RequirementSemanticValidator:
                 )
 
         return out
+
+
+_ENDPOINT_ALIASES: dict[str, frozenset[str]] = {
+    "入口": frozenset({"入口", "门厅", "玄关"}),
+    "门厅": frozenset({"入口", "门厅", "玄关"}),
+    "玄关": frozenset({"入口", "门厅", "玄关"}),
+}
+
+
+def _endpoint_resolves(endpoint: str, names: set[str]) -> bool:
+    ep = (endpoint or "").strip()
+    if not ep:
+        return False
+    if ep in names:
+        return True
+    aliases = _ENDPOINT_ALIASES.get(ep)
+    if aliases and aliases & names:
+        return True
+    return False

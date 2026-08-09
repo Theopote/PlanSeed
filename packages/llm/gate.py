@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from packages.llm.boundary import GeometryForbiddenError, assert_no_geometry_payload
+from packages.llm.enrich import enrich_requirement_draft
 from packages.llm.semantic import (
     RequirementSemanticValidator,
     SemanticIssue,
@@ -36,6 +37,7 @@ class IngestResult:
     draft: LLMRequirementDraft
     spec: RequirementSpec
     semantic: SemanticValidationResult
+    enrich_notes: tuple[str, ...] = ()
 
 
 def ingest_llm_requirement(
@@ -43,12 +45,14 @@ def ingest_llm_requirement(
     *,
     raw_text: str | None = None,
     validator: RequirementSemanticValidator | None = None,
+    enrich: bool = True,
 ) -> IngestResult:
     """
     1) 禁几何扫描
     2) LLMRequirementDraft.model_validate
-    3) RequirementSemanticValidator
-    4) → RequirementSpec
+    3) 确定性 enrich（unknowns / 原文空间与关系）
+    4) RequirementSemanticValidator
+    5) → RequirementSpec
     """
     if isinstance(raw, str):
         try:
@@ -97,9 +101,20 @@ def ingest_llm_requirement(
     if raw_text and not draft.raw_text:
         draft = draft.model_copy(update={"raw_text": raw_text})
 
+    enrich_notes: tuple[str, ...] = ()
+    if enrich:
+        enriched = enrich_requirement_draft(draft)
+        draft = enriched.draft
+        enrich_notes = enriched.notes
+
     sem = (validator or RequirementSemanticValidator()).validate_draft(draft)
     if not sem.ok:
         msgs = "; ".join(i.message for i in sem.hard_issues)
         raise LLMIngestError(f"语义校验失败：{msgs}", issues=list(sem.hard_issues))
 
-    return IngestResult(draft=draft, spec=draft.to_requirement_spec(), semantic=sem)
+    return IngestResult(
+        draft=draft,
+        spec=draft.to_requirement_spec(),
+        semantic=sem,
+        enrich_notes=enrich_notes,
+    )

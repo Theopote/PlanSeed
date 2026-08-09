@@ -385,8 +385,23 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 - [x] Ollama server / model 两级状态（`is_available` · `is_model_available` · `/api/llm/status`）
 - [x] UI：本地 AI 未启动 / 模型未安装 / 解析中 / 解析失败 / 修复后成功
 - [x] Alpha Gate + `qualify --gate`；多模型 `--models`（判断 7B 是否够用）
-- [ ] **本机** `qwen2.5:7b` 跑完全部语料（≥50）并写入 `docs/baselines/llm-alpha-baseline.json`
+- [x] 本机 `qwen2.5:7b` 全量跑分 → `docs/baselines/llm-alpha-baseline.json`（62 案；**Alpha Gate 未过**）
+- [x] Requirement enricher：补列 site unknowns · 原文抽空间/关系/标量/楼层偏好/朝向（禁堆 Prompt）
 - [ ] 至少一模型过 Alpha Gate → **Phase 6 ✅ Alpha Qualified** → 进入 Phase 7
+
+**qwen2.5:7b Alpha Baseline（2026-08-09）：**
+
+| 指标 | 实测 | Gate | |
+|------|------|------|--|
+| Geometry violation | 0% | 0% | ✅ |
+| Unknown hallucination | 1.6% | ≤5% | ✅ |
+| Parse success | 93.6% | ≥95% | ❌ |
+| Repair exhausted | 6.5% | ≤5% | ❌ |
+| Scalar field accuracy | 42.7% | ≥90% | ❌ |
+| Relation F1 | 9.7% | ≥80% | ❌ |
+| Case pass rate | 8.1% | ≥70% | ❌ |
+
+架构边界（禁几何）已守住；准确率距门仍远。下一步走 Benchmark→失败模式→Schema/语义/Normalizer（禁止堆 Prompt）；可另测候选模型判断是否仍用 7B。
 
 ---
 
