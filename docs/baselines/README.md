@@ -38,3 +38,10 @@ Blind / Holdout 默认**不写** per-case `failed_cases`（防逐案过拟合）
 
 **Strict Alpha Qualified** 仅当 Blind + Pipeline 的 `alpha_gate.passed` 为真。  
 Holdout 过门 ≠ 严格独立泛化证据（见 phase-6.7.2）。
+
+## Phase 6 post-alpha known limitations
+
+不阻塞 Phase 7（详见 [hybrid-semantic-parser.md](../hybrid-semantic-parser.md)）：
+
+- **Latency**：avg ~15–20s（进度文案；性能另阶段）
+- **bathrooms**（Holdout 分字段 ≈87.5%）：整体 field 已高；卫浴为已知弱项，禁止逐案 regex 冒充修复

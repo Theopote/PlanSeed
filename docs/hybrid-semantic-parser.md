@@ -125,6 +125,24 @@ average ≈ 15–20s · P50 ≈ 14–15s · P90 ≈ 35–40s · max ≈ 45s
 再优化等待体感与绝对耗时
 ```
 
+## Phase 6 post-alpha 已知限制
+
+Strict Alpha Qualified **之后**仍承认、但**不**据此回头卡 Phase 7 / 堆 Blind 规则：
+
+| 项 | 现状（约） | 处理 |
+|----|------------|------|
+| **Latency** | avg ~15–20s · P90 ~35–40s | 进度文案；性能另阶段 |
+| **bathrooms 分字段** | Holdout ≈ **87.5%**（弱于卧/层/场地/车库/朝南） | 已知限制；整体 field ≈96% 已过门 |
+
+Holdout 分字段对照（工程回归，非 Blind）：
+
+```text
+floor_count ≈ 96.6% · bedrooms ≈ 95.8% · bathrooms ≈ 87.5%
+site w/d ≈ 100% · garage ≈ 100% · south ≈ 100%
+```
+
+卫浴口语变体多（卫 / 卫生间 / 洗手间 / 卫浴 / 「先按 N 个算」等）；后续若修，只收 **一般语言规律**，禁止 Holdout/Blind 逐案 regex。
+
 ## 产品边界（不变）
 
 ```text
