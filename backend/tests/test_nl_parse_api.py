@@ -25,9 +25,11 @@ def _ok_draft():
                 }
             ],
         },
+        # Alpha：无 source 的 assumption 默认为 llm_inference，enrich 会丢弃
         "assumptions": [
             {"key": "bathrooms", "value": 2, "reason": "住宅常见默认"}
         ],
+        # 无「入口未定」语义时，site.entrance_edge 会被策略剔除
         "unknowns": [{"key": "site.entrance_edge", "description": "未说明入口"}],
     }
 
@@ -50,8 +52,10 @@ def test_parse_nl_happy(monkeypatch):
         assert body["requirement_spec"]["raw_text"]
         assert body["attempts"] == 1
         assert body["provider"] == "mock"
-        assert len(body["requirement_spec"]["assumptions"]) == 1
-        assert len(body["requirement_spec"]["unknowns"]) == 1
+        # enrich：丢弃 llm_inference assumptions；无证据 entrance unknown 不保留
+        assert body["requirement_spec"]["assumptions"] == []
+        unk_keys = {u["key"] for u in body["requirement_spec"]["unknowns"]}
+        assert "site.entrance_edge" not in unk_keys
     finally:
         nl_parse.set_nl_provider_factory(None)
 
