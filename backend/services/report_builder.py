@@ -14,11 +14,24 @@ from packages.schema.report import (
     ProjectMetadata,
     ReportAssumption,
     ReportProvenance,
+    ReportStatus,
     ReportUnknown,
     RequirementSummary,
     RoomScheduleRow,
 )
 from packages.schema.scoring import DesignScore
+
+
+def report_status_for_candidate(candidate: dict[str, Any]) -> ReportStatus:
+    """根据 revision_status 判定报告有效性（Integrity Gate）。"""
+    revision = candidate.get("revision_status")
+    if not candidate.get("id") and not candidate.get("placements"):
+        return ReportStatus.INVALID_CANDIDATE
+    if revision == "dirty":
+        return ReportStatus.STALE_EVALUATION
+    if revision in (None, "generated", "validated"):
+        return ReportStatus.VALID
+    return ReportStatus.INVALID_CANDIDATE
 
 
 def build_design_report(
@@ -34,6 +47,7 @@ def build_design_report(
     权威组装：面积取 placements.area；评分/Finding 取 design_score。
 
     candidate 形状对齐 CandidatePayload（dict 或已 dump）。
+    Dirty 候选仍可组装（status=stale_evaluation），但正式导出须由 API 拒绝。
     """
     req = requirement_spec or {}
     household = req.get("household") or {}
@@ -97,6 +111,10 @@ def build_design_report(
 
     revision = candidate.get("revision_status")
     edited = revision in ("dirty", "validated") or bool(candidate.get("mutations"))
+    status = report_status_for_candidate(candidate)
+    evaluation_fresh = status == ReportStatus.VALID
+    cand_id = str(candidate.get("id") or "")
+    parent = candidate.get("revision_parent_id")
 
     prov = candidate.get("provenance") or {}
     provenance = ReportProvenance(
@@ -111,6 +129,8 @@ def build_design_report(
         total = design_score.total_score
 
     return DesignReport(
+        status=status,
+        source_revision_id=cand_id or None,
         project=ProjectMetadata(
             project_id=project_id,
             project_name=project_name or "Untitled",
@@ -131,15 +151,19 @@ def build_design_report(
         assumptions=assumptions,
         unknowns=unknowns,
         candidate=CandidateSummary(
-            candidate_id=str(candidate.get("id") or ""),
+            candidate_id=cand_id,
             label=str(candidate.get("label") or candidate.get("id") or "?"),
             seed=candidate.get("seed") if isinstance(candidate.get("seed"), int) else None,
             total_score=float(total) if isinstance(total, (int, float)) else None,
             revision_status=str(revision) if revision else None,
+            revision_parent_id=str(parent) if parent else None,
         ),
         floor_plans=floor_plans,
         room_schedule=schedule,
-        evaluation=EvaluationSummary(design_score=design_score),
+        evaluation=EvaluationSummary(
+            design_score=design_score,
+            evaluation_fresh=evaluation_fresh,
+        ),
         findings=findings,
         provenance=provenance,
     )

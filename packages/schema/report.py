@@ -1,9 +1,12 @@
 """Phase 7 — Design Report 权威文档模型（Deliverable）。
 
 Frontend / HTML / JSON 均从此模型渲染；禁止各端重算面积或另发明评分。
+Phase 7.0.1：报告须声明评价是否与几何 revision 一致（Report Integrity）。
 """
 
 from __future__ import annotations
+
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +21,19 @@ REPORT_BOUNDARY_LINES: tuple[str, ...] = (
 )
 
 
+class ReportStatus(StrEnum):
+    """报告相对候选 revision 的评价新鲜度。"""
+
+    VALID = "valid"
+    """geometry 与 evaluation 一致（generated / validated）。"""
+
+    STALE_EVALUATION = "stale_evaluation"
+    """几何已改（dirty），评分/Finding 可能过期 — 不得作正式评价交付。"""
+
+    INVALID_CANDIDATE = "invalid_candidate"
+    """候选缺失或无法组装。"""
+
+
 class ProjectMetadata(BaseModel):
     """报告头：项目与生成语境。"""
 
@@ -27,7 +43,7 @@ class ProjectMetadata(BaseModel):
     app_version: str | None = None
     edited: bool = Field(
         default=False,
-        description="候选是否含用户 mutation（dirty/validated）",
+        description="候选是否经历用户 mutation（dirty 或 validated）",
     )
 
 
@@ -66,6 +82,7 @@ class CandidateSummary(BaseModel):
     seed: int | None = None
     total_score: float | None = None
     revision_status: str | None = None
+    revision_parent_id: str | None = None
 
 
 class FloorPlanBlock(BaseModel):
@@ -91,6 +108,10 @@ class EvaluationSummary(BaseModel):
     """直接挂 DesignScore；不另发明分制。"""
 
     design_score: DesignScore | None = None
+    evaluation_fresh: bool = Field(
+        default=True,
+        description="False = dirty 几何；评分可能不对应当前平面",
+    )
 
 
 class ReportProvenance(BaseModel):
@@ -109,6 +130,11 @@ class DesignReport(BaseModel):
     DesignReport → HTML / JSON /（未来）专业 PDF
     """
 
+    status: ReportStatus = ReportStatus.VALID
+    source_revision_id: str | None = Field(
+        default=None,
+        description="对应候选 id（交付物溯源）",
+    )
     project: ProjectMetadata = Field(default_factory=ProjectMetadata)
     requirement: RequirementSummary = Field(default_factory=RequirementSummary)
     assumptions: list[ReportAssumption] = Field(default_factory=list)

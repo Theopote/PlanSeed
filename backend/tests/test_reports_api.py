@@ -103,6 +103,9 @@ def test_build_design_report_uses_placement_area():
     )
     assert report.candidate.label == "A"
     assert report.candidate.total_score == 76.5
+    assert report.status.value == "valid"
+    assert report.evaluation.evaluation_fresh is True
+    assert report.source_revision_id == "c-a"
     assert len(report.room_schedule) == 2
     living = next(r for r in report.room_schedule if r.room_id == "r1")
     assert living.name == "客厅"
@@ -111,6 +114,18 @@ def test_build_design_report_uses_placement_area():
     assert any("south" in x.lower() for x in report.requirement.key_intents)
     assert report.findings and report.findings[0].title == "比例尚可"
     assert any("deterministic solver" in line for line in report.provenance.boundary_lines)
+
+
+def test_dirty_candidate_marks_stale_evaluation():
+    dirty = {**_candidate(), "revision_status": "dirty"}
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=dirty,
+    )
+    assert report.status.value == "stale_evaluation"
+    assert report.evaluation.evaluation_fresh is False
 
 
 def test_render_report_html_contains_boundary_and_schedule():
@@ -150,3 +165,42 @@ def test_reports_build_requires_source():
     client = TestClient(create_app())
     r = client.post("/api/reports/build", json={"include_html": False})
     assert r.status_code == 422
+
+
+def test_reports_build_rejects_dirty_candidate():
+    client = TestClient(create_app())
+    payload = _payload()
+    payload["candidates"][0]["revision_status"] = "dirty"
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "Dirty",
+            "payload": payload,
+            "candidate_id": "c-a",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 409, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "candidate_requires_revalidation"
+
+
+def test_reports_build_allow_stale_evaluation():
+    client = TestClient(create_app())
+    payload = _payload()
+    payload["candidates"][0]["revision_status"] = "dirty"
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "Stale OK",
+            "payload": payload,
+            "candidate_id": "c-a",
+            "include_html": True,
+            "allow_stale_evaluation": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["report"]["status"] == "stale_evaluation"
+    assert body["report"]["evaluation"]["evaluation_fresh"] is False
+    assert "STALE EVALUATION" in body["html"]

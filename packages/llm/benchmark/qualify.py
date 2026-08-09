@@ -72,6 +72,43 @@ def _git_commit() -> str | None:
         return None
 
 
+def _git_provenance() -> dict[str, Any]:
+    """记录 commit + 工作区是否脏（冻结可复现性证据）。"""
+    commit = _git_commit()
+    dirty = False
+    dirty_paths: list[str] = []
+    try:
+        out = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        lines = [ln for ln in out.splitlines() if ln.strip()]
+        dirty = bool(lines)
+        for ln in lines[:40]:
+            # porcelain: XY PATH 或 rename
+            path = ln[3:].strip()
+            if " -> " in path:
+                path = path.split(" -> ", 1)[-1].strip()
+            if path:
+                dirty_paths.append(path)
+    except Exception:
+        pass
+    note = None
+    if dirty:
+        note = (
+            "Working tree dirty at run time — "
+            "git_commit alone cannot reproduce this baseline; "
+            "treat as engineering evidence, not frozen-commit qualification."
+        )
+    return {
+        "git_commit": commit,
+        "git_dirty": dirty,
+        "git_dirty_paths": dirty_paths,
+        "reproducibility_note": note,
+    }
+
+
 def _host_metadata() -> dict[str, Any]:
     meta: dict[str, Any] = {
         "os": platform.platform(),
@@ -184,16 +221,22 @@ def _write_baseline(
     detail_failed: bool,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    git_meta = _git_provenance()
     payload: dict[str, Any] = {
         "note": (
             "Requirement Parsing Pipeline Baseline（真模型）。"
             "勿与 CI oracle 100% 混淆。"
-            "Strict Alpha Qualified 仅当 Blind + Pipeline 过 Alpha Gate；"
+            "Engineering Alpha Gate：Blind + Pipeline 过门且 git_dirty=false "
+            "才可声称冻结 commit 可复现；"
             "Holdout 已泄漏，仅作工程回归。"
+            "Blind v4 历史基线见 docs：工程资格 ✅ / 严格可复现 ⚠。"
         ),
         "meta": {
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            "git_commit": _git_commit(),
+            "git_commit": git_meta.get("git_commit"),
+            "git_dirty": git_meta.get("git_dirty"),
+            "git_dirty_paths": git_meta.get("git_dirty_paths"),
+            "reproducibility_note": git_meta.get("reproducibility_note"),
             "case_set": report.case_set,
             "case_set_version": case_set_version,
             "mode": report.mode,

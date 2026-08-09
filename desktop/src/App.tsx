@@ -1167,6 +1167,13 @@ function App() {
       setError("请先 Generate 再导出报告");
       return;
     }
+    const selected = candidates.find((c) => c.id === selectedId);
+    if (selected?.revision_status === "dirty") {
+      setError(
+        "方案已修改，评价结果已过期。请先重新验证后再导出正式评价报告。",
+      );
+      return;
+    }
     setReportBusy(true);
     setError(null);
     try {

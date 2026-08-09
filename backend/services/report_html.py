@@ -14,6 +14,18 @@ def render_report_html(report: DesignReport) -> str:
     score = r.candidate.total_score
     score_s = f"{score:.0f}" if isinstance(score, (int, float)) else "—"
     edited = "Edited" if r.project.edited else "Generated"
+    status_val = (
+        r.status.value if hasattr(r.status, "value") else str(r.status)
+    )
+    stale_banner = ""
+    if status_val == "stale_evaluation" or not r.evaluation.evaluation_fresh:
+        stale_banner = (
+            "<div class='banner-stale'>"
+            "<strong>STALE EVALUATION</strong> — "
+            "几何已修改；下列评分 / Findings 可能不对应当前平面，"
+            "不得作为正式评价交付。"
+            "</div>"
+        )
 
     intents = "".join(f"<li>{html.escape(x)}</li>" for x in r.requirement.key_intents) or (
         "<li class='muted'>（无显式要点）</li>"
@@ -138,6 +150,11 @@ def render_report_html(report: DesignReport) -> str:
   .sev-problem {{ color: #8b1e1e; }}
   .sev-warning {{ color: #8a5a00; }}
   .sev-positive {{ color: #1e5b2f; }}
+  .banner-stale {{
+    margin: 0 0 1.25rem; padding: 0.75rem 1rem;
+    border: 1px solid #8a5a00; background: #fff8e8; color: #5c3d00;
+    font-size: 0.9rem;
+  }}
   @media print {{
     body {{ background: #fff; padding: 0; }}
     .sheet {{ border: none; max-width: none; }}
@@ -147,13 +164,16 @@ def render_report_html(report: DesignReport) -> str:
 </head>
 <body>
   <article class="sheet">
-    <div class="eyebrow">PlanSeed Design Report</div>
+    <div class="eyebrow">PlanSeed Design Report · {html.escape(status_val)}</div>
     <h1>{title}</h1>
+    {stale_banner}
     <div class="meta">
       {edited}
       · Candidate <strong>{label}</strong>
       <span class="score">{score_s}</span>
-      <div style="margin-top:0.35rem">id: {cid}</div>
+      <div style="margin-top:0.35rem">id: {cid}
+        · evaluation_fresh={str(r.evaluation.evaluation_fresh).lower()}
+        · source_revision={html.escape(r.source_revision_id or "—")}</div>
     </div>
 
     <h2>Key Intent</h2>

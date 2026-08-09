@@ -1,7 +1,7 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 可开工**  
-> **前置已满足：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 Gate **PASS** → Phase 6 ✅ Strict Alpha Qualified  
+> **状态：▶ 进行中（7.0 落地；当前 P0 = 7.0.1 Report Integrity Gate）**  
+> **前置：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 Gate **工程 PASS**；严格可复现资格 ⚠（见该文）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ## 产品闭环
@@ -30,6 +30,7 @@ NL → RequirementSpec → Generate → Evaluate → Compare
 
 ```text
 DesignReport
+├ status / evaluation_fresh / source_revision_id   # 7.0.1 Integrity
 ├ ProjectMetadata
 ├ RequirementSummary          # Key Intent（层数 / 卧卫 / 朝南 / 关系…）
 ├ Assumptions
@@ -37,7 +38,7 @@ DesignReport
 ├ CandidateSummary            # 如 Candidate A.2 · Score 84
 ├ FloorPlans[]                # SVG 引用或内嵌
 ├ RoomSchedule                # 面积表 ← placements / report builder
-├ EvaluationSummary           # DesignScore 七轴
+├ EvaluationSummary           # DesignScore 七轴 + evaluation_fresh
 ├ Findings                    # DesignFinding[]
 └ Provenance                  # seed / generator / versions / 边界声明
 ```
@@ -63,12 +64,26 @@ DesignReport →（未来）专业 PDF / DXF
 | Findings | `DesignFinding` | 报告层重写启发式 |
 | Assumptions / Unknowns | 会话 `RequirementSpec` | 前端臆造 |
 
+## 7.0.1 — Report Integrity Gate（P0）
+
+Dirty 候选不得导出「正式评价报告」（否则会把过期 Score / Findings 写进交付物）。
+
+```text
+Generated / Validated  → 可正式导出（status=valid）
+Dirty                  → HTTP 409 candidate_requires_revalidation
+                         （可选 allow_stale_evaluation=true 仅调试；报告标 stale）
+```
+
+`ReportStatus`：`valid` | `stale_evaluation` | `invalid_candidate`  
+Desktop：dirty 时拦截并提示「请先重新验证」。  
+几何-only 导出（不含评分）可后置，本刀默认拒绝正式评价报告。
+
 ## Export API（additive，保持简单）
 
 ```text
 POST /api/reports/build
-  in:  { project_id | project payload, candidate_id }
-  out: DesignReportPayload   # 第一阶段即可为 JSON
+  in:  { project_id | project payload, candidate_id, allow_stale_evaluation?=false }
+  out: DesignReportPayload   # 或 409 Integrity Gate
 ```
 
 Desktop：
@@ -137,6 +152,7 @@ AI interpreted design intent; deterministic solver generated and evaluated geome
 - 跨平台 packaging 硬化  
 - 交互编辑加深  
 - solver 重构 · LLM 扩功能 · 性能专项（量化/换模）
+- **不为 Blind 证据链停下来重开 Phase 6 抠分**（可选日后冻结 commit 复跑；见 6.7.2）
 
 NL 解析进度文案属最小 UX（「正在理解需求…」），见下；**不**把 P90 压到数秒当 Phase 7 门槛。
 
@@ -148,7 +164,7 @@ NL 解析进度文案属最小 UX（「正在理解需求…」），见下；**
 冻结 parser → Blind 单次跑分 → Gate → Phase 7
 ```
 
-**当前：** Blind v4（44 案，`qwen2.5:7b` Pipeline）已 **PASS** 入库  
+**当前：** Blind v4（44 案，`qwen2.5:7b` Pipeline）**数字过门**入库  
 （`docs/baselines/llm-alpha-baseline.json` / `…-blind-v4.json`）。
 
 | 门槛 | Blind v4 |
@@ -159,7 +175,8 @@ NL 解析进度文案属最小 UX（「正在理解需求…」），见下；**
 | Case pass ≥70% | ✅ 88.6% |
 | Geometry = 0 | ✅ |
 
-→ **Phase 6 正式冻结抠分；立即 Phase 7。**  
+→ **工程上可继续 Phase 7；不因 provenance 缺口重开 Phase 6。**  
+→ Blind v4 **不等于**「冻结 commit 严格可复现资格」（meta.git_commit 与 blind-v4 落地 commit 不一致；见 6.7.2）。  
 post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)，不挡 Export。
 
 ## NL 解析进度（最小 UX）
@@ -177,5 +194,12 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 3. [x] 报告含：Key Intent · Assumptions · Unknowns · 平面 · Room schedule · Score · Findings · Provenance（含 AI/Solver 边界）  
 4. [x] 面积 / 评分 / Finding **不**由前端重算  
 5. [x] 不引入云端渲染 / 云端 LLM / DXF  
+
+## Definition of Done（7.0.1）
+
+1. [x] `DesignReport.status` / `evaluation_fresh` / `source_revision_id`  
+2. [x] Dirty → `409 candidate_requires_revalidation`（默认）  
+3. [x] Desktop dirty 拦截 + 文案  
+4. [x] HTML 对 stale 打醒目标记（仅 allow_stale 路径）
 
 实现落点：`packages/schema/report.py` · `backend/services/report_builder.py` · `backend/services/report_html.py` · `backend/routes/reports.py` · Desktop「报告」按钮。

@@ -127,7 +127,7 @@ average ≈ 15–20s · P50 ≈ 14–15s · P90 ≈ 35–40s · max ≈ 45s
 
 ## Phase 6 post-alpha 已知限制
 
-Strict Alpha Qualified **之后**仍承认、但**不**据此回头卡 Phase 7 / 堆 Blind 规则：
+Engineering qualification **之后**仍承认、但**不**据此回头卡 Phase 7 / 堆 Blind 规则：
 
 | 项 | 现状（约） | 处理 |
 |----|------------|------|

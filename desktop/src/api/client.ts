@@ -711,18 +711,39 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
 /** Phase 7 — Design Report（权威 JSON + HTML 预览）。 */
 export type BuildReportResponse = {
   report: {
+    status?: string;
+    source_revision_id?: string | null;
     project: { project_name: string; edited?: boolean };
     candidate: { candidate_id: string; label: string; total_score: number | null };
     requirement: { key_intents: string[] };
+    evaluation?: { evaluation_fresh?: boolean };
   };
   html: string | null;
 };
+
+function formatReportErrorDetail(detail: unknown, status: number): string {
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    const d = detail as { code?: string; message?: string };
+    if (d.code === "candidate_requires_revalidation") {
+      return (
+        d.message ??
+        "方案已修改，评价结果已过期。请先重新验证后再导出正式评价报告。"
+      );
+    }
+    if (typeof d.message === "string") return d.message;
+    return JSON.stringify(detail);
+  }
+  return `HTTP ${status}`;
+}
 
 export async function buildReport(opts: {
   projectName?: string;
   payload: ProjectPayload;
   candidateId?: string | null;
   includeHtml?: boolean;
+  /** 默认 false：dirty 候选由后端 409 拒绝正式评价报告 */
+  allowStaleEvaluation?: boolean;
 }): Promise<BuildReportResponse> {
   const r = await fetch(`${_apiBase}/api/reports/build`, {
     method: "POST",
@@ -732,14 +753,14 @@ export async function buildReport(opts: {
       payload: opts.payload,
       candidate_id: opts.candidateId ?? opts.payload.selected_id,
       include_html: opts.includeHtml ?? true,
+      allow_stale_evaluation: opts.allowStaleEvaluation ?? false,
     }),
   });
   if (!r.ok) {
     let msg = `HTTP ${r.status}`;
     try {
       const body = (await r.json()) as { detail?: unknown };
-      if (typeof body.detail === "string") msg = body.detail;
-      else if (body.detail != null) msg = JSON.stringify(body.detail);
+      msg = formatReportErrorDetail(body.detail, r.status);
     } catch {
       /* keep */
     }

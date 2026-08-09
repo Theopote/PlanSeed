@@ -1,8 +1,8 @@
 # Phase 6.7.2 — Blind Requalification
 
-> **状态：✅ Blind v4 Gate PASS — Strict Alpha Qualified**  
+> **状态：✅ Blind v4 Gate 工程 PASS — 严格可复现资格 ⚠**  
 > 前置：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)  
-> 下一：可开 [phase-7-deliverables.md](phase-7-deliverables.md)；Holdout / Blind v1–v3 仅作工程对照
+> 下一：继续 [phase-7-deliverables.md](phase-7-deliverables.md)；**不**因 provenance 缺口停 Phase 7 / 重开 Blind 抠分
 
 ## 为什么还要 6.7.2
 
@@ -33,9 +33,10 @@ Pipeline 对「已参与规则设计的 30 句」可过门
 | Blind v1 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v1.json`） |
 | Blind v2 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v2.json`） |
 | Blind v3 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v3.json`） |
-| Blind v4 | ✅ **PASS**（`llm-alpha-baseline.json` / `…-blind-v4.json`） |
-| Phase 6 | ✅ **Strict Alpha Qualified** |
-| Phase 7 | ▶ 可开 |
+| Blind v4 | ✅ **数字 PASS**（`llm-alpha-baseline.json` / `…-blind-v4.json`） |
+| Phase 6 engineering qualification | ✅ |
+| Phase 6 strict reproducible qualification | ⚠ provenance 不足（见下） |
+| Phase 7 | ▶ 继续（不因此重开 Phase 6） |
 
 ## 本阶段唯一目标
 
@@ -94,8 +95,8 @@ Record summary → PASS / FAIL
 
 - [x] Blind Set v1–v3 单次跑分 **FAIL**（已归档）
 - [x] Development：口语标量 · 关系证据收紧 · Draft Coerce
-- [x] Blind Set v4（44 条）`qwen2.5:7b` Pipeline **单次**入库 → Gate **PASS**
-- [x] **Phase 6 ✅ Strict Alpha Qualified** → 可开 Phase 7
+- [x] Blind Set v4（44 条）`qwen2.5:7b` Pipeline **单次**入库 → Gate **数字 PASS**
+- [x] Phase 6 **engineering qualification** ✅ → 继续 Phase 7（严格可复现 ⚠）
 
 ## Blind v1 单次结果（2026-08-09，`qwen2.5:7b` Pipeline）
 
@@ -141,6 +142,33 @@ Record summary → PASS / FAIL
 分字段：garage / south / 卧卫 / 层数 = 100%；site ≈77%（未拖垮总 field）。
 
 **解读：** Draft Coerce 把 parse/repair 耗尽压到 0；关系 precision-first 仍过门（P 84% · R 100% · F1 91%）。  
-**结论：** Phase 6 **Strict Alpha Qualified**；可进入 Phase 7 Deliverables。  
+
+### Blind v4 资格认证 — provenance ⚠
+
+Baseline meta 记录：
+
+```text
+git_commit = c79c03fd…
+case_set_version = blind-v4
+```
+
+但 `c79c03fd` **不包含** `blind_cases_v4.py`。Blind v4 与 Draft Coerce / 解析改动同进后续 commit（如 `fc9e17b`「升级盲测基准到 v4…」）。
+
+最合理解释：在 **脏工作区**（HEAD=c79c03fd + 未提交 blind-v4/parser）跑分 → `git rev-parse HEAD` 写入 c79c03fd → 再 commit。
+
+因此：
+
+| 判断 | 状态 |
+|------|------|
+| 96.2% 等数字可能真实 | ✅ 不作假 |
+| 可从「冻结 commit c79c03fd」严格复现 | ❌ |
+| Phase 6 FAIL / 停 Phase 7 | ❌ 不建议 |
+| Engineering qualification | ✅ |
+| Strict reproducible qualification | ⚠ |
+
+**后续（可选，非 Phase 7 阻塞）：** 在干净冻结 commit 上复跑 Blind（v4 或 v5）；若无明显坍塌则关闭本缺口。  
+`qualify.py` 现已记录 `git_dirty` / `git_dirty_paths` / `reproducibility_note`。
+
+**结论：** Phase 6 **工程资格通过**；**不**再宣称 Strict Alpha Qualified；**继续** Phase 7 Deliverables。  
 **延迟：** Holdout/Blind 量级十几秒～P90 约 35–40s，**不阻塞** Phase 7；Alpha 用进度反馈，性能后置（见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)）。  
 **bathrooms：** Holdout 分字段 ≈87.5%（整体 field ≈96%）— **Phase 6 post-alpha known limitation**，不回头阻塞；见同文档 § 已知限制。

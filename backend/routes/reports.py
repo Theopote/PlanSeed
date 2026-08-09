@@ -1,4 +1,4 @@
-"""Phase 7 — Design Report API。"""
+"""Phase 7 — Design Report API（含 7.0.1 Report Integrity Gate）。"""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from packages.persistence import ProjectStore
-from packages.schema.report import DesignReport
+from packages.schema.report import DesignReport, ReportStatus
 from pydantic import BaseModel, Field, model_validator
 
 from backend.routes.projects import APP_VERSION, ProjectPayload
-from backend.services.report_builder import build_design_report
+from backend.services.report_builder import build_design_report, report_status_for_candidate
 from backend.services.report_html import render_report_html
 
 router = APIRouter(tags=["reports"])
@@ -24,6 +24,13 @@ class BuildReportRequest(BaseModel):
     payload: ProjectPayload | None = None
     candidate_id: str | None = None
     include_html: bool = True
+    allow_stale_evaluation: bool = Field(
+        default=False,
+        description=(
+            "False（默认）：dirty 候选拒绝正式评价报告（HTTP 409）。"
+            "True：仍可组装，但 DesignReport.status=stale_evaluation。"
+        ),
+    )
 
     @model_validator(mode="after")
     def _need_source(self) -> BuildReportRequest:
@@ -46,7 +53,7 @@ def _store() -> ProjectStore:
 
 @router.post("/api/reports/build", response_model=BuildReportResponse)
 def build_report(body: BuildReportRequest) -> BuildReportResponse:
-    """从项目快照 + 候选组装 DesignReport（不重评）。"""
+    """从项目快照 + 候选组装 DesignReport（不重评）。Dirty → 409（除非 allow_stale）。"""
     project_id = body.project_id
     project_name = body.project_name or "Untitled"
     payload: ProjectPayload
@@ -85,6 +92,30 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
         if not isinstance(first, dict):
             raise HTTPException(status_code=400, detail="候选格式无效")
         candidate = first
+
+    status = report_status_for_candidate(candidate)
+    if status == ReportStatus.STALE_EVALUATION and not body.allow_stale_evaluation:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "candidate_requires_revalidation",
+                "message": (
+                    "方案已修改，评价结果已过期。"
+                    "请先重新验证后再导出正式评价报告。"
+                ),
+                "revision_status": candidate.get("revision_status"),
+                "candidate_id": candidate.get("id"),
+            },
+        )
+    if status == ReportStatus.INVALID_CANDIDATE and not body.allow_stale_evaluation:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "invalid_candidate",
+                "message": "候选无效，无法导出正式报告。",
+                "candidate_id": candidate.get("id"),
+            },
+        )
 
     report = build_design_report(
         project_name=project_name,

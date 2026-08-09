@@ -1,8 +1,11 @@
 {
-  "note": "Requirement Parsing Pipeline Baseline（真模型）。勿与 CI oracle 100% 混淆。Strict Alpha Qualified 仅当 Blind + Pipeline 过 Alpha Gate；Holdout 已泄漏，仅作工程回归。",
+  "note": "Requirement Parsing Pipeline Baseline（真模型）。勿与 CI oracle 100% 混淆。Blind v4：工程 Gate 数字 PASS；严格可复现 ⚠（见 provenance_caveat）。Holdout 已泄漏，仅作工程回归。",
+  "provenance_caveat": "meta.git_commit=c79c03fd 不含 blind_cases_v4.py；最可能为脏工作区跑分后记录 HEAD。数字可当真工程证据；不可声称从该冻结 commit 复现。详见 docs/phase-6.7.2-blind-requalification.md。",
   "meta": {
     "timestamp_utc": "2026-08-09T11:31:59.933815+00:00",
     "git_commit": "c79c03fd0555b4bc293b4b9f3dab6993631f52b1",
+    "git_dirty": null,
+    "reproducibility_note": "Historical baseline: dirty/worktree likely; git_dirty was not recorded at write time.",
     "case_set": "blind",
     "case_set_version": "blind-v4",
     "mode": "pipeline",

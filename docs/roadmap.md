@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 7 Deliverables / Export**  
-> Phase 6 ✅ Strict Alpha Qualified（Blind v4 Gate PASS）  
+> **当前焦点：Phase 7 Deliverables / Export（含 7.0.1 Report Integrity Gate）**  
+> Phase 6 ✅ 工程资格（Blind v4 数字 PASS）；严格可复现 ⚠  
 > 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)  
 > 契约：[api-contract.md](api-contract.md)
 
@@ -12,20 +12,20 @@
 | **0–5.1.1** | **Design Kernel** | **✅** |
 | **6.0–6.6** | **LLM Infrastructure** | **✅** |
 | **6.7 / 6.7.1** | **Qualification · Parser Precision** | ✅ Engineering；Holdout 泄漏 |
-| **6.7.2** | **Blind Requalification** | ✅ **Blind v4 PASS → Strict Alpha Qualified** |
-| **7** | **Deliverables / Export** | **← 当前** |
+| **6.7.2** | **Blind Requalification** | ✅ Blind v4 工程 PASS；严格可复现 ⚠ |
+| **7** | **Deliverables / Export** | **← 当前**（7.0.1 Integrity） |
 
 ```text
 0–5.1.1   Design Kernel                ✅
 6.0–6.6   LLM Infrastructure           ✅
 6.7.1     Precision Pipeline           ✅
-6.7.2     Blind Qualification          ✅ Blind v4 PASS → Strict Alpha Qualified
-7         Deliverables / Export        ← 当前（DesignReport → HTML/JSON/Print）
+6.7.2     Blind Qualification          ✅ 工程 PASS / 严格可复现 ⚠
+7         Deliverables / Export        ← 当前（DesignReport + Integrity Gate）
 ```
 
 ```text
-现在做：Phase 7.0 DesignReport model + /api/reports/build + HTML 预览/Print
-不做：DXF/DWG/IFC · 手搓 PDF layout · 前端重算面积 · 继续抠 Phase 6 分数 · 云端 LLM
+现在做：Phase 7.0.1 Report Integrity Gate（Dirty → 409）+ 继续 Deliverables
+不做：DXF/DWG/IFC · 手搓 PDF layout · 前端重算面积 · 重开 Phase 6 Blind 抠分 · 云端 LLM
 ```
 
 ## 阶段总览（以代码为准）
@@ -386,19 +386,21 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 | Field / Rel F1·P / Case pass | 96.2% / 82.4%·75% / 76.7% |
 | Unknown P·R / Assumption P | 100%·89% / 100% |
 
-### Phase 6.7.2 — Blind Requalification ✅ Strict Alpha Qualified
+### Phase 6.7.2 — Blind Requalification ✅ 工程 PASS / 严格可复现 ⚠
 
 详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ```text
-Blind v4 + qwen2.5:7b Pipeline：Alpha Gate PASS
+Blind v4 + qwen2.5:7b Pipeline：Alpha Gate 数字 PASS
 parse 100% · field 96% · rel F1/P 91%/84% · repair 0% · case 89%
+provenance：baseline git_commit 与 blind-v4 落地不一致 → 非冻结可复现
 ```
 
 - [x] Blind v1–v3 FAIL 归档
 - [x] Hybrid Parser · Relation Kind 分流 · Draft Coerce
-- [x] Blind v4 Gate PASS → **Phase 6 ✅ Strict Alpha Qualified**
-- [x] 解锁 Phase 7
+- [x] Blind v4 Gate **工程** PASS → Phase 6 engineering qualification ✅
+- [x] **不**再宣称 Strict Alpha Qualified；可选日后干净 commit 复跑
+- [x] 继续 Phase 7（不为 provenance 停工）
 
 ---
 
@@ -417,8 +419,8 @@ parse 100% · field 96% · rel F1/P 91%/84% · repair 0% · case 89%
 
 报告内容草案：项目需求 · 平面图 · 房间面积表 · 设计评分 · 主要 Findings · Assumptions · Unknowns · Candidate provenance。
 
-**明确不塞进 Phase 7：** Advanced Site 分析 · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · **LLM 性能专项**（量化/换模等）。这些若需要，以后单独开阶段，**现在不正式规划到 Phase 10**。  
-NL 解析进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。
+**明确不塞进 Phase 7：** Advanced Site 分析 · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · **LLM 性能专项**（量化/换模等）· **重开 Phase 6 Blind 抠分**。这些若需要，以后单独开阶段，**现在不正式规划到 Phase 10**。  
+当前 P0：7.0.1 Report Integrity（Dirty 禁止正式评价导出）。NL 解析进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。
 
 ---
 
@@ -509,7 +511,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 7** Deliverables / Export（Phase 6 Strict Alpha Qualified） |
+| **当前主线** | **Phase 7** Deliverables / Export（Phase 6 工程资格；严格可复现 ⚠） |
 
 ---
 

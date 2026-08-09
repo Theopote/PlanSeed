@@ -1,6 +1,6 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：✅ Phase 6 Strict Alpha Qualified（Blind v4 + qwen2.5:7b）**  
+> **状态：✅ Phase 6 工程资格（Blind v4 数字 PASS）；严格可复现 ⚠**  
 > 总览：[roadmap.md](roadmap.md) · 下一：[phase-7-deliverables.md](phase-7-deliverables.md)  
 > 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md) · 资格：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)
 
@@ -9,8 +9,8 @@
 ```text
 0–5.1.1  ✅ Design Kernel
 6.0–6.6  ✅ LLM Infrastructure
-6.7–6.7.2 ✅ Blind v4 Gate PASS
-Phase 6  ✅ Strict Alpha Qualified
+6.7–6.7.2 ✅ Blind v4 Gate 工程 PASS（严格可复现 ⚠）
+Phase 6  ✅ Engineering Qualified（非 Strict Alpha）
 Phase 7  ← Deliverables / Export
 ```
 

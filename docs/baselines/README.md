@@ -26,19 +26,20 @@ uv run python -m packages.llm.benchmark.qualify --set holdout
 
 | 文件 | 含义 |
 |------|------|
-| `llm-alpha-baseline.json` | **Blind + Pipeline** 最新（v4 **PASS**） |
+| `llm-alpha-baseline.json` | **Blind + Pipeline** 最新（v4 **工程 PASS**） |
 | `llm-alpha-baseline-blind-v1.json` | Blind v1 归档（FAIL） |
 | `llm-alpha-baseline-blind-v2.json` | Blind v2 归档（FAIL） |
 | `llm-alpha-baseline-blind-v3.json` | Blind v3 归档（FAIL） |
-| `llm-alpha-baseline-blind-v4.json` | Blind v4 归档（**PASS**） |
+| `llm-alpha-baseline-blind-v4.json` | Blind v4 归档（工程 PASS；严格可复现 ⚠） |
 | `llm-alpha-baseline-holdout-pipeline.json` | Holdout 工程回归 |
 | `llm-alpha-baseline-<set>-<mode>[-model].json` | 其他组合 |
 
 Blind / Holdout 默认**不写** per-case `failed_cases`（防逐案过拟合）。
 
-**Strict Alpha Qualified** 仅当 Blind + Pipeline 的 `alpha_gate.passed` 为真。  
-Holdout 过门 ≠ 严格独立泛化证据（见 phase-6.7.2）。
-
+**Engineering Gate：** Blind + Pipeline 的 `alpha_gate.passed`。  
+**冻结可复现：** 还要求跑分时 `meta.git_dirty=false`，且 case set 文件已在该 `git_commit` 内。  
+Blind v4 历史基线：`git_commit=c79c03fd` 但不含 blind-v4 → **工程资格 ✅ / 严格可复现 ⚠**（见 phase-6.7.2）。  
+Holdout 过门 ≠ 严格独立泛化证据。
 ## Phase 6 post-alpha known limitations
 
 不阻塞 Phase 7（详见 [hybrid-semantic-parser.md](../hybrid-semantic-parser.md)）：
