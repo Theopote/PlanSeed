@@ -65,19 +65,14 @@ def render_report_html(report: DesignReport) -> str:
     )
     assumptions = (
         "".join(
-            "<li>{} — {}</li>".format(
-                html.escape(a.reason or a.key),
-                html.escape(_fmt_val(a.value)),
-            )
+            f"<li>{html.escape(a.reason or a.key)} — {html.escape(_fmt_val(a.value))}</li>"
             for a in r.assumptions
         )
         or f"<li class='muted'>{empty_list}</li>"
     )
     unknowns = (
         "".join(
-            "<li>{}</li>".format(
-                html.escape(u.description or u.key),
-            )
+            f"<li>{html.escape(u.description or u.key)}</li>"
             for u in r.unknowns
         )
         or f"<li class='muted'>{empty_list}</li>"
