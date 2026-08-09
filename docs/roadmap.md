@@ -1,9 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 7.1 Report Presentation → 7.2 Export Formats**  
-> Phase 6 **彻底冻结**（Hybrid Requirement Parsing ✅；`qualify --gate` 拒 dirty；**不开** 抠分）  
-> 7.0 DesignReport ✅ · 7.0.1 Integrity ✅（score / validation 小补丁已收）  
-> 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)  
+> **当前焦点：Phase 7.1.1 Accuracy + Print Smoke → 7.2 Export Formats**  
+> Phase 6 **彻底冻结** · 7.0 / 7.0.1 / 7.1 Engineering ✅  
+> 收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · 打印：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 详案：[phase-7-deliverables.md](phase-7-deliverables.md)  
 > 契约：[api-contract.md](api-contract.md)
 
 ## 项目状态（阶段判断）
@@ -14,8 +13,9 @@
 | **6** | **Hybrid Requirement Parsing** | **✅ Frozen** |
 | **7.0** | **DesignReport Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
-| **7.1** | **Report Presentation** | **← CURRENT** |
-| **7.2** | **Export Formats** | **NEXT** |
+| **7.1** | **Report Presentation** | **✅ Engineering** |
+| **7.1.1** | **Accuracy + Print Smoke** | **← VERY SHORT** |
+| **7.2** | **Export Formats** | **READY** |
 | **8+** | Advanced Site / Code / Interop | deferred |
 
 ```text
@@ -23,18 +23,17 @@
 6         Hybrid Requirement Parsing     ✅ Frozen
 7.0       DesignReport Model             ✅
 7.0.1     Report Integrity               ✅
-7.1       Report Presentation            ← CURRENT
-7.2       Export Formats                 NEXT
+7.1       Report Presentation            ✅ Engineering
+7.1.1     Accuracy + Print Smoke         ← VERY SHORT
+7.2       Export Formats                 READY
 8+        Advanced Site / Code / Interop deferred
 ```
 
 ```text
-现在做：7.1 专业呈现（结构已落地；**真实 Print→PDF smoke 关门**）
-下一：7.2.1 SVG → 7.2.2 PNG（可先于 PDF）→ 7.2.3 JSON → 7.2.4 Print polish
-
-打印验收清单：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
-不做：DXF/DWG/IFC/BIM · 专业 PDF 引擎 · 新评价轴 · 新 LLM · solver refactor · 重开 Report Integrity 大阶段
-产品问题：把「已经能设计」转化为「能够交付」
+现在做：7.1.1（北针/TS ✅；Desktop Print→PDF smoke 填表）
+下一：7.2.1 SVG（三分导出 + trust boundary）→ 7.2.2 PNG（核心）→ 7.2.3 DesignReport JSON → 7.2.4 Print polish
+不做：DXF/BIM · PDF 引擎 · ZIP Package · ExportManifest · Canva 品牌 · 重开 Phase 6
+产品问题：生成的东西能不能离开 PlanSeed？
 ```
 ## 阶段总览（以代码为准）
 
@@ -53,8 +52,9 @@
 | **6.7.2** | **Blind Requalification** | ✅ 工程 PASS；`--gate` 拒 dirty；**彻底冻结** |
 | **7.0** | **Deliverable Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
-| **7.1** | **Report Presentation** | **← 当前** |
-| **7.2** | **Export Formats** | 下一（HTML · Print/PDF · JSON · SVG/PNG；**无 DXF**） |
+| **7.1** | **Report Presentation** | **✅ Engineering** |
+| **7.1.1** | **Accuracy + Print Smoke** | **← VERY SHORT** |
+| **7.2** | **Export Formats** | **READY** |
 | **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（≠ Interoperability Platform） |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -430,13 +430,16 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 |--------|------|------|
 | **7.0** | Deliverable Model（`DesignReport`） | ✅ |
 | **7.0.1** | Report Integrity | ✅ |
-| **7.1** | Report Presentation | **← CURRENT** |
-| **7.2** | Export Formats | NEXT：7.2.1 SVG · 7.2.2 PNG · 7.2.3 JSON · 7.2.4 Print polish |
+| **7.1** | Report Presentation | ✅ Engineering |
+| **7.1.1** | Accuracy + Print Smoke | **← VERY SHORT** |
+| **7.2** | Export Formats | READY：7.2.1 SVG · **7.2.2 PNG（核心）** · 7.2.3 DesignReport JSON · 7.2.4 Print polish |
 | **8+** | Advanced Site / Code Profiles / Interop… | deferred |
 
 **PDF：** 始终 `HTML → Print`。**禁止**专业 PDF 引擎与 DXF/DWG/IFC/BIM。  
-**PNG 可先于 PDF polish**（单层平面发客户 / PPT / 微信）。  
-不再开「Report Integrity 大阶段」；P0 小补丁（score 事实源 · `validation.valid`）已收。
+**SVG：** Current Floor / All Floors / Candidate Snapshot — 走 Store + `revision_id`，禁止 DOM outerHTML。  
+**PNG：** Floor SVG → Rasterizer（白底）；禁止 HTML 截图。  
+**JSON：** `DesignReport` 交付 ≠ Project Snapshot 存档。  
+详收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md)。
 
 **明确不塞进 Phase 7：** Advanced Site · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · LLM 性能专项。
 ---
@@ -528,7 +531,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 7.1** Report Presentation（Phase 6 彻底冻结） |
+| **当前主线** | **Phase 7.1.1** Print smoke → **7.2** Export（Phase 6 冻结） |
 
 ---
 

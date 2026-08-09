@@ -76,7 +76,8 @@ LLM 不直接输出 DesignProgram 或坐标。详见 [docs/hybrid-semantic-parse
 
 ## 当前阶段
 
-**Phase 7.1 Report Presentation**（CURRENT）→ 下一 **7.2 Export Formats**（SVG → PNG → JSON → Print polish；无 DXF）。  
+**Phase 7.1.1 Accuracy + Print Smoke**（极短收口）→ **7.2 Export Formats**（SVG 三分 · PNG 核心 · DesignReport JSON · Print polish；无 DXF / 无 PDF 引擎）。  
+详案：[docs/phase-7-deliverables.md](docs/phase-7-deliverables.md) · [docs/phase-7.1.1-accuracy-print-smoke.md](docs/phase-7.1.1-accuracy-print-smoke.md)
 Phase 6 Frozen · 7.0 / 7.0.1 ✅。见 [docs/roadmap.md](docs/roadmap.md)。
 
 ## 文档

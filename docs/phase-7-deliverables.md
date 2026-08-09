@@ -1,6 +1,7 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 7.1 Report Presentation（当前）← 7.0 / 7.0.1 ✅ → 7.2 Formats**  
+> **状态：▶ 7.1 Engineering ✅ · 7.1.1 短收口（Print smoke 人手）→ 7.2 READY**
+> **详案：** 本页 · [phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 > **前置：** Phase 6 **彻底冻结**（Blind 工程 PASS；`qualify --gate` 拒 dirty worktree；不开抠分）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
@@ -14,7 +15,8 @@ NL → RequirementSpec → Generate → Evaluate → Compare
 ```
 
 Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不会误导用户的交付物），  
-不是高级分析、再扩 LLM，也不是 Interoperability Platform。
+不是高级分析、再扩 LLM，也不是 Interoperability Platform。  
+**产品问题已变为：** 生成的东西能不能离开 PlanSeed？
 
 ## 子阶段优先级
 
@@ -22,10 +24,11 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 |--------|------|------|
 | **7.0** | Deliverable Model | ✅ |
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
-| **7.1** | Report Presentation | **← 当前** |
-| **7.2** | Export Formats | 下一（7.2.1 SVG → 7.2.2 PNG → 7.2.3 JSON → 7.2.4 Print polish） |
+| **7.1** | Report Presentation | ✅ Engineering |
+| **7.1.1** | Accuracy + Print Smoke | **← 极短收口**（北针/TS ✅；Print smoke ☐） |
+| **7.2** | Export Formats | READY（Print smoke 填表后立刻开工） |
 
-**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor。
+**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · ZIP Export Package · ExportManifest · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor · Canva 式品牌模板。
 
 ## 第一刀：Export Design Report
 
@@ -283,11 +286,13 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 
 - **`ProjectMetadata.generated_at` 命名不准**：实际是**报告构建时间**，不是 Candidate 生成时间。后续宜改为 `report_generated_at`，并另留 `candidate_created_at` / `revision_created_at`（需 schema / HTML / API 一并改）。
 
-## 7.1 — Report Presentation（当前）
+## 7.1 — Report Presentation（✅ Engineering）
 
 目标：报告成为建筑师愿意给客户 / 同事 / 自己归档的**设计成果**，不是开发面板导出。
 
-**不再补 backend Integrity 主线**（7.0.1 已关）；本阶段做呈现。
+**不再补 backend Integrity 主线**（7.0.1 已关）。视觉已够 Alpha — **不做** logo / 品牌色 / 复杂封面 / 主题商城。
+
+短收口见 **[7.1.1](phase-7.1.1-accuracy-print-smoke.md)**（北针 · TS fidelity · Print smoke）。
 
 ### A. 信息层级
 
@@ -361,16 +366,86 @@ Fixture：`uv run python scripts/generate_print_smoke_reports.py` → `debug/pri
 
 **CSS ≠ 验收。** `.plan-page { page-break-after }` 已就位不代表 7.1 可关；须 WebView2 实打 PDF。
 
-## 7.2 — Export Formats（下一；等 7.1 结构稳定）
+## 7.1.1 — Accuracy + Print Smoke（极短收口）
 
-真正的多格式导出。**PDF 仍坚持 HTML → Print**，不引入专业 PDF 引擎。  
-**禁止：** DXF / DWG / IFC / Revit / BIM。
+详案：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md)
 
-| 子阶段 | 主题 | 说明 |
+| 级 | 项 | 状态 |
+|----|-----|------|
+| P0 | 北针真实 `north_angle`；未知不画假针 | ✅ Engineering |
+| P1 | RequirementSpec TS fidelity（`priority` / `source`） | ✅ Engineering |
+| P1 | Windows WebView2 Print → PDF smoke | ☐ 人手 |
+| P2 | 文档示例 / 7.2 规划同步 | ✅ |
+
+填完 print smoke → **立即 7.2.1**。
+
+## 7.2 — Export Formats（READY；Print smoke 后开工）
+
+真正的多格式导出。**产品意义：** Generate → Inspect → Modify → Validate → Save → **Deliver**。
+
+**PDF：** 始终 `HTML → Print`。**禁止** ReportLab / WeasyPrint / Chromium headless / PDF canvas。  
+**禁止：** DXF / DWG / IFC / Revit / BIM · ZIP Export Package（先单格式）· ExportManifest（7.2 稳定后再议）。
+
+| 子阶段 | 主题 | 要点 |
 |--------|------|------|
-| **7.2.1** | SVG export | 单层 / 整图 SVG 下载 |
-| **7.2.2** | PNG rasterize | **可先于 PDF**：单层平面 PNG（微信 / PPT / Word / 发客户） |
-| **7.2.3** | DesignReport JSON | 权威快照导出 |
-| **7.2.4** | Print / PDF polish | HTML Print 体验硬化（非新引擎）；**仅在此阶段**才可谈物理打印比例校准；此前禁止冒充 1:100 / 1:50 |
+| **7.2.1** | SVG export | 见下「导什么」+ Final Export trust boundary |
+| **7.2.2** | PNG rasterize | **本阶段核心价值**；SVG→光栅，非 HTML 截图 |
+| **7.2.3** | DesignReport JSON | 交付契约 = `DesignReport`，≠ `candidate.model_dump()` |
+| **7.2.4** | Print / PDF polish | `@page` / margin / break / 表头；**非**新 PDF 子系统 |
 
-优先级：**PNG 单层平面** 对建筑师极实用，可早于 Print polish。
+优先级：**PNG 单层平面**（PPT / 微信 / Word / 甲方）可与 SVG 紧接；可先于 Print polish。
+
+### 7.2.1 — SVG：明确「导什么」
+
+不要只有笼统 Download SVG。至少三分：
+
+| 导出 | 来源 |
+|------|------|
+| **Current Floor SVG** | `candidate.floor_svgs[floor_id]` |
+| **All Floors SVG** | 各层各一文件（或约定打包方式；Alpha 可先多文件下载） |
+| **Candidate Snapshot SVG** | 整图 `candidate.svg`（兼容旧快照） |
+
+**信任边界（与 7.0.1 一致）：**
+
+```text
+project_id + candidate_id + revision_id + floor_id?
+  → Backend → ProjectStore → canonical floor_svgs / svg
+  → sanitize / validate → download
+```
+
+**禁止：** frontend 拿 DOM `outerHTML` → 下载。  
+消费已有序列化 SVG，**不**重新渲染几何。
+
+### 7.2.2 — PNG：白底平面（核心）
+
+```text
+Floor SVG → Rasterizer → PNG
+```
+
+**禁止：** HTML 报告整页截图。
+
+Alpha v1：
+
+- 白底 · Canonical SVG · 中文标签正确  
+- 分辨率：`1x / 2x / 4x` 或 `2048 / 4096` px（先不要 DPI）  
+- **不做：** 透明底 / dark mode / 水印 / 品牌模板
+
+### 7.2.3 — JSON：Report ≠ Project
+
+| 产物 | 用途 |
+|------|------|
+| **DesignReport.json** | 交付 / 归档 / 审计（requirements · summary · schedule · evaluation · findings · provenance · revision） |
+| **Project Snapshot** | 继续编辑 / 恢复工作（已有项目存档） |
+
+API 命名宜区分：`report export` vs `project archive`。  
+**禁止**把 `candidate.model_dump()` 冒充报告 JSON。
+
+### 7.2.4 — Print polish（非 PDF engine）
+
+只硬化：`@page` · margin · page-break · print colors · table header · widow/orphan · cover/footer。  
+物理比例 `1:100` **仅本子阶段可谈校准**；此前禁止冒充。
+
+### 以后再说（现在不做）
+
+- **ExportManifest** + **Export Package（ZIP）** — 7.2 单格式稳定后再议  
+- 品牌化封面 / 模板商城
