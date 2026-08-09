@@ -467,8 +467,14 @@ export function useMutationWorkflow({
       if (merged.provenance?.evaluation_version) {
         setSolverIdentity({
           solver_version: merged.provenance.solver_version,
+          generator_strategy: merged.provenance.generator_strategy ?? undefined,
           generator_version: merged.provenance.generator_version,
+          selection_strategy: merged.provenance.selection_strategy ?? undefined,
+          selection_version: merged.provenance.selection_version ?? undefined,
           evaluation_version: merged.provenance.evaluation_version,
+          assignment_strategy:
+            merged.provenance.assignment_strategy ?? undefined,
+          geometry_backend: merged.provenance.geometry_backend ?? undefined,
         });
       }
       setMutationHint(

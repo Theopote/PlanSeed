@@ -11,6 +11,11 @@ from packages.schema.identity import (
 )
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
+from packages.schema.provenance import (
+    DEFAULT_ASSIGNMENT_STRATEGY,
+    DEFAULT_GENERATOR_STRATEGY,
+    DEFAULT_GEOMETRY_BACKEND,
+)
 from solver.visualize.svg import render_candidate_svg, render_floor_svg
 
 from backend.schemas.api import (
@@ -173,28 +178,49 @@ def _zones_payload(cand: LayoutCandidate) -> list[ZonePlacementPayload]:
 
 def _provenance_payload(cand: LayoutCandidate) -> CandidateProvenance | None:
     if cand.provenance is not None:
+        p = cand.provenance
         return CandidateProvenance(
-            solver_version=cand.provenance.solver_version,
-            generator_version=cand.provenance.generator_version,
-            evaluation_version=cand.provenance.evaluation_version
-            or str(cand.metrics.get("evaluation_version") or EVALUATION_VERSION),
-            selection_version=cand.provenance.selection_version
+            solver_version=p.solver_version,
+            generator_strategy=p.generator_strategy,
+            generator_version=p.generator_version,
+            selection_strategy=p.selection_strategy
+            or (
+                str(cand.metrics["selection_strategy"])
+                if cand.metrics.get("selection_strategy")
+                else None
+            ),
+            selection_version=p.selection_version
             or (
                 str(cand.metrics["selection_version"])
                 if cand.metrics.get("selection_version")
                 else None
             ),
+            evaluation_version=p.evaluation_version
+            or str(cand.metrics.get("evaluation_version") or EVALUATION_VERSION),
+            assignment_strategy=p.assignment_strategy,
+            geometry_backend=p.geometry_backend,
         )
     # 兼容旧候选：从 metrics 回填
     sv = cand.metrics.get("solver_version") or SOLVER_VERSION
     gv = cand.metrics.get("generator_version") or GENERATOR_VERSION
     ev = cand.metrics.get("evaluation_version") or EVALUATION_VERSION
     sel = cand.metrics.get("selection_version")
+    sel_strat = cand.metrics.get("selection_strategy")
     return CandidateProvenance(
         solver_version=str(sv),
+        generator_strategy=str(
+            cand.metrics.get("generator_strategy") or DEFAULT_GENERATOR_STRATEGY
+        ),
         generator_version=str(gv),
-        evaluation_version=str(ev),
+        selection_strategy=str(sel_strat) if sel_strat else None,
         selection_version=str(sel) if sel else None,
+        evaluation_version=str(ev),
+        assignment_strategy=str(
+            cand.metrics.get("assignment_strategy") or DEFAULT_ASSIGNMENT_STRATEGY
+        ),
+        geometry_backend=str(
+            cand.metrics.get("geometry_backend") or DEFAULT_GEOMETRY_BACKEND
+        ),
     )
 
 

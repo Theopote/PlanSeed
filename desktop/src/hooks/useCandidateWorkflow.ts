@@ -28,9 +28,32 @@ import { cloneLayoutLocks } from "./sessionHelpers";
 
 export type SolverIdentity = {
   solver_version: string;
+  generator_strategy?: string;
   generator_version: string;
+  selection_strategy?: string;
+  selection_version?: string;
   evaluation_version: string;
+  assignment_strategy?: string;
+  geometry_backend?: string;
 };
+
+function identityFromPayload(
+  sid: Record<string, unknown> | SolverIdentity,
+): SolverIdentity {
+  const s = sid as Record<string, unknown>;
+  const opt = (key: string): string | undefined =>
+    s[key] != null ? String(s[key]) : undefined;
+  return {
+    solver_version: String(s.solver_version ?? ""),
+    generator_strategy: opt("generator_strategy"),
+    generator_version: String(s.generator_version ?? ""),
+    selection_strategy: opt("selection_strategy"),
+    selection_version: opt("selection_version"),
+    evaluation_version: String(s.evaluation_version ?? ""),
+    assignment_strategy: opt("assignment_strategy"),
+    geometry_backend: opt("geometry_backend"),
+  };
+}
 
 export type CandidateStats = {
   generated: number;
@@ -129,12 +152,7 @@ export function useCandidateWorkflow({
         setRequirementSpec(spec);
       }
       if (data.solver_identity) {
-        const sid = data.solver_identity;
-        setSolverIdentity({
-          solver_version: String(sid.solver_version ?? ""),
-          generator_version: String(sid.generator_version ?? ""),
-          evaluation_version: String(sid.evaluation_version ?? ""),
-        });
+        setSolverIdentity(identityFromPayload(data.solver_identity));
       }
       const fp = locksFingerprint(locks);
       setCandidates(stampRootLineage(relabel(data.candidates), fp));
@@ -178,12 +196,7 @@ export function useCandidateWorkflow({
           if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
           setProgram(data.program_summary);
           if (data.solver_identity) {
-            const sid = data.solver_identity;
-            setSolverIdentity({
-              solver_version: String(sid.solver_version ?? ""),
-              generator_version: String(sid.generator_version ?? ""),
-              evaluation_version: String(sid.evaluation_version ?? ""),
-            });
+            setSolverIdentity(identityFromPayload(data.solver_identity));
           }
           const fresh = data.candidates
             .filter((c) => !candidates.some((e) => e.id === c.id))

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from packages.schema.identity import selection_version_for
 from packages.schema.layout import LayoutCandidate
+from packages.schema.provenance import (
+    provenance_to_metrics,
+    stamp_selection_provenance,
+)
 from packages.schema.signature import build_layout_signature, signature_similarity
 
 DEFAULT_MIN_DIVERSITY_THRESHOLD = 0.85
@@ -156,7 +160,8 @@ def _stamp_selection(candidates: list[LayoutCandidate], mode: str) -> None:
     for candidate in candidates:
         candidate.metrics["rank_mode"] = mode
         candidate.metrics["selection_version"] = sel_ver
-        if candidate.provenance is not None:
-            candidate.provenance = candidate.provenance.model_copy(
-                update={"selection_version": sel_ver}
-            )
+        candidate.provenance = stamp_selection_provenance(
+            candidate.provenance,
+            rank_mode=mode,
+        )
+        candidate.metrics.update(provenance_to_metrics(candidate.provenance))

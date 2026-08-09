@@ -18,12 +18,14 @@ from solver.pipeline import run_pipeline
 
 def test_solver_identity_keys():
     ident = solver_identity()
-    assert ident == {
-        "solver_version": SOLVER_VERSION,
-        "generator_version": GENERATOR_VERSION,
-        "evaluation_version": EVALUATION_VERSION,
-        "selection_version": SELECTION_VERSION,
-    }
+    assert ident["solver_version"] == SOLVER_VERSION
+    assert ident["generator_version"] == GENERATOR_VERSION
+    assert ident["evaluation_version"] == EVALUATION_VERSION
+    assert ident["selection_version"] == SELECTION_VERSION
+    assert ident["generator_strategy"] == "guillotine"
+    assert ident["selection_strategy"] == "axis-diverse"
+    assert ident["assignment_strategy"] == "heuristic"
+    assert ident["geometry_backend"] == "rect"
     assert SOLVER_VERSION == "0.5"
     assert GENERATOR_VERSION == "guillotine-lock-v4"
     assert EVALUATION_VERSION == "residential-alpha-v1"
@@ -37,6 +39,9 @@ def test_generator_stamps_version():
     assert cand.provenance is not None
     assert cand.provenance.generator_version == GENERATOR_VERSION
     assert cand.provenance.solver_version == SOLVER_VERSION
+    assert cand.provenance.generator_strategy == "guillotine"
+    assert cand.provenance.assignment_strategy == "heuristic"
+    assert cand.provenance.geometry_backend == "rect"
 
 
 def test_pipeline_evaluation_version():
@@ -72,6 +77,10 @@ def test_health_and_generate_expose_identity():
     assert h["generator_version"] == GENERATOR_VERSION
     assert h["evaluation_version"] == EVALUATION_VERSION
     assert h["selection_version"] == SELECTION_VERSION
+    assert h["generator_strategy"] == "guillotine"
+    assert h["selection_strategy"] == "axis-diverse"
+    assert h["assignment_strategy"] == "heuristic"
+    assert h["geometry_backend"] == "rect"
     # Engine Identity Probe 字段仍在
     assert h["service"] == "planseed"
     assert h["api_version"] == "1"
@@ -88,9 +97,13 @@ def test_health_and_generate_expose_identity():
     assert top["design_score"]["evaluation_version"] == EVALUATION_VERSION
     prov = top["provenance"]
     assert prov["solver_version"] == SOLVER_VERSION
+    assert prov["generator_strategy"] == "guillotine"
     assert prov["generator_version"] == GENERATOR_VERSION
-    assert prov["evaluation_version"] == EVALUATION_VERSION
+    assert prov["selection_strategy"] == "axis-diverse"
     assert prov["selection_version"] == SELECTION_VERSION
+    assert prov["evaluation_version"] == EVALUATION_VERSION
+    assert prov["assignment_strategy"] == "heuristic"
+    assert prov["geometry_backend"] == "rect"
     assert top["metrics"].get("rank_mode") == "axis"
     assert isinstance(top["placements"], list)
     assert len(top["placements"]) > 0

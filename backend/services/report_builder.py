@@ -214,10 +214,22 @@ def build_design_report(
 
     prov = candidate.get("provenance") or {}
     mode = export_mode if export_mode in ("preview", "final") else "preview"
+
+    def _prov_str(key: str) -> str | None:
+        if not isinstance(prov, dict):
+            return None
+        val = prov.get(key)
+        return str(val) if val is not None else None
+
     provenance = ReportProvenance(
-        solver_version=prov.get("solver_version") if isinstance(prov, dict) else None,
-        generator_version=prov.get("generator_version") if isinstance(prov, dict) else None,
-        evaluation_version=prov.get("evaluation_version") if isinstance(prov, dict) else None,
+        solver_version=_prov_str("solver_version"),
+        generator_strategy=_prov_str("generator_strategy"),
+        generator_version=_prov_str("generator_version"),
+        selection_strategy=_prov_str("selection_strategy"),
+        selection_version=_prov_str("selection_version"),
+        evaluation_version=_prov_str("evaluation_version"),
+        assignment_strategy=_prov_str("assignment_strategy"),
+        geometry_backend=_prov_str("geometry_backend"),
         export_mode=mode,
         boundary_lines=boundary_lines_for_locale(report_locale),
     )

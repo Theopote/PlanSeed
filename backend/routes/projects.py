@@ -44,8 +44,13 @@ class SchemaVersions(BaseModel):
     """快照内设计溯源；Save 不得仅因保存而改写为 current。"""
 
     solver_version: str | None = None
+    generator_strategy: str | None = None
     generator_version: str | None = None
+    selection_strategy: str | None = None
+    selection_version: str | None = None
     evaluation_version: str | None = None
+    assignment_strategy: str | None = None
+    geometry_backend: str | None = None
 
 
 class ProjectMeta(BaseModel):
@@ -86,9 +91,17 @@ class ProjectDetail(BaseModel):
 def _infer_schema_versions(payload: dict[str, Any]) -> dict[str, str | None]:
     """保留客户端传入的设计版本；缺省时从候选 provenance 推断，仍不写成「已重评」。"""
     raw = payload.get("schema_versions") or {}
-    solver_v = raw.get("solver_version")
-    gen_v = raw.get("generator_version")
-    eval_v = raw.get("evaluation_version")
+    keys = (
+        "solver_version",
+        "generator_strategy",
+        "generator_version",
+        "selection_strategy",
+        "selection_version",
+        "evaluation_version",
+        "assignment_strategy",
+        "geometry_backend",
+    )
+    out: dict[str, str | None] = {k: raw.get(k) for k in keys}
 
     for c in payload.get("candidates") or []:
         if not isinstance(c, dict):
@@ -96,20 +109,25 @@ def _infer_schema_versions(payload: dict[str, Any]) -> dict[str, str | None]:
         prov = c.get("provenance") or {}
         if not isinstance(prov, dict):
             continue
-        if not solver_v:
-            solver_v = prov.get("solver_version")
-        if not gen_v:
-            gen_v = prov.get("generator_version")
-        if not eval_v:
-            eval_v = prov.get("evaluation_version")
-        if solver_v and gen_v and eval_v:
-            break
+        for k in keys:
+            if not out[k]:
+                val = prov.get(k)
+                if val is not None:
+                    out[k] = str(val)
+        if all(out[k] for k in ("solver_version", "generator_version", "evaluation_version")):
+            # 核心三件套齐了即可停；策略字段尽力填
+            if all(
+                out[k]
+                for k in (
+                    "generator_strategy",
+                    "selection_strategy",
+                    "assignment_strategy",
+                    "geometry_backend",
+                )
+            ):
+                break
 
-    return {
-        "solver_version": solver_v,
-        "generator_version": gen_v,
-        "evaluation_version": eval_v,
-    }
+    return out
 
 
 def _stamp_project_meta(payload: dict[str, Any]) -> None:

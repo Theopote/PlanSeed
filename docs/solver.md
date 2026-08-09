@@ -33,7 +33,7 @@ class LayoutGenerator(Protocol):
 - Pareto：`rank_mode=pareto` Experimental（slot1=最高分 + 七轴非支配 crowding；非默认）
 - CP-SAT floor assignment（opt-in，`solver.assignment`，8.3 ✅）
 - 不规则场地：`solver.geometry.irregular`（Shapely opt-in，8.4 ✅）
-- **8.5**：Alpha Stabilization — 禁止静默改默认 ranking；见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
+- **8.5**：Alpha Stabilization — SolverProvenance + 禁止静默改默认 ranking；见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
 - Phase 8 能力面收口；**禁止** CP-SAT/GA/Shapely 替代默认 Rect packing
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)

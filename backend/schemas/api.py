@@ -62,14 +62,30 @@ class ProgramSummary(BaseModel):
 
 
 class CandidateProvenance(BaseModel):
-    """算法契约版本；与 LayoutCandidate.provenance / metrics 对齐。"""
+    """SolverProvenance（API 名保留 CandidateProvenance）；与 LayoutCandidate.provenance 对齐。"""
 
     solver_version: str
+    generator_strategy: str = Field(
+        default="guillotine",
+        description="guillotine | maxrect",
+    )
     generator_version: str
-    evaluation_version: str
+    selection_strategy: str | None = Field(
+        default=None,
+        description="axis-diverse | pareto | score | geom-diverse",
+    )
     selection_version: str | None = Field(
         default=None,
-        description="Top-K 选优策略签名（additive；ranking 后写入）",
+        description="选优规则包版本",
+    )
+    evaluation_version: str
+    assignment_strategy: str = Field(
+        default="heuristic",
+        description="heuristic | cpsat",
+    )
+    geometry_backend: str = Field(
+        default="rect",
+        description="rect | shapely-orthogonal",
     )
 
 class RoomPlacementPayload(BaseModel):
@@ -215,6 +231,7 @@ class GenerateResponse(BaseModel):
     solver_identity: dict[str, str] = Field(
         default_factory=dict,
         description=(
-            "solver_version / generator_version / evaluation_version / selection_version"
+            "SolverProvenance 默认身份："
+            "solver/generator/selection/evaluation + strategy 层"
         ),
     )

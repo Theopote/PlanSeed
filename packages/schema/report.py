@@ -184,8 +184,13 @@ class EvaluationSummary(BaseModel):
 
 class ReportProvenance(BaseModel):
     solver_version: str | None = None
+    generator_strategy: str | None = None
     generator_version: str | None = None
+    selection_strategy: str | None = None
+    selection_version: str | None = None
     evaluation_version: str | None = None
+    assignment_strategy: str | None = None
+    geometry_backend: str | None = None
     export_mode: str = Field(
         default="preview",
         description="preview | final；final 须来自 ProjectStore + revision_id",

@@ -8,27 +8,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from packages.schema.entry import ExteriorEntryPlacement
+from packages.schema.provenance import SolverProvenance
 from packages.schema.topology import RealizedConnection
+
+# 兼容旧名：与 SolverProvenance 同构
+CandidateProvenance = SolverProvenance
 
 
 class PlacementSource(StrEnum):
     PROGRAM = "program"
     GENERATED = "generated"
-
-
-class CandidateProvenance(BaseModel):
-    """候选算法契约版本（first-class；metrics 中保留镜像供旧读法）。"""
-
-    solver_version: str
-    generator_version: str
-    evaluation_version: str | None = Field(
-        default=None,
-        description="评价完成后写入；生成瞬间可为 None",
-    )
-    selection_version: str | None = Field(
-        default=None,
-        description="Top-K 选优策略签名；ranking 后写入（additive）",
-    )
 
 
 class PlacementRect(BaseModel):

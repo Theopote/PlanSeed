@@ -251,23 +251,33 @@ environment 0.10 | technical 0.16 | robustness 0.14
 | 字段 | 当前值 | 含义 |
 |------|--------|------|
 | `solver_version` | `0.5` | Solver 管线总签名（含 Solver 2.0 能力面；默认语义见 selection） |
-| `generator_version` | `guillotine-lock-v4` | 当前主生成器（lock 管线契约 + 按层隔离洞） |
+| `generator_strategy` | `guillotine` | 生成策略（`maxrect` 等为 opt-in） |
+| `generator_version` | `guillotine-lock-v4` | 当前主生成器规则包 |
+| `selection_strategy` | `axis-diverse` | Alpha 默认 Top-K 策略 |
+| `selection_version` | `axis-diversity-v1` | 选优规则包；Pareto Experimental=`pareto-top1-axes-v2` |
 | `evaluation_version` | `residential-alpha-v1` | 七轴权重 / Finding 规则包 |
-| `selection_version` | `axis-diversity-v1` | Alpha 默认 Top-K（score+轴叙事+几何 diversity）；Pareto Experimental=`pareto-top1-axes-v2` |
+| `assignment_strategy` | `heuristic` | 楼层归属；`cpsat` 为 research |
+| `geometry_backend` | `rect` | 默认矩形；不规则场地意图=`shapely-orthogonal` |
+
+完整模型：`SolverProvenance`（`packages/schema/provenance.py`）。
 
 持久化示例：
 
 ```json
 {
-  "evaluation_version": "residential-alpha-v1",
-  "selection_version": "axis-diversity-v1",
-  "total_score": 87.2,
   "solver_version": "0.5",
-  "generator_version": "guillotine-lock-v4"
+  "generator_strategy": "guillotine",
+  "generator_version": "guillotine-lock-v4",
+  "selection_strategy": "axis-diverse",
+  "selection_version": "axis-diversity-v1",
+  "evaluation_version": "residential-alpha-v1",
+  "assignment_strategy": "heuristic",
+  "geometry_backend": "rect",
+  "total_score": 87.2
 }
 ```
 
-**何时 bump：** 改权重、轴合成、Finding 规则 → 升 `evaluation_version`；改生成拓扑 → 升 `generator_version`；改 Top-K / ranking / compare 默认对象 → 升 **`selection_version`**（及必要时 `solver_version`）；大管线变更 → 升 `solver_version`。  
+**何时 bump：** 改权重、轴合成、Finding 规则 → 升 `evaluation_version`；改生成拓扑 → 升 `generator_version`；换默认 strategy → 升对应 `*_strategy` 记录并由 `selection_version` / `solver_version` 可追踪；改 Top-K / ranking / compare 默认对象 → 升 **`selection_version`**（及必要时 `solver_version`）；大管线变更 → 升 `solver_version`。  
 否则「同几何明日分数变了 / Top-1 换人了」无法解释。`engine_version`（health）仍是进程/打包身份，与算法签名分开。
 
 ### DesignEvaluation vs DesignScore（非 P0，schema 稳定后再拆）

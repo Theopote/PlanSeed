@@ -22,6 +22,7 @@ from packages.schema.identity import (
     GENERATOR_VERSION,
     SELECTION_VERSION,
     SOLVER_VERSION,
+    selection_strategy_for,
     selection_version_for,
     solver_identity,
 )
@@ -57,6 +58,13 @@ from packages.schema.mutation import (
 )
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
+from packages.schema.provenance import (
+    SolverProvenance,
+    alpha_solver_provenance,
+    assignment_strategy_for,
+    build_solver_provenance,
+    geometry_backend_for,
+)
 from packages.schema.report import (
     GEOMETRY_ORIGIN_LABELS,
     REPORT_BOUNDARY_LINES,
@@ -138,7 +146,13 @@ __all__ = [
     "DoorOpening",
     "EVALUATION_VERSION",
     "SELECTION_VERSION",
+    "selection_strategy_for",
     "selection_version_for",
+    "SolverProvenance",
+    "alpha_solver_provenance",
+    "assignment_strategy_for",
+    "build_solver_provenance",
+    "geometry_backend_for",
     "EvaluationAxis",
     "ExteriorEntry",
     "ExteriorEntryPlacement",

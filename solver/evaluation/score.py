@@ -7,8 +7,12 @@ from packages.schema.identity import (
     GENERATOR_VERSION,
     SOLVER_VERSION,
 )
-from packages.schema.layout import CandidateProvenance, LayoutCandidate
+from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
+from packages.schema.provenance import (
+    merge_solver_provenance,
+    provenance_to_metrics,
+)
 from packages.schema.scoring import (
     DesignMetrics,
     DesignScore,
@@ -346,15 +350,15 @@ class CompositeEvaluator:
 
         candidate.metrics.update(flat_metrics)
         candidate.metrics["evaluation_version"] = EVALUATION_VERSION
-        candidate.metrics["solver_version"] = SOLVER_VERSION
-        candidate.metrics["generator_version"] = GENERATOR_VERSION
         prev = candidate.provenance
-        candidate.provenance = CandidateProvenance(
+        candidate.provenance = merge_solver_provenance(
+            prev,
             solver_version=SOLVER_VERSION,
             generator_version=(
                 prev.generator_version if prev is not None else GENERATOR_VERSION
             ),
             evaluation_version=EVALUATION_VERSION,
         )
+        candidate.metrics.update(provenance_to_metrics(candidate.provenance))
         candidate.score = score.total_score
         return score

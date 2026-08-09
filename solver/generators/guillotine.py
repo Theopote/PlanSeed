@@ -6,9 +6,8 @@ import random
 from dataclasses import dataclass
 
 from packages.schema.core import CorePlacementResult
-from packages.schema.identity import GENERATOR_VERSION, SOLVER_VERSION
+from packages.schema.identity import GENERATOR_VERSION
 from packages.schema.layout import (
-    CandidateProvenance,
     FloorLayout,
     LayoutCandidate,
     PlacementRect,
@@ -19,6 +18,7 @@ from packages.schema.layout import (
 )
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
+from packages.schema.provenance import build_solver_provenance, provenance_to_metrics
 from packages.schema.room import RoomSpec
 from packages.schema.topology import TopologyPlan
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometry
@@ -133,6 +133,11 @@ class GuillotineGenerator:
                     rng=rng,
                 )
             except CorePlacementFailure as err:
+                unfit_prov = build_solver_provenance(
+                    generator_strategy=self.strategy_id,
+                    generator_version=self.generator_version,
+                    program=program,
+                )
                 return LayoutCandidate(
                     id=f"candidate-{seed}",
                     seed=seed,
@@ -140,15 +145,11 @@ class GuillotineGenerator:
                         FloorLayout(floor_id=fl.id, placements=[])
                         for fl in program.floors
                     ],
-                    provenance=CandidateProvenance(
-                        solver_version=SOLVER_VERSION,
-                        generator_version=self.generator_version,
-                    ),
+                    provenance=unfit_prov,
                     metrics={
                         "core_unfit": True,
                         "core_unfit_reason": str(err),
-                        "generator_version": self.generator_version,
-                        "solver_version": SOLVER_VERSION,
+                        **provenance_to_metrics(unfit_prov),
                     },
                 )
 
@@ -289,9 +290,13 @@ class GuillotineGenerator:
         from solver.topology.connection_resolve import resolve_required_connections
         from solver.topology.doors import place_door_openings
 
+        prov = build_solver_provenance(
+            generator_strategy=self.strategy_id,
+            generator_version=self.generator_version,
+            program=program,
+        )
         metrics: dict[str, float | int | str | bool] = {
-            "generator_version": self.generator_version,
-            "solver_version": SOLVER_VERSION,
+            **provenance_to_metrics(prov),
             "locked_room_count": len(locks.rooms),
             "locked_zone_count": len(locks.zones),
             "stair_locked": locks.stair is not None,
@@ -302,10 +307,7 @@ class GuillotineGenerator:
             floors=floor_layouts,
             wet_stacks=list(building_zones.wet_stacks),
             zone_placements=zone_placements,
-            provenance=CandidateProvenance(
-                solver_version=SOLVER_VERSION,
-                generator_version=self.generator_version,
-            ),
+            provenance=prov,
             metrics=metrics,
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)

@@ -173,8 +173,13 @@ export type GenerateResponse = Omit<
   rejected_candidates?: RejectedCandidatePayload[];
   solver_identity?: {
     solver_version: string;
+    generator_strategy?: string;
     generator_version: string;
+    selection_strategy?: string;
+    selection_version?: string;
     evaluation_version: string;
+    assignment_strategy?: string;
+    geometry_backend?: string;
   };
 };
 

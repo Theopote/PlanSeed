@@ -3,6 +3,8 @@
 用于解释历史分数与 regression：同一几何在不同 evaluation_version 下分数可变；
 同一分池在不同 selection_version 下 Top-K 可变。
 引擎进程身份仍用 health 的 engine_version；此处是算法契约版本。
+
+完整溯源模型见 ``packages.schema.provenance.SolverProvenance``。
 """
 
 from __future__ import annotations
@@ -21,17 +23,31 @@ _SELECTION_BY_MODE: dict[str, str] = {
     "geom": "geom-diversity-v1",
 }
 
+_SELECTION_STRATEGY_BY_MODE: dict[str, str] = {
+    "axis": "axis-diverse",
+    "pareto": "pareto",
+    "score": "score",
+    "geom": "geom-diverse",
+}
+
 
 def selection_version_for(mode: str) -> str:
     """按实际 rank_mode 解析选优签名（opt-in 模式与默认可区分）。"""
     return _SELECTION_BY_MODE.get(mode, f"rank-{mode}")
 
 
+def selection_strategy_for(mode: str) -> str:
+    """rank_mode → 稳定 selection_strategy 标识。"""
+    return _SELECTION_STRATEGY_BY_MODE.get(mode, mode)
+
+
 def solver_identity() -> dict[str, str]:
-    """稳定键名，便于持久化与 API 序列化。"""
+    """默认 Alpha 求解身份（含 Solver 2.0 策略层）。"""
+    # 延迟导入避免 identity ↔ provenance 循环
+    from packages.schema.provenance import alpha_solver_provenance
+
     return {
-        "solver_version": SOLVER_VERSION,
-        "generator_version": GENERATOR_VERSION,
-        "evaluation_version": EVALUATION_VERSION,
-        "selection_version": SELECTION_VERSION,
+        key: str(value)
+        for key, value in alpha_solver_provenance().model_dump().items()
+        if value is not None
     }

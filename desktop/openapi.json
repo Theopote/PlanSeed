@@ -375,15 +375,45 @@
         "type": "object"
       },
       "CandidateProvenance": {
-        "description": "算法契约版本；与 LayoutCandidate.provenance / metrics 对齐。",
+        "description": "SolverProvenance（API 名保留 CandidateProvenance）；与 LayoutCandidate.provenance 对齐。",
         "properties": {
+          "assignment_strategy": {
+            "default": "heuristic",
+            "description": "heuristic | cpsat",
+            "title": "Assignment Strategy",
+            "type": "string"
+          },
           "evaluation_version": {
             "title": "Evaluation Version",
+            "type": "string"
+          },
+          "generator_strategy": {
+            "default": "guillotine",
+            "description": "guillotine | maxrect",
+            "title": "Generator Strategy",
             "type": "string"
           },
           "generator_version": {
             "title": "Generator Version",
             "type": "string"
+          },
+          "geometry_backend": {
+            "default": "rect",
+            "description": "rect | shapely-orthogonal",
+            "title": "Geometry Backend",
+            "type": "string"
+          },
+          "selection_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "axis-diverse | pareto | score | geom-diverse",
+            "title": "Selection Strategy"
           },
           "selection_version": {
             "anyOf": [
@@ -394,7 +424,7 @@
                 "type": "null"
               }
             ],
-            "description": "Top-K 选优策略签名（additive；ranking 后写入）",
+            "description": "选优规则包版本",
             "title": "Selection Version"
           },
           "solver_version": {
@@ -1169,7 +1199,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "solver_version / generator_version / evaluation_version / selection_version",
+            "description": "SolverProvenance 默认身份：solver/generator/selection/evaluation + strategy 层",
             "title": "Solver Identity",
             "type": "object"
           },
@@ -2489,6 +2519,17 @@
       },
       "ReportProvenance": {
         "properties": {
+          "assignment_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignment Strategy"
+          },
           "boundary_lines": {
             "items": {
               "type": "string"
@@ -2513,6 +2554,17 @@
             "title": "Export Mode",
             "type": "string"
           },
+          "generator_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator Strategy"
+          },
           "generator_version": {
             "anyOf": [
               {
@@ -2523,6 +2575,39 @@
               }
             ],
             "title": "Generator Version"
+          },
+          "geometry_backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometry Backend"
+          },
+          "selection_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Strategy"
+          },
+          "selection_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Version"
           },
           "solver_version": {
             "anyOf": [
@@ -2919,6 +3004,17 @@
       "SchemaVersions": {
         "description": "快照内设计溯源；Save 不得仅因保存而改写为 current。",
         "properties": {
+          "assignment_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignment Strategy"
+          },
           "evaluation_version": {
             "anyOf": [
               {
@@ -2930,6 +3026,17 @@
             ],
             "title": "Evaluation Version"
           },
+          "generator_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator Strategy"
+          },
           "generator_version": {
             "anyOf": [
               {
@@ -2940,6 +3047,39 @@
               }
             ],
             "title": "Generator Version"
+          },
+          "geometry_backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometry Backend"
+          },
+          "selection_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Strategy"
+          },
+          "selection_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Version"
           },
           "solver_version": {
             "anyOf": [

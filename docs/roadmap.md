@@ -106,7 +106,7 @@ Evaluator 只评分，不改几何。用户层七轴：
 `DesignScore`：七轴（**名称冻结至 Phase 4**，见 [scoring.md](scoring.md)）+ `findings[]`；`explanations` / `warnings` 由 findings 派生。  
 `DesignEvaluation`：当前为 **temporary compatibility alias**（`= DesignScore`）；长期再拆成真正 Evaluation 模型（非 P0，见 [scoring.md](scoring.md)）。  
 Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止合规语气）。  
-版本签名：`solver=0.5` / `generator=guillotine-lock-v4` / `evaluation=residential-alpha-v1` / `selection=axis-diversity-v1`（见 [scoring.md](scoring.md)）。  
+版本签名：`solver=0.5` / `generator=guillotine`+`guillotine-lock-v4` / `selection=axis-diverse`+`axis-diversity-v1` / `evaluation=residential-alpha-v1` / `assignment=heuristic` / `geometry=rect`（见 [scoring.md](scoring.md) · `SolverProvenance`）。  
 **不做（本 Phase）**：daylight；LLM；房间拖拽编辑。
 
 ---

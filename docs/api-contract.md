@@ -61,16 +61,22 @@
 
 CI：`contract` job 再生成后 `git diff --exit-code`。详：[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)。
 
-### SolverIdentity（算法契约，≠ engine_version）
+### SolverIdentity / SolverProvenance（算法契约，≠ engine_version）
 
 ```text
 solver_version
+generator_strategy
 generator_version
-evaluation_version
+selection_strategy
 selection_version
+evaluation_version
+assignment_strategy
+geometry_backend
 ```
 
-定义：`packages/schema/identity.py`。  
+定义：`packages/schema/provenance.py`（`SolverProvenance`；`CandidateProvenance` 为别名）  
+`solver_identity()`：`packages/schema/identity.py`。  
+
 改 Top-K / ranking 默认 → bump `selection_version`；改七轴评分 → bump `evaluation_version`。
 
 ---

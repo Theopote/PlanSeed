@@ -468,16 +468,39 @@ export interface components {
         };
         /**
          * CandidateProvenance
-         * @description 算法契约版本；与 LayoutCandidate.provenance / metrics 对齐。
+         * @description SolverProvenance（API 名保留 CandidateProvenance）；与 LayoutCandidate.provenance 对齐。
          */
         CandidateProvenance: {
+            /**
+             * Assignment Strategy
+             * @description heuristic | cpsat
+             * @default heuristic
+             */
+            assignment_strategy: string;
             /** Evaluation Version */
             evaluation_version: string;
+            /**
+             * Generator Strategy
+             * @description guillotine | maxrect
+             * @default guillotine
+             */
+            generator_strategy: string;
             /** Generator Version */
             generator_version: string;
             /**
+             * Geometry Backend
+             * @description rect | shapely-orthogonal
+             * @default rect
+             */
+            geometry_backend: string;
+            /**
+             * Selection Strategy
+             * @description axis-diverse | pareto | score | geom-diverse
+             */
+            selection_strategy?: string | null;
+            /**
              * Selection Version
-             * @description Top-K 选优策略签名（additive；ranking 后写入）
+             * @description 选优规则包版本
              */
             selection_version?: string | null;
             /** Solver Version */
@@ -889,7 +912,7 @@ export interface components {
             requirement_spec?: components["schemas"]["RequirementSpec"] | null;
             /**
              * Solver Identity
-             * @description solver_version / generator_version / evaluation_version / selection_version
+             * @description SolverProvenance 默认身份：solver/generator/selection/evaluation + strategy 层
              */
             solver_identity?: {
                 [key: string]: string;
@@ -1436,6 +1459,8 @@ export interface components {
         ReportLocale: "zh-CN" | "en-US";
         /** ReportProvenance */
         ReportProvenance: {
+            /** Assignment Strategy */
+            assignment_strategy?: string | null;
             /** Boundary Lines */
             boundary_lines?: string[];
             /** Evaluation Version */
@@ -1446,8 +1471,16 @@ export interface components {
              * @default preview
              */
             export_mode: string;
+            /** Generator Strategy */
+            generator_strategy?: string | null;
             /** Generator Version */
             generator_version?: string | null;
+            /** Geometry Backend */
+            geometry_backend?: string | null;
+            /** Selection Strategy */
+            selection_strategy?: string | null;
+            /** Selection Version */
+            selection_version?: string | null;
             /** Solver Version */
             solver_version?: string | null;
         };
@@ -1597,10 +1630,20 @@ export interface components {
          * @description 快照内设计溯源；Save 不得仅因保存而改写为 current。
          */
         SchemaVersions: {
+            /** Assignment Strategy */
+            assignment_strategy?: string | null;
             /** Evaluation Version */
             evaluation_version?: string | null;
+            /** Generator Strategy */
+            generator_strategy?: string | null;
             /** Generator Version */
             generator_version?: string | null;
+            /** Geometry Backend */
+            geometry_backend?: string | null;
+            /** Selection Strategy */
+            selection_strategy?: string | null;
+            /** Selection Version */
+            selection_version?: string | null;
             /** Solver Version */
             solver_version?: string | null;
         };

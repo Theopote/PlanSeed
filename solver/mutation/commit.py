@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from packages.schema.identity import (
     EVALUATION_VERSION,
-    GENERATOR_VERSION,
     SOLVER_VERSION,
 )
 from packages.schema.layout import (
-    CandidateProvenance,
     FloorLayout,
     LayoutCandidate,
     PlacementRect,
@@ -18,6 +16,12 @@ from packages.schema.layout import (
 )
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
+from packages.schema.provenance import (
+    assignment_strategy_for,
+    geometry_backend_for,
+    merge_solver_provenance,
+    provenance_to_metrics,
+)
 from packages.schema.scoring import DesignScore
 
 from solver.circulation.exterior_entry import resolve_exterior_entry
@@ -181,14 +185,15 @@ def revalidate_candidate(
         candidate.metrics["lock_invariant_ok"] = True
 
     candidate.validation = validation
-    candidate.provenance = CandidateProvenance(
+    prev = candidate.provenance
+    candidate.provenance = merge_solver_provenance(
+        prev,
         solver_version=SOLVER_VERSION,
-        generator_version=GENERATOR_VERSION,
         evaluation_version=EVALUATION_VERSION,
+        assignment_strategy=assignment_strategy_for(program),
+        geometry_backend=geometry_backend_for(program),
     )
-    candidate.metrics["solver_version"] = SOLVER_VERSION
-    candidate.metrics["generator_version"] = GENERATOR_VERSION
-    candidate.metrics["evaluation_version"] = EVALUATION_VERSION
+    candidate.metrics.update(provenance_to_metrics(candidate.provenance))
     candidate.metrics["revision_source"] = "mutation_revalidate"
 
     if validation.valid:
