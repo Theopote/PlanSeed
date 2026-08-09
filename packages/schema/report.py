@@ -141,6 +141,13 @@ class FloorPlanBlock(BaseModel):
             "None = 未定义：报告不得画默认 ↑N"
         ),
     )
+    orientation_defined: bool = Field(
+        default=False,
+        description=(
+            "True = north_angle_deg 已知；"
+            "False = 北向未定义。HTML 只读此字段，禁止自行猜 0°"
+        ),
+    )
 
 
 class RoomScheduleRow(BaseModel):

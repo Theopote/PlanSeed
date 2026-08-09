@@ -480,7 +480,7 @@ def _schedule_row_html(row: Any) -> str:
 
 
 def _north_compass_html(locale: Any, north_angle_deg: float | None) -> str:
-    """北针 = SiteCoordinateSystem 投影；未知则不画假 ↑N。"""
+    """北针只消费 FloorPlanBlock.north_angle_deg；禁止在此读 site / 猜 0°。"""
     if north_angle_deg is None:
         return (
             f'<span class="north-undefined">'

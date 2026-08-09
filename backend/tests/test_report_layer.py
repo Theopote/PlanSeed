@@ -562,22 +562,84 @@ def test_floor_plan_labels_localized():
     assert "功能配置" in doc or "空间品质" in doc
 
 
-def test_north_angle_rotates_compass_and_unknown_omits_fake_n():
-    """北针 = SiteCoordinateSystem 投影；未知禁止默认 ↑N。"""
-    from backend.services.report_orientation import (
-        north_arrow_css_rotation_deg,
-        resolve_north_angle_deg,
+def _report_with_north(angle: float | None):
+    site = {"width": 11, "depth": 13, "north_angle": angle}
+    return build_design_report(
+        project_name=f"North-{angle}",
+        requirement_spec=_requirement_spec(site=site),
+        program=_program(),
+        candidate=_candidate(),
     )
+
+
+def test_report_north_angle_zero():
+    """north_angle=0 → 世界北=图上；北针 rotate(0)。"""
+    from backend.services.report_orientation import north_arrow_css_rotation_deg
+
+    report = _report_with_north(0)
+    fp = report.floor_plans[0]
+    assert fp.orientation_defined is True
+    assert fp.north_angle_deg == 0.0
+    assert north_arrow_css_rotation_deg(0) == 0.0
+    doc = render_report_html(report)
+    assert 'class="north"' in doc
+    assert "rotate(0" in doc
+    assert "∠0°" in doc
+    assert "北向未定义" not in doc
+
+
+def test_report_north_angle_90():
+    """north_angle=90 → 世界北=图左；CSS -90°。"""
+    from backend.services.report_orientation import north_arrow_css_rotation_deg
     from solver.geometry.site_coords import SiteCoordinateSystem
 
-    assert north_arrow_css_rotation_deg(0) == 0.0
-    assert north_arrow_css_rotation_deg(90) == -90.0
-    # north_angle=90 → model west 朝世界北（与 CSS -90°=朝左一致）
     assert SiteCoordinateSystem(north_angle=90).model_edges_facing("north") == {"west"}
+    report = _report_with_north(90)
+    fp = report.floor_plans[0]
+    assert fp.orientation_defined is True
+    assert fp.north_angle_deg == 90.0
+    assert north_arrow_css_rotation_deg(90) == -90.0
+    doc = render_report_html(report)
+    assert "rotate(-90" in doc
+    assert "∠90°" in doc
+    assert 'class="north"' in doc
+
+
+def test_report_north_angle_135():
+    """north_angle=135 → 经 SiteCoordinateSystem 归一后写入 block。"""
+    from backend.services.report_orientation import north_arrow_css_rotation_deg
+
+    report = _report_with_north(135)
+    fp = report.floor_plans[0]
+    assert fp.orientation_defined is True
+    assert fp.north_angle_deg == 135.0
+    assert north_arrow_css_rotation_deg(135) == -135.0
+    doc = render_report_html(report)
+    assert "rotate(-135" in doc
+    assert "∠135°" in doc
+
+
+def test_report_north_unknown_not_fake():
+    """未知北向：不画 ▲N；不把缺省 0 当成已知。"""
+    from backend.services.report_orientation import resolve_north_angle_deg
 
     assert resolve_north_angle_deg({"site": {"width": 11, "depth": 13}}) is None
     assert resolve_north_angle_deg({"site": {"north_angle": None}}) is None
-    assert resolve_north_angle_deg({"site": {"north_angle": 90}}) == 90.0
+
+    report = _report_with_north(None)
+    fp = report.floor_plans[0]
+    assert fp.orientation_defined is False
+    assert fp.north_angle_deg is None
+    doc = render_report_html(report)
+    assert "北向未定义" in doc
+    assert 'class="north"' not in doc
+    assert 'class="north-wrap"' not in doc
+
+
+def test_report_north_from_assumption_zero():
+    """仅有 assumption site.north_angle=0 时视为已知（normalize 默认）。"""
+    from backend.services.report_orientation import resolve_north_angle_deg
+
     assert (
         resolve_north_angle_deg(
             {
@@ -589,29 +651,3 @@ def test_north_angle_rotates_compass_and_unknown_omits_fake_n():
         )
         == 0.0
     )
-
-    known = build_design_report(
-        project_name="North",
-        requirement_spec=_requirement_spec(site={"width": 11, "depth": 13, "north_angle": 90}),
-        program=_program(),
-        candidate=_candidate(),
-    )
-    assert known.floor_plans[0].north_angle_deg == 90.0
-    doc = render_report_html(known)
-    assert 'class="north"' in doc
-    assert "rotate(-90" in doc
-    assert "∠90°" in doc
-    assert "北向未定义" not in doc
-
-    unknown = build_design_report(
-        project_name="NoNorth",
-        requirement_spec=_requirement_spec(
-            site={"width": 11, "depth": 13, "north_angle": None}
-        ),
-        program=_program(),
-        candidate=_candidate(),
-    )
-    assert unknown.floor_plans[0].north_angle_deg is None
-    doc_u = render_report_html(unknown)
-    assert "北向未定义" in doc_u
-    assert 'class="north"' not in doc_u

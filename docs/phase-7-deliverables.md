@@ -25,10 +25,12 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 | **7.0** | Deliverable Model | ✅ |
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
 | **7.1** | Report Presentation | ✅ Engineering |
-| **7.1.1** | Accuracy + Print Smoke | **← 极短收口**（北针/TS ✅；Print smoke ☐） |
-| **7.2** | Export Formats | READY（Print smoke 填表后立刻开工） |
+| **7.1.1** | Presentation Accuracy & Smoke | **← 立即完成**（北向/TS ✅；Print ☐） |
+| **7.2** | Export Formats | **接下来主线** |
+| **7.5** | Alpha Engineering Hardening | 7.2 完成后 |
+| **8.0** | Solver Diversity / Solver 2.0 | 后续 |
 
-**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · ZIP Export Package · ExportManifest · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor · Canva 式品牌模板。
+**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · ZIP Export Package · ExportManifest · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor · Canva 式品牌模板 · 把审计优化建议塞进 7.2。
 
 ## 第一刀：Export Design Report
 

@@ -1,91 +1,72 @@
 # Phase 7.1.1 — Presentation Accuracy & Print Smoke
 
-> **性质：极短收口**（可不升正式子阶段编号；落地后直接 7.2）  
-> **前置：** 7.1 Report Presentation 工程完成  
-> **总览：** [phase-7-deliverables.md](phase-7-deliverables.md) · 打印矩阵：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
+> **性质：极短收口**（不插新大阶段；完成后立刻 7.2）  
+> **总路线：** 7.1.1 → **7.2 Export** → **7.5 Alpha Hardening** → **8.0 Solver 2.0**  
+> 打印：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 总览：[phase-7-deliverables.md](phase-7-deliverables.md)
 
-## 目标
+## 不做
 
-7.1 视觉/结构已够 Alpha。本收口只堵 **准确性 + 真实打印**，不做品牌/主题/PDF 引擎。
-
-| 级 | 项 | 状态 |
-|----|-----|------|
-| **P0** | North orientation correctness | ✅ Engineering（测试锁定） |
-| **P1** | RequirementSpec TS fidelity audit | ✅ Engineering（类型 + 克隆路径审计） |
-| **P1** | Windows WebView2 print smoke | ☐ **人手填表**（关门） |
-| **P2** | 文档示例同步 | ✅ 本页 + 7.2 规划已对齐 |
-
-完成后 → **Phase 7.2 Export Formats**（先 7.2.1 SVG）。
+- 重开 Phase 6 · 重构 Solver · Shapely / CP-SAT / GA  
+- 全面 strict mypy · OpenAPI 大扫除 · 持久化大改（→ **7.5**）  
+- 每发现一个问题就新开 Phase
 
 ---
 
-## P0 — North orientation
+## 7.1.1-A — 北向系统（P0）✅ Engineering
 
-**规则：**
+**错误做法：** HTML 自己读 `site.north_angle` 猜变换；或 unknown → 默认 0° 画假 ▲N。
 
-- `FloorPlanBlock.north_angle_deg` ← `resolve_north_angle_deg(requirement_spec)`  
-- 来源：`site.north_angle`（含 `0`）或 assumption `site.north_angle`  
-- **显式 `null` / 缺键且无 assumption → 未知** → HTML「北向未定义」，**禁止**画默认 ↑N  
-- CSS：`rotate(-north_angle)`；与 `SiteCoordinateSystem` 一致
+**正确链路：**
 
-**证据：**
-
-- `backend/services/report_orientation.py`
-- `backend/tests/test_report_layer.py::test_north_angle_rotates_compass_and_unknown_omits_fake_n`
-- Fixture：`debug/print-smoke/12_locale_zh.html`（有角）· `13_north_undefined.html`（未知）
-
-**不做：** 重新解释坐标系；假默认北针；物理指北校准。
-
----
-
-## P1 — RequirementSpec TS fidelity
-
-**风险：** 瘦 `.map()` / `{ key, description }` 重建 → Save → Report 丢 `priority` / `source` → Cover 无 blocking。
-
-**对照：** `packages/schema/requirements.py` ↔ `desktop/src/api/client.ts`
-
-| 字段 | 结论 |
-|------|------|
-| `assumptions[].source` | `AssumptionPayload` + `cloneAssumptionPayload`；编辑用 `{ ...a, value, reason }` |
-| `unknowns[].priority` | `UnknownPayload` + `cloneUnknownPayload`；Gaps 展示 blocking |
-| `relation_intents` | `RelationIntentPayload` 完整 |
-| `spaces` sync | `syncRequirementSpacesFromProgram` 用 spread |
-| `site.north_angle` | `RequirementSpecPayload.site.north_angle`；可为 `null` |
-
-**审计落点注释：** `client.ts`「TS Fidelity Audit」表；Gaps：`RequirementGapsPanel.tsx`。  
-详补：[phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)#TS-Fidelity-Audit。
-
----
-
-## P1 — Windows WebView2 print smoke
-
-**CSS ≠ 验收。** 必须：
-
-Desktop → 报告 Print → **Microsoft Print to PDF**  
-矩阵与结果表：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
-
-```powershell
-uv run python scripts/generate_print_smoke_reports.py
-# → debug/print-smoke/index.html
+```text
+SiteCoordinateSystem / requirement.site.north_angle
+        ↓ resolve_north_angle_deg（仅 report_builder）
+FloorPlanBlock
+  ├─ svg
+  ├─ north_angle_deg
+  └─ orientation_defined
+        ↓
+Report HTML（只 rotate 或「北向未定义」）
 ```
 
-最少跑通：**1F / 2F / 3F** 分页；其余场景按表勾选。
+| 规则 | 行为 |
+|------|------|
+| `north_angle` 已知（含 0） | 显示北针 + `rotate(-angle)` |
+| 显式 `null` / 缺键且无 assumption | **不**画北针；「北向未定义」 |
+| `SiteCoordinateSystem.from_site` 默认 0 | **禁止**当「已知正北」 |
+
+落点：`report.py` · `report_orientation.py` · `report_builder.py` · `report_html.py`
+
+测试：
+
+- `test_report_north_angle_zero`
+- `test_report_north_angle_90`
+- `test_report_north_angle_135`
+- `test_report_north_unknown_not_fake`
+
+**验收：** 报告中任何 ▲N 必须来自 `FloorPlanBlock.north_angle_deg`，不得由 renderer 发明。
 
 ---
 
-## P2 — 文档
+## 7.1.1-B — RequirementSpec TS fidelity（P1）✅
 
-- 路线图阶段判断含 7.1.1  
-- 7.2 子阶段按交付信任边界重写（SVG 三分 · PNG 光栅 · DesignReport JSON · Print polish 非引擎）  
-- `generated_at` → `report_generated_at` **仍后置**（不挡 7.2）
+`unknown.priority` / `assumption.source` / `site.north_angle` 往返不丢。  
+见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)。
 
 ---
 
-## Definition of Done（7.1.1）
+## 7.1.1-C — Windows WebView2 Print smoke（P1）☐
 
-1. [x] 北针：已知旋转 / 未知不画假针（pytest）  
-2. [x] TS fidelity：priority / source / north_angle 路径审计通过  
-3. [ ] Print smoke 结果表填完（Desktop WebView2）  
-4. [x] 7.2 规划写入 deliverables（无 ZIP / 无 PDF engine / 无 Canva）
+[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) — Desktop Print → PDF 填表。  
+**唯一剩余人手关门项。**
 
-**第 3 条是唯一剩余人手关门项。** 填完即可勾 7.1/7.1.1 关闭并开工 7.2.1。
+---
+
+## Definition of Done
+
+1. [x] 7.1.1-A 北向链路 + 四项测试  
+2. [x] 7.1.1-B TS fidelity 审计  
+3. [ ] 7.1.1-C Print smoke 结果表  
+4. [x] 路线图含 7.2 → 7.5 → 8.0（优化建议进 7.5/8，不塞 7.2）
+
+填完 C → **Phase 7.2 Export Formats**。

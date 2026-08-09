@@ -425,6 +425,7 @@ def _floor_plan_blocks(
                     label=present_floor_plan_label(locale, fid_s),
                     svg=floor_svg,
                     north_angle_deg=north_angle_deg,
+                    orientation_defined=north_angle_deg is not None,
                 )
             )
         if blocks:
@@ -436,5 +437,6 @@ def _floor_plan_blocks(
             label=tr(locale, "label.candidate_snapshot"),
             svg=svg,
             north_angle_deg=north_angle_deg,
+            orientation_defined=north_angle_deg is not None,
         )
     ]

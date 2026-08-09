@@ -1,9 +1,8 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 7.1.1 Accuracy + Print Smoke → 7.2 Export Formats**  
+> **主线：7.1.1 收口 → 7.2 交付格式 → 7.5 Alpha Hardening → 8.0 Solver 2.0**  
 > Phase 6 **彻底冻结** · 7.0 / 7.0.1 / 7.1 Engineering ✅  
-> 收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · 打印：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 详案：[phase-7-deliverables.md](phase-7-deliverables.md)  
-> 契约：[api-contract.md](api-contract.md)
+> 收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · 打印：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 详案：[phase-7-deliverables.md](phase-7-deliverables.md)
 
 ## 项目状态（阶段判断）
 
@@ -14,25 +13,30 @@
 | **7.0** | **DesignReport Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **✅ Engineering** |
-| **7.1.1** | **Accuracy + Print Smoke** | **← VERY SHORT** |
-| **7.2** | **Export Formats** | **READY** |
-| **8+** | Advanced Site / Code / Interop | deferred |
+| **7.1.1** | **Presentation Accuracy & Smoke** | **← 立即完成**（北向/TS ✅；Print ☐） |
+| **7.2** | **Export Formats** | **接下来主线** |
+| **7.5** | **Alpha Engineering Hardening** | **7.2 完成后**（类型/OpenAPI/持久化…） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
+| **8.x** | Advanced Site / Code / Interop | **更后** |
 
 ```text
-0–5.1.1   Design Kernel                  ✅
-6         Hybrid Requirement Parsing     ✅ Frozen
-7.0       DesignReport Model             ✅
-7.0.1     Report Integrity               ✅
-7.1       Report Presentation            ✅ Engineering
-7.1.1     Accuracy + Print Smoke         ← VERY SHORT
-7.2       Export Formats                 READY
-8+        Advanced Site / Code / Interop deferred
+0–5.1.1   Design Kernel                     ✅
+6         Hybrid Requirement Parsing        ✅ Frozen
+7.0       DesignReport Model                ✅
+7.0.1     Report Integrity                  ✅
+7.1       Report Presentation               ✅ Engineering
+7.1.1     Presentation Accuracy & Smoke     ← 立即完成
+7.2       Export Formats                    ← 接下来主线
+7.5       Alpha Engineering Hardening       ← 7.2 完成后
+8.0       Solver Diversity / Solver 2.0     ← 后续
+8.x       Advanced Site / Code / Interop    ← 更后
 ```
 
 ```text
-现在做：7.1.1（北针/TS ✅；Desktop Print→PDF smoke 填表）
-下一：7.2.1 SVG（三分导出 + trust boundary）→ 7.2.2 PNG（核心）→ 7.2.3 DesignReport JSON → 7.2.4 Print polish
-不做：DXF/BIM · PDF 引擎 · ZIP Package · ExportManifest · Canva 品牌 · 重开 Phase 6
+纪律：发现一个问题 ≠ 新开一个 Phase。
+优化建议（mypy strict / OpenAPI / 持久化 hardening / Solver 多样性 / LLM 可维护性）
+  → 进 7.5 或 8.0，禁止塞进 7.2。
+现在不做：重开 Phase 6 · Shapely/CP-SAT/GA · 全面 strict mypy · Canva 品牌。
 产品问题：生成的东西能不能离开 PlanSeed？
 ```
 ## 阶段总览（以代码为准）
@@ -53,9 +57,11 @@
 | **7.0** | **Deliverable Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **✅ Engineering** |
-| **7.1.1** | **Accuracy + Print Smoke** | **← VERY SHORT** |
-| **7.2** | **Export Formats** | **READY** |
-| **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（≠ Interoperability Platform） |
+| **7.1.1** | **Presentation Accuracy & Smoke** | **← 立即完成** |
+| **7.2** | **Export Formats** | **接下来主线** |
+| **7.5** | **Alpha Engineering Hardening** | **7.2 后** |
+| **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
+| **8.x** | Advanced Site / Code / Interop | **更后** |
 | — | SVG Debug | ✅ 开发工具 |
 
 **平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
@@ -431,14 +437,14 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.0** | Deliverable Model（`DesignReport`） | ✅ |
 | **7.0.1** | Report Integrity | ✅ |
 | **7.1** | Report Presentation | ✅ Engineering |
-| **7.1.1** | Accuracy + Print Smoke | **← VERY SHORT** |
-| **7.2** | Export Formats | READY：7.2.1 SVG · **7.2.2 PNG（核心）** · 7.2.3 DesignReport JSON · 7.2.4 Print polish |
-| **8+** | Advanced Site / Code Profiles / Interop… | deferred |
+| **7.1.1** | Presentation Accuracy & Smoke | **← 立即完成** |
+| **7.2** | Export Formats | **接下来主线**：SVG · PNG（核心）· DesignReport JSON · Print polish |
+| **7.5** | Alpha Engineering Hardening | 7.2 后：类型安全 / OpenAPI / 持久化…（审计建议落点） |
+| **8.0** | Solver Diversity / Solver 2.0 | 后续研究；禁止提前塞进 7.x |
+| **8.x** | Advanced Site / Code / Interop | 更后 |
 
-**PDF：** 始终 `HTML → Print`。**禁止**专业 PDF 引擎与 DXF/DWG/IFC/BIM。  
-**SVG：** Current Floor / All Floors / Candidate Snapshot — 走 Store + `revision_id`，禁止 DOM outerHTML。  
-**PNG：** Floor SVG → Rasterizer（白底）；禁止 HTML 截图。  
-**JSON：** `DesignReport` 交付 ≠ Project Snapshot 存档。  
+**纪律：** 发现问题 → 记入 7.5/8  backlog，**禁止**每发现一问题就新开 Phase。  
+**PDF：** `HTML → Print`。**SVG：** Store + `revision_id`。**PNG：** SVG→光栅。**JSON：** DesignReport ≠ Project Snapshot。  
 详收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md)。
 
 **明确不塞进 Phase 7：** Advanced Site · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · LLM 性能专项。
@@ -531,7 +537,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 7.1.1** Print smoke → **7.2** Export（Phase 6 冻结） |
+| **当前主线** | **7.1.1** → **7.2** → **7.5** → **8.0**（Phase 6 冻结） |
 
 ---
 
