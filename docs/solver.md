@@ -28,7 +28,8 @@ class LayoutGenerator(Protocol):
 - `CandidateGenerator` 为兼容别名
 - `run_pipeline(..., generator=)` 可注入 Strategy
 - 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B ✅）
-- 下一：**layout-generation-benchmark**（8.0-C）；**不要**先做 GA / NSGA-II
+- Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
+- 下一：**8.1 Diversity Selection**；**不要**先做 GA / NSGA-II
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 

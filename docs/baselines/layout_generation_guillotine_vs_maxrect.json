@@ -1,0 +1,55 @@
+{
+  "case": "benchmark_11x13_2floors",
+  "base_seed": 42,
+  "candidate_count": 32,
+  "measured_at": "2026-08-09T18:14:50Z",
+  "strategies": [
+    {
+      "strategy_id": "guillotine",
+      "generator_version": "guillotine-lock-v4",
+      "candidate_count": 32,
+      "runtime_s": 0.0953,
+      "valid_rate": 1.0,
+      "hard_violation_rate": 0.0,
+      "mean_hard_violations": 0.0,
+      "area_fit": 0.7533,
+      "aspect_ratio_quality": 0.037,
+      "mean_aspect_ratio_penalty": 28.6691,
+      "circulation": 75.5919,
+      "orientation": 1.0,
+      "diversity": 1.0,
+      "distinct_layouts": 32,
+      "distinct_valid": 32,
+      "top_score": 92.31,
+      "mean_score": 88.24
+    },
+    {
+      "strategy_id": "maxrect",
+      "generator_version": "maxrect-v1",
+      "candidate_count": 32,
+      "runtime_s": 0.0939,
+      "valid_rate": 1.0,
+      "hard_violation_rate": 0.0,
+      "mean_hard_violations": 0.0,
+      "area_fit": 0.7518,
+      "aspect_ratio_quality": 0.007,
+      "mean_aspect_ratio_penalty": 166.7905,
+      "circulation": 75.3775,
+      "orientation": 1.0,
+      "diversity": 1.0,
+      "distinct_layouts": 32,
+      "distinct_valid": 32,
+      "top_score": 89.08,
+      "mean_score": 87.17
+    }
+  ],
+  "pairwise_geometry_diff_rate": {
+    "guillotine__vs__maxrect": 1.0
+  },
+  "notes": [
+    "higher is better except hard_violation_rate / mean_hard_violations / runtime_s / mean_aspect_ratio_penalty",
+    "area_fit = mean area_accuracy over valid candidates",
+    "aspect_ratio_quality = mean 1/(1+aspect_ratio_penalty) over valid",
+    "diversity = distinct geometry fingerprints / generated"
+  ]
+}

@@ -47,3 +47,15 @@ Holdout 过门 ≠ 严格独立泛化证据。
 
 - **Latency**：avg ~15–20s（进度文案；性能另阶段）
 - **bathrooms**（Holdout 分字段 ≈87.5%）：整体 field 已高；卫浴为已知弱项，禁止逐案 regex 冒充修复
+
+
+## Layout generation（Phase 8.0-C）
+
+```bash
+uv run python -m solver.benchmark --count 32
+uv run python -m solver.benchmark --count 32 --out docs/baselines/layout_generation_guillotine_vs_maxrect.json
+```
+
+| 文件 | 含义 |
+|------|------|
+| `layout_generation_guillotine_vs_maxrect.json` | Guillotine vs MaxRect 同 case 对比快照 |

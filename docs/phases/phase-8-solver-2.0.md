@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：▶ 8.0-C Generator Benchmark ← 当前 · 8.0-A/B ✅ · 7.5 ✅ · 禁止 GA 先行 · 禁止 Code Compliance**  
+> **状态：▶ 8.0 ✅（A–C）· 下一 8.1 Diversity Selection · 7.5 ✅ · 禁止 GA 先行 · 禁止 Code Compliance**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -16,8 +16,8 @@
 ```text
 8.0-A LayoutGenerator Interface     ✅
   → 8.0-B MaxRect packing strategy    ✅
-  → 8.0-C Generator Benchmark         ← 当前（Guillotine vs MaxRect）
-8.1 Diversity Selection（top-score + diverse alternatives）
+  → 8.0-C Generator Benchmark         ✅（Guillotine vs MaxRect）
+8.1 Diversity Selection（top-score + diverse alternatives） ← 当前
 8.2 Pareto Frontier（多 generator 之后）
 8.3 CP-SAT Research（topology / assignment，非整几何）
 8.4 Advanced Geometry（不规则场地才 Shapely）
@@ -27,8 +27,8 @@
 |----|------|------|
 | **8.0-A** | `LayoutGenerator` Protocol；Guillotine = Strategy | ✅ |
 | **8.0-B** | MaxRect / Maximal Rectangles | ✅ |
-| **8.0-C** | `layout-generation-benchmark` | **← 当前** |
-| **8.1** | Diversity Selection | 后续 |
+| **8.0-C** | `layout-generation-benchmark` | ✅ |
+| **8.1** | Diversity Selection | **← 当前** |
 | **8.2** | Pareto Frontier | 后续 |
 | **8.3** | CP-SAT Research | 研究 |
 | **8.4** | Advanced Geometry（Shapely） | 更后 |
@@ -81,10 +81,28 @@ class LayoutGenerator(Protocol):
 
 理由：确定性 · 易 debug · 易 benchmark · 与 Guillotine 分布差异明显。
 
-## 8.0-C — Benchmark（预告）
+## 8.0-C — Generator Benchmark ✅
 
-`layout-generation-benchmark`：valid rate · hard violation · area fit · aspect · circulation · orientation · runtime · diversity。  
-比较 Guillotine vs MaxRect — **禁止凭感觉**。
+```bash
+uv run python -m solver.benchmark --count 32
+uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_generation_guillotine_vs_maxrect.json
+```
+
+模块：`solver/benchmark/layout_generation.py`
+
+| 指标 | 含义 |
+|------|------|
+| valid_rate | 通过硬约束比例 |
+| hard_violation_rate | 含 hard violation 的候选比例 |
+| area_fit | valid 上 mean `area_accuracy` |
+| mean_aspect_ratio_penalty / aspect_ratio_quality | 长宽比惩罚（后者 `1/(1+p)`） |
+| circulation | mean `circulation_score` |
+| orientation | mean `orientation_satisfaction` |
+| diversity | 几何指纹去重数 / generated |
+| runtime_s | 墙钟时间 |
+
+基线快照：`docs/baselines/layout_generation_guillotine_vs_maxrect.json`  
+**禁止**凭感觉宣称某 strategy 全面更优；以报告数字为准。
 
 ## 8.1–8.4（摘要）
 
@@ -105,4 +123,5 @@ class LayoutGenerator(Protocol):
 - [x] `run_pipeline` 可注入 generator  
 - [x] 默认路径仍为 Guillotine，行为不变  
 - [x] 8.0-B MaxRect
-- [ ] 8.0-C Generator Benchmark
+- [x] 8.0-C Generator Benchmark
+- [ ] 8.1 Diversity Selection
