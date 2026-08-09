@@ -7,6 +7,19 @@ from solver.generators import GuillotineGenerator, MaxRectGenerator
 from solver.pipeline import run_pipeline
 
 
+def test_pipeline_default_rank_mode_is_axis():
+    """P0：Alpha 默认不得静默走 Pareto。"""
+    program = benchmark_program()
+    program.solver_config.candidate_count = 6
+    program.solver_config.return_top_k = 3
+    assert program.solver_config.rank_mode == "axis"
+    result = run_pipeline(program)
+    assert result.top_candidates
+    for c in result.top_candidates:
+        assert c.metrics.get("rank_mode") == "axis"
+        assert c.metrics.get("selection_role") != "pareto"
+
+
 def test_pipeline_pareto_tags_top_candidates():
     program = benchmark_program()
     program.solver_config.candidate_count = 8
@@ -18,6 +31,7 @@ def test_pipeline_pareto_tags_top_candidates():
     roles = [c.metrics.get("selection_role") for c in result.top_candidates]
     assert "pareto" in roles
     assert all(r in ("pareto", "diverse") for r in roles)
+    assert all(c.metrics.get("selection_version") == "pareto-crowding-v1" for c in result.top_candidates)
 
 
 def test_pipeline_multi_generator_pool():

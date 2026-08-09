@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：✅ Phase 8 完成（8.0–8.4）· CP-SAT≠几何 · Rect 默认 · Shapely opt-in**  
+> **状态：✅ 能力面 8.0–8.4 已落地 · ▶ 默认语义由 [phase-8.5-alpha-stabilization.md](phase-8.5-alpha-stabilization.md) requalify**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -131,9 +131,10 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 | Environment | `environment_score` |
 
 - `solver/optimization/pareto.py` — `pareto_front` / crowding / `select_pareto_frontier`
-- `SolverConfig.rank_mode = "pareto"`（默认）；`axis` 保留 8.1；`score` 纯总分
+- `SolverConfig.rank_mode = "pareto"`（**opt-in**；Alpha 默认仍为 `axis`）
 - `run_pipeline(..., generators=[GuillotineGenerator(), MaxRectGenerator()])` 合并池再选
 - 标签：`selection_role=pareto` · `selection_label`（如「效率更好 · 流线更好」）
+- 稳定化：见 [phase-8.5-alpha-stabilization.md](phase-8.5-alpha-stabilization.md)（禁止静默改默认 ranking）
 
 ## 8.3 — CP-SAT Research ✅
 

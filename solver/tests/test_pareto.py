@@ -100,14 +100,27 @@ def test_select_pareto_tags_and_truncates():
     assert all(c.id != "e" for c in selected)
 
 
-def test_rank_mode_pareto_default_path():
+def test_rank_mode_pareto_opt_in():
     cands = [
         _cand(cid="a", seed=0, total=90, spatial=90, circ=40, priv=40, env=40, x=0),
         _cand(cid="b", seed=1, total=80, spatial=40, circ=90, priv=40, env=40, x=8),
     ]
     ranked = rank_candidates(cands, top_k=2, mode="pareto")
     assert ranked[0].metrics.get("selection_role") == "pareto"
+    assert ranked[0].metrics.get("rank_mode") == "pareto"
+    assert ranked[0].metrics.get("selection_version") == "pareto-crowding-v1"
     assert len(objective_vector(ranked[0])) == 4
+
+
+def test_rank_mode_default_is_axis_not_pareto():
+    cands = [
+        _cand(cid="a", seed=0, total=90, spatial=90, circ=40, priv=40, env=40, x=0),
+        _cand(cid="b", seed=1, total=80, spatial=40, circ=90, priv=40, env=40, x=8),
+    ]
+    ranked = rank_candidates(cands, top_k=2, min_diversity_threshold=0.5)
+    assert ranked[0].metrics.get("rank_mode") == "axis"
+    assert ranked[0].metrics.get("selection_version") == "axis-diversity-v1"
+    assert ranked[0].metrics.get("selection_role") != "pareto"
 
 
 def test_incomparable_pair_both_on_front():

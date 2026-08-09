@@ -20,7 +20,9 @@ from packages.schema.entry import (
 from packages.schema.identity import (
     EVALUATION_VERSION,
     GENERATOR_VERSION,
+    SELECTION_VERSION,
     SOLVER_VERSION,
+    selection_version_for,
     solver_identity,
 )
 from packages.schema.layout import (
@@ -135,6 +137,8 @@ __all__ = [
     "DesignScore",
     "DoorOpening",
     "EVALUATION_VERSION",
+    "SELECTION_VERSION",
+    "selection_version_for",
     "EvaluationAxis",
     "ExteriorEntry",
     "ExteriorEntryPlacement",

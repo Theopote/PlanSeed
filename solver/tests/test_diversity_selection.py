@@ -144,4 +144,6 @@ def test_rank_pure_score_when_diversity_disabled():
     ]
     ranked = rank_candidates(cands, top_k=2, min_diversity_threshold=None)
     assert [c.id for c in ranked] == ["b", "c"]
+    assert ranked[0].metrics.get("rank_mode") == "score"
+    assert ranked[0].metrics.get("selection_version") == "score-only-v1"
     assert "selection_role" not in ranked[0].metrics

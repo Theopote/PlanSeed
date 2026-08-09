@@ -385,6 +385,18 @@
             "title": "Generator Version",
             "type": "string"
           },
+          "selection_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Top-K 选优策略签名（additive；ranking 后写入）",
+            "title": "Selection Version"
+          },
           "solver_version": {
             "title": "Solver Version",
             "type": "string"
@@ -1157,7 +1169,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "solver_version / generator_version / evaluation_version",
+            "description": "solver_version / generator_version / evaluation_version / selection_version",
             "title": "Solver Identity",
             "type": "object"
           },

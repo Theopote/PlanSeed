@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from packages.schema.identity import (
     EVALUATION_VERSION,
     GENERATOR_VERSION,
+    SELECTION_VERSION,
     SOLVER_VERSION,
     solver_identity,
 )
@@ -21,10 +22,12 @@ def test_solver_identity_keys():
         "solver_version": SOLVER_VERSION,
         "generator_version": GENERATOR_VERSION,
         "evaluation_version": EVALUATION_VERSION,
+        "selection_version": SELECTION_VERSION,
     }
-    assert SOLVER_VERSION == "0.4"
+    assert SOLVER_VERSION == "0.5"
     assert GENERATOR_VERSION == "guillotine-lock-v4"
     assert EVALUATION_VERSION == "residential-alpha-v1"
+    assert SELECTION_VERSION == "axis-diversity-v1"
 
 
 def test_generator_stamps_version():
@@ -53,6 +56,14 @@ def test_pipeline_evaluation_version():
         assert c.provenance.evaluation_version == EVALUATION_VERSION
         assert c.provenance.solver_version == SOLVER_VERSION
 
+    top = result.top_candidates
+    assert top
+    for c in top:
+        assert c.metrics.get("rank_mode") == "axis"
+        assert c.metrics.get("selection_version") == SELECTION_VERSION
+        assert c.provenance is not None
+        assert c.provenance.selection_version == SELECTION_VERSION
+
 
 def test_health_and_generate_expose_identity():
     client = TestClient(create_app())
@@ -60,6 +71,7 @@ def test_health_and_generate_expose_identity():
     assert h["solver_version"] == SOLVER_VERSION
     assert h["generator_version"] == GENERATOR_VERSION
     assert h["evaluation_version"] == EVALUATION_VERSION
+    assert h["selection_version"] == SELECTION_VERSION
     # Engine Identity Probe 字段仍在
     assert h["service"] == "planseed"
     assert h["api_version"] == "1"
@@ -78,6 +90,8 @@ def test_health_and_generate_expose_identity():
     assert prov["solver_version"] == SOLVER_VERSION
     assert prov["generator_version"] == GENERATOR_VERSION
     assert prov["evaluation_version"] == EVALUATION_VERSION
+    assert prov["selection_version"] == SELECTION_VERSION
+    assert top["metrics"].get("rank_mode") == "axis"
     assert isinstance(top["placements"], list)
     assert len(top["placements"]) > 0
     pl = top["placements"][0]

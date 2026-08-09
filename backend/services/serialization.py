@@ -178,15 +178,23 @@ def _provenance_payload(cand: LayoutCandidate) -> CandidateProvenance | None:
             generator_version=cand.provenance.generator_version,
             evaluation_version=cand.provenance.evaluation_version
             or str(cand.metrics.get("evaluation_version") or EVALUATION_VERSION),
+            selection_version=cand.provenance.selection_version
+            or (
+                str(cand.metrics["selection_version"])
+                if cand.metrics.get("selection_version")
+                else None
+            ),
         )
     # 兼容旧候选：从 metrics 回填
     sv = cand.metrics.get("solver_version") or SOLVER_VERSION
     gv = cand.metrics.get("generator_version") or GENERATOR_VERSION
     ev = cand.metrics.get("evaluation_version") or EVALUATION_VERSION
+    sel = cand.metrics.get("selection_version")
     return CandidateProvenance(
         solver_version=str(sv),
         generator_version=str(gv),
         evaluation_version=str(ev),
+        selection_version=str(sel) if sel else None,
     )
 
 

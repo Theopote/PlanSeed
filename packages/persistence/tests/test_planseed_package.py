@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+
 from packages.persistence.planseed_package import (
     PLANSEED_FORMAT,
     PLANSEED_PACKAGE_VERSION,

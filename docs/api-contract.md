@@ -9,7 +9,8 @@
 |------|------|
 | **Additive** 字段（可选、有默认） | 无迁移的 **rename / remove** |
 | bugfix、文档、CI | 前端自创 score / ranking / compare |
-| bump `evaluation_version` 后改规则 | 静默改七轴语义却不 bump 版本 |
+| bump `evaluation_version` 后改评分规则 | 静默改七轴语义却不 bump 版本 |
+| bump `selection_version` 后改默认 Top-K | 静默改 ranking/compare 默认却不 bump |
 
 **单一事实源：** score / finding / ranking / comparison / recommendation → **Python**。React 只展示。
 
@@ -66,9 +67,11 @@ CI：`contract` job 再生成后 `git diff --exit-code`。详：[phase-7.5-alpha
 solver_version
 generator_version
 evaluation_version
+selection_version
 ```
 
-定义：`packages/schema/identity.py`。
+定义：`packages/schema/identity.py`。  
+改 Top-K / ranking 默认 → bump `selection_version`；改七轴评分 → bump `evaluation_version`。
 
 ---
 
@@ -87,4 +90,5 @@ evaluation_version
 
 1. 需要破坏性改契约 → 先写迁移 / bump 版本 → 再改 Desktop 类型。  
 2. 改评价规则 → bump `EVALUATION_VERSION`。  
+2b. 改 Top-K / ranking / compare 默认对象 → bump `SELECTION_VERSION`（及必要时 `SOLVER_VERSION`）。  
 3. Phase 4 交互编辑 **消费**本契约，不重新发明响应形状。

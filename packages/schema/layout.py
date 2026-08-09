@@ -25,6 +25,10 @@ class CandidateProvenance(BaseModel):
         default=None,
         description="评价完成后写入；生成瞬间可为 None",
     )
+    selection_version: str | None = Field(
+        default=None,
+        description="Top-K 选优策略签名；ranking 后写入（additive）",
+    )
 
 
 class PlacementRect(BaseModel):

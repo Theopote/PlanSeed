@@ -67,7 +67,10 @@ class CandidateProvenance(BaseModel):
     solver_version: str
     generator_version: str
     evaluation_version: str
-
+    selection_version: str | None = Field(
+        default=None,
+        description="Top-K 选优策略签名（additive；ranking 后写入）",
+    )
 
 class RoomPlacementPayload(BaseModel):
     """候选上的房间放置摘要（Phase 4.0 Inspector；additive）。"""
@@ -211,5 +214,7 @@ class GenerateResponse(BaseModel):
     rejected_candidates: list[RejectedCandidatePayload] = Field(default_factory=list)
     solver_identity: dict[str, str] = Field(
         default_factory=dict,
-        description="solver_version / generator_version / evaluation_version",
+        description=(
+            "solver_version / generator_version / evaluation_version / selection_version"
+        ),
     )

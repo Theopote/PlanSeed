@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from packages.schema.identity import selection_version_for
 from packages.schema.layout import LayoutCandidate
 from packages.schema.signature import build_layout_signature, signature_similarity
 
 DEFAULT_MIN_DIVERSITY_THRESHOLD = 0.85
+# Alpha 默认：8.1 axis（非 Pareto）。Pareto 须显式 rank_mode="pareto"。
+DEFAULT_RANK_MODE = "axis"
 
 
 def layout_similarity(
@@ -88,8 +91,8 @@ def rank_candidates(
 
     ``mode``：
       - ``score``：纯总分
-      - ``axis``：8.1 叙事轴 + 几何 diversity
-      - ``pareto``：8.2 非支配前沿（默认，当 diversity 开启时）
+      - ``axis``：8.1 叙事轴 + 几何 diversity（**Alpha 默认**）
+      - ``pareto``：8.2 非支配前沿（**opt-in**，非默认）
 
     兼容：``min_diversity_threshold=None`` → 纯分数；
     ``axis_alternatives=False`` 且未显式 mode → 仅几何 diversity。
@@ -111,10 +114,12 @@ def rank_candidates(
     elif not axis_alternatives:
         resolved = "geom"
     else:
-        resolved = "pareto"
+        resolved = DEFAULT_RANK_MODE
 
     if resolved == "score" or not valid:
-        return (valid + invalid)[:top_k]
+        selected = (valid + invalid)[:top_k]
+        _stamp_selection(selected, resolved)
+        return selected
 
     if resolved == "pareto":
         from solver.optimization.pareto import select_pareto_frontier
@@ -141,4 +146,17 @@ def rank_candidates(
 
     if len(selected) < top_k:
         selected.extend(invalid[: top_k - len(selected)])
+    _stamp_selection(selected, resolved)
     return selected
+
+
+def _stamp_selection(candidates: list[LayoutCandidate], mode: str) -> None:
+    """写入选优签名，便于 regression / 历史 Top-K 解释。"""
+    sel_ver = selection_version_for(mode)
+    for candidate in candidates:
+        candidate.metrics["rank_mode"] = mode
+        candidate.metrics["selection_version"] = sel_ver
+        if candidate.provenance is not None:
+            candidate.provenance = candidate.provenance.model_copy(
+                update={"selection_version": sel_ver}
+            )

@@ -27,8 +27,11 @@ class SolverConfig(BaseModel):
         description="Top-K 多样性阈值；None 关闭，仅按分数排序",
     )
     rank_mode: str = Field(
-        default="pareto",
-        description="Top-K selection: score | axis (8.1) | pareto (8.2)",
+        default="axis",
+        description=(
+            "Top-K selection: axis=Alpha 默认（score+轴叙事+几何 diversity）；"
+            "score=纯总分；pareto=8.2 非支配前沿（opt-in，非默认）"
+        ),
     )
     max_wet_stacks: int = Field(
         default=1,

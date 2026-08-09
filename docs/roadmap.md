@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
-> **主线：Phase 8 Solver 2.0 ✅ · 下一 backlog / 产品化 · 7.5 ✅ · 7.2 ✅ · 7.1.1 Print ☐**  
+> **主线：▶ Alpha Stabilization / Solver 2.0 Requalification · Phase 8 能力面 ✅ · 禁止冲 Phase 9**  
 > Phase 6 **彻底冻结** · **禁止一上来 GA/NSGA-II** · **禁止 Code Compliance 冒充设计启发**  
-> 详案：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md) · 硬化：[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)
+> 详案：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
 
 ## 项目状态（阶段判断）
 
@@ -16,7 +16,8 @@
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（A–I） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **✅**（8.0–8.4；见 [phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.0–8.4；默认语义见 8.5） |
+| **8.5** | **Alpha Stabilization / Requalification** | **← 当前**（[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)） |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 
 ```text
@@ -28,15 +29,17 @@
 7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
 7.2       Export Formats                    ✅ Alpha Product Loop
 7.5       Alpha Engineering Hardening       ✅（A–I）
-8.0       Solver Diversity / Solver 2.0     ← Phase 8 ✅（8.0–8.4）
+8.0       Solver Diversity / Solver 2.0     ✅ 能力面（8.0–8.4）
+8.5       Alpha Stabilization / Requalify   ← 当前
 8.x       Advanced Site / Code / Interop    ← 更后
 ```
 
 ```text
 纪律：发现一个问题 ≠ 新开一个 Phase。
 优化建议（mypy 渐进 / OpenAPI / 持久化 / Solver 多样性 / LLM 可维护性）
-  → 进 8.0 backlog；7.2 / 7.5 已关闭。
-现在不做：重开 Phase 6 · 用 CP-SAT/GA/Shapely 替代默认 Rect packing · 全面 strict mypy · Canva 品牌。
+  → 进 backlog；7.2 / 7.5 / 8.0–8.4 能力面已关闭。
+现在不做：冲 Phase 9 · 重开 Phase 6 · 用 CP-SAT/GA/Shapely 替代默认 Rect packing · 全面 strict mypy · Canva 品牌。
+默认 ranking 不得静默改为 Pareto（见 8.5）。
 产品问题：生成的东西能不能离开 PlanSeed？→ 7.2 已答「能」。
 ```
 ## 阶段总览（以代码为准）
@@ -60,7 +63,8 @@
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
 | **7.2** | **Export Formats** | **✅** |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **✅**（8.0–8.4；见 [phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.0–8.4） |
+| **8.5** | **Alpha Stabilization / Requalification** | **← 当前** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -78,8 +82,8 @@ Solver / Evaluation / API **短暂冻结**，避免 Phase 4 交互编辑时前�
 | API | `GenerateResponse` · `CandidatePayload` · `DesignScore` · `DesignFinding` · `solver_identity` / `CandidateProvenance` |
 | Alias | `DesignEvaluation = DesignScore` **保持**；正式拆 Evaluation 延后 |
 
-**允许：** bugfix、文档、CI 绿、runtime 小修、Workbench UI（只消费冻结契约）。  
-**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare 规则却不 bump `evaluation_version`；前端自创评分逻辑。  
+**允许：** bugfix、文档、CI 绿、runtime 小修、Workbench UI（只消费冻结契约）、**additive** 身份字段（如 `selection_version`）。  
+**禁止：** 为「模型纯洁」拆 Evaluation；扩轴；改 ranking/compare **默认**规则却不 bump `selection_version`（及必要时 `solver_version`）；改七轴评分却不 bump `evaluation_version`；前端自创评分逻辑。  
 
 书面契约：[api-contract.md](api-contract.md)
 
@@ -102,7 +106,7 @@ Evaluator 只评分，不改几何。用户层七轴：
 `DesignScore`：七轴（**名称冻结至 Phase 4**，见 [scoring.md](scoring.md)）+ `findings[]`；`explanations` / `warnings` 由 findings 派生。  
 `DesignEvaluation`：当前为 **temporary compatibility alias**（`= DesignScore`）；长期再拆成真正 Evaluation 模型（非 P0，见 [scoring.md](scoring.md)）。  
 Finding = **design heuristic**（≠ code compliance；无 CodeProfile 前禁止合规语气）。  
-版本签名：`solver=0.4` / `generator=guillotine-lock-v4` / `evaluation=residential-alpha-v1`（见 [scoring.md](scoring.md)）。  
+版本签名：`solver=0.5` / `generator=guillotine-lock-v4` / `evaluation=residential-alpha-v1` / `selection=axis-diversity-v1`（见 [scoring.md](scoring.md)）。  
 **不做（本 Phase）**：daylight；LLM；房间拖拽编辑。
 
 ---
@@ -440,7 +444,8 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke 待手测勾选 |
 | **7.2** | Export Formats | **✅**（SVG · PNG · JSON · Print · Export Dialog） |
 | **7.5** | Alpha Engineering Hardening | **✅**（[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | Solver Diversity / Solver 2.0 | **✅**（8.0–8.4；[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)） |
+| **8.0** | Solver Diversity / Solver 2.0 | **✅ 能力面**（8.0–8.4） |
+| **8.5** | Alpha Stabilization / Requalification | **← 当前**（[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)） |
 | **8.x** | Advanced Site / Code / Interop | 更后 |
 
 **纪律：** 发现问题 → 记入 backlog，**禁止**每发现一问题就新开 Phase。  
@@ -537,7 +542,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 8 ✅** → 产品化 / backlog（7.1.1 Print ☐） |
+| **当前主线** | **8.5 Alpha Stabilization**（禁止冲 Phase 9；7.1.1 Print ☐） |
 
 ---
 

@@ -30,7 +30,6 @@ from solver.mutation import preview_mutation
 from solver.topology.access import build_realized_access_graph
 from solver.topology.doors import place_door_openings
 
-
 # ---------------------------------------------------------------------------
 # Strategies
 # ---------------------------------------------------------------------------
@@ -118,7 +117,7 @@ def locked_room_lists(draw: st.DrawFn) -> list[LockedRoomRect]:
     n = draw(st.integers(min_value=0, max_value=4))
     rooms: list[LockedRoomRect] = []
     used: set[str] = set()
-    for i in range(n):
+    for _ in range(n):
         rid = draw(st.text(min_size=1, max_size=8, alphabet="abcdef"))
         if rid in used:
             continue

@@ -29,11 +29,12 @@ class LayoutGenerator(Protocol):
 - `run_pipeline(..., generator=)` 可注入 Strategy
 - 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B ✅）
 - Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
-- Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅）
-- Pareto：`rank_mode=pareto` 非支配前沿（8.2 ✅；非 GA 进化）
+- Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅；**Alpha 默认** `rank_mode=axis`）
+- Pareto：`rank_mode=pareto` 非支配前沿（8.2 ✅；**opt-in**，非默认）
 - CP-SAT floor assignment（opt-in，`solver.assignment`，8.3 ✅）
 - 不规则场地：`solver.geometry.irregular`（Shapely opt-in，8.4 ✅）
-- Phase 8 收口；**禁止** CP-SAT/GA/Shapely 替代默认 Rect packing
+- **8.5**：Alpha Stabilization — 禁止静默改默认 ranking；见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
+- Phase 8 能力面收口；**禁止** CP-SAT/GA/Shapely 替代默认 Rect packing
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 

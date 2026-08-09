@@ -130,7 +130,7 @@ def run_pipeline(
         min_diversity_threshold=cfg.min_diversity_threshold,
         buildable_width=program.buildable.width,
         buildable_depth=program.buildable.depth,
-        mode=getattr(cfg, "rank_mode", None) or "pareto",
+        mode=getattr(cfg, "rank_mode", None) or "axis",
     )
     valid = sum(1 for c in candidates if c.validation and c.validation.valid)
 

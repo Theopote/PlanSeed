@@ -102,14 +102,17 @@ area_accuracy = 1 - TV(actual_share, target_share)
 
 ## Ranking Diversity
 
-`rank_candidates` 默认启用：
+`rank_candidates` Alpha 默认：
 
 ```text
+rank_mode = "axis"                 # score + 轴叙事 + 几何 diversity
 min_diversity_threshold = 0.85
+selection_version = axis-diversity-v1
 ```
 
-贪心选取 Top K：跳过与已选方案 `layout_similarity >= threshold` 的候选。
-设为 `None` 则纯分数排序。配置项：`SolverConfig.min_diversity_threshold`。
+贪心选取 Top K：优先最高总分，再选轴优势替代方案，并用 `layout_similarity` 去重。  
+`rank_mode="pareto"` 为 **opt-in**（非默认）。`min_diversity_threshold=None` → 纯分数。  
+配置：`SolverConfig.rank_mode` / `min_diversity_threshold`。详见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)。
 
 ### Orientation (`evaluation/orientation.py`)
 
@@ -246,23 +249,25 @@ environment 0.10 | technical 0.16 | robustness 0.14
 
 | 字段 | 当前值 | 含义 |
 |------|--------|------|
-| `solver_version` | `0.4` | Solver 管线总签名 |
+| `solver_version` | `0.5` | Solver 管线总签名（含 Solver 2.0 能力面；默认语义见 selection） |
 | `generator_version` | `guillotine-lock-v4` | 当前主生成器（lock 管线契约 + 按层隔离洞） |
 | `evaluation_version` | `residential-alpha-v1` | 七轴权重 / Finding 规则包 |
+| `selection_version` | `axis-diversity-v1` | Alpha 默认 Top-K（score+轴叙事+几何 diversity）；Pareto=`pareto-crowding-v1` opt-in |
 
 持久化示例：
 
 ```json
 {
   "evaluation_version": "residential-alpha-v1",
+  "selection_version": "axis-diversity-v1",
   "total_score": 87.2,
-  "solver_version": "0.4",
+  "solver_version": "0.5",
   "generator_version": "guillotine-lock-v4"
 }
 ```
 
-**何时 bump：** 改权重、轴合成、Finding 规则、生成拓扑 → 升 `evaluation_version` 和/或 `generator_version`；大管线变更 → 升 `solver_version`。  
-否则「同几何明日分数变了」无法解释。`engine_version`（health）仍是进程/打包身份，与算法签名分开。
+**何时 bump：** 改权重、轴合成、Finding 规则 → 升 `evaluation_version`；改生成拓扑 → 升 `generator_version`；改 Top-K / ranking / compare 默认对象 → 升 **`selection_version`**（及必要时 `solver_version`）；大管线变更 → 升 `solver_version`。  
+否则「同几何明日分数变了 / Top-1 换人了」无法解释。`engine_version`（health）仍是进程/打包身份，与算法签名分开。
 
 ### DesignEvaluation vs DesignScore（非 P0，schema 稳定后再拆）
 
