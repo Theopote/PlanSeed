@@ -2,7 +2,7 @@
 
 > **这是 Release Gate，不是 Phase 9。**  
 > 目标一句话：**在稳定默认配置下，证明现有能力可以交给用户。**  
-> 总览：[roadmap.md](roadmap.md) · 稳定化背景：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
+> 总览：[roadmap.md](roadmap.md) · **最短手测**：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) · 稳定化：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
 
 ## 当前状态判断
 
@@ -75,20 +75,25 @@ Alpha v0.1 Release Qualification         ← CURRENT
 
 ### 3. Windows WebView2 Print Smoke（7.1.1）
 
-- [ ] 真实 Windows 桌面：打开报告 → Print → 预览/出纸无空白、无裁切灾难
+- [ ] 真实 Windows 桌面：打开报告 → Print → 预览/出纸无空白、无裁切灾难  
+  最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §A · 详表：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 
 ### 4. 安装包 Smoke
 
 尤其 `resvg-py` / Pillow 进入正式依赖后：
 
-- [ ] PyInstaller sidecar 能启动
+- [ ] PyInstaller sidecar 能启动（`build_backend_sidecar.ps1` 已 `--collect-all resvg_py`）
 - [ ] Windows release bundle 安装可运行
-- [ ] PNG export / SVG export / report / Ollama 在**安装包**环境验证（≠ 仅开发机 `import`）
+- [ ] PNG export / SVG export / report 在**安装包**环境验证（`scripts/alpha_release_engine_smoke.py`）
+- [ ]（可选）Ollama
+
+最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §B
 
 ### 5. `.planseed` 完整往返
 
-- [ ] Project A → export → 删本地 → import → 检视 candidate / report / SVG·PNG
-- [ ] 确认未丢：RequirementSpec、Program、Candidates、revision、locks、mutations、provenance
+- [x] API 保真单测：`test_planseed_full_fidelity_roundtrip`（RequirementSpec / Program / Candidates / revision / locks / mutations / provenance）
+- [ ] Desktop 场景手测（导出 → 删本地 → 导入 → 报告 / SVG·PNG）  
+  最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §C
 - [ ] **不**在本 Gate 扩格式
 
 ### 6. 明确不做（本 Gate）

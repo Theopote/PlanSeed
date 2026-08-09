@@ -3,7 +3,7 @@
 > **主线：▶ Alpha v0.1 Release Qualification（Release Gate · 非 Phase 9）**  
 > Phase 8 = Engineering 能力面 ✅ · MaxRect/Pareto/Irregular ≠ Product Qualified  
 > Phase 6 **彻底冻结** · **禁止一上来 GA/NSGA-II** · **禁止 Code Compliance 冒充设计启发**  
-> Gate：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) · 稳定化：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
+> Gate：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) · 手测：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) · 稳定化：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
 
 ## 项目状态（阶段判断）
 

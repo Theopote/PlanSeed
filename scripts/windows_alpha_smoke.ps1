@@ -40,4 +40,13 @@ $cmp = Invoke-RestMethod -Uri "$base/api/compare" -Method Post -ContentType "app
 Assert-True ($cmp.rows.Count -ge 8) "compare rows"
 Assert-True ($cmp.label_a -eq $gen.candidates[0].label) "compare label_a"
 
+Write-Host "== optional: Alpha RQ engine smoke (PNG / .planseed) =="
+$smokePy = Join-Path $PSScriptRoot "alpha_release_engine_smoke.py"
+if (Test-Path $smokePy) {
+    uv run python $smokePy
+    if ($LASTEXITCODE -ne 0) { throw "FAIL: alpha_release_engine_smoke.py" }
+} else {
+    Write-Host "SKIP: alpha_release_engine_smoke.py missing"
+}
+
 Write-Host "== smoke passed =="

@@ -199,6 +199,141 @@ def test_planseed_export_import_roundtrip(
     assert body["evaluation_version_mismatch"] is True
 
 
+def test_planseed_full_fidelity_roundtrip(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Alpha RQ：RequirementSpec / Program / Candidates / locks / mutations / provenance 不丢。"""
+    from packages.schema.identity import (
+        EVALUATION_VERSION,
+        GENERATOR_VERSION,
+        SELECTION_VERSION,
+        SOLVER_VERSION,
+    )
+
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "fidelity.db"))
+    payload = {
+        "form": {"width": 12, "depth": 15, "floors": 2},
+        "requirement_spec": {
+            "floor_count": 2,
+            "household": {"bedrooms": 3, "bathrooms": 2, "has_garage": False},
+            "site": {"width": 12, "depth": 15},
+            "spaces": [
+                {"id": "living", "name": "客厅", "category": "living", "target_area": 28}
+            ],
+            "assumptions": [
+                {
+                    "id": "a1",
+                    "text": "默认退线 0",
+                    "source": "planseed_default",
+                }
+            ],
+            "unknowns": [],
+        },
+        "program": {
+            "project_id": "prog-1",
+            "site_width": 12,
+            "site_depth": 15,
+            "rooms": [
+                {"id": "living", "name": "客厅", "category": "living", "target_area": 28}
+            ],
+        },
+        "locks": {
+            "rooms": [{"room_id": "living", "floor_id": "F1", "x": 1, "y": 1, "width": 4, "depth": 5}],
+            "stair": None,
+            "zones": [],
+        },
+        "candidates": [
+            {
+                "id": "c-fidelity",
+                "seed": 42,
+                "label": "A",
+                "score": 77.5,
+                "revision_status": "validated",
+                "revision_id": "c-fidelity:val:abcd1234",
+                "variant_parent_id": None,
+                "variant_generation": 0,
+                "lock_snapshot_id": "lock-snap-1",
+                "mutations": [
+                    {
+                        "id": "m1",
+                        "kind": "nudge_room",
+                        "source": "user",
+                        "room_id": "living",
+                        "dx": 0.3,
+                        "dy": 0.0,
+                    }
+                ],
+                "provenance": {
+                    "solver_version": SOLVER_VERSION,
+                    "generator_strategy": "guillotine",
+                    "generator_version": GENERATOR_VERSION,
+                    "selection_strategy": "axis-diverse",
+                    "selection_version": SELECTION_VERSION,
+                    "evaluation_version": EVALUATION_VERSION,
+                    "assignment_strategy": "heuristic",
+                    "geometry_backend": "rect",
+                },
+            }
+        ],
+        "selected_id": "c-fidelity",
+        "schema_versions": {
+            "solver_version": SOLVER_VERSION,
+            "generator_strategy": "guillotine",
+            "generator_version": GENERATOR_VERSION,
+            "selection_strategy": "axis-diverse",
+            "selection_version": SELECTION_VERSION,
+            "evaluation_version": EVALUATION_VERSION,
+            "assignment_strategy": "heuristic",
+            "geometry_backend": "rect",
+        },
+    }
+    saved = client.post("/api/projects", json={"name": "保真宅", "payload": payload})
+    assert saved.status_code == 200, saved.text
+    pid = saved.json()["id"]
+
+    pkg = client.get(f"/api/projects/{pid}/package")
+    assert pkg.status_code == 200, pkg.text
+
+    assert client.delete(f"/api/projects/{pid}").status_code == 200
+    assert client.get(f"/api/projects/{pid}").status_code == 404
+
+    restored = client.post(
+        "/api/projects/import",
+        content=pkg.content,
+        headers={"Content-Type": "application/zip"},
+    )
+    assert restored.status_code == 200, restored.text
+    body = restored.json()
+    assert body["id"] == pid
+    assert body["name"] == "保真宅"
+    p = body["payload"]
+
+    assert p["form"]["width"] == 12
+    assert p["requirement_spec"]["floor_count"] == 2
+    assert p["requirement_spec"]["spaces"][0]["id"] == "living"
+    assert p["requirement_spec"]["assumptions"][0]["source"] == "planseed_default"
+    assert p["program"]["rooms"][0]["id"] == "living"
+    assert p["locks"]["rooms"][0]["room_id"] == "living"
+    assert p["selected_id"] == "c-fidelity"
+
+    cand = p["candidates"][0]
+    assert cand["revision_status"] == "validated"
+    assert cand["revision_id"] == "c-fidelity:val:abcd1234"
+    assert cand["lock_snapshot_id"] == "lock-snap-1"
+    assert cand["mutations"][0]["id"] == "m1"
+    assert cand["mutations"][0]["dx"] == 0.3
+    prov = cand["provenance"]
+    assert prov["solver_version"] == SOLVER_VERSION
+    assert prov["generator_strategy"] == "guillotine"
+    assert prov["selection_strategy"] == "axis-diverse"
+    assert prov["geometry_backend"] == "rect"
+
+    sv = p["schema_versions"]
+    assert sv["selection_version"] == SELECTION_VERSION
+    assert sv["assignment_strategy"] == "heuristic"
+    assert body["evaluation_version_mismatch"] is False
+
+
 def test_planseed_import_rejects_bad_zip(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

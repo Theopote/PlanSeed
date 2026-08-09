@@ -47,6 +47,9 @@ Write-Host "[sidecar] building $Name (onedir)..."
   --hidden-import uvicorn.protocols.websockets.auto `
   --hidden-import uvicorn.lifespan `
   --hidden-import uvicorn.lifespan.on `
+  --hidden-import resvg_py `
+  --collect-all resvg_py `
+  --collect-binaries resvg_py `
   $Entry
 
 $BuiltDir = Join-Path $Dist $Name

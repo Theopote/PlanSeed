@@ -15,7 +15,7 @@
 pwsh scripts/windows_alpha_smoke.ps1
 ```
 
-脚本会：探测默认 `127.0.0.1:8787`（或 `$env:PLANSEED_PORT`）的 `/api/health` 身份契约，并 POST 基准 `/api/generate` + `/api/compare`。
+脚本会：探测默认 `127.0.0.1:8787`（或 `$env:PLANSEED_PORT`）的 `/api/health` 身份契约，并 POST 基准 `/api/generate` + `/api/compare`，随后调用 `scripts/alpha_release_engine_smoke.py`（Alpha Stable provenance · PNG/resvg · SVG · `.planseed` 往返）。
 
 若应用已打开且引擎在跑，可直接跑脚本；若端口空闲，请先启动 PlanSeed 桌面端再测。
 
