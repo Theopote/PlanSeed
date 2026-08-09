@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-D .planseed package ← 当前 · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：▶ 7.5-E App hooks ← 当前 · 7.5-D ✅ · 7.5-C ✅ · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -29,8 +29,8 @@
 | **7.5-A** | OpenAPI → TypeScript + CI drift | ✅ |
 | **7.5-B** | 渐进 mypy（三轮） | ✅ |
 | **7.5-C** | `PRAGMA user_version` migrations | ✅ |
-| **7.5-D** | `.planseed` ZIP 项目包 | **← 当前** |
-| **7.5-E** | `App.tsx` → hooks 拆分 | |
+| **7.5-D** | `.planseed` ZIP 项目包 | ✅ |
+| **7.5-E** | `App.tsx` → hooks 拆分 | **← 当前** |
 | **7.5-F** | LLM Enricher stage 化 | |
 | **7.5-G** | Hypothesis 不变量 | |
 | **7.5-H** | pytest-cov 报告（暂不门槛） | |
@@ -94,9 +94,26 @@ ProjectStore._init_db()
 
 后续加列：新增 `v002_….py`，登记到 `_MIGRATIONS`，抬高 `CURRENT_VERSION`。
 
+## 7.5-D — `.planseed` 项目包
+
+ZIP 包装层（≠ 改设计算法）。扩展名 `.planseed`。
+
+```text
+manifest.json   # format=planseed-project · version · app_version
+project.json    # id · name · updated_at · payload
+assets/         # 可选资源
+previews/       # 可选预览
+```
+
+| API | 说明 |
+|-----|------|
+| `GET /api/projects/{id}/package` | 下载 ZIP |
+| `POST /api/projects/import` | body=ZIP 字节 → upsert ProjectStore |
+
+实现：`packages/persistence/planseed_package.py`；桌面「导出包 / 导入包」。
+
 ## 后续批次（摘要）
 
-- **D**：ZIP = `manifest.json` + `project.json` + `assets/` + `previews/`  
 - **E**：hooks 七件套；不上 Zustand 除非 prop drilling 仍严重  
 - **F**：拆 `packages/llm/enrich.py`；行为不变；stage provenance  
 - **G/H**：Hypothesis 核心不变量；coverage 先观察  
@@ -107,7 +124,7 @@ ProjectStore._init_db()
 - [x] OpenAPI → generated TypeScript + CI drift  
 - [x] mypy 第一轮收紧（含 Round 1–3 目录 overrides）  
 - [x] persistence migration  
-- [ ] `.planseed` project package  
+- [x] `.planseed` project package  
 - [ ] App orchestration 拆分  
 - [ ] Enricher stage 化  
 - [ ] Hypothesis 核心 property tests  

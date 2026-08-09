@@ -9,9 +9,11 @@ import {
   loadProject,
   buildReport,
   downloadBlob,
+  exportPlanseedPackage,
   exportPng,
   exportReportJson,
   exportSvg,
+  importPlanseedPackage,
   parseRequirementsNl,
   patchFormFromRequirementSpec,
   previewMutation,
@@ -34,6 +36,7 @@ import {
   type MutationPreviewApiResult,
   type MutationRecordPayload,
   type ProgramSummary,
+  type ProjectDetail,
   type ProjectSummary,
   type RejectedCandidatePayload,
   type RequirementForm,
@@ -1528,12 +1531,12 @@ function App() {
     resolveCanonicalSpec,
   ]);
 
-  const onOpenProjects = useCallback(async () => {
+  const onLoadProject = useCallback(async (id: string) => {
     setProjectBusy(true);
     setError(null);
     try {
-      const list = await listProjects();
-      setProjectPicker(list);
+      const detail = await loadProject(id);
+      applyProjectDetail(detail);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1541,76 +1544,150 @@ function App() {
     }
   }, []);
 
-  const onLoadProject = useCallback(async (id: string) => {
+  const applyProjectDetail = (detail: ProjectDetail) => {
+    const p = detail.payload;
+    setProjectId(detail.id);
+    setProjectName(detail.name);
+    if (p.form && typeof p.form === "object") {
+      setForm({ ...DEFAULT_FORM, ...(p.form as RequirementForm) });
+    }
+    setProgram((p.program as ProgramSummary) ?? null);
+    if (p.requirement_spec) {
+      const spec = p.requirement_spec as RequirementSpecPayload;
+      setRequirementSpec(spec);
+      if (spec.raw_text) setNlText(spec.raw_text);
+    } else if (p.program) {
+      setRequirementSpec(
+        fallbackRequirementFromForm(
+          { ...DEFAULT_FORM, ...(p.form as RequirementForm) },
+          p.program as ProgramSummary,
+        ),
+      );
+    } else {
+      setRequirementSpec(null);
+    }
+    setLocks({
+      rooms: p.locks?.rooms ?? [],
+      stair: p.locks?.stair ?? null,
+      zones: p.locks?.zones ?? [],
+    });
+    setCandidates(p.candidates ?? []);
+    setSelectedId(p.selected_id ?? p.candidates?.[0]?.id ?? null);
+    setCompareId(p.compare_id ?? null);
+    setHighlightRoomIds([]);
+    setSelectedRoomId(null);
+    setStats(null);
+    setRejectedCandidates([]);
+    setViolationSummary({});
+    setProjectPicker(null);
+    if (
+      p.schema_versions?.solver_version &&
+      p.schema_versions.generator_version &&
+      p.schema_versions.evaluation_version
+    ) {
+      setSolverIdentity({
+        solver_version: p.schema_versions.solver_version,
+        generator_version: p.schema_versions.generator_version,
+        evaluation_version: p.schema_versions.evaluation_version,
+      });
+    }
+    const dirty = (p.candidates ?? []).some(
+      (c) => c.revision_status === "dirty",
+    );
+    const missingSpec = !p.requirement_spec;
+    if (detail.evaluation_version_mismatch) {
+      setVersionHint(
+        `评价版本已变（快照 ${p.schema_versions?.evaluation_version ?? "?"} → 当前 ${detail.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
+      );
+    } else if (dirty) {
+      setVersionHint(
+        "项目含已编辑草稿（Evaluation outdated）；评分非当前几何。",
+      );
+    } else if (missingSpec) {
+      setVersionHint(
+        "旧项目缺少 RequirementSpec，已用 form+program 降级重建；请重新 Generate 以固化意图。",
+      );
+    } else {
+      setVersionHint(null);
+    }
+  };
+
+  const onExportPlanseed = useCallback(async () => {
+    if (!program) {
+      setError("请先 Generate 再导出项目包");
+      return;
+    }
     setProjectBusy(true);
     setError(null);
     try {
-      const detail = await loadProject(id);
-      const p = detail.payload;
-      setProjectId(detail.id);
-      setProjectName(detail.name);
-      if (p.form && typeof p.form === "object") {
-        setForm({ ...DEFAULT_FORM, ...(p.form as RequirementForm) });
-      }
-      setProgram((p.program as ProgramSummary) ?? null);
-      if (p.requirement_spec) {
-        const spec = p.requirement_spec as RequirementSpecPayload;
-        setRequirementSpec(spec);
-        if (spec.raw_text) setNlText(spec.raw_text);
-      } else if (p.program) {
-        setRequirementSpec(
-          fallbackRequirementFromForm(
-            { ...DEFAULT_FORM, ...(p.form as RequirementForm) },
-            p.program as ProgramSummary,
-          ),
-        );
-      } else {
-        setRequirementSpec(null);
-      }
-      setLocks({
-        rooms: p.locks?.rooms ?? [],
-        stair: p.locks?.stair ?? null,
-        zones: p.locks?.zones ?? [],
+      const fromCand = candidates.find((c) => c.provenance)?.provenance;
+      const schema_versions = {
+        solver_version:
+          solverIdentity?.solver_version ?? fromCand?.solver_version ?? null,
+        generator_version:
+          solverIdentity?.generator_version ??
+          fromCand?.generator_version ??
+          null,
+        evaluation_version:
+          solverIdentity?.evaluation_version ??
+          fromCand?.evaluation_version ??
+          null,
+      };
+      const saved = await saveProject({
+        name: projectName.trim() || "未命名项目",
+        id: projectId,
+        payload: {
+          form,
+          program,
+          requirement_spec: resolveCanonicalSpec(),
+          locks: cloneLayoutLocks(locks),
+          candidates,
+          selected_id: selectedId,
+          compare_id: compareId,
+          schema_versions,
+        },
       });
-      setCandidates(p.candidates ?? []);
-      setSelectedId(p.selected_id ?? p.candidates?.[0]?.id ?? null);
-      setCompareId(p.compare_id ?? null);
-      setHighlightRoomIds([]);
-      setSelectedRoomId(null);
-      setStats(null);
-      setRejectedCandidates([]);
-      setViolationSummary({});
-      setProjectPicker(null);
-      if (
-        p.schema_versions?.solver_version &&
-        p.schema_versions.generator_version &&
-        p.schema_versions.evaluation_version
-      ) {
-        setSolverIdentity({
-          solver_version: p.schema_versions.solver_version,
-          generator_version: p.schema_versions.generator_version,
-          evaluation_version: p.schema_versions.evaluation_version,
-        });
-      }
-      const dirty = (p.candidates ?? []).some(
-        (c) => c.revision_status === "dirty",
-      );
-      const missingSpec = !p.requirement_spec;
-      if (detail.evaluation_version_mismatch) {
-        setVersionHint(
-          `评价版本已变（快照 ${p.schema_versions?.evaluation_version ?? "?"} → 当前 ${detail.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
-        );
-      } else if (dirty) {
-        setVersionHint(
-          "项目含已编辑草稿（Evaluation outdated）；评分非当前几何。",
-        );
-      } else if (missingSpec) {
-        setVersionHint(
-          "旧项目缺少 RequirementSpec，已用 form+program 降级重建；请重新 Generate 以固化意图。",
-        );
-      } else {
-        setVersionHint(null);
-      }
+      setProjectId(saved.id);
+      setProjectName(saved.name);
+      const out = await exportPlanseedPackage(saved.id);
+      downloadBlob(out.blob, out.filename);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProjectBusy(false);
+    }
+  }, [
+    program,
+    projectName,
+    projectId,
+    form,
+    locks,
+    candidates,
+    selectedId,
+    compareId,
+    solverIdentity,
+    resolveCanonicalSpec,
+  ]);
+
+  const onImportPlanseed = useCallback(async (file: File) => {
+    setProjectBusy(true);
+    setError(null);
+    try {
+      const detail = await importPlanseedPackage(file);
+      applyProjectDetail(detail);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProjectBusy(false);
+    }
+  }, []);
+
+  const onOpenProjects = useCallback(async () => {
+    setProjectBusy(true);
+    setError(null);
+    try {
+      const list = await listProjects();
+      setProjectPicker(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1775,6 +1852,8 @@ function App() {
           projectName={projectName}
           onProjectNameChange={setProjectName}
           onSaveProject={() => void onSaveProject()}
+          onExportPlanseed={() => void onExportPlanseed()}
+          onImportPlanseed={(file) => void onImportPlanseed(file)}
           onExportReport={() => void onExportReport()}
           onExportReportJson={() => void onExportReportJson()}
           onExportSvg={(scope) => void onExportSvg(scope)}

@@ -3792,6 +3792,28 @@
         ]
       }
     },
+    "/api/projects/import": {
+      "post": {
+        "description": "打开 / 导入 `.planseed`：请求体为 ZIP 字节；写入 ProjectStore（按包内 id upsert）。",
+        "operationId": "import_planseed_package_api_projects_import_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Import Planseed Package",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/projects/{project_id}": {
       "delete": {
         "operationId": "delete_project_api_projects__project_id__delete",
@@ -3873,6 +3895,47 @@
           }
         },
         "summary": "Get Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/package": {
+      "get": {
+        "description": "导出已保存项目为 `.planseed` ZIP。",
+        "operationId": "export_planseed_package_api_projects__project_id__package_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Planseed Package",
         "tags": [
           "projects"
         ]

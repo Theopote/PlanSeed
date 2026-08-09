@@ -58,6 +58,10 @@ LayoutLocks → model_dump / 等价 JSON → sort_keys → sha256 → 前 16 hex
 | POST | `/api/projects` | 创建/更新（body: name, id?, payload） |
 | GET | `/api/projects/{id}` | 详情；带 `evaluation_version_mismatch` |
 | DELETE | `/api/projects/{id}` | 删除 |
+| GET | `/api/projects/{id}/package` | Phase 7.5-D：导出 `.planseed` ZIP |
+| POST | `/api/projects/import` | Phase 7.5-D：导入 ZIP（按包内 id upsert） |
+
+`.planseed` 布局：`manifest.json` + `project.json` + `assets/` + `previews/`（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)）。
 
 保存时服务端写入 `project_meta`（format/app），并**保留**快照内设计 `schema_versions`（不得仅因 Save 升为 current）。打开时若快照 `evaluation_version` ≠ 当前常量 → UI 提示分数不可比、几何仍有效。详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md)。
 

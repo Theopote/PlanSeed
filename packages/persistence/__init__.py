@@ -1,4 +1,4 @@
-"""Phase 5 — 本地项目快照（SQLite）+ Phase 7.5-C migrations。"""
+"""Phase 5 — 本地项目快照（SQLite）+ Phase 7.5-C migrations · 7.5-D 包导出。"""
 
 from __future__ import annotations
 
@@ -12,6 +12,12 @@ from pathlib import Path
 from typing import Any
 
 from packages.persistence.migrations import CURRENT_VERSION, get_user_version, migrate
+from packages.persistence.planseed_package import (
+    PLANSEED_EXTENSION,
+    PLANSEED_FORMAT,
+    pack_planseed,
+    unpack_planseed,
+)
 
 
 def default_db_path() -> Path:
@@ -111,8 +117,12 @@ class ProjectStore:
 
 __all__ = [
     "CURRENT_VERSION",
+    "PLANSEED_EXTENSION",
+    "PLANSEED_FORMAT",
     "ProjectMeta",
     "ProjectStore",
     "default_db_path",
     "migrate",
+    "pack_planseed",
+    "unpack_planseed",
 ]

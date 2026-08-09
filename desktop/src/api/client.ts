@@ -521,6 +521,58 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
   return r.json() as Promise<ProjectDetail>;
 }
 
+/** Phase 7.5-D — 导出 `.planseed` 项目包。 */
+export async function exportPlanseedPackage(
+  projectId: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const r = await fetch(
+    `${_apiBase}/api/projects/${encodeURIComponent(projectId)}/package`,
+  );
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: string | { message?: string } };
+      if (typeof body.detail === "string") msg = body.detail;
+      else if (body.detail && typeof body.detail.message === "string") {
+        msg = body.detail.message;
+      }
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  const blob = await r.blob();
+  const filename =
+    parseContentDispositionFilename(r.headers.get("Content-Disposition")) ??
+    "project.planseed";
+  return { blob, filename };
+}
+
+/** Phase 7.5-D — 导入 / 打开 `.planseed`（body = ZIP 字节）。 */
+export async function importPlanseedPackage(file: Blob): Promise<ProjectDetail> {
+  const r = await fetch(`${_apiBase}/api/projects/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/zip" },
+    body: file,
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as {
+        detail?: string | { message?: string; code?: string };
+      };
+      if (typeof body.detail === "string") msg = body.detail;
+      else if (body.detail && typeof body.detail.message === "string") {
+        msg = body.detail.message;
+      }
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<ProjectDetail>;
+}
+
 /** Phase 7 — Design Report。 */
 function formatReportErrorDetail(detail: unknown, status: number): string {
   if (typeof detail === "string") return detail;

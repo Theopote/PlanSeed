@@ -153,3 +153,61 @@ def test_save_preserves_old_evaluation_version(
         == "ancient-eval"
     )
     assert again.json()["evaluation_version_mismatch"] is True
+
+
+def test_planseed_export_import_roundtrip(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "pkg.db"))
+    r = client.post(
+        "/api/projects",
+        json={
+            "name": "导出宅",
+            "payload": {
+                "form": {"width": 14},
+                "candidates": [{"id": "c9", "seed": 1, "label": "A"}],
+                "selected_id": "c9",
+                "schema_versions": {
+                    "solver_version": "0.4",
+                    "generator_version": "g",
+                    "evaluation_version": "ancient-pkg",
+                },
+            },
+        },
+    )
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+
+    exp = client.get(f"/api/projects/{pid}/package")
+    assert exp.status_code == 200, exp.text
+    assert exp.headers["content-type"].startswith("application/zip")
+    assert ".planseed" in exp.headers.get("content-disposition", "")
+
+    # 清空库后再导入
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "pkg-import.db"))
+    imp = client.post(
+        "/api/projects/import",
+        content=exp.content,
+        headers={"Content-Type": "application/zip"},
+    )
+    assert imp.status_code == 200, imp.text
+    body = imp.json()
+    assert body["id"] == pid
+    assert body["name"] == "导出宅"
+    assert body["payload"]["form"]["width"] == 14
+    assert body["payload"]["schema_versions"]["evaluation_version"] == "ancient-pkg"
+    assert body["evaluation_version_mismatch"] is True
+
+
+def test_planseed_import_rejects_bad_zip(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "bad.db"))
+    bad = client.post(
+        "/api/projects/import",
+        content=b"not-a-zip",
+        headers={"Content-Type": "application/zip"},
+    )
+    assert bad.status_code == 400
+    detail = bad.json()["detail"]
+    assert detail["code"] == "not_zip"

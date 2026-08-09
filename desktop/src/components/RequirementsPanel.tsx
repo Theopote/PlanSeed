@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   EngineLifecycle,
   LlmHealthState,
@@ -43,6 +43,8 @@ type Props = {
   projectName: string;
   onProjectNameChange: (name: string) => void;
   onSaveProject: () => void;
+  onExportPlanseed?: () => void;
+  onImportPlanseed?: (file: File) => void;
   onExportReport?: () => void;
   onExportReportJson?: () => void;
   onExportSvg?: (scope: "floor" | "snapshot" | "all_floors") => void;
@@ -122,6 +124,8 @@ export function RequirementsPanel({
   projectName,
   onProjectNameChange,
   onSaveProject,
+  onExportPlanseed,
+  onImportPlanseed,
   onExportReport,
   onExportReportJson,
   onExportSvg,
@@ -134,6 +138,7 @@ export function RequirementsPanel({
   const [rejectedOpen, setRejectedOpen] = useState(true);
   const [retryBusy, setRetryBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const planseedInputRef = useRef<HTMLInputElement | null>(null);
   const engineReady = engineStatus === "READY";
   const canParseNl =
     engineReady &&
@@ -240,6 +245,35 @@ export function RequirementsPanel({
           >
             {projectBusy ? "…" : "保存"}
           </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!engineReady || projectBusy || !program || !onExportPlanseed}
+            onClick={() => onExportPlanseed?.()}
+            title="导出 .planseed 项目包（可分享）"
+          >
+            导出包
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!engineReady || projectBusy || !onImportPlanseed}
+            onClick={() => planseedInputRef.current?.click()}
+            title="打开 .planseed 项目包"
+          >
+            导入包
+          </button>
+          <input
+            ref={planseedInputRef}
+            type="file"
+            accept=".planseed,application/zip"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f && onImportPlanseed) onImportPlanseed(f);
+            }}
+          />
           <button
             type="button"
             className="secondary"

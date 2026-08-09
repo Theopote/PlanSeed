@@ -1,17 +1,26 @@
-"""Phase 5 项目持久化 API。"""
+"""Phase 5 项目持久化 API · Phase 7.5-D .planseed 包。"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 from packages.persistence import ProjectStore
+from packages.persistence.planseed_package import (
+    PlanseedPackageError,
+    pack_planseed,
+    suggest_filename,
+    unpack_planseed,
+)
 from packages.schema.identity import (
     EVALUATION_VERSION,
     GENERATOR_VERSION,
     SOLVER_VERSION,
 )
 from pydantic import BaseModel, Field
+
+from backend.services.export.svg_exporter import content_disposition_attachment
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -114,7 +123,6 @@ def _stamp_project_meta(payload: dict[str, Any]) -> None:
 def _mismatch(payload: ProjectPayload) -> bool:
     stored = payload.schema_versions.evaluation_version
     if not stored:
-        # 无评价版本：看候选 provenance
         for c in payload.candidates:
             prov = c.get("provenance") if isinstance(c, dict) else None
             if isinstance(prov, dict) and prov.get("evaluation_version"):
@@ -123,6 +131,18 @@ def _mismatch(payload: ProjectPayload) -> bool:
     if not stored:
         return False
     return stored != EVALUATION_VERSION
+
+
+def _detail_from_row(row: dict[str, Any]) -> ProjectDetail:
+    payload = ProjectPayload.model_validate(row["payload"])
+    return ProjectDetail(
+        id=row["id"],
+        name=row["name"],
+        updated_at=row["updated_at"],
+        payload=payload,
+        evaluation_version_mismatch=_mismatch(payload),
+        current_evaluation_version=EVALUATION_VERSION,
+    )
 
 
 @router.get("")
@@ -138,14 +158,54 @@ def save_project(body: SaveProjectRequest) -> ProjectDetail:
     payload = body.payload.model_dump()
     _stamp_project_meta(payload)
     saved = _store().save(name=body.name, payload=payload, project_id=body.id)
-    validated = ProjectPayload.model_validate(saved["payload"])
-    return ProjectDetail(
-        id=saved["id"],
-        name=saved["name"],
-        updated_at=saved["updated_at"],
-        payload=validated,
-        evaluation_version_mismatch=_mismatch(validated),
-        current_evaluation_version=EVALUATION_VERSION,
+    return _detail_from_row(saved)
+
+
+@router.post("/import")
+async def import_planseed_package(request: Request) -> ProjectDetail:
+    """打开 / 导入 `.planseed`：请求体为 ZIP 字节；写入 ProjectStore（按包内 id upsert）。"""
+    data = await request.body()
+    try:
+        bundle = unpack_planseed(data)
+    except PlanseedPackageError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": e.code, "message": str(e)},
+        ) from e
+
+    payload = dict(bundle.payload)
+    if isinstance(bundle.payload.get("schema_versions"), dict):
+        payload["schema_versions"] = dict(bundle.payload["schema_versions"])
+    _stamp_project_meta(payload)
+
+    saved = _store().save(
+        name=bundle.name,
+        payload=payload,
+        project_id=bundle.project_id,
+    )
+    return _detail_from_row(saved)
+
+
+@router.get("/{project_id}/package")
+def export_planseed_package(project_id: str) -> Response:
+    """导出已保存项目为 `.planseed` ZIP。"""
+    row = _store().get(project_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    blob = pack_planseed(
+        project_id=row["id"],
+        name=row["name"],
+        updated_at=row["updated_at"],
+        payload=row["payload"],
+        app_version=APP_VERSION,
+    )
+    filename = suggest_filename(row["name"])
+    return Response(
+        content=blob,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": content_disposition_attachment(filename),
+        },
     )
 
 
@@ -154,15 +214,7 @@ def get_project(project_id: str) -> ProjectDetail:
     row = _store().get(project_id)
     if row is None:
         raise HTTPException(status_code=404, detail="项目不存在")
-    payload = ProjectPayload.model_validate(row["payload"])
-    return ProjectDetail(
-        id=row["id"],
-        name=row["name"],
-        updated_at=row["updated_at"],
-        payload=payload,
-        evaluation_version_mismatch=_mismatch(payload),
-        current_evaluation_version=EVALUATION_VERSION,
-    )
+    return _detail_from_row(row)
 
 
 @router.delete("/{project_id}")

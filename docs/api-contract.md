@@ -41,6 +41,7 @@
 | `solver_identity` | generate / health 响应 |
 | `CompareRequest` / `CompareResponse` | `POST /api/compare` |
 | Projects CRUD | Phase 5 / 5.1.1：`GET/POST /api/projects`；payload 含 `requirement_spec`；详见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md) |
+| `.planseed` 包 | Phase 7.5-D：`GET /api/projects/{id}/package`（ZIP 下载）；`POST /api/projects/import`（body=ZIP）；`format=planseed-project` |
 | Mutation preview / revalidate | Phase 5.1：`POST /api/mutations/preview`、`POST /api/mutations/revalidate`；详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md) |
 | `POST /api/requirements/parse` | Phase 6.5 additive：NL → `RequirementSpec`（含 repair）；详见 [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) |
 | `POST /api/reports/build` | Phase 7：`mode=preview` 可 payload；`mode=final` 须 `project_id`+`candidate_id`+`revision_id`（只读 store，禁止 payload）；SVG sanitize；详见 [phase-7-deliverables.md](phase-7-deliverables.md) |
