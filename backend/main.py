@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routes import compare as compare_routes
+from backend.routes import exports as exports_routes
 from backend.routes import generate as generate_routes
 from backend.routes import health as health_routes
 from backend.routes import llm as llm_routes
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(mutations_routes.router)
     app.include_router(projects_routes.router)
     app.include_router(reports_routes.router)
+    app.include_router(exports_routes.router)
     return app
 
 

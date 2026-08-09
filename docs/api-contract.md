@@ -44,6 +44,7 @@
 | Mutation preview / revalidate | Phase 5.1：`POST /api/mutations/preview`、`POST /api/mutations/revalidate`；详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md) |
 | `POST /api/requirements/parse` | Phase 6.5 additive：NL → `RequirementSpec`（含 repair）；详见 [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) |
 | `POST /api/reports/build` | Phase 7：`mode=preview` 可 payload；`mode=final` 须 `project_id`+`candidate_id`+`revision_id`（只读 store，禁止 payload）；SVG sanitize；详见 [phase-7-deliverables.md](phase-7-deliverables.md) |
+| `POST /api/exports/svg` | Phase 7.2.1：`project_id`+`candidate_id`+`revision_id`+`scope`（`floor`/`snapshot`/`all_floors`）；`scope=floor` 须 `floor_id`；只读 store → sanitize → 文件；禁止 DOM outerHTML |
 
 ### SolverIdentity（算法契约，≠ engine_version）
 

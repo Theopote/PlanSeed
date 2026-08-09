@@ -43,6 +43,7 @@ type Props = {
   onProjectNameChange: (name: string) => void;
   onSaveProject: () => void;
   onExportReport?: () => void;
+  onExportSvg?: (scope: "floor" | "snapshot" | "all_floors") => void;
   onOpenProjects: () => void;
   projectBusy?: boolean;
   versionHint?: string | null;
@@ -116,6 +117,7 @@ export function RequirementsPanel({
   onProjectNameChange,
   onSaveProject,
   onExportReport,
+  onExportSvg,
   onOpenProjects,
   projectBusy = false,
   versionHint = null,
@@ -233,6 +235,49 @@ export function RequirementsPanel({
           >
             {reportBusy ? "…" : "报告"}
           </button>
+          <details className="export-svg-menu">
+            <summary
+              className="secondary"
+              title="导出 Canonical SVG（Store + revision）"
+              aria-disabled={
+                !engineReady || reportBusy || !program || !onExportSvg
+              }
+            >
+              SVG
+            </summary>
+            <div className="export-svg-menu-panel" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportSvg
+                }
+                onClick={() => onExportSvg?.("floor")}
+              >
+                当前层
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportSvg
+                }
+                onClick={() => onExportSvg?.("all_floors")}
+              >
+                全部楼层 (zip)
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={
+                  !engineReady || reportBusy || !program || !onExportSvg
+                }
+                onClick={() => onExportSvg?.("snapshot")}
+              >
+                整图快照
+              </button>
+            </div>
+          </details>
           <button
             type="button"
             className="secondary"

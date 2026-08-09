@@ -841,6 +841,77 @@ function formatReportErrorDetail(detail: unknown, status: number): string {
   return `HTTP ${status}`;
 }
 
+export type SvgExportScope = "floor" | "snapshot" | "all_floors";
+
+function parseContentDispositionFilename(header: string | null): string | null {
+  if (!header) return null;
+  const star = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim());
+    } catch {
+      /* fall through */
+    }
+  }
+  const plain = /filename\s*=\s*"([^"]+)"/i.exec(header);
+  if (plain?.[1]) return plain[1];
+  const bare = /filename\s*=\s*([^;]+)/i.exec(header);
+  return bare?.[1]?.trim() ?? null;
+}
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Phase 7.2.1 — Canonical SVG（Store + revision；禁止 DOM outerHTML）。 */
+export async function exportSvg(opts: {
+  projectId: string;
+  candidateId: string;
+  revisionId: string;
+  scope: SvgExportScope;
+  floorId?: string | null;
+}): Promise<{ blob: Blob; filename: string }> {
+  const r = await fetch(`${_apiBase}/api/exports/svg`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      project_id: opts.projectId,
+      candidate_id: opts.candidateId,
+      revision_id: opts.revisionId,
+      scope: opts.scope,
+      floor_id: opts.floorId ?? undefined,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: unknown };
+      msg = formatReportErrorDetail(body.detail, r.status);
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  const blob = await r.blob();
+  const filename =
+    parseContentDispositionFilename(r.headers.get("content-disposition")) ??
+    (opts.scope === "all_floors" ? "export_floors.svg.zip" : "export.svg");
+  return { blob, filename };
+}
+
+/** 触发浏览器 / WebView 下载。 */
+export function downloadBlob(blob: Blob, filename: string): void {
+  triggerBlobDownload(blob, filename);
+}
+
 /** Final Export：project_id + candidate_id + revision_id（从 store 读取）。 */
 export async function buildReport(opts: {
   mode?: ReportExportMode;

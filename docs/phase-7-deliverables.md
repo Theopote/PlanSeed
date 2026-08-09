@@ -1,6 +1,6 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 7.1 Engineering ✅ · 7.1.1 短收口（Print smoke 人手）→ 7.2 READY**
+> **状态：▶ 7.2.1 SVG Export ← 当前 · 7.1.1 Print smoke 人手待勾**
 > **详案：** 本页 · [phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 > **前置：** Phase 6 **彻底冻结**（Blind 工程 PASS；`qualify --gate` 拒 dirty worktree；不开抠分）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
@@ -25,8 +25,8 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 | **7.0** | Deliverable Model | ✅ |
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
 | **7.1** | Report Presentation | ✅ Engineering（收口见 7.1.1） |
-| **7.1.1** | Presentation Accuracy & Smoke | **← 仅差 Print smoke 人手** |
-| **7.2** | Export Formats | **接下来主线** |
+| **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke ☐ |
+| **7.2** | Export Formats | **← 当前**（7.2.1 SVG） |
 | **7.5** | Alpha Engineering Hardening | 7.2 完成后 |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续 |
 
@@ -377,73 +377,74 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 
 四条齐 → **关闭 7.1** → **7.2.1**。不要继续美化。
 
-## 7.2 — Export Formats（READY；Print smoke 后开工）
+## 7.2 — Export Formats（← 主线）
 
-真正的多格式导出。**产品意义：** Generate → Inspect → Modify → Validate → Save → **Deliver**。
+用户闭环：Generate → Compare → Edit → Revalidate → Save → **Export**。  
+完成后视为 **PlanSeed Alpha Product Loop Complete**。
 
-**PDF：** 始终 `HTML → Print`。**禁止** ReportLab / WeasyPrint / Chromium headless / PDF canvas。  
-**禁止：** DXF / DWG / IFC / Revit / BIM · ZIP Export Package（先单格式）· ExportManifest（7.2 稳定后再议）。
+**禁止：** DXF/DWG/IFC/BIM · ReportLab/WeasyPrint/Chromium PDF · ZIP Export Package（先单格式）· ExportManifest（稳定后再议）· 继续美化 7.1。
 
-| 子阶段 | 主题 | 要点 |
+| 子阶段 | 主题 | 状态 |
 |--------|------|------|
-| **7.2.1** | SVG export | 见下「导什么」+ Final Export trust boundary |
-| **7.2.2** | PNG rasterize | **本阶段核心价值**；SVG→光栅，非 HTML 截图 |
-| **7.2.3** | DesignReport JSON | 交付契约 = `DesignReport`，≠ `candidate.model_dump()` |
-| **7.2.4** | Print / PDF polish | `@page` / margin / break / 表头；**非**新 PDF 子系统 |
+| **7.2.1** | SVG Export | **← 当前** |
+| **7.2.2** | PNG Export | 下一（**最有用户价值**） |
+| **7.2.3** | DesignReport JSON | 交付契约 ≠ Project Snapshot |
+| **7.2.4** | Print / PDF Polish | CSS print only；非 PDF 引擎 |
+| **7.2.5** | Export UX Consolidation | Export Dialog；防按钮爆炸 |
 
-优先级：**PNG 单层平面**（PPT / 微信 / Word / 甲方）可与 SVG 紧接；可先于 Print polish。
+### 7.2.1 — SVG Export（当前）
 
-### 7.2.1 — SVG：明确「导什么」
+**导什么（三分）：**
 
-不要只有笼统 Download SVG。至少三分：
+| scope | 来源 | 文件名后缀 |
+|-------|------|------------|
+| `floor` | `candidate.floor_svgs[floor_id]` | `_F1.svg` |
+| `all_floors` | 各层 SVG → zip | `_floors.svg.zip` |
+| `snapshot` | `candidate.svg` | `_ALL.svg` |
 
-| 导出 | 来源 |
-|------|------|
-| **Current Floor SVG** | `candidate.floor_svgs[floor_id]` |
-| **All Floors SVG** | 各层各一文件（或约定打包方式；Alpha 可先多文件下载） |
-| **Candidate Snapshot SVG** | 整图 `candidate.svg`（兼容旧快照） |
-
-**信任边界（与 7.0.1 一致）：**
-
-```text
-project_id + candidate_id + revision_id + floor_id?
-  → Backend → ProjectStore → canonical floor_svgs / svg
-  → sanitize / validate → download
-```
-
-**禁止：** frontend 拿 DOM `outerHTML` → 下载。  
-消费已有序列化 SVG，**不**重新渲染几何。
-
-### 7.2.2 — PNG：白底平面（核心）
+**信任边界：**
 
 ```text
-Floor SVG → Rasterizer → PNG
+project_id + candidate_id + revision_id (+ floor_id)
+  → ProjectStore → canonical floor_svgs / svg
+  → sanitize → file response
 ```
 
-**禁止：** HTML 报告整页截图。
+**禁止：** React DOM `querySelector("svg").outerHTML`。
 
-Alpha v1：
+**API：** `POST /api/exports/svg`（不塞进 `/api/reports/build`）  
+**实现：** `backend/services/export/svg_exporter.py` · `final_gate.py` · `backend/routes/exports.py`
 
-- 白底 · Canonical SVG · 中文标签正确  
-- 分辨率：`1x / 2x / 4x` 或 `2048 / 4096` px（先不要 DPI）  
-- **不做：** 透明底 / dark mode / 水印 / 品牌模板
+### 7.2.2 — PNG Export（核心价值）
 
-### 7.2.3 — JSON：Report ≠ Project
+```text
+Canonical Floor SVG → Rasterizer → PNG
+```
 
-| 产物 | 用途 |
-|------|------|
-| **DesignReport.json** | 交付 / 归档 / 审计（requirements · summary · schedule · evaluation · findings · provenance · revision） |
-| **Project Snapshot** | 继续编辑 / 恢复工作（已有项目存档） |
+- 分辨率：**2048 / 4096** px；白底  
+- **禁止：** HTML/Workbench 截图 · Chromium 服务 · 透明/暗色/水印/品牌模板（Alpha）  
+- 本地、确定性、Windows 可打包；勿拖重 GUI 依赖进 sidecar
 
-API 命名宜区分：`report export` vs `project archive`。  
-**禁止**把 `candidate.model_dump()` 冒充报告 JSON。
+### 7.2.3 — DesignReport JSON
 
-### 7.2.4 — Print polish（非 PDF engine）
+| | Project Snapshot | DesignReport JSON |
+|--|------------------|-------------------|
+| 用途 | 继续编辑 / 恢复 | 交付 / 归档 / 审计 |
+| 内容 | 工作台 payload | `DesignReport` + `report_schema_version` |
 
-只硬化：`@page` · margin · page-break · print colors · table header · widow/orphan · cover/footer。  
-物理比例 `1:100` **仅本子阶段可谈校准**；此前禁止冒充。
+含：schema_version · project · source_revision_id · requirement · assumptions/unknowns · candidate · floor meta · schedule · evaluation · findings · provenance。  
+Alpha 可内嵌 SVG；禁止 `candidate.model_dump()` 冒充。
 
-### 以后再说（现在不做）
+### 7.2.4 — Print / PDF Polish
 
-- **ExportManifest** + **Export Package（ZIP）** — 7.2 单格式稳定后再议  
-- 品牌化封面 / 模板商城
+继续 `HTML → WebView2 → Print → PDF`。  
+只做 `@page` / break / orphans / widows / 表头 / 封面。  
+**禁止**冒充 `1:100`（未做物理校准前）。
+
+### 7.2.5 — Export UX Consolidation
+
+单一 **Export Dialog**（报告预览/打印/JSON · 平面 SVG/PNG），避免按钮爆炸。
+
+### Definition of Done（7.2）
+
+用户可导出：**Design Report · PDF(Print) · SVG · PNG · JSON**，且均走 Final Export trust boundary → **Alpha Product Loop Complete**。

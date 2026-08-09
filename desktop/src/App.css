@@ -149,6 +149,62 @@ body,
 .project-actions {
   display: flex;
   gap: 0.4rem;
+  align-items: center;
+}
+
+.export-svg-menu {
+  position: relative;
+}
+
+.export-svg-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.export-svg-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.export-svg-menu[aria-disabled="true"] > summary,
+.export-svg-menu > summary[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.export-svg-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 20;
+  min-width: 9.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(28, 26, 22, 0.14);
+}
+
+.export-svg-menu-panel button {
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.export-svg-menu-panel button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--line) 45%, transparent);
+}
+
+.export-svg-menu-panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .version-hint {
