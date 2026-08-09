@@ -56,8 +56,8 @@
 | **6.7.2** | **Blind Requalification** | ✅ 工程 PASS；`--gate` 拒 dirty；**彻底冻结** |
 | **7.0** | **Deliverable Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
-| **7.1** | **Report Presentation** | **✅ Engineering** |
-| **7.1.1** | **Presentation Accuracy & Smoke** | **← 立即完成** |
+| **7.1** | **Report Presentation** | **✅ Engineering**（收口 7.1.1） |
+| **7.1.1** | **Presentation Accuracy & Smoke** | **← 仅差 Print smoke** |
 | **7.2** | **Export Formats** | **接下来主线** |
 | **7.5** | **Alpha Engineering Hardening** | **7.2 后** |
 | **8.0** | **Solver Diversity / Solver 2.0** | **后续** |

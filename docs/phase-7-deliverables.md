@@ -24,13 +24,13 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 |--------|------|------|
 | **7.0** | Deliverable Model | ✅ |
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
-| **7.1** | Report Presentation | ✅ Engineering |
-| **7.1.1** | Presentation Accuracy & Smoke | **← 立即完成**（北向/TS ✅；Print ☐） |
+| **7.1** | Report Presentation | ✅ Engineering（收口见 7.1.1） |
+| **7.1.1** | Presentation Accuracy & Smoke | **← 仅差 Print smoke 人手** |
 | **7.2** | Export Formats | **接下来主线** |
 | **7.5** | Alpha Engineering Hardening | 7.2 完成后 |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续 |
 
-**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · ZIP Export Package · ExportManifest · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor · Canva 式品牌模板 · 把审计优化建议塞进 7.2。
+**不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · ZIP Export Package · ExportManifest · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor · Canva 式品牌模板 · 把审计优化建议塞进 7.2 · **继续美化 7.1 报告视觉**。
 
 ## 第一刀：Export Design Report
 
@@ -180,14 +180,11 @@ PlanSeed 设计报告
 项目 · 求解器生成 | 用户编辑 · 已验证 · 方案 A.2 · Score 84
 （用户编辑 · 评价过期 禁止正式报告）
 
-文案由 `ReportLocale` 集中管理（Alpha 默认 `zh-CN`；预留 `en-US`），禁止散落硬编码。  
-关系 intent 经 `present_relation_intent`（RelationPresenter）：`near` →「厨房靠近餐厅」，禁止输出 enum 名。
-
-设计要点（Key Intent）— zh-CN 示例：
-  - 两层住宅
-  - 3 间卧室
-  - 客厅朝南
-  - 厨房靠近餐厅
+设计要点（Key Intent）：
+  两层住宅
+  3 间卧室
+  客厅朝南
+  厨房靠近餐厅
   …
 
 假设 …
@@ -195,6 +192,11 @@ PlanSeed 设计报告
 
 （再）分层平面 · 空间面积表 · 设计评价 · 关键发现
 ```
+
+文案由 `ReportLocale` 集中管理（**Alpha 默认 `zh-CN`**；`en` 仅预留，文档示例以中文为准），禁止散落硬编码。  
+关系 intent 经 `present_relation_intent`：`near` →「厨房靠近餐厅」（`intent.relation.near`），禁止输出 enum 名。  
+上列 Key Intent 为 **`report_i18n.format_key_intents` 当前 zh-CN 真实输出**（`intent.two_story` / `intent.bedrooms` / `intent.south_living` / `intent.relation.near`）。  
+**禁止**再写过时英文示例：`Two-story residence` / `3 bedrooms` / `Kitchen near dining`。
 
 ### 必须声明 AI / Solver 边界（页脚或 Provenance）
 
@@ -353,20 +355,14 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 
 ### Definition of Done（7.1）
 
-1. [x] Cover / 编号章节信息层级（HTML）  
-2. [x] 平面章节：独立页样式 · **真实北向**（未知不画假 ↑N）· 尺度/图例 · print page-break  
-3. [x] 面积表：目标/实际/差值/宽×深；主表无 room_id  
-4. [x] `report_evaluation_presenter`：档位 + top strengths/concerns（仅 DesignFinding）  
-5. [x] Assumptions/Unknowns 后置；blocking 首页提示  
-6. [x] Print fallback：`iframe.contentWindow.print()` 优先；**禁止** `window.print()` 打主壳  
-7. [x] 楼层标题本地化 · Cover 目录 · 轴名建筑化 · 报告生成时间 · Desktop 预览中文  
-8. [ ] **真实打印验收（关门）**：Desktop + Microsoft Print to PDF 跑完  
-   [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) 场景矩阵并填结果表  
+工程项 1–7 已完成。收口见 **7.1.1**（仅四条）：
 
-实现落点：`report_html.py` · `report_evaluation_presenter.py` · `report_i18n.py` · `RoomScheduleRow` · `ReportPreview.tsx`。  
-Fixture：`uv run python scripts/generate_print_smoke_reports.py` → `debug/print-smoke/`。
+1. [x] 北向真实绑定项目坐标  
+2. [x] RequirementSpec TS fidelity audit  
+3. [ ] Windows WebView2 打印 smoke（P01–P08）  
+4. [x] 文档同步（Key Intent 示例 = zh-CN 真实输出）  
 
-**CSS ≠ 验收。** `.plan-page { page-break-after }` 已就位不代表 7.1 可关；须 WebView2 实打 PDF。
+第 3 条填完 → **关闭 7.1**，开工 7.2。**不要继续美化报告视觉。**
 
 ## 7.1.1 — Accuracy + Print Smoke（极短收口）
 
@@ -374,12 +370,12 @@ Fixture：`uv run python scripts/generate_print_smoke_reports.py` → `debug/pri
 
 | 级 | 项 | 状态 |
 |----|-----|------|
-| P0 | 北针真实 `north_angle`；未知不画假针 | ✅ Engineering |
-| P1 | RequirementSpec TS fidelity（`priority` / `source`） | ✅ Engineering |
-| P1 | Windows WebView2 Print → PDF smoke | ☐ 人手 |
-| P2 | 文档示例 / 7.2 规划同步 | ✅ |
+| P0 | 北向真实绑定项目坐标 | ✅ |
+| P1 | RequirementSpec TS fidelity audit | ✅ |
+| P1 | Windows WebView2 打印 smoke | ☐ 人手 |
+| P2 | 文档同步（zh-CN Key Intent 示例） | ✅ |
 
-填完 print smoke → **立即 7.2.1**。
+四条齐 → **关闭 7.1** → **7.2.1**。不要继续美化。
 
 ## 7.2 — Export Formats（READY；Print smoke 后开工）
 
