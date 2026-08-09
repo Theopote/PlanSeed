@@ -65,21 +65,6 @@ from packages.schema.provenance import (
     build_solver_provenance,
     geometry_backend_for,
 )
-from packages.schema.solver_profile import (
-    ALPHA_STABLE,
-    PROFILE_ALPHA_STABLE,
-    PROFILE_RESEARCH_CPSAT,
-    PROFILE_RESEARCH_MAXRECT,
-    PROFILE_RESEARCH_PARETO,
-    RESEARCH_CPSAT,
-    RESEARCH_MAXRECT,
-    RESEARCH_PARETO,
-    SOLVER_PROFILES,
-    SolverProfile,
-    apply_solver_profile,
-    get_solver_profile,
-    pin_alpha_stable_if_needed,
-)
 from packages.schema.report import (
     GEOMETRY_ORIGIN_LABELS,
     REPORT_BOUNDARY_LINES,
@@ -126,6 +111,21 @@ from packages.schema.site import (
     Rect2D,
     SetbackSpec,
     SiteSpec,
+)
+from packages.schema.solver_profile import (
+    ALPHA_STABLE,
+    PROFILE_ALPHA_STABLE,
+    PROFILE_RESEARCH_CPSAT,
+    PROFILE_RESEARCH_MAXRECT,
+    PROFILE_RESEARCH_PARETO,
+    RESEARCH_CPSAT,
+    RESEARCH_MAXRECT,
+    RESEARCH_PARETO,
+    SOLVER_PROFILES,
+    SolverProfile,
+    apply_solver_profile,
+    get_solver_profile,
+    pin_alpha_stable_if_needed,
 )
 from packages.schema.topology import (
     AccessGraph,
