@@ -1,21 +1,17 @@
-"""Requirement Benchmark 评分（字段准确率 + 反幻觉）。"""
+"""Requirement Benchmark 评分（标量字段 + 设计意图 + 反幻觉）。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from packages.llm.benchmark.cases import ExpectKnown, RequirementBenchmarkCase
-from packages.schema.requirements import RequirementSpec
-
-_FIELD_LABELS = (
-    "floor_count",
-    "bedrooms",
-    "bathrooms",
-    "site_width",
-    "site_depth",
-    "has_garage",
-    "prefer_south_facing_living",
+from packages.llm.benchmark.cases import (
+    ExpectFloorPreference,
+    ExpectKnown,
+    ExpectOrientation,
+    ExpectRelation,
+    RequirementBenchmarkCase,
 )
+from packages.schema.requirements import RelationIntent, RequirementSpec
 
 
 @dataclass
@@ -27,6 +23,12 @@ class FieldScore:
 
 
 @dataclass
+class RelationHit:
+    expected: ExpectRelation
+    hit: bool
+
+
+@dataclass
 class CaseScore:
     case_id: str
     fields: list[FieldScore] = field(default_factory=list)
@@ -34,6 +36,17 @@ class CaseScore:
     geometry_fail: bool = False
     space_ok: bool = True
     notes: list[str] = field(default_factory=list)
+    # Phase 6.7 — 设计意图
+    relations: list[RelationHit] = field(default_factory=list)
+    relation_predicted: int = 0
+    floor_prefs: list[FieldScore] = field(default_factory=list)
+    orientations: list[FieldScore] = field(default_factory=list)
+    unknown_expected: list[str] = field(default_factory=list)
+    unknown_predicted: list[str] = field(default_factory=list)
+    # 真模型 qualification 元数据
+    attempts: int = 1
+    parse_failed: bool = False
+    latency_s: float = 0.0
 
     @property
     def field_hits(self) -> int:
@@ -44,14 +57,40 @@ class CaseScore:
         return len(self.fields)
 
     @property
+    def relation_hits(self) -> int:
+        return sum(1 for r in self.relations if r.hit)
+
+    @property
+    def relation_total(self) -> int:
+        return len(self.relations)
+
+    @property
+    def repaired(self) -> bool:
+        return self.attempts > 1
+
+    @property
+    def unknown_tp(self) -> int:
+        exp = set(self.unknown_expected)
+        pred = set(self.unknown_predicted)
+        return len(exp & pred)
+
+    @property
     def passed(self) -> bool:
-        if self.geometry_fail:
+        if self.geometry_fail or self.parse_failed:
             return False
         if self.hallucinations:
             return False
         if not self.space_ok:
             return False
-        return all(f.hit for f in self.fields)
+        if not all(f.hit for f in self.fields):
+            return False
+        if not all(r.hit for r in self.relations):
+            return False
+        if not all(f.hit for f in self.floor_prefs):
+            return False
+        if not all(f.hit for f in self.orientations):
+            return False
+        return True
 
 
 def _actual_map(spec: RequirementSpec) -> dict[str, object | None]:
@@ -106,14 +145,104 @@ _UNKNOWN_TO_FIELD = {
 }
 
 
+def _relation_matches(expected: ExpectRelation, actual: RelationIntent) -> bool:
+    ends_e = {expected.a.strip(), expected.b.strip()}
+    ends_a = {actual.a.strip(), actual.b.strip()}
+    if ends_e != ends_a:
+        return False
+    if expected.kind is not None and actual.kind != expected.kind:
+        return False
+    return True
+
+
+def _score_relations(
+    expected: list[ExpectRelation],
+    actual: list[RelationIntent],
+) -> list[RelationHit]:
+    remaining = list(actual)
+    hits: list[RelationHit] = []
+    for exp in expected:
+        matched_i: int | None = None
+        for i, act in enumerate(remaining):
+            if _relation_matches(exp, act):
+                matched_i = i
+                break
+        if matched_i is not None:
+            remaining.pop(matched_i)
+            hits.append(RelationHit(expected=exp, hit=True))
+        else:
+            hits.append(RelationHit(expected=exp, hit=False))
+    return hits
+
+
+def _space_by_name(spec: RequirementSpec, name: str):
+    for sp in spec.spaces:
+        if sp.name == name or sp.id == name:
+            return sp
+    return None
+
+
+def _score_floor_prefs(
+    expected: list[ExpectFloorPreference],
+    spec: RequirementSpec,
+) -> list[FieldScore]:
+    out: list[FieldScore] = []
+    for exp in expected:
+        sp = _space_by_name(spec, exp.space_name)
+        actual = list(sp.floor_preference) if sp else None
+        hit = actual is not None and all(f in actual for f in exp.floors)
+        out.append(
+            FieldScore(
+                name=f"floor_pref:{exp.space_name}",
+                expected=list(exp.floors),
+                actual=actual,
+                hit=hit,
+            )
+        )
+    return out
+
+
+def _score_orientations(
+    expected: list[ExpectOrientation],
+    spec: RequirementSpec,
+) -> list[FieldScore]:
+    out: list[FieldScore] = []
+    for exp in expected:
+        sp = _space_by_name(spec, exp.space_name)
+        actual = sp.preferred_orientation if sp else None
+        actual_v = str(actual) if actual is not None else None
+        expected_v = str(exp.orientation)
+        hit = actual_v == expected_v
+        out.append(
+            FieldScore(
+                name=f"orientation:{exp.space_name}",
+                expected=expected_v,
+                actual=actual_v,
+                hit=hit,
+            )
+        )
+    return out
+
+
 def score_requirement_case(
     case: RequirementBenchmarkCase,
     spec: RequirementSpec,
     *,
     geometry_fail: bool = False,
+    attempts: int = 1,
+    parse_failed: bool = False,
+    latency_s: float = 0.0,
 ) -> CaseScore:
     """对照 gold expect 打分。"""
-    score = CaseScore(case_id=case.id, geometry_fail=geometry_fail)
+    score = CaseScore(
+        case_id=case.id,
+        geometry_fail=geometry_fail,
+        attempts=attempts,
+        parse_failed=parse_failed,
+        latency_s=latency_s,
+        unknown_expected=list(case.must_unknown),
+        unknown_predicted=[u.key for u in spec.unknowns],
+    )
     actual = _actual_map(spec)
 
     for name, expected in _expect_fields(case.expect):
@@ -124,12 +253,11 @@ def score_requirement_case(
         )
 
     for key in case.must_unknown:
-        field = _UNKNOWN_TO_FIELD.get(key, key)
-        got = actual.get(field)
+        field_key = _UNKNOWN_TO_FIELD.get(key, key)
+        got = actual.get(field_key)
         if got is not None:
             score.hallucinations.append(key)
 
-    # spaces 软约束
     names = {s.name for s in spec.spaces}
     for need in case.expect.space_names_contains:
         if need not in names:
@@ -141,5 +269,11 @@ def score_requirement_case(
             score.notes.append(
                 f"spaces<{case.expect.min_spaces}（实际 {len(spec.spaces)}）"
             )
+
+    actual_rels = list(spec.relation_intents)
+    score.relation_predicted = len(actual_rels)
+    score.relations = _score_relations(case.expect.relations, actual_rels)
+    score.floor_prefs = _score_floor_prefs(case.expect.floor_preferences, spec)
+    score.orientations = _score_orientations(case.expect.orientations, spec)
 
     return score

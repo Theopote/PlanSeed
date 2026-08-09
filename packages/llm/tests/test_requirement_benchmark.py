@@ -1,9 +1,12 @@
-"""Phase 6.6 — Requirement Benchmark。"""
+"""Phase 6.6/6.7 — Requirement Benchmark。"""
 
 from __future__ import annotations
 
 from packages.llm.benchmark import (
+    ExpectFloorPreference,
     ExpectKnown,
+    ExpectOrientation,
+    ExpectRelation,
     RequirementBenchmarkCase,
     benchmark_case_count,
     expect_to_draft,
@@ -12,17 +15,28 @@ from packages.llm.benchmark import (
     score_draft_against_case,
     score_requirement_case,
 )
+from packages.llm.semantic import RequirementSemanticValidator
 from packages.schema.requirements import (
     HouseholdRequirements,
+    RelationIntent,
     RequirementSpec,
     SiteRequirements,
+    SpaceRequirement,
 )
+from packages.schema.site import CardinalOrientation
 
 
 def test_corpus_size_at_least_50():
     assert benchmark_case_count() >= 50
     ids = [c.id for c in load_benchmark_cases()]
     assert len(ids) == len(set(ids))
+    assert any(c.id.startswith("rb-05") for c in load_benchmark_cases())
+
+
+def test_intent_cases_present():
+    intent = [c for c in load_benchmark_cases() if "intent" in c.tags]
+    assert len(intent) >= 5
+    assert any(c.expect.relations for c in intent)
 
 
 def test_score_hit_and_miss():
@@ -63,6 +77,76 @@ def test_score_hallucination_on_must_unknown():
     assert "site.width" in scored.hallucinations
 
 
+def test_score_relations_and_floor_pref():
+    case = RequirementBenchmarkCase(
+        id="t-rel",
+        text="厨房靠近餐厅，老人房一层",
+        expect=ExpectKnown(
+            relations=[ExpectRelation(a="厨房", b="餐厅", kind="adjacency")],
+            floor_preferences=[
+                ExpectFloorPreference(space_name="老人房", floors=["F1"]),
+            ],
+            orientations=[
+                ExpectOrientation(
+                    space_name="书房",
+                    orientation=CardinalOrientation.NORTH,
+                ),
+            ],
+            space_names_contains=["厨房", "餐厅", "老人房", "书房"],
+        ),
+    )
+    good = RequirementSpec(
+        spaces=[
+            SpaceRequirement(name="厨房"),
+            SpaceRequirement(name="餐厅"),
+            SpaceRequirement(name="老人房", floor_preference=["F1"]),
+            SpaceRequirement(
+                name="书房",
+                preferred_orientation=CardinalOrientation.NORTH,
+            ),
+        ],
+        relation_intents=[
+            RelationIntent(a="餐厅", b="厨房", kind="adjacency"),
+        ],
+    )
+    assert score_requirement_case(case, good).passed
+
+    bad = RequirementSpec(
+        spaces=[
+            SpaceRequirement(name="厨房"),
+            SpaceRequirement(name="餐厅"),
+            SpaceRequirement(name="老人房"),
+            SpaceRequirement(name="书房"),
+        ],
+        relation_intents=[],
+    )
+    scored = score_requirement_case(case, bad)
+    assert not scored.passed
+    assert scored.relation_hits == 0
+
+
+def test_oracle_draft_includes_intent():
+    case = RequirementBenchmarkCase(
+        id="t-oracle-intent",
+        text="厨房靠近餐厅",
+        expect=ExpectKnown(
+            floor_count=2,
+            space_names_contains=["厨房", "餐厅"],
+            relations=[ExpectRelation(a="厨房", b="餐厅", kind="adjacency")],
+            floor_preferences=[
+                ExpectFloorPreference(space_name="老人房", floors=["F1"]),
+            ],
+        ),
+        must_unknown=["site.width"],
+    )
+    draft = expect_to_draft(case)
+    assert "relation_intents" in draft["known"]
+    names = {s["name"] for s in draft["known"]["spaces"]}
+    assert "老人房" in names
+    scored = score_draft_against_case(case, draft)
+    assert scored.passed
+
+
 def test_oracle_draft_respects_must_unknown():
     case = RequirementBenchmarkCase(
         id="t-oracle",
@@ -86,5 +170,35 @@ def test_run_benchmark_oracle_perfect():
     assert report.case_pass_rate == 1.0
     assert report.hallucination_rate == 0.0
     assert report.geometry_fails == 0
+    assert report.relation_recall == 1.0
+    assert report.floor_preference_accuracy == 1.0
+    assert report.orientation_accuracy == 1.0
     summary = report.summary()
     assert summary["case_count"] >= 50
+    assert summary["mode"] == "oracle"
+
+
+def test_relation_endpoint_soft_issues_per_side():
+    """一端幻觉也要 soft warning（不能被另一端掩盖）。"""
+    spec = RequirementSpec(
+        spaces=[SpaceRequirement(name="厨房")],
+        relation_intents=[
+            RelationIntent(a="厨房", b="幻觉餐厅", kind="adjacency"),
+        ],
+    )
+    result = RequirementSemanticValidator().validate_spec(spec)
+    codes = {i.code for i in result.issues}
+    assert "req.relation_b_unknown" in codes
+    assert "req.relation_a_unknown" not in codes
+    assert result.ok  # soft only
+
+    both = RequirementSpec(
+        spaces=[SpaceRequirement(name="客厅")],
+        relation_intents=[
+            RelationIntent(a="厨房X", b="餐厅Y", kind="adjacency"),
+        ],
+    )
+    both_r = RequirementSemanticValidator().validate_spec(both)
+    both_codes = {i.code for i in both_r.issues}
+    assert "req.relation_a_unknown" in both_codes
+    assert "req.relation_b_unknown" in both_codes

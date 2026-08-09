@@ -106,16 +106,26 @@ class RequirementSemanticValidator:
                 )
             )
 
-        # relation 指向的名称：仅 soft 提示（spaces 可能尚未列全）
+        # relation 端点分别 soft 校验（一端幻觉不可被另一端掩盖）
         names = {s.name for s in spec.spaces} | {
             s.id for s in spec.spaces if s.id
         }
         for rel in spec.relation_intents:
-            if names and rel.a not in names and rel.b not in names:
+            if not names:
+                continue
+            if rel.a not in names:
                 out.issues.append(
                     SemanticIssue(
-                        code="req.relation_unknown",
-                        message=f"关系意图 {rel.a!r}–{rel.b!r} 未匹配任何 space",
+                        code="req.relation_a_unknown",
+                        message=f"关系意图端点 a={rel.a!r} 未匹配任何 space",
+                        hard=False,
+                    )
+                )
+            if rel.b not in names:
+                out.issues.append(
+                    SemanticIssue(
+                        code="req.relation_b_unknown",
+                        message=f"关系意图端点 b={rel.b!r} 未匹配任何 space",
                         hard=False,
                     )
                 )

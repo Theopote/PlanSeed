@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from packages.llm.benchmark.cases import (
@@ -15,6 +16,7 @@ from packages.llm.gate import LLMIngestError, ingest_llm_requirement
 from packages.llm.mock import MockLLMProvider
 from packages.llm.parser import parse_requirement_text
 from packages.llm.provider import LLMProvider
+from packages.llm.repair import LLMRepairExhaustedError, parse_requirement_text_with_repair
 from packages.schema.requirements import RequirementSpec
 
 
@@ -62,14 +64,31 @@ def expect_to_draft(
     if prefs:
         known["preferences"] = prefs
 
-    spaces: list[dict[str, Any]] = []
+    spaces_by_name: dict[str, dict[str, Any]] = {}
     for name in e.space_names_contains:
-        spaces.append({"name": name})
+        spaces_by_name[name] = {"name": name}
+    for fp in e.floor_preferences:
+        sp = spaces_by_name.setdefault(fp.space_name, {"name": fp.space_name})
+        sp["floor_preference"] = list(fp.floors)
+    for ori in e.orientations:
+        sp = spaces_by_name.setdefault(ori.space_name, {"name": ori.space_name})
+        sp["preferred_orientation"] = str(ori.orientation)
+    spaces = list(spaces_by_name.values())
     if e.min_spaces:
         while len(spaces) < e.min_spaces:
             spaces.append({"name": f"空间{len(spaces) + 1}"})
     if spaces:
         known["spaces"] = spaces
+
+    if e.relations:
+        known["relation_intents"] = [
+            {
+                "a": r.a,
+                "b": r.b,
+                **({"kind": r.kind} if r.kind is not None else {}),
+            }
+            for r in e.relations
+        ]
 
     unknowns = [
         {"key": k, "description": "用例要求保持未知"} for k in case.must_unknown
@@ -94,7 +113,6 @@ def make_oracle_provider(
         for text, case in corpus.items():
             if text in user:
                 return expect_to_draft(case)
-        # 回退：取 user 末段
         raise RuntimeError(f"oracle 未匹配用例文本：{user[:80]!r}")
 
     return MockLLMProvider(reply)
@@ -105,35 +123,67 @@ def run_benchmark(
     provider: LLMProvider | None = None,
     cases: list[RequirementBenchmarkCase] | None = None,
     use_oracle: bool = True,
+    with_repair: bool = False,
+    mode: str | None = None,
+    model: str | None = None,
 ) -> BenchmarkReport:
     """
     跑完整语料。
 
     默认 use_oracle=True（CI）；传入 provider 且 use_oracle=False 可测真模型。
+    with_repair=True 时走 parse_requirement_text_with_repair（真模型 qualification）。
     """
     corpus = cases or load_benchmark_cases()
     prov: LLMProvider
     if use_oracle:
         prov = make_oracle_provider(corpus)
+        report_mode = mode or "oracle"
     else:
         if provider is None:
             raise ValueError("use_oracle=False 时必须提供 provider")
         prov = provider
+        report_mode = mode or "real"
 
-    report = BenchmarkReport()
+    report = BenchmarkReport(mode=report_mode, model=model)
     for case in corpus:
         geometry_fail = False
+        parse_failed = False
+        attempts = 1
+        latency_s = 0.0
+        t0 = time.perf_counter()
         try:
-            parsed = parse_requirement_text(case.text, provider=prov)
+            if with_repair:
+                parsed = parse_requirement_text_with_repair(case.text, provider=prov)
+            else:
+                parsed = parse_requirement_text(case.text, provider=prov)
             spec = parsed.spec
+            attempts = parsed.attempts
         except GeometryForbiddenError:
             geometry_fail = True
+            parse_failed = True
+            spec = RequirementSpec(raw_text=case.text)
+        except LLMRepairExhaustedError as exc:
+            parse_failed = True
+            attempts = exc.attempts
             spec = RequirementSpec(raw_text=case.text)
         except LLMIngestError:
-            # 解析失败：记为空 spec，字段全 miss
+            parse_failed = True
             spec = RequirementSpec(raw_text=case.text)
+        except Exception:
+            parse_failed = True
+            spec = RequirementSpec(raw_text=case.text)
+        finally:
+            latency_s = time.perf_counter() - t0
+
         report.case_scores.append(
-            score_requirement_case(case, spec, geometry_fail=geometry_fail)
+            score_requirement_case(
+                case,
+                spec,
+                geometry_fail=geometry_fail,
+                attempts=attempts,
+                parse_failed=parse_failed,
+                latency_s=latency_s,
+            )
         )
     return report
 
@@ -151,4 +201,6 @@ def score_draft_against_case(
             case, RequirementSpec(raw_text=case.text), geometry_fail=True
         )
     except LLMIngestError:
-        return score_requirement_case(case, RequirementSpec(raw_text=case.text))
+        return score_requirement_case(
+            case, RequirementSpec(raw_text=case.text), parse_failed=True
+        )

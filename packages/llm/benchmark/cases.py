@@ -1,8 +1,42 @@
-"""Requirement Benchmark — 用例模型与语料（Phase 6.6）。"""
+"""Requirement Benchmark — 用例模型与语料（Phase 6.6 / 6.7）。"""
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+
+from packages.schema.requirements import RelationKind
+from packages.schema.site import CardinalOrientation
+
+
+class ExpectRelation(BaseModel):
+    """期望的设计关系意图（端点无序匹配；kind 可选）。"""
+
+    a: str
+    b: str
+    kind: RelationKind | None = None
+
+
+class ExpectFloorPreference(BaseModel):
+    """期望某空间的楼层偏好（须全部出现在 floor_preference 中）。"""
+
+    space_name: str
+    floors: list[str] = Field(min_length=1)
+
+
+class ExpectOrientation(BaseModel):
+    """期望某空间的朝向偏好。"""
+
+    space_name: str
+    orientation: CardinalOrientation
+
+
+class ExpectAssumption(BaseModel):
+    """期望显式列入 assumptions（须有可展示的 reason）。"""
+
+    key: str
+    value: str | int | float | bool | None = None
+    reason: str = "用例期望的显式假设"
+    require_reason: bool = True
 
 
 class ExpectKnown(BaseModel):
@@ -17,6 +51,10 @@ class ExpectKnown(BaseModel):
     prefer_south_facing_living: bool | None = None
     space_names_contains: list[str] = Field(default_factory=list)
     min_spaces: int | None = None
+    # Phase 6.7 — 设计意图
+    relations: list[ExpectRelation] = Field(default_factory=list)
+    floor_preferences: list[ExpectFloorPreference] = Field(default_factory=list)
+    orientations: list[ExpectOrientation] = Field(default_factory=list)
 
 
 class RequirementBenchmarkCase(BaseModel):
@@ -24,8 +62,10 @@ class RequirementBenchmarkCase(BaseModel):
     text: str
     tags: list[str] = Field(default_factory=list)
     expect: ExpectKnown = Field(default_factory=ExpectKnown)
-    # 这些 key 不得出现在 known 的对应字段（应 unknown 或不填）
+    # 这些 key 不得装进 known；且必须显式出现在 unknowns（Detection Recall）
     must_unknown: list[str] = Field(default_factory=list)
+    # 允许/期望的显式假设（Assumption Precision）
+    expect_assumptions: list[ExpectAssumption] = Field(default_factory=list)
 
 
 def _c(
@@ -35,6 +75,7 @@ def _c(
     tags: list[str] | None = None,
     expect: ExpectKnown | None = None,
     must_unknown: list[str] | None = None,
+    expect_assumptions: list[ExpectAssumption] | None = None,
 ) -> RequirementBenchmarkCase:
     return RequirementBenchmarkCase(
         id=id,
@@ -42,11 +83,12 @@ def _c(
         tags=tags or [],
         expect=expect or ExpectKnown(),
         must_unknown=must_unknown or [],
+        expect_assumptions=expect_assumptions or [],
     )
 
 
 def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
-    """内置中文住宅需求语料（≥50）。"""
+    """内置中文住宅需求语料（≥50；含 6.7 设计意图子集）。"""
     cases: list[RequirementBenchmarkCase] = [
         _c(
             "rb-001",
@@ -530,6 +572,174 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
             tags=["anti-hallucination"],
             expect=ExpectKnown(floor_count=1, bedrooms=2),
             must_unknown=["site.width", "site.depth"],
+        ),
+        # —— Phase 6.7：设计意图（关系 / 楼层偏好 / 朝向）——
+        _c(
+            "rb-053",
+            "两层三卧，厨房靠近餐厅，客厅与餐厅连通",
+            tags=["relation", "intent"],
+            expect=ExpectKnown(
+                floor_count=2,
+                bedrooms=3,
+                space_names_contains=["厨房", "餐厅", "客厅"],
+                relations=[
+                    ExpectRelation(a="厨房", b="餐厅", kind="adjacency"),
+                    ExpectRelation(a="客厅", b="餐厅", kind="adjacency"),
+                ],
+            ),
+            must_unknown=["site.width", "site.depth"],
+        ),
+        _c(
+            "rb-054",
+            "两层三卧，主卧远离入口，儿童房靠近主卧",
+            tags=["relation", "intent"],
+            expect=ExpectKnown(
+                floor_count=2,
+                bedrooms=3,
+                space_names_contains=["主卧", "入口", "儿童房"],
+                relations=[
+                    ExpectRelation(a="主卧", b="入口", kind="separation"),
+                    ExpectRelation(a="儿童房", b="主卧", kind="adjacency"),
+                ],
+            ),
+            must_unknown=["site.width"],
+        ),
+        _c(
+            "rb-055",
+            "两层四卧，老人房放一层，书房朝北",
+            tags=["floor_pref", "orientation", "intent"],
+            expect=ExpectKnown(
+                floor_count=2,
+                bedrooms=4,
+                space_names_contains=["老人房", "书房"],
+                floor_preferences=[
+                    ExpectFloorPreference(space_name="老人房", floors=["F1"]),
+                ],
+                orientations=[
+                    ExpectOrientation(
+                        space_name="书房",
+                        orientation=CardinalOrientation.NORTH,
+                    ),
+                ],
+            ),
+            must_unknown=["site.width", "site.depth"],
+        ),
+        _c(
+            "rb-056",
+            "两层三卧两卫带车库，车库与门厅内部相连，客厅朝南",
+            tags=["relation", "garage", "orientation", "intent"],
+            expect=ExpectKnown(
+                floor_count=2,
+                bedrooms=3,
+                bathrooms=2,
+                has_garage=True,
+                prefer_south_facing_living=True,
+                space_names_contains=["车库", "门厅"],
+                relations=[
+                    ExpectRelation(a="车库", b="门厅", kind="access"),
+                ],
+            ),
+            must_unknown=["site.width"],
+        ),
+        _c(
+            "rb-057",
+            "三层四卧，老人房放一层，主卧远离客厅，儿童房靠近主卧",
+            tags=["relation", "floor_pref", "intent", "3f"],
+            expect=ExpectKnown(
+                floor_count=3,
+                bedrooms=4,
+                space_names_contains=["老人房", "主卧", "客厅", "儿童房"],
+                floor_preferences=[
+                    ExpectFloorPreference(space_name="老人房", floors=["F1"]),
+                ],
+                relations=[
+                    ExpectRelation(a="主卧", b="客厅", kind="separation"),
+                    ExpectRelation(a="儿童房", b="主卧", kind="adjacency"),
+                ],
+            ),
+            must_unknown=["site.width", "site.depth"],
+        ),
+        _c(
+            "rb-058",
+            "两层三卧，客餐厅连通，客房保持私密远离客厅",
+            tags=["relation", "intent"],
+            expect=ExpectKnown(
+                floor_count=2,
+                bedrooms=3,
+                space_names_contains=["客厅", "餐厅", "客房"],
+                relations=[
+                    ExpectRelation(a="客厅", b="餐厅", kind="adjacency"),
+                    ExpectRelation(a="客房", b="客厅", kind="separation"),
+                ],
+            ),
+            must_unknown=["site.width"],
+        ),
+        _c(
+            "rb-059",
+            "一层两卧，厨房靠近餐厅；场地宽深未知勿编造",
+            tags=["relation", "intent", "anti-hallucination", "1f"],
+            expect=ExpectKnown(
+                floor_count=1,
+                bedrooms=2,
+                space_names_contains=["厨房", "餐厅"],
+                relations=[
+                    ExpectRelation(a="厨房", b="餐厅", kind="adjacency"),
+                ],
+            ),
+            must_unknown=["site.width", "site.depth"],
+        ),
+        _c(
+            "rb-060",
+            "两层四卧，客厅朝南，书房朝北，老人房放一层",
+            tags=["orientation", "floor_pref", "intent"],
+            expect=ExpectKnown(
+                floor_count=2,
+                bedrooms=4,
+                prefer_south_facing_living=True,
+                space_names_contains=["客厅", "书房", "老人房"],
+                orientations=[
+                    ExpectOrientation(
+                        space_name="客厅",
+                        orientation=CardinalOrientation.SOUTH,
+                    ),
+                    ExpectOrientation(
+                        space_name="书房",
+                        orientation=CardinalOrientation.NORTH,
+                    ),
+                ],
+                floor_preferences=[
+                    ExpectFloorPreference(space_name="老人房", floors=["F1"]),
+                ],
+            ),
+            must_unknown=["site.width"],
+        ),
+        # —— Unknown Detection / Assumption：稀疏需求必须显式列 unknowns ——
+        _c(
+            "rb-061",
+            "给我设计一个三口之家。",
+            tags=["sparse", "unknown-detection", "anti-hallucination"],
+            expect=ExpectKnown(),
+            must_unknown=[
+                "floor_count",
+                "site.width",
+                "site.depth",
+                "household.bedrooms",
+                "household.bathrooms",
+            ],
+        ),
+        _c(
+            "rb-062",
+            "两层小住宅，卧室数先按普通三口之家假设为三间，但必须标明是假设；场地宽深未知",
+            tags=["assumption", "unknown-detection"],
+            expect=ExpectKnown(floor_count=2),
+            must_unknown=["site.width", "site.depth", "household.bathrooms"],
+            expect_assumptions=[
+                ExpectAssumption(
+                    key="household.bedrooms",
+                    value=3,
+                    reason="用户要求按普通三口之家假设卧室数",
+                ),
+            ],
         ),
     ]
     return cases

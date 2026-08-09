@@ -1,6 +1,6 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：✅ Phase 6 收口（6.0–6.6 Done）**  
+> **状态：✅ 6.0–6.6 框架收口 · 🚧 6.7 Real Model Qualification**  
 > 总览：[roadmap.md](roadmap.md)  
 > 前置：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
 
@@ -37,9 +37,10 @@ NL → Local LLM → RequirementSpec
 | **6.3** | Validation + Repair | schema + semantic gate；非法拒收/修 JSON | ✅ |
 | **6.4** | Assumption / Unknown UI | 显式假设与未知；禁止偷偷补全 | ✅ |
 | **6.5** | NL → Generate | Workbench 接入口 | ✅ |
-| **6.6** | Requirement Benchmark | ~50 条住宅需求；准确率而非「聪明感」 | ✅ |
+| **6.6** | Requirement Benchmark | 语料 + oracle harness（≠ 真模型准确率） | ✅ |
+| **6.7** | Real Model Qualification | 真模型 Alpha Baseline + 设计意图评分 | 🚧 |
 
-详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)
 
 ## 第一版不做
 
@@ -76,8 +77,6 @@ class LLMProvider(Protocol):
 
 ## Definition of Done（整 Phase）
 
-1. NL → RequirementSpec 稳定、可验证 ✅  
+1. NL → RequirementSpec 稳定、可验证 ✅（框架）  
 2. 输出永不含几何 ✅  
-3. Assumption / Unknown 可解释 ✅  
-4. Requirement Benchmark 有基线（≥50 + 字段准确率） ✅  
-5. Desktop 仍以 RequirementSpec 为事实源（5.1.1） ✅
+3. 真模型可靠度以 6.7 Alpha Baseline 为准（非 CI oracle 100%）

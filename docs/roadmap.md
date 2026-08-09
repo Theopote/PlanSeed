@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6 ✅ · 下一 Phase 7+** · LLM 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
-> **6.0–6.6 ✅** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 6.7 Real Model Qualification** · LLM 详案：[phase-6-local-llm.md](phase-6-local-llm.md)  
+> **6.0–6.6 ✅ 框架** · **6.7 🚧** · **5.1.1 / 5.1 ✅** · 3.6 runtime ✅ · 契约：[api-contract.md](api-contract.md)
 
 ## 阶段总览（以代码为准）
 
@@ -14,8 +14,9 @@
 | **5** | **Project Persistence** | **✅ P0/P1** |
 | **5.1** | **Revision Integrity & Mutation Single Source** | **✅ P0** |
 | **5.1.1** | **Program Fidelity Gate** | **✅ P0** |
-| **6** | **Local LLM Requirement Parsing** | **✅** |
-| **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | **← 下一** |
+| **6** | **Local LLM Requirement Parsing** | **✅ 框架（6.0–6.6）** |
+| **6.7** | **Real Model Qualification** | **← 当前** |
+| **7+** | **Export / Advanced Analysis**（含 packaging 硬化、跨平台） | 其后 |
 | — | SVG Debug | ✅ 开发工具 |
 
 **平台纪律：** Desktop Alpha **只交付 Windows 10/11 x64**；禁止并行搞 macOS/Linux packaging 拖慢主线。  
@@ -255,7 +256,7 @@ LLM 前极短闸门：canonical `RequirementSpec` 往返 + revalidate 楼梯 met
 
 ---
 
-## Phase 6 — Local LLM Requirement Parsing ✅
+## Phase 6 — Local LLM Requirement Parsing（框架 ✅ · 可靠度见 6.7）
 
 详案：[phase-6-local-llm.md](phase-6-local-llm.md)
 
@@ -273,9 +274,10 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 | **6.3** | Validation + Repair | ✅ |
 | **6.4** | Assumption / Unknown UI | ✅ |
 | **6.5** | NL → Generate | ✅ |
-| **6.6** | Requirement Benchmark | ✅ |
+| **6.6** | Requirement Benchmark（oracle harness ≠ 真模型准确率） | ✅ |
+| **6.7** | Real Model Qualification（Alpha Baseline） | 🚧 |
 
-详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
+详案：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md) · [phase-6.1-ollama-provider.md](phase-6.1-ollama-provider.md) · [phase-6.2-structured-parser.md](phase-6.2-structured-parser.md) · [phase-6.3-validation-repair.md](phase-6.3-validation-repair.md) · [phase-6.4-assumption-unknown-ui.md](phase-6.4-assumption-unknown-ui.md) · [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) · [phase-6.6-requirement-benchmark.md](phase-6.6-requirement-benchmark.md) · [phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md) · [phase-6-local-llm.md](phase-6-local-llm.md)
 
 ### Phase 6.0 — LLM Boundary ✅
 
@@ -325,14 +327,24 @@ Natural Language → (Ollama) → RequirementSpec → validate → normalize →
 
 - [x] ≥50 条中文住宅用例（`packages/llm/benchmark/cases.py`）
 - [x] 字段准确率 + must_unknown 反幻觉评分
-- [x] CI oracle Mock：`field_accuracy` / `case_pass_rate` = 1.0
+- [x] CI oracle Mock：`field_accuracy` / `case_pass_rate` = 1.0（**仅 harness**）
 - [x] 真模型可选：`run_benchmark(use_oracle=False, provider=…)`
 
-**Phase 6 已收口。**
+**Phase 6 框架已收口；可靠度不由 oracle 100% 代表。**
+
+### Phase 6.7 — Real Model Qualification 🚧
+
+详案：[phase-6.7-real-model-qualification.md](phase-6.7-real-model-qualification.md)
+
+- [x] 文档纠偏：Harness Oracle Pass ≠ Real Model Accuracy
+- [x] relation 端点分别 soft 校验（`req.relation_a_unknown` / `b`）
+- [x] Benchmark v2：`relations` / `floor_preferences` / `orientations` + unknown P·R
+- [x] `uv run python -m packages.llm.benchmark.qualify` 真模型 CLI
+- [ ] 完整 `qwen2.5:7b` 跑分写入 `docs/baselines/llm-alpha-baseline.json`
 
 ---
 
-## Phase 7+ — Export / Advanced Analysis（未开始）
+## Phase 7+ — Export / Advanced Analysis（6.7 之后）
 
 - Export（图纸 / 数据）  
 - Advanced analysis  
