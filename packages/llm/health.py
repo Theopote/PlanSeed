@@ -10,7 +10,7 @@ Idle 探测（GET /api/llm/status）：
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from packages.llm.factory import (
@@ -25,7 +25,7 @@ from packages.llm.ollama import (
 )
 
 
-class LlmHealthState(str, Enum):
+class LlmHealthState(StrEnum):
     LLM_UNAVAILABLE = "LLMUnavailable"
     MODEL_MISSING = "ModelMissing"
     MODEL_READY = "ModelReady"

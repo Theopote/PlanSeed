@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from packages.llm.boundary import GeometryForbiddenError
 from packages.llm.gate import LLMIngestError
@@ -15,7 +15,7 @@ _GEOMETRY_CODES = frozenset({"req.geometry_forbidden"})
 _SCHEMA_CODES = frozenset({"req.draft_schema"})
 
 
-class FailureKind(str, Enum):
+class FailureKind(StrEnum):
     SCHEMA_FAIL = "schema_fail"
     SEMANTIC_FAIL = "semantic_fail"
     GEOMETRY_VIOLATION = "geometry_violation"

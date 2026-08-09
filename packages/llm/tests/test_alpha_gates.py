@@ -1,5 +1,5 @@
-from packages.llm.benchmark.gates import evaluate_alpha_gates
 from packages.llm.benchmark import run_benchmark
+from packages.llm.benchmark.gates import evaluate_alpha_gates
 
 
 def test_oracle_passes_alpha_gates():
