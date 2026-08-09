@@ -12,6 +12,7 @@ from packages.llm.benchmark.cases import (
     ExpectRelation,
     RequirementBenchmarkCase,
 )
+from packages.llm.benchmark.failure import FailureKind
 from packages.schema.requirements import Assumption, RelationIntent, RequirementSpec
 
 
@@ -57,6 +58,9 @@ class CaseScore:
     attempts: int = 1
     parse_failed: bool = False
     latency_s: float = 0.0
+    # 失败归因（十六）：主因 + repair 结局
+    failure_kind: FailureKind | None = None
+    repair_exhausted: bool = False
 
     @property
     def field_hits(self) -> int:
@@ -77,6 +81,11 @@ class CaseScore:
     @property
     def repaired(self) -> bool:
         return self.attempts > 1
+
+    @property
+    def repair_success(self) -> bool:
+        """曾进入 repair 且最终 ingest 成功（未必整案 passed）。"""
+        return self.repaired and not self.parse_failed and not self.repair_exhausted
 
     @property
     def unknown_tp(self) -> int:
@@ -304,6 +313,8 @@ def score_requirement_case(
     attempts: int = 1,
     parse_failed: bool = False,
     latency_s: float = 0.0,
+    failure_kind: FailureKind | None = None,
+    repair_exhausted: bool = False,
 ) -> CaseScore:
     """对照 gold expect 打分。"""
     score = CaseScore(
@@ -312,6 +323,8 @@ def score_requirement_case(
         attempts=attempts,
         parse_failed=parse_failed,
         latency_s=latency_s,
+        failure_kind=failure_kind,
+        repair_exhausted=repair_exhausted,
         unknown_expected=list(case.must_unknown),
         unknown_predicted=[u.key for u in spec.unknowns],
     )

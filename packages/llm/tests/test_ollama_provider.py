@@ -113,6 +113,49 @@ def test_is_available():
     assert provider.is_available() is True
 
 
+def test_is_model_available_exact_and_latest_alias():
+    from packages.llm.ollama import model_name_matches
+
+    assert model_name_matches("qwen2.5:7b", "qwen2.5:7b")
+    assert model_name_matches("qwen2.5:latest", "qwen2.5")
+    assert not model_name_matches("llama3:8b", "qwen2.5:7b")
+
+    def tags(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/tags"
+        return httpx.Response(
+            200,
+            json={
+                "models": [
+                    {"name": "llama3:8b"},
+                    {"name": "qwen2.5:7b"},
+                ]
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(tags))
+    provider = OllamaProvider(
+        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        client=client,
+    )
+    assert provider.is_model_available() is True
+    assert provider.is_model_available("llama3:8b") is True
+    assert provider.is_model_available("missing:1b") is False
+    assert provider.list_models() == ["llama3:8b", "qwen2.5:7b"]
+
+
+def test_is_model_available_server_down():
+    def boom(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(boom))
+    provider = OllamaProvider(
+        OllamaConfig(base_url="http://t", model="qwen2.5:7b"),
+        client=client,
+    )
+    assert provider.is_available() is False
+    assert provider.is_model_available() is False
+
+
 def test_factory_load_config_and_mock():
     cfg = load_ollama_config(
         environ={

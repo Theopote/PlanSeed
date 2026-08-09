@@ -246,6 +246,69 @@ def test_run_benchmark_oracle_perfect():
     assert summary["mode"] == "oracle"
     assert "unknown_detection_recall" in summary
     assert "assumption_precision" in summary
+    assert summary["schema_fail"] == 0
+    assert summary["semantic_fail"] == 0
+    assert summary["geometry_violation"] == 0
+    assert summary["json_parse_fail"] == 0
+    assert summary["repair_exhausted"] == 0
+    assert summary["repair_success"] == 0
+
+
+def test_failure_taxonomy_schema_and_repair():
+    from packages.llm.benchmark.failure import FailureKind
+    from packages.llm.mock import MockLLMProvider
+
+    case = RequirementBenchmarkCase(
+        id="t-tax-schema",
+        text="坏草稿",
+        expect=ExpectKnown(floor_count=1),
+    )
+    # 非 object → json；缺 known 结构用非法类型触发 schema
+    bad_schema = {"known": "not-an-object", "assumptions": [], "unknowns": []}
+    provider = MockLLMProvider([bad_schema, bad_schema, bad_schema])
+    report = run_benchmark(
+        provider=provider,
+        cases=[case],
+        use_oracle=False,
+        with_repair=True,
+    )
+    scored = report.case_scores[0]
+    assert scored.parse_failed
+    assert scored.repair_exhausted
+    assert scored.failure_kind == FailureKind.SCHEMA_FAIL
+    assert report.summary()["schema_fail"] == 1
+    assert report.summary()["repair_exhausted"] == 1
+
+    # repair 成功
+    bad_sem = {
+        "known": {
+            "floor_count": 1,
+            "spaces": [{"name": "书房", "floor_preference": ["F2"]}],
+        },
+        "assumptions": [],
+        "unknowns": [],
+    }
+    good = {
+        "known": {
+            "floor_count": 1,
+            "spaces": [{"name": "书房", "floor_preference": ["F1"]}],
+        },
+        "assumptions": [],
+        "unknowns": [],
+    }
+    ok_case = RequirementBenchmarkCase(
+        id="t-tax-repair-ok",
+        text="一层带书房",
+        expect=ExpectKnown(floor_count=1),
+    )
+    report2 = run_benchmark(
+        provider=MockLLMProvider([bad_sem, good]),
+        cases=[ok_case],
+        use_oracle=False,
+        with_repair=True,
+    )
+    assert report2.case_scores[0].repair_success
+    assert report2.summary()["repair_success"] == 1
 
 
 def test_relation_endpoint_soft_issues_per_side():

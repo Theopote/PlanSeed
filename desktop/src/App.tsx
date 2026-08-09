@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   checkHealth,
+  fetchLlmStatus,
   generateBenchmark,
   generateFromForm,
   generateFromProgram,
@@ -23,6 +24,8 @@ import {
   type LockedRoomRect,
   type LockedStairCore,
   type LockedZoneRect,
+  type LlmHealthState,
+  type LlmStatusPayload,
   type MutationPreviewApiResult,
   type MutationRecordPayload,
   type ProgramSummary,
@@ -115,6 +118,10 @@ function App() {
   const [form, setForm] = useState<RequirementForm>(DEFAULT_FORM);
   const [engineStatus, setEngineStatus] = useState<EngineLifecycle>("STARTING");
   const [engineHint, setEngineHint] = useState<string | null>(null);
+  const [llmStatus, setLlmStatus] = useState<LlmStatusPayload | null>(null);
+  const [llmSessionState, setLlmSessionState] = useState<LlmHealthState | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [program, setProgram] = useState<ProgramSummary | null>(null);
@@ -261,6 +268,35 @@ function App() {
       unlisten?.();
     };
   }, [applyEngineStatus]);
+
+  useEffect(() => {
+    if (engineStatus !== "READY") {
+      setLlmStatus(null);
+      setLlmSessionState(null);
+      return;
+    }
+    let cancelled = false;
+    async function refresh() {
+      const status = await fetchLlmStatus();
+      if (cancelled) return;
+      setLlmStatus(status);
+      setLlmSessionState((prev) => {
+        if (prev === "ParseRunning" || prev === "ParseFailed") return prev;
+        return null;
+      });
+    }
+    void refresh();
+    const id = window.setInterval(() => {
+      void refresh();
+    }, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [engineStatus]);
+
+  const displayLlmState: LlmHealthState | null =
+    llmSessionState ?? llmStatus?.state ?? null;
 
   const onRetryEngine = useCallback(async () => {
     applyEngineStatus("STARTING");
@@ -539,6 +575,7 @@ function App() {
 
   const onParseNl = useCallback(async () => {
     setNlBusy(true);
+    setLlmSessionState("ParseRunning");
     setNlHint(null);
     setError(null);
     try {
@@ -549,8 +586,11 @@ function App() {
           ? `已解析（含 ${data.attempts - 1} 次修复）· ${data.provider}`
           : `已解析 · ${data.provider}`;
       setNlHint(notes);
+      setLlmSessionState(null);
+      void fetchLlmStatus().then(setLlmStatus);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setLlmSessionState("ParseFailed");
     } finally {
       setNlBusy(false);
     }
@@ -559,6 +599,7 @@ function App() {
   const onParseAndGenerate = useCallback(async () => {
     setNlBusy(true);
     setLoading(true);
+    setLlmSessionState("ParseRunning");
     setNlHint(null);
     setError(null);
     try {
@@ -575,8 +616,11 @@ function App() {
           ? `已解析并生成（修复 ${parsed.attempts - 1} 次）`
           : "已解析并生成";
       setNlHint(notes);
+      setLlmSessionState(null);
+      void fetchLlmStatus().then(setLlmStatus);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setLlmSessionState("ParseFailed");
     } finally {
       setNlBusy(false);
       setLoading(false);
@@ -1339,6 +1383,9 @@ function App() {
           loading={loading}
           engineStatus={engineStatus}
           onRetryEngine={() => void onRetryEngine()}
+          llmState={displayLlmState}
+          llmModel={llmStatus?.model ?? null}
+          llmDetail={llmStatus?.detail ?? null}
           program={program}
           requirementSpec={requirementSpec}
           onUpdateAssumption={onUpdateAssumption}

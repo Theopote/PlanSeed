@@ -14,7 +14,7 @@ from packages.llm.parser import (
     build_user_prompt,
 )
 from packages.llm.provider import LLMProvider
-from packages.llm.semantic import RequirementSemanticValidator
+from packages.llm.semantic import RequirementSemanticValidator, SemanticIssue
 
 DEFAULT_MAX_REPAIRS = 2
 
@@ -47,8 +47,9 @@ class LLMRepairExhaustedError(LLMIngestError):
         errors: list[str],
         attempts: int,
         last_raw: dict[str, Any] | None = None,
+        issues: list[SemanticIssue] | None = None,
     ) -> None:
-        super().__init__(message)
+        super().__init__(message, issues=issues or [])
         self.errors = errors
         self.attempts = attempts
         self.last_raw = last_raw
@@ -138,7 +139,16 @@ def parse_requirement_text_with_repair(
         errors=list(notes),
         attempts=max_attempts,
         last_raw=last_raw,
+        issues=_issues_from_exc(last_exc),
     ) from last_exc
+
+
+def _issues_from_exc(exc: BaseException | None) -> list[SemanticIssue]:
+    if isinstance(exc, LLMIngestError) and exc.issues:
+        return list(exc.issues)
+    if isinstance(exc, OllamaResponseError):
+        return [SemanticIssue(code="req.json", message=str(exc))]
+    return []
 
 
 def parse_with_repair(

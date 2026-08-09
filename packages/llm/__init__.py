@@ -14,6 +14,12 @@ from packages.llm.factory import (
     resolve_provider_kind,
 )
 from packages.llm.gate import IngestResult, LLMIngestError, ingest_llm_requirement
+from packages.llm.health import (
+    LlmHealthState,
+    LlmHealthStatus,
+    model_missing_message,
+    probe_llm_health,
+)
 from packages.llm.mock import MockLLMProvider
 from packages.llm.ollama import (
     OllamaConfig,
@@ -22,6 +28,7 @@ from packages.llm.ollama import (
     OllamaHTTPError,
     OllamaProvider,
     OllamaResponseError,
+    model_name_matches,
 )
 from packages.llm.parser import (
     ParseResult,
@@ -58,6 +65,8 @@ __all__ = [
     "IngestResult",
     "LLMIngestError",
     "LLMRepairExhaustedError",
+    "LlmHealthState",
+    "LlmHealthStatus",
     "ingest_llm_requirement",
     "MockLLMProvider",
     "LLMProvider",
@@ -77,9 +86,12 @@ __all__ = [
     "draft_json_schema",
     "get_shared_requirement_provider",
     "load_ollama_config",
+    "model_missing_message",
+    "model_name_matches",
     "parse_requirement_text",
     "parse_requirement_text_with_repair",
     "parse_with_repair",
+    "probe_llm_health",
     "reset_shared_requirement_provider",
     "resolve_provider_kind",
     "set_shared_requirement_provider",

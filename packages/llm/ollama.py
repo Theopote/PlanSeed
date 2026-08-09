@@ -77,12 +77,45 @@ class OllamaProvider:
         self.close()
 
     def is_available(self) -> bool:
-        """探测 `/api/tags`；失败返回 False（不抛）。"""
+        """探测 `/api/tags`；失败返回 False（不抛）。
+
+        仅表示 Ollama server 可达，不代表配置模型已安装。
+        """
         try:
             r = self._client.get(self.config.tags_url())
             return r.status_code == 200
         except httpx.HTTPError:
             return False
+
+    def list_models(self) -> list[str]:
+        """返回 `/api/tags` 中的模型名；连接失败抛 OllamaConnectionError。"""
+        try:
+            r = self._client.get(self.config.tags_url())
+        except httpx.RequestError as exc:
+            raise OllamaConnectionError(
+                f"无法连接 Ollama（{self.config.base_url}）：{exc}"
+            ) from exc
+        if r.status_code >= 400:
+            raise OllamaHTTPError(r.status_code, (r.text or "")[:500])
+        try:
+            payload = r.json()
+        except json.JSONDecodeError as exc:
+            raise OllamaResponseError(f"Ollama /api/tags 非 JSON：{exc}") from exc
+        return _extract_model_names(payload)
+
+    def is_model_available(self, model: str | None = None) -> bool:
+        """配置模型（或指定 model）是否已出现在 `/api/tags`。
+
+        server 不可达时返回 False（不抛）。不触发 pull / 下载。
+        """
+        target = (model or self.config.model).strip()
+        if not target:
+            return False
+        try:
+            names = self.list_models()
+        except OllamaError:
+            return False
+        return any(model_name_matches(installed, target) for installed in names)
 
     def complete_json(self, *, system: str, user: str) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -118,6 +151,37 @@ class OllamaProvider:
 
         content = _extract_message_content(payload)
         return _parse_json_object(content)
+
+
+def model_name_matches(installed: str, requested: str) -> bool:
+    """Ollama 模型名匹配：精确相等，或 base+tag（缺省 tag 视为 latest）。"""
+    if installed == requested:
+        return True
+    ib, it = _split_model_ref(installed)
+    rb, rt = _split_model_ref(requested)
+    return ib == rb and it == rt
+
+
+def _split_model_ref(name: str) -> tuple[str, str]:
+    base, sep, tag = name.partition(":")
+    if not sep:
+        return name, "latest"
+    return base, tag
+
+
+def _extract_model_names(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    models = payload.get("models")
+    if not isinstance(models, list):
+        return []
+    names: list[str] = []
+    for item in models:
+        if isinstance(item, dict):
+            name = item.get("name")
+            if isinstance(name, str) and name.strip():
+                names.append(name.strip())
+    return names
 
 
 def _extract_message_content(payload: Any) -> str:

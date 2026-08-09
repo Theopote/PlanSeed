@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from packages.llm.benchmark.failure import FailureKind
 from packages.llm.benchmark.score import CaseScore
 
 
@@ -81,6 +82,47 @@ class BenchmarkReport:
         if not self.case_scores:
             return 0.0
         return sum(c.latency_s for c in self.case_scores) / len(self.case_scores)
+
+    @property
+    def schema_fails(self) -> int:
+        return sum(
+            1
+            for c in self.case_scores
+            if c.failure_kind == FailureKind.SCHEMA_FAIL
+        )
+
+    @property
+    def semantic_fails(self) -> int:
+        return sum(
+            1
+            for c in self.case_scores
+            if c.failure_kind == FailureKind.SEMANTIC_FAIL
+        )
+
+    @property
+    def geometry_violations(self) -> int:
+        """按 failure_kind 统计；与 geometry_fails（legacy flag）互补。"""
+        return sum(
+            1
+            for c in self.case_scores
+            if c.failure_kind == FailureKind.GEOMETRY_VIOLATION or c.geometry_fail
+        )
+
+    @property
+    def json_parse_fails(self) -> int:
+        return sum(
+            1
+            for c in self.case_scores
+            if c.failure_kind == FailureKind.JSON_PARSE_FAIL
+        )
+
+    @property
+    def repair_successes(self) -> int:
+        return sum(1 for c in self.case_scores if c.repair_success)
+
+    @property
+    def repair_exhausted_count(self) -> int:
+        return sum(1 for c in self.case_scores if c.repair_exhausted)
 
     @property
     def relation_hits(self) -> int:
@@ -211,6 +253,12 @@ class BenchmarkReport:
             "geometry_fails": self.geometry_fails,
             "parse_failure_rate": round(self.parse_failure_rate, 4),
             "repair_rate": round(self.repair_rate, 4),
+            "schema_fail": self.schema_fails,
+            "semantic_fail": self.semantic_fails,
+            "geometry_violation": self.geometry_violations,
+            "json_parse_fail": self.json_parse_fails,
+            "repair_success": self.repair_successes,
+            "repair_exhausted": self.repair_exhausted_count,
             "average_attempts": round(self.average_attempts, 4),
             "average_latency_s": round(self.average_latency_s, 4),
             "relation_recall": round(self.relation_recall, 4),

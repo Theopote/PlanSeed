@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type {
   EngineLifecycle,
+  LlmHealthState,
   ProgramSummary,
   RejectedCandidatePayload,
   RequirementForm,
@@ -25,6 +26,9 @@ type Props = {
   loading: boolean;
   engineStatus: EngineLifecycle;
   onRetryEngine: () => void;
+  llmState?: LlmHealthState | null;
+  llmModel?: string | null;
+  llmDetail?: string | null;
   program: ProgramSummary | null;
   requirementSpec: RequirementSpecPayload | null;
   onUpdateAssumption: (
@@ -67,6 +71,21 @@ function statusLabel(status: EngineLifecycle): string {
   }
 }
 
+function llmStatusLabel(state: LlmHealthState): string {
+  switch (state) {
+    case "ModelReady":
+      return "模型就绪";
+    case "ModelMissing":
+      return "模型未安装";
+    case "LLMUnavailable":
+      return "Ollama 不可用";
+    case "ParseRunning":
+      return "解析中…";
+    case "ParseFailed":
+      return "解析失败";
+  }
+}
+
 export function RequirementsPanel({
   form,
   onChange,
@@ -81,6 +100,9 @@ export function RequirementsPanel({
   loading,
   engineStatus,
   onRetryEngine,
+  llmState = null,
+  llmModel = null,
+  llmDetail = null,
   program,
   requirementSpec,
   onUpdateAssumption,
@@ -100,6 +122,10 @@ export function RequirementsPanel({
   const [rejectedOpen, setRejectedOpen] = useState(true);
   const [retryBusy, setRetryBusy] = useState(false);
   const engineReady = engineStatus === "READY";
+  const canParseNl =
+    engineReady &&
+    llmState !== "ModelMissing" &&
+    llmState !== "LLMUnavailable";
   const gaps = resolveRequirementGaps(requirementSpec, program);
 
   useEffect(() => {
@@ -138,6 +164,25 @@ export function RequirementsPanel({
         >
           引擎 {statusLabel(engineStatus)}
         </p>
+        {llmState ? (
+          <p
+            className={`api-status ${
+              llmState === "ModelReady"
+                ? "ok"
+                : llmState === "ModelMissing" ||
+                    llmState === "LLMUnavailable" ||
+                    llmState === "ParseFailed"
+                  ? "bad"
+                  : ""
+            }`}
+          >
+            AI {llmStatusLabel(llmState)}
+            {llmModel ? ` · ${llmModel}` : ""}
+          </p>
+        ) : null}
+        {llmState === "ModelMissing" && llmDetail ? (
+          <p className="warn-hint llm-hint">{llmDetail}</p>
+        ) : null}
         {(engineStatus === "ERROR" ||
           engineStatus === "STOPPED" ||
           retryBusy) && (
@@ -207,7 +252,7 @@ export function RequirementsPanel({
             type="button"
             className="secondary"
             disabled={
-              !engineReady || loading || nlBusy || !nlText.trim()
+              !canParseNl || loading || nlBusy || !nlText.trim()
             }
             onClick={onParseNl}
           >
@@ -216,7 +261,7 @@ export function RequirementsPanel({
           <button
             type="button"
             disabled={
-              !engineReady || loading || nlBusy || !nlText.trim()
+              !canParseNl || loading || nlBusy || !nlText.trim()
             }
             onClick={onParseAndGenerate}
           >

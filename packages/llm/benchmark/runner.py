@@ -9,11 +9,13 @@ from packages.llm.benchmark.cases import (
     RequirementBenchmarkCase,
     load_benchmark_cases,
 )
+from packages.llm.benchmark.failure import FailureKind, classify_failure
 from packages.llm.benchmark.report import BenchmarkReport
 from packages.llm.benchmark.score import CaseScore, score_requirement_case
 from packages.llm.boundary import GeometryForbiddenError
 from packages.llm.gate import LLMIngestError, ingest_llm_requirement
 from packages.llm.mock import MockLLMProvider
+from packages.llm.ollama import OllamaResponseError
 from packages.llm.parser import parse_requirement_text
 from packages.llm.provider import LLMProvider
 from packages.llm.repair import LLMRepairExhaustedError, parse_requirement_text_with_repair
@@ -156,6 +158,8 @@ def run_benchmark(
     for case in corpus:
         geometry_fail = False
         parse_failed = False
+        repair_exhausted = False
+        failure_kind: FailureKind | None = None
         attempts = 1
         latency_s = 0.0
         t0 = time.perf_counter()
@@ -166,19 +170,32 @@ def run_benchmark(
                 parsed = parse_requirement_text(case.text, provider=prov)
             spec = parsed.spec
             attempts = parsed.attempts
-        except GeometryForbiddenError:
+        except GeometryForbiddenError as exc:
             geometry_fail = True
             parse_failed = True
+            failure_kind = classify_failure(exc)
             spec = RequirementSpec(raw_text=case.text)
         except LLMRepairExhaustedError as exc:
             parse_failed = True
+            repair_exhausted = True
             attempts = exc.attempts
+            failure_kind = classify_failure(exc)
+            if failure_kind == FailureKind.GEOMETRY_VIOLATION:
+                geometry_fail = True
             spec = RequirementSpec(raw_text=case.text)
-        except LLMIngestError:
+        except LLMIngestError as exc:
             parse_failed = True
+            failure_kind = classify_failure(exc)
+            if failure_kind == FailureKind.GEOMETRY_VIOLATION:
+                geometry_fail = True
             spec = RequirementSpec(raw_text=case.text)
-        except Exception:
+        except OllamaResponseError as exc:
             parse_failed = True
+            failure_kind = classify_failure(exc)
+            spec = RequirementSpec(raw_text=case.text)
+        except Exception as exc:
+            parse_failed = True
+            failure_kind = classify_failure(exc)
             spec = RequirementSpec(raw_text=case.text)
         finally:
             latency_s = time.perf_counter() - t0
@@ -191,6 +208,8 @@ def run_benchmark(
                 attempts=attempts,
                 parse_failed=parse_failed,
                 latency_s=latency_s,
+                failure_kind=failure_kind,
+                repair_exhausted=repair_exhausted,
             )
         )
     return report
@@ -204,11 +223,20 @@ def score_draft_against_case(
     try:
         ingest = ingest_llm_requirement(draft, raw_text=case.text)
         return score_requirement_case(case, ingest.spec)
-    except GeometryForbiddenError:
+    except GeometryForbiddenError as exc:
         return score_requirement_case(
-            case, RequirementSpec(raw_text=case.text), geometry_fail=True
+            case,
+            RequirementSpec(raw_text=case.text),
+            geometry_fail=True,
+            parse_failed=True,
+            failure_kind=classify_failure(exc),
         )
-    except LLMIngestError:
+    except LLMIngestError as exc:
+        kind = classify_failure(exc)
         return score_requirement_case(
-            case, RequirementSpec(raw_text=case.text), parse_failed=True
+            case,
+            RequirementSpec(raw_text=case.text),
+            geometry_fail=kind == FailureKind.GEOMETRY_VIOLATION,
+            parse_failed=True,
+            failure_kind=kind,
         )

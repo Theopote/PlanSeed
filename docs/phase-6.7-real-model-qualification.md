@@ -42,6 +42,8 @@ Phase 6 框架完成    ≠  LLM 已可靠
 | `geometry_fail_rate` | 含禁几何输出 |
 | `repair_rate` / `average_attempts` | repair 使用情况 |
 | `parse_failure_rate` | ingest / repair 耗尽失败 |
+| `schema_fail` / `semantic_fail` / `geometry_violation` / `json_parse_fail` | 失败归因计数 |
+| `repair_success` / `repair_exhausted` | repair 结局 |
 | `average_latency_s` | 单案平均耗时 |
 | `relation_precision` / `relation_recall` | 关系意图 |
 | `floor_preference_accuracy` | 楼层偏好 |

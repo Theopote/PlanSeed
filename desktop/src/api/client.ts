@@ -13,6 +13,22 @@ export function setApiBase(url: string): void {
 
 export type EngineLifecycle = "STARTING" | "READY" | "ERROR" | "STOPPED";
 
+/** 与 EngineLifecycle 并列：Ollama / 模型就绪与解析会话态。 */
+export type LlmHealthState =
+  | "LLMUnavailable"
+  | "ModelMissing"
+  | "ModelReady"
+  | "ParseRunning"
+  | "ParseFailed";
+
+export type LlmStatusPayload = {
+  state: LlmHealthState;
+  provider: string;
+  model: string;
+  detail: string | null;
+  installed_models: string[];
+};
+
 /** 浏览器用默认端口；Tauri 内从 get_engine_url 覆盖。 */
 export async function resolveEngineBase(): Promise<string> {
   try {
@@ -444,6 +460,31 @@ export async function checkHealth(): Promise<boolean> {
     );
   } catch {
     return false;
+  }
+}
+
+/** 探测 Ollama / 配置模型；失败时返回 LLMUnavailable 占位。 */
+export async function fetchLlmStatus(): Promise<LlmStatusPayload> {
+  try {
+    const r = await fetch(`${_apiBase}/api/llm/status`);
+    if (!r.ok) {
+      return {
+        state: "LLMUnavailable",
+        provider: "ollama",
+        model: "qwen2.5:7b",
+        detail: `HTTP ${r.status}`,
+        installed_models: [],
+      };
+    }
+    return (await r.json()) as LlmStatusPayload;
+  } catch (e) {
+    return {
+      state: "LLMUnavailable",
+      provider: "ollama",
+      model: "qwen2.5:7b",
+      detail: e instanceof Error ? e.message : String(e),
+      installed_models: [],
+    };
   }
 }
 

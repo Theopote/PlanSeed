@@ -117,6 +117,12 @@ body,
   color: var(--bad);
 }
 
+.llm-hint {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
 .project-bar {
   display: grid;
   gap: 0.4rem;

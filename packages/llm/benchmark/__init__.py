@@ -10,6 +10,7 @@ from packages.llm.benchmark.cases import (
     benchmark_case_count,
     load_benchmark_cases,
 )
+from packages.llm.benchmark.failure import FailureKind
 from packages.llm.benchmark.report import BenchmarkReport
 from packages.llm.benchmark.runner import (
     expect_to_draft,
@@ -33,6 +34,7 @@ __all__ = [
     "ExpectRelation",
     "RequirementBenchmarkCase",
     "BenchmarkReport",
+    "FailureKind",
     "AssumptionHit",
     "CaseScore",
     "FieldScore",
