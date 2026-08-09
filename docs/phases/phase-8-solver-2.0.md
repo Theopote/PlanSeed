@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：▶ 8.0 ✅（A–C）· 下一 8.1 Diversity Selection · 7.5 ✅ · 禁止 GA 先行 · 禁止 Code Compliance**  
+> **状态：▶ 8.1 Diversity Selection ✅ · 下一 8.2 Pareto · 8.0 A–C ✅ · 7.5 ✅ · 禁止 GA 先行**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -17,8 +17,8 @@
 8.0-A LayoutGenerator Interface     ✅
   → 8.0-B MaxRect packing strategy    ✅
   → 8.0-C Generator Benchmark         ✅（Guillotine vs MaxRect）
-8.1 Diversity Selection（top-score + diverse alternatives） ← 当前
-8.2 Pareto Frontier（多 generator 之后）
+8.1 Diversity Selection（top-score + diverse alternatives） ✅
+8.2 Pareto Frontier（多 generator 之后） ← 当前
 8.3 CP-SAT Research（topology / assignment，非整几何）
 8.4 Advanced Geometry（不规则场地才 Shapely）
 ```
@@ -28,8 +28,8 @@
 | **8.0-A** | `LayoutGenerator` Protocol；Guillotine = Strategy | ✅ |
 | **8.0-B** | MaxRect / Maximal Rectangles | ✅ |
 | **8.0-C** | `layout-generation-benchmark` | ✅ |
-| **8.1** | Diversity Selection | **← 当前** |
-| **8.2** | Pareto Frontier | 后续 |
+| **8.1** | Diversity Selection | ✅ |
+| **8.2** | Pareto Frontier | **← 当前** |
 | **8.3** | CP-SAT Research | 研究 |
 | **8.4** | Advanced Geometry（Shapely） | 更后 |
 
@@ -104,10 +104,24 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 基线快照：`docs/baselines/layout_generation_guillotine_vs_maxrect.json`  
 **禁止**凭感觉宣称某 strategy 全面更优；以报告数字为准。
 
-## 8.1–8.4（摘要）
+## 8.1 — Diversity Selection ✅
 
-- **8.1**：top-score + diverse alternatives（流线 / 隐私等叙事轴），先于 Pareto  
-- **8.2**：Efficiency / Privacy / Circulation / Environment 非支配集  
+排序不再只问「谁总分最高」。
+
+```text
+1. 最高总分          selection_role=top_score
+2. 流线 / 隐私 / 朝向  相对 top 有明显轴优势且几何不雷同
+3. 几何 diversity    填满 return_top_k
+```
+
+- `solver/optimization/diversity_select.py`
+- `rank_candidates(..., axis_alternatives=True)`（默认）
+- 候选 `metrics.selection_role` / `selection_label`；CandidateStrip 展示标签
+- **不是** Pareto（8.2）
+
+## 8.2–8.4（摘要）
+
+- **8.2**：Efficiency / Privacy / Circulation / Environment 非支配集 ← 当前预告  
 - **8.3**：CP-SAT 做 floor/zone/topology/adjacency；几何仍 packing + repair  
 - **8.4**：不规则场地 / 庭院多边形才考虑 Shapely  
 
@@ -124,4 +138,5 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 - [x] 默认路径仍为 Guillotine，行为不变  
 - [x] 8.0-B MaxRect
 - [x] 8.0-C Generator Benchmark
-- [ ] 8.1 Diversity Selection
+- [x] 8.1 Diversity Selection
+- [ ] 8.2 Pareto Frontier

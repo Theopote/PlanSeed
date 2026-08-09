@@ -29,7 +29,8 @@ class LayoutGenerator(Protocol):
 - `run_pipeline(..., generator=)` 可注入 Strategy
 - 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B ✅）
 - Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
-- 下一：**8.1 Diversity Selection**；**不要**先做 GA / NSGA-II
+- Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅）
+- 下一：**8.2 Pareto Frontier**；**不要**先做 GA / NSGA-II
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 
@@ -147,7 +148,7 @@ User Requirement
 | Alignment / stair / wet | ✓ | vertical |
 | Site / setbacks | boundary hard | **site.py**（非常量） |
 
-## Diversity（预留）
+## Diversity Selection（8.1）
 
 Phase 1.5 的 `layout_similarity` 使用 `LayoutSignature`：坐标按 buildable 宽高归一化（dx/W, dy/D, …），并纳入 core 区位。
 

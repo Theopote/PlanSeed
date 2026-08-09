@@ -1179,6 +1179,17 @@ button.secondary {
   font-size: 0.85rem;
 }
 
+.strip-role {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted, #6b7280);
+  line-height: 1.2;
+}
+
+
 .strip-item.is-dirty {
   border-style: dashed;
   border-color: #8a7355;

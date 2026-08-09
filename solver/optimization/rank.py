@@ -1,4 +1,4 @@
-"""候选排序 — score + 可选 diversity（LayoutSignature）。"""
+"""候选排序 — score + 轴叙事替代 + 可选几何 diversity（LayoutSignature）。"""
 
 from __future__ import annotations
 
@@ -81,10 +81,17 @@ def rank_candidates(
     min_diversity_threshold: float | None = DEFAULT_MIN_DIVERSITY_THRESHOLD,
     buildable_width: float | None = None,
     buildable_depth: float | None = None,
+    axis_alternatives: bool = True,
 ) -> list[LayoutCandidate]:
-    """按 total_score 降序；无效 candidate 排末尾。"""
+    """按 total_score；默认启用 8.1 轴叙事替代 + 几何 diversity。
+
+    ``min_diversity_threshold=None`` → 纯分数 Top-K（测试 / 调试）。
+    ``axis_alternatives=False`` → 仅几何 diversity（Phase 1.5 行为）。
+    """
     valid = [
-        c for c in candidates if c.validation and c.validation.valid and c.score is not None
+        c
+        for c in candidates
+        if c.validation and c.validation.valid and c.score is not None
     ]
     invalid = [c for c in candidates if c not in valid]
 
@@ -92,13 +99,24 @@ def rank_candidates(
     invalid.sort(key=lambda c: c.score or 0.0, reverse=True)
 
     if min_diversity_threshold is not None and valid:
-        selected = _select_diverse(
-            valid,
-            top_k,
-            min_diversity_threshold,
-            buildable_width=buildable_width,
-            buildable_depth=buildable_depth,
-        )
+        if axis_alternatives:
+            from solver.optimization.diversity_select import select_diverse_alternatives
+
+            selected = select_diverse_alternatives(
+                valid,
+                top_k,
+                min_diversity_threshold=min_diversity_threshold,
+                buildable_width=buildable_width,
+                buildable_depth=buildable_depth,
+            )
+        else:
+            selected = _select_diverse(
+                valid,
+                top_k,
+                min_diversity_threshold,
+                buildable_width=buildable_width,
+                buildable_depth=buildable_depth,
+            )
         if len(selected) < top_k:
             selected.extend(invalid[: top_k - len(selected)])
         return selected

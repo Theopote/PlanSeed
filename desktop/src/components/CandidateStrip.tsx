@@ -61,7 +61,12 @@ export function CandidateStrip({
                   : "—";
           const gen = c.variant_generation ?? 0;
           const display = lineageLabel(c.label, gen);
+          const selectionLabel =
+            typeof c.metrics?.selection_label === "string"
+              ? c.metrics.selection_label
+              : null;
           const tipParts = [
+            selectionLabel,
             "点击选中；Alt+点击设为比较对象",
             c.revision_status === "dirty"
               ? "Modified · Evaluation outdated"
@@ -88,6 +93,9 @@ export function CandidateStrip({
             >
               <span className="strip-label">{display}</span>
               <span className="strip-score">{score}</span>
+              {selectionLabel ? (
+                <span className="strip-role">{selectionLabel}</span>
+              ) : null}
               <span className="strip-seed">s{c.seed}</span>
             </button>
           );
