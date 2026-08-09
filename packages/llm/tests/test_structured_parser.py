@@ -66,7 +66,9 @@ def test_parse_requirement_text_happy_path():
     assert result.draft.known.floor_count == 2
     assert result.raw["known"]["floor_count"] == 2
     assert len(result.spec.assumptions) == 1
-    assert len(result.spec.unknowns) == 1
+    # enrich 对未提供场地补列 site.depth（mock 只声明了 site.width）
+    unk = {u.key for u in result.spec.unknowns}
+    assert unk == {"site.width", "site.depth"}
 
 
 def test_parser_passes_system_and_user_to_provider():
