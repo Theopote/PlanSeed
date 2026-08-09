@@ -10,7 +10,11 @@ from packages.schema.report import DesignReport, ReportStatus
 from pydantic import BaseModel, Field, model_validator
 
 from backend.routes.projects import APP_VERSION, ProjectPayload
-from backend.services.report_builder import build_design_report, report_status_for_candidate
+from backend.services.report_builder import (
+    ReportAreaMissingError,
+    build_design_report,
+    report_status_for_candidate,
+)
 from backend.services.report_html import render_report_html
 
 router = APIRouter(tags=["reports"])
@@ -128,13 +132,24 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
             },
         )
 
-    report = build_design_report(
-        project_name=project_name,
-        project_id=project_id,
-        app_version=APP_VERSION,
-        requirement_spec=payload.requirement_spec,
-        program=payload.program,
-        candidate=candidate,
-    )
+    try:
+        report = build_design_report(
+            project_name=project_name,
+            project_id=project_id,
+            app_version=APP_VERSION,
+            requirement_spec=payload.requirement_spec,
+            program=payload.program,
+            candidate=candidate,
+        )
+    except ReportAreaMissingError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "placement_area_missing",
+                "message": str(exc),
+                "room_id": exc.room_id,
+                "candidate_id": candidate.get("id"),
+            },
+        ) from exc
     html_out = render_report_html(report) if body.include_html else None
     return BuildReportResponse(report=report, html=html_out)

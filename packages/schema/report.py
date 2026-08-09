@@ -94,7 +94,7 @@ class FloorPlanBlock(BaseModel):
 
 
 class RoomScheduleRow(BaseModel):
-    """面积表行 — area 来自 placements（已算好），禁止 width×depth 再算。"""
+    """面积表行 — area 必须来自 placements 权威字段；缺 area 则报告组装失败，禁止 width×depth。"""
 
     room_id: str
     name: str

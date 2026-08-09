@@ -59,7 +59,7 @@ DesignReport →（未来）专业 PDF / DXF
 
 | 内容 | 来源 | 禁止 |
 |------|------|------|
-| Room area table | canonical placements / report builder | React 自算 `width × depth` |
+| Room area table | canonical placements.**area**（缺则组装失败） | React 自算 `width × depth`；builder 猜测面积 |
 | Evaluation | `DesignScore` | exporter 另发明一套分 |
 | Findings | `DesignFinding` | 报告层重写启发式 |
 | Assumptions / Unknowns | 会话 `RequirementSpec` | 前端臆造 |

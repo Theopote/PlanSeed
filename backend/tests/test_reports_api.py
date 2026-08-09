@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from backend.main import create_app
-from backend.services.report_builder import build_design_report
+from backend.services.report_builder import ReportAreaMissingError, build_design_report
 from backend.services.report_html import render_report_html
 from fastapi.testclient import TestClient
 from packages.schema.scoring import DesignFinding, DesignScore, FindingSeverity
+from pytest import raises
 
 
 def _candidate() -> dict:
@@ -126,6 +127,19 @@ def test_dirty_candidate_marks_stale_evaluation():
     )
     assert report.status.value == "stale_evaluation"
     assert report.evaluation.evaluation_fresh is False
+
+
+def test_missing_placement_area_raises():
+    cand = _candidate()
+    del cand["placements"][0]["area"]
+    with raises(ReportAreaMissingError) as ei:
+        build_design_report(
+            project_name="Demo",
+            requirement_spec=_payload()["requirement_spec"],
+            program=_payload()["program"],
+            candidate=cand,
+        )
+    assert ei.value.room_id == "r1"
 
 
 def test_render_report_html_contains_boundary_and_schedule():
@@ -256,3 +270,22 @@ def test_reports_build_fallback_only_when_no_ids():
     )
     assert r.status_code == 200, r.text
     assert r.json()["report"]["candidate"]["candidate_id"] == "c-a"
+
+
+def test_reports_build_missing_area_is_400():
+    client = TestClient(create_app())
+    payload = _payload()
+    del payload["candidates"][0]["placements"][1]["area"]
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "No area",
+            "payload": payload,
+            "candidate_id": "c-a",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 400, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "placement_area_missing"
+    assert detail["room_id"] == "r2"

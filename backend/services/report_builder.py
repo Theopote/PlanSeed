@@ -22,6 +22,16 @@ from packages.schema.report import (
 from packages.schema.scoring import DesignScore
 
 
+class ReportAreaMissingError(ValueError):
+    """placement 缺权威 area — 报告层禁止用 width×depth 猜测。"""
+
+    def __init__(self, *, room_id: str) -> None:
+        self.room_id = room_id
+        super().__init__(
+            f"placement 缺少权威 area，无法组装报告面积表：room_id={room_id}"
+        )
+
+
 def report_status_for_candidate(candidate: dict[str, Any]) -> ReportStatus:
     """根据 revision_status 判定报告有效性（Integrity Gate）。"""
     revision = candidate.get("revision_status")
@@ -212,11 +222,10 @@ def _room_schedule(
             continue
         w = float(p.get("width") or 0)
         d = float(p.get("depth") or 0)
-        # 权威面积：payload 已带 area；缺失时才用 w*d 兜底（仍由 builder 统一）
-        if p.get("area") is not None:
-            area = float(p["area"])
-        else:
-            area = round(w * d, 4)
+        # 权威面积必须来自 placements；禁止 width×depth 猜测（非矩形/净毛面积会错）
+        if p.get("area") is None:
+            raise ReportAreaMissingError(room_id=rid)
+        area = float(p["area"])
         rows.append(
             RoomScheduleRow(
                 room_id=rid,
