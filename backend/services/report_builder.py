@@ -14,6 +14,7 @@ from packages.schema.report import (
     DesignReport,
     EvaluationSummary,
     FloorPlanBlock,
+    GeometryOrigin,
     ProjectMetadata,
     ReportAssumption,
     ReportProvenance,
@@ -70,6 +71,19 @@ def report_status_for_candidate(candidate: dict[str, Any]) -> ReportStatus:
         # None：旧快照兼容，仍视为可导出；缺评分等由 builder 硬失败
         return ReportStatus.VALID
     return ReportStatus.INVALID_CANDIDATE
+
+
+def geometry_origin_for_candidate(candidate: dict[str, Any]) -> GeometryOrigin:
+    """Solver Generated / User Edited + Validated / User Edited + Stale。"""
+    revision = candidate.get("revision_status")
+    if revision == "dirty":
+        return GeometryOrigin.USER_EDITED_STALE
+    if revision == "validated":
+        return GeometryOrigin.USER_EDITED_VALIDATED
+    # generated / None：有 mutation 日志仍视为已编辑并验证过（可交付）
+    if candidate.get("mutations"):
+        return GeometryOrigin.USER_EDITED_VALIDATED
+    return GeometryOrigin.SOLVER_GENERATED
 
 
 def build_design_report(
@@ -164,7 +178,8 @@ def build_design_report(
     floor_plans = _floor_plan_blocks(candidate, svg=svg)
 
     revision = candidate.get("revision_status")
-    edited = revision in ("dirty", "validated") or bool(candidate.get("mutations"))
+    origin = geometry_origin_for_candidate(candidate)
+    edited = origin != GeometryOrigin.SOLVER_GENERATED
     evaluation_fresh = status == ReportStatus.VALID
     parent = candidate.get("revision_parent_id")
 
@@ -192,6 +207,7 @@ def build_design_report(
             project_name=project_name or "Untitled",
             generated_at=datetime.now(timezone.utc).isoformat(),
             app_version=app_version,
+            geometry_origin=origin,
             edited=edited,
         ),
         requirement=RequirementSummary(

@@ -35,6 +35,26 @@ class ReportStatus(StrEnum):
     """候选缺失或无法组装。"""
 
 
+class GeometryOrigin(StrEnum):
+    """几何相对 Solver 的编辑状态（报告头；细于 bool edited）。"""
+
+    SOLVER_GENERATED = "solver_generated"
+    """未改：Solver 生成后的评价仍新鲜。"""
+
+    USER_EDITED_VALIDATED = "user_edited_validated"
+    """用户改过并已 revalidate — 可正式报告。"""
+
+    USER_EDITED_STALE = "user_edited_stale"
+    """用户改过且评价过期（dirty）— 禁止正式报告。"""
+
+
+GEOMETRY_ORIGIN_LABELS: dict[GeometryOrigin, str] = {
+    GeometryOrigin.SOLVER_GENERATED: "Solver Generated",
+    GeometryOrigin.USER_EDITED_VALIDATED: "User Edited + Validated",
+    GeometryOrigin.USER_EDITED_STALE: "User Edited + Stale",
+}
+
+
 class ProjectMetadata(BaseModel):
     """报告头：项目与生成语境。"""
 
@@ -42,9 +62,13 @@ class ProjectMetadata(BaseModel):
     project_name: str = "Untitled"
     generated_at: str | None = None
     app_version: str | None = None
+    geometry_origin: GeometryOrigin = Field(
+        default=GeometryOrigin.SOLVER_GENERATED,
+        description="Solver Generated | User Edited + Validated | User Edited + Stale",
+    )
     edited: bool = Field(
         default=False,
-        description="候选是否经历用户 mutation（dirty 或 validated）",
+        description="兼容字段：geometry_origin != solver_generated（勿再单独依赖）",
     )
 
 

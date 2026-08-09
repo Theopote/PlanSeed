@@ -140,6 +140,43 @@ def test_build_design_report_uses_placement_area():
     assert any("deterministic solver" in line for line in report.provenance.boundary_lines)
 
 
+def test_geometry_origin_labels():
+    from backend.services.report_builder import geometry_origin_for_candidate
+    from packages.schema.report import GeometryOrigin
+
+    base = _candidate()
+    assert geometry_origin_for_candidate(base) == GeometryOrigin.SOLVER_GENERATED
+
+    validated = {**base, "revision_status": "validated", "mutations": [{"id": "m1"}]}
+    assert (
+        geometry_origin_for_candidate(validated)
+        == GeometryOrigin.USER_EDITED_VALIDATED
+    )
+
+    stale = {**base, "revision_status": "dirty"}
+    assert geometry_origin_for_candidate(stale) == GeometryOrigin.USER_EDITED_STALE
+
+    report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=validated,
+    )
+    assert report.project.geometry_origin == GeometryOrigin.USER_EDITED_VALIDATED
+    assert report.project.edited is True
+    doc = render_report_html(report)
+    assert "User Edited + Validated" in doc
+
+    stale_report = build_design_report(
+        project_name="Demo",
+        requirement_spec=_payload()["requirement_spec"],
+        program=_payload()["program"],
+        candidate=stale,
+        export_mode="preview",
+    )
+    assert "User Edited + Stale" in render_report_html(stale_report)
+
+
 def test_floor_plans_default_to_candidate_snapshot():
     report = build_design_report(
         project_name="Demo",

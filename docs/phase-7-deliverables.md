@@ -105,6 +105,8 @@ Dirty                  → HTTP 409 candidate_requires_revalidation
 ```
 
 `ReportStatus`：`valid` | `stale_evaluation` | `invalid_candidate`  
+`GeometryOrigin`：`solver_generated` | `user_edited_validated` | `user_edited_stale`  
+（报告头显示：Solver Generated / User Edited + Validated / User Edited + Stale；后者禁止正式报告。）  
 Desktop：dirty 时拦截并提示「请先重新验证」。  
 几何-only 导出（不含评分）可后置，本刀默认拒绝正式评价报告。
 
@@ -158,7 +160,8 @@ DesignReport
 
 ```text
 PlanSeed Design Report
-Project · Generated / Edited · Candidate A.2 · Score 84
+Project · Solver Generated | User Edited + Validated · Candidate A.2 · Score 84
+（User Edited + Stale 禁止正式报告）
 
 Key Intent
   - Two-story residence

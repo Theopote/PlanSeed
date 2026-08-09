@@ -5,7 +5,7 @@ from __future__ import annotations
 import html
 from typing import Any
 
-from packages.schema.report import DesignReport
+from packages.schema.report import DesignReport, GEOMETRY_ORIGIN_LABELS
 
 from backend.services.report_svg_sanitize import sanitize_report_svg
 
@@ -15,7 +15,11 @@ def render_report_html(report: DesignReport) -> str:
     r = report
     score = r.candidate.total_score
     score_s = f"{score:.0f}" if isinstance(score, (int, float)) else "—"
-    edited = "Edited" if r.project.edited else "Generated"
+    origin = r.project.geometry_origin
+    origin_label = GEOMETRY_ORIGIN_LABELS.get(
+        origin,
+        "Edited" if r.project.edited else "Generated",
+    )
     status_val = (
         r.status.value if hasattr(r.status, "value") else str(r.status)
     )
@@ -178,7 +182,7 @@ def render_report_html(report: DesignReport) -> str:
     <h1>{title}</h1>
     {stale_banner}
     <div class="meta">
-      {edited}
+      {html.escape(origin_label)}
       · Candidate <strong>{label}</strong>
       <span class="score">{score_s}</span>
       <div style="margin-top:0.35rem">id: {cid}
