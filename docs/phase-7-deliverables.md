@@ -171,36 +171,36 @@ DesignReport → HTML → Tauri WebView → Print / PDF
 首页建议结构：
 
 ```text
-PlanSeed Design Report
-Project · 求解器生成 | 用户编辑 · 已验证 · Candidate A.2 · Score 84
+PlanSeed 设计报告
+项目 · 求解器生成 | 用户编辑 · 已验证 · 方案 A.2 · Score 84
 （用户编辑 · 评价过期 禁止正式报告）
 
 文案由 `ReportLocale` 集中管理（Alpha 默认 `zh-CN`；预留 `en-US`），禁止散落硬编码。  
 关系 intent 经 `present_relation_intent`（RelationPresenter）：`near` →「厨房靠近餐厅」，禁止输出 enum 名。
 
-Key Intent
-  - Two-story residence
-  - 3 bedrooms
-  - Living room south-oriented
-  - Kitchen near dining
+设计要点（Key Intent）— zh-CN 示例：
+  - 两层住宅
+  - 3 间卧室
+  - 客厅朝南
+  - 厨房靠近餐厅
   …
 
-Assumptions …
-Unresolved (Unknowns) …
+假设 …
+待决问题 …
 
-（再）Floor plans · Room schedule · Evaluation · Findings
+（再）分层平面 · 空间面积表 · 设计评价 · 关键发现
 ```
 
 ### 必须声明 AI / Solver 边界（页脚或 Provenance）
 
-准确写法示例：
+准确写法示例（`zh-CN`；`en-US` 见 `report_i18n`）：
 
 ```text
-Requirement interpretation: Local LLM + deterministic semantic pipeline
-Geometry: PlanSeed deterministic solver
-Evaluation: PlanSeed residential heuristic evaluator
+需求解释：本地 LLM + 确定性语义流水线
+几何：PlanSeed 确定性求解器
+评价：PlanSeed 住宅启发式评价器
 
-AI interpreted design intent; deterministic solver generated and evaluated geometry.
+AI 解释设计意图；确定性求解器生成并评价几何。
 ```
 
 **禁止**写：「AI designed this house.」
