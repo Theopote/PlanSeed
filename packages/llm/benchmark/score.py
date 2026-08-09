@@ -389,9 +389,13 @@ def score_requirement_case(
 
     names = {s.name for s in spec.spaces}
     for need in case.expect.space_names_contains:
-        if need not in names:
-            score.space_ok = False
-            score.notes.append(f"缺少空间名 {need!r}")
+        if need in names:
+            continue
+        # 入口≈门厅≈玄关
+        if endpoint_alias_group(need) & names:
+            continue
+        score.space_ok = False
+        score.notes.append(f"缺少空间名 {need!r}")
     if case.expect.min_spaces is not None:
         if len(spec.spaces) < case.expect.min_spaces:
             score.space_ok = False

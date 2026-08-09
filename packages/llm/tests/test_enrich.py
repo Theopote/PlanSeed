@@ -58,19 +58,42 @@ def test_enrich_does_not_questionnaire_optional_unknowns():
     assert "site.depth" in keys
 
 
-def test_enrich_strips_ungrounded_llm_relations():
-    draft = LLMRequirementDraft(
-        raw_text="两层三卧，客厅朝南",
-        known={  # type: ignore[arg-type]
-            "floor_count": 2,
-            "spaces": [{"name": "客厅"}, {"name": "厨房"}, {"name": "餐厅"}],
-            "relation_intents": [
-                {"a": "厨房", "b": "餐厅", "kind": "near"},
-            ],
-        },
+def test_enrich_foyer_access_and_elder_floor_paraphrase():
+    """门厅/玄关表面形式 + 老人楼下 paraphrase（一般规律）。"""
+    out = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层三卧两卫有车库，车库连着玄关，起居室朝南")
     )
-    out = enrich_requirement_draft(draft)
-    assert out.draft.known.relation_intents == []
+    assert any(
+        r.kind == "access" and {r.a, r.b} == {"车库", "门厅"}
+        for r in out.draft.known.relation_intents
+    )
+    assert out.draft.known.preferences.prefer_south_facing_living is True
+
+    elder = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层四卧，老人最好住楼下，书房朝北")
+    )
+    sp = next(s for s in elder.draft.known.spaces if s.name == "老人房")
+    assert sp.floor_preference == ["F1"]
+    study = next(s for s in elder.draft.known.spaces if s.name == "书房")
+    assert str(study.preferred_orientation) == "north"
+
+
+def test_enrich_best_near_and_dont_lean_separation():
+    near = enrich_requirement_draft(
+        LLMRequirementDraft(raw_text="两层四卧，餐厅最好挨着厨房")
+    )
+    assert any(
+        r.kind == "near" and {r.a, r.b} == {"厨房", "餐厅"}
+        for r in near.draft.known.relation_intents
+    )
+    sep = enrich_requirement_draft(
+        LLMRequirementDraft(
+            raw_text="两层三卧，主卧安静一点，不要靠着客厅，儿童房挨着主卧"
+        )
+    )
+    kinds = {(frozenset((r.a, r.b)), r.kind) for r in sep.draft.known.relation_intents}
+    assert (frozenset({"主卧", "客厅"}), "separation") in kinds
+    assert (frozenset({"儿童房", "主卧"}), "near") in kinds
 
 
 def test_enrich_keeps_cued_relations():
@@ -90,6 +113,21 @@ def test_enrich_keeps_cued_relations():
         and {r.a, r.b} == {"厨房", "餐厅"}
         for r in out.draft.known.relation_intents
     )
+
+
+def test_enrich_strips_ungrounded_llm_relations():
+    draft = LLMRequirementDraft(
+        raw_text="两层三卧，客厅朝南",
+        known={  # type: ignore[arg-type]
+            "floor_count": 2,
+            "spaces": [{"name": "客厅"}, {"name": "厨房"}, {"name": "餐厅"}],
+            "relation_intents": [
+                {"a": "厨房", "b": "餐厅", "kind": "near"},
+            ],
+        },
+    )
+    out = enrich_requirement_draft(draft)
+    assert out.draft.known.relation_intents == []
 
 def test_enrich_extracts_scalars_from_raw_text():
     draft = LLMRequirementDraft(raw_text="两层三卧两卫带车库，客厅朝南")

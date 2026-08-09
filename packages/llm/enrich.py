@@ -59,18 +59,14 @@ _ASSUMPTION_KEY_ALIASES: dict[str, str] = {
     "site_depth": "site.depth",
 }
 
-_ORIENT_PHRASES: tuple[tuple[str, CardinalOrientation], ...] = (
-    ("朝南", CardinalOrientation.SOUTH),
-    ("朝北", CardinalOrientation.NORTH),
-    ("朝东", CardinalOrientation.EAST),
-    ("朝西", CardinalOrientation.WEST),
-)
-
 # 高置信关系模板：(模式字符串格式化用 {a}{b}, kind)
 # 一般规律：显式二元谓词，不把「靠近」与「连通」混为 adjacency
 _REL_TEMPLATES: tuple[tuple[str, RelationKind], ...] = (
     ("{a}靠近{b}", "near"),
     ("{a}挨着{b}", "near"),
+    ("{a}最好挨着{b}", "near"),
+    ("{a}尽量挨着{b}", "near"),
+    ("{a}最好靠近{b}", "near"),
     ("{a}邻近{b}", "near"),
     ("{a}远离{b}", "separation"),
     ("{a}与{b}连通", "open_connection"),
@@ -94,13 +90,30 @@ _REL_TEMPLATES: tuple[tuple[str, RelationKind], ...] = (
 
 # kind → 原文须出现的谓词线索（两端共现不够，防假阳性）
 _KIND_CUES: dict[RelationKind, tuple[str, ...]] = {
-    "near": ("靠近", "挨着", "邻近", "距离近", "近一点", "近一些"),
+    "near": ("靠近", "挨着", "邻近", "距离近", "近一点", "近一些", "最好挨"),
     "separation": ("远离", "私密", "不要靠", "避免", "隔开", "安静"),
     "open_connection": ("连通", "开敞"),
-    "access": ("相连", "连着", "能进", "直通", "内部相连"),
+    "access": ("相连", "连着", "能进", "直通", "内部相连", "进入"),
     "adjacency": ("相邻", "紧邻", "靠近", "挨着", "连通"),
     "visual_connection": ("望向", "视野", "看见", "看到"),
 }
+
+_ORIENT_PHRASES: tuple[tuple[str, CardinalOrientation], ...] = (
+    ("朝南", CardinalOrientation.SOUTH),
+    ("朝北", CardinalOrientation.NORTH),
+    ("朝东", CardinalOrientation.EAST),
+    ("朝西", CardinalOrientation.WEST),
+    ("要南向", CardinalOrientation.SOUTH),
+    ("要北向", CardinalOrientation.NORTH),
+    ("南向", CardinalOrientation.SOUTH),
+    ("北向", CardinalOrientation.NORTH),
+    ("东向", CardinalOrientation.EAST),
+    ("西向", CardinalOrientation.WEST),
+    ("偏南", CardinalOrientation.SOUTH),
+    ("偏北", CardinalOrientation.NORTH),
+    ("偏东", CardinalOrientation.EAST),
+    ("偏西", CardinalOrientation.WEST),
+)
 
 
 @dataclass(frozen=True)
@@ -123,6 +136,18 @@ def _parse_cn_int(token: str) -> int | None:
     return _CN_NUM.get(token)
 
 
+def _surface_forms_for_space(canon: str) -> tuple[str, ...]:
+    """规范名的表面形式（含别名），用于楼层/朝向/关系短语匹配。"""
+    forms = {canon}
+    for room in RESIDENTIAL_ROOMS:
+        if room.canonical_zh == canon:
+            forms.update(room.aliases_zh)
+            forms.add(room.canonical_zh)
+    if canon in ENTRY_ALIAS_GROUP or canon in ("门厅", "入口"):
+        forms |= set(ENTRY_ALIAS_GROUP)
+    return tuple(sorted(forms, key=len, reverse=True))
+
+
 def extract_space_names(text: str) -> list[str]:
     """从原文抽取空间规范名（词表命中；复合词展开）。"""
     if not text:
@@ -132,6 +157,11 @@ def extract_space_names(text: str) -> list[str]:
         found.extend(["客厅", "餐厅"])
     if "餐厨" in text or "厨餐" in text:
         found.extend(["厨房", "餐厅"])
+    # 老人/父母卧室 paraphrase → 老人房
+    if re.search(r"老人(?:房|卧室)|父母(?:房|卧室)|给父母准备的卧室", text):
+        found.append("老人房")
+    elif re.search(r"老人最好住|老人住楼下|首层安排一间老人", text):
+        found.append("老人房")
     for name in all_space_lexicon_zh():
         if name in text:
             canon = canonical_zh_for_alias(name)
@@ -145,6 +175,7 @@ def extract_relation_intents(text: str, space_names: set[str]) -> list[RelationI
     仅抽取高置信显式关系；端点须已在空间集合中。
 
     precision-first：不扫全词表笛卡尔积臆造关系。
+    模板匹配时枚举表面形式（门厅/玄关/入口），写入规范名。
     """
     if not text or len(space_names) < 2:
         return []
@@ -167,11 +198,24 @@ def extract_relation_intents(text: str, space_names: set[str]) -> list[RelationI
         for b in names:
             if a == b:
                 continue
-            for tmpl, kind in _REL_TEMPLATES:
-                if tmpl.format(a=a, b=b) in text:
-                    add(a, b, kind)
-            if f"从{a}能进{b}" in text or f"从{a}进入{b}" in text:
-                add(a, b, "access")
+            for sa in _surface_forms_for_space(a):
+                for sb in _surface_forms_for_space(b):
+                    for tmpl, kind in _REL_TEMPLATES:
+                        if tmpl.format(a=sa, b=sb) in text:
+                            add(a, b, kind)
+                    if f"从{sa}能进{sb}" in text or f"从{sa}进入{sb}" in text:
+                        add(a, b, "access")
+
+    # 「A…不要靠着B」：主语可与谓词隔开（同一分句前缀）
+    for b in names:
+        for sb in _surface_forms_for_space(b):
+            for m in re.finditer(rf"不要靠着?{re.escape(sb)}", text):
+                prefix = text[max(0, m.start() - 24) : m.start()]
+                for a in names:
+                    if a == b:
+                        continue
+                    if any(sa in prefix for sa in _surface_forms_for_space(a)):
+                        add(a, b, "separation")
 
     if "客餐厅" in text and ("连通" in text or "开敞" in text):
         add("客厅", "餐厅", "open_connection")
@@ -221,12 +265,12 @@ def relation_evidenced_in_text(rel: RelationIntent, text: str) -> bool:
     if not text:
         return False
     a, b = rel.a.strip(), rel.b.strip()
-    variants_a = {a, canonical_zh_for_alias(a)} | (
-        set(ENTRY_ALIAS_GROUP) if a in ENTRY_ALIAS_GROUP else set()
-    )
-    variants_b = {b, canonical_zh_for_alias(b)} | (
-        set(ENTRY_ALIAS_GROUP) if b in ENTRY_ALIAS_GROUP else set()
-    )
+    variants_a = {a, canonical_zh_for_alias(a)}
+    variants_b = {b, canonical_zh_for_alias(b)}
+    if a in ENTRY_ALIAS_GROUP or canonical_zh_for_alias(a) in ("门厅", "入口"):
+        variants_a |= set(ENTRY_ALIAS_GROUP)
+    if b in ENTRY_ALIAS_GROUP or canonical_zh_for_alias(b) in ("门厅", "入口"):
+        variants_b |= set(ENTRY_ALIAS_GROUP)
     for va in variants_a:
         for vb in variants_b:
             for tmpl, kind in _REL_TEMPLATES:
@@ -241,6 +285,12 @@ def relation_evidenced_in_text(rel: RelationIntent, text: str) -> bool:
             if f"从{va}能进{vb}" in text or f"从{va}进入{vb}" in text:
                 if rel.kind in ("access", "adjacency"):
                     return True
+            # 分句主语 + 不要靠着
+            if rel.kind in ("separation", "adjacency"):
+                for m in re.finditer(rf"不要靠着?{re.escape(vb)}", text):
+                    prefix = text[max(0, m.start() - 24) : m.start()]
+                    if va in prefix:
+                        return True
 
     if not (
         _endpoint_mentioned_in_text(a, text) and _endpoint_mentioned_in_text(b, text)
@@ -331,10 +381,15 @@ def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
                 notes.append(f"known.bathrooms={n}")
 
     if known.household.has_garage is None:
-        if "带车库" in text or "有车库" in text:
+        if (
+            "带车库" in text
+            or "有车库" in text
+            or "要车库" in text
+            or "车库要" in text
+        ):
             known.household.has_garage = True
             notes.append("known.has_garage=true")
-        elif "无车库" in text or "不要车库" in text:
+        elif "无车库" in text or "不要车库" in text or "车库不要" in text:
             known.household.has_garage = False
             notes.append("known.has_garage=false")
 
@@ -530,20 +585,8 @@ def _priority_for_unknown(key: str) -> str:
     return "optional"
 
 
-def _surface_forms_for_space(canon: str) -> tuple[str, ...]:
-    """规范名的表面形式（含别名），用于楼层/朝向短语匹配。"""
-    forms = {canon}
-    for room in RESIDENTIAL_ROOMS:
-        if room.canonical_zh == canon:
-            forms.update(room.aliases_zh)
-            forms.add(room.canonical_zh)
-    if canon in ENTRY_ALIAS_GROUP:
-        forms |= set(ENTRY_ALIAS_GROUP)
-    return tuple(sorted(forms, key=len, reverse=True))
-
-
 def _text_has_floor1_pref(name: str, text: str) -> bool:
-    """一般规律：某空间放/在/住一层或楼下。"""
+    """一般规律：某空间放/在/住一层或楼下；老人房含 paraphrase。"""
     for surf in _surface_forms_for_space(name):
         for pat in (
             f"{surf}放一层",
@@ -558,6 +601,13 @@ def _text_has_floor1_pref(name: str, text: str) -> bool:
         ):
             if pat in text:
                 return True
+    if name == "老人房":
+        if re.search(
+            r"老人最好住楼下|老人住楼下|父母.{0,10}不要上楼|"
+            r"首层安排一间老人|给父母准备的卧室不要上楼",
+            text,
+        ):
+            return True
     return False
 
 

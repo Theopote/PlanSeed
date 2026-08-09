@@ -75,15 +75,19 @@ def all_space_lexicon_zh() -> tuple[str, ...]:
 
 
 def canonical_zh_for_alias(name: str) -> str:
-    """别名 → 规范中文名；未知则原样返回。"""
+    """别名 → 规范中文名；未知则原样返回。
+
+    入口类：门厅/玄关/入户 → 门厅；「入口」保持入口。
+    评分端点仍通过 ENTRY_ALIAS_GROUP 互通。
+    """
     raw = (name or "").strip()
     if not raw:
         return raw
-    if raw in ENTRY_ALIAS_GROUP:
-        return "入口"
     for room in RESIDENTIAL_ROOMS:
         if raw == room.canonical_zh or raw in room.aliases_zh:
             return room.canonical_zh
+    if raw in ENTRY_ALIAS_GROUP:
+        return "门厅"
     return raw
 
 

@@ -398,16 +398,20 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 - [ ] Holdout + Pipeline 重跑 baseline（勿逐案盯 holdout 调 regex）
 - [ ] 至少一 Pipeline 过 Holdout Alpha Gate → **Phase 6 ✅** → Phase 7
 
-**qwen2.5:7b 旧 Development baseline（enrich 激进版，2026-08-09；已过时，勿作唯一证据）：**
+**qwen2.5:7b Holdout + Pipeline（precision-first，2026-08-09 重跑）：**
 
-| 指标 | enrich 后 | 备注 |
-|------|-----------|------|
-| Geometry | 0% | ✅ |
-| Field accuracy | 70.9% | |
-| Relation F1 | 31.3% | precision 仅 18.5% → 6.7.1 主攻 |
-| Unknown precision | ~15% | 主攻 |
-| Assumption precision | ~1% | 主攻（剥离 llm_inference） |
-| Case pass | 32.3% | |
+| 指标 | 首轮 holdout | 本轮 | Gate | |
+|------|-------------|------|------|--|
+| Geometry | 0% | **0%** | 0% | ✅ |
+| Parse success | 100% | **96.7%** | ≥95% | ✅ |
+| Field accuracy | 96.2% | 89.7% | ≥90% | ❌（差一点） |
+| Relation F1 / precision | 48% / 42% | **73% / 69%** | ≥80% / ≥75% | ❌ |
+| Unknown precision / recall | 48% / 70% | **100% / 89%** | ≥70% | ✅ |
+| Assumption precision | 100% | **100%** | ≥80% | ✅ |
+| Case pass | 30% | **50%** | ≥70% | ❌ |
+| Repair exhausted | 0% | 3.3% | ≤5% | ✅ |
+
+主失分：relation precision/F1、整案通过率、标量尾差；floor_preference 仍弱（0.4）。**勿对 holdout 逐案调 regex。**
 
 ---
 
