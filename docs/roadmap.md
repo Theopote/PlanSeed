@@ -29,8 +29,10 @@
 ```
 
 ```text
-现在做：7.1 专业呈现（结构已落地；手测打印版式）
+现在做：7.1 专业呈现（结构已落地；**真实 Print→PDF smoke 关门**）
 下一：7.2.1 SVG → 7.2.2 PNG（可先于 PDF）→ 7.2.3 JSON → 7.2.4 Print polish
+
+打印验收清单：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 不做：DXF/DWG/IFC/BIM · 专业 PDF 引擎 · 新评价轴 · 新 LLM · solver refactor · 重开 Report Integrity 大阶段
 产品问题：把「已经能设计」转化为「能够交付」
 ```

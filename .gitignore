@@ -17,6 +17,7 @@ Thumbs.db
 !.env.example
 
 debug/*.svg
+debug/print-smoke/
 !debug/.gitkeep
 node_modules/
 desktop/node_modules/

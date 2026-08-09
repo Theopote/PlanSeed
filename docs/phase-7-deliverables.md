@@ -353,10 +353,13 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 5. [x] Assumptions/Unknowns 后置；blocking 首页提示  
 6. [x] Print fallback：`iframe.contentWindow.print()` 优先；**禁止** `window.print()` 打主壳  
 7. [x] 楼层标题本地化 · Cover 目录 · 轴名建筑化 · 报告生成时间 · Desktop 预览中文  
+8. [ ] **真实打印验收（关门）**：Desktop + Microsoft Print to PDF 跑完  
+   [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) 场景矩阵并填结果表  
 
-实现落点：`report_html.py` · `report_evaluation_presenter.py` · `report_i18n.py` · `RoomScheduleRow` · `ReportPreview.tsx`。
+实现落点：`report_html.py` · `report_evaluation_presenter.py` · `report_i18n.py` · `RoomScheduleRow` · `ReportPreview.tsx`。  
+Fixture：`uv run python scripts/generate_print_smoke_reports.py` → `debug/print-smoke/`。
 
-手测：Desktop「报告」→ 打印分页与版式（验收，不挡代码合入）。
+**CSS ≠ 验收。** `.plan-page { page-break-after }` 已就位不代表 7.1 可关；须 WebView2 实打 PDF。
 
 ## 7.2 — Export Formats（下一；等 7.1 结构稳定）
 
