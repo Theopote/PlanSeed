@@ -102,10 +102,6 @@ Phase 6 Frozen · 7.0 / 7.0.1 ✅。见 [docs/roadmap.md](docs/roadmap.md)。
 欢迎 Issue / PR。约定与检查清单见 [CONTRIBUTING.md](CONTRIBUTING.md)。  
 安全相关披露见 [SECURITY.md](SECURITY.md)。
 
-## 参考原型
-
-`reference/floorplan-generator.html` — GuillotineGenerator 逻辑来源。
-
 ## License
 
 本项目以 [MIT License](LICENSE) 开源。

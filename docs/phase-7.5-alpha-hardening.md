@@ -1,6 +1,6 @@
 # Phase 7.5 — Alpha Engineering Hardening
 
-> **状态：▶ 7.5-B mypy ← 当前 · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
+> **状态：▶ 7.5-C persistence migrations ← 当前 · 7.5-B ✅ · 7.5-A ✅ · 7.2 ✅ · 不改建筑设计行为**  
 > 总览：[roadmap.md](roadmap.md) · 契约：[api-contract.md](api-contract.md)
 
 ## 原则
@@ -27,8 +27,8 @@
 | 项 | 主题 | 状态 |
 |----|------|------|
 | **7.5-A** | OpenAPI → TypeScript + CI drift | ✅ |
-| **7.5-B** | 渐进 mypy（三轮） | **← 当前** |
-| **7.5-C** | `PRAGMA user_version` migrations | |
+| **7.5-B** | 渐进 mypy（三轮） | ✅ |
+| **7.5-C** | `PRAGMA user_version` migrations | **← 当前** |
 | **7.5-D** | `.planseed` ZIP 项目包 | |
 | **7.5-E** | `App.tsx` → hooks 拆分 | |
 | **7.5-F** | LLM Enricher stage 化 | |
@@ -64,9 +64,20 @@ pnpm --dir desktop generate:api
 
 `EngineLifecycle` · Tauri invoke · `RequirementForm` UI · form/spec sync helpers · `downloadBlob` · locks clone 等。
 
+## 7.5-B — 渐进 mypy（三轮）
+
+全局仍 `disable_error_code` 较重项；**禁止**一次删光 / `--strict`。
+
+| Round | 范围 | 恢复的检查 |
+|-------|------|------------|
+| 1 | `packages/schema` · `solver/geometry` · `solver/constraints` | `return-value` / `arg-type` / `assignment` |
+| 2 | `solver/evaluation` · `backend/services` | 同上 |
+| 3 | `backend/routes` · `packages/llm`（tests ignore） | 同上 |
+
+配置：`pyproject.toml` → `[[tool.mypy.overrides]]` + `enable_error_code`。
+
 ## 后续批次（摘要）
 
-- **B**：先恢复 `return-value` / `arg-type` / `assignment` 于 `packages/schema` · `solver/geometry` · `solver/constraints`  
 - **C**：不上 Alembic；`migrations/v001_…` + `migrate(conn, …)`  
 - **D**：ZIP = `manifest.json` + `project.json` + `assets/` + `previews/`  
 - **E**：hooks 七件套；不上 Zustand 除非 prop drilling 仍严重  
@@ -77,7 +88,7 @@ pnpm --dir desktop generate:api
 ## Definition of Done（7.5）
 
 - [x] OpenAPI → generated TypeScript + CI drift  
-- [ ] mypy 第一轮收紧  
+- [x] mypy 第一轮收紧（含 Round 1–3 目录 overrides）  
 - [ ] persistence migration  
 - [ ] `.planseed` project package  
 - [ ] App orchestration 拆分  

@@ -211,8 +211,8 @@ class DefaultConstraintChecker:
         program_ids = {r.id for r in program.rooms}
         seen: dict[str, int] = {}
 
-        for fl in candidate.floors:
-            for p in fl.placements:
+        for floor in candidate.floors:
+            for p in floor.placements:
                 if p.source != PlacementSource.PROGRAM:
                     continue
                 seen[p.room_id] = seen.get(p.room_id, 0) + 1

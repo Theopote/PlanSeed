@@ -61,10 +61,10 @@ def parse_svg_aspect(svg: str) -> tuple[float, float]:
             return None
         return v if v > 0 else None
 
-    w = _num(root.attrib.get("width"))
-    h = _num(root.attrib.get("height"))
-    if w and h:
-        return w, h
+    aw = _num(root.attrib.get("width"))
+    ah = _num(root.attrib.get("height"))
+    if aw is not None and ah is not None:
+        return aw, ah
     return 1.0, 1.0
 
 

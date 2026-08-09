@@ -274,10 +274,10 @@ def _coerce_spaces(raw: Any) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         sp = dict(item)
-        name = sp.get("name")
-        if not isinstance(name, str) or not name.strip():
+        raw_name = sp.get("name")
+        if not isinstance(raw_name, str) or not raw_name.strip():
             continue
-        sp["name"] = name.strip()
+        sp["name"] = raw_name.strip()
         if "target_area" in sp:
             sp["target_area"] = _as_float(sp["target_area"], lo=0.01)
         if "min_width" in sp:
@@ -368,11 +368,11 @@ def _coerce_unknowns(raw: Any) -> list[dict[str, Any]]:
             continue
         if not isinstance(item, dict):
             continue
-        key = item.get("key")
-        if not isinstance(key, str) or not key.strip():
+        key_raw = item.get("key")
+        if not isinstance(key_raw, str) or not key_raw.strip():
             continue
         u = dict(item)
-        u["key"] = key.strip()
+        u["key"] = key_raw.strip()
         if not isinstance(u.get("description"), str):
             u["description"] = ""
         pri = u.get("priority")

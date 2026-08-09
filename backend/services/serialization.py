@@ -75,7 +75,8 @@ def serialize_candidate(
 ) -> CandidatePayload:
     labels = {fl.id: fl.label or fl.id for fl in program.floors}
     targets = {r.id: r.target_area for r in program.rooms}
-    render_kw = dict(
+    svg = render_candidate_svg(
+        cand,
         floor_width=program.buildable.width,
         floor_depth=program.buildable.depth,
         floor_labels=labels,
@@ -83,9 +84,17 @@ def serialize_candidate(
         site=program.site,
         access_graph=program.access_graph,
     )
-    svg = render_candidate_svg(cand, **render_kw)
     floor_svgs = {
-        fl.floor_id: render_floor_svg(cand, fl.floor_id, **render_kw)
+        fl.floor_id: render_floor_svg(
+            cand,
+            fl.floor_id,
+            floor_width=program.buildable.width,
+            floor_depth=program.buildable.depth,
+            floor_labels=labels,
+            target_areas=targets,
+            site=program.site,
+            access_graph=program.access_graph,
+        )
         for fl in cand.floors
     }
     validation = None

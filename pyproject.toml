@@ -64,8 +64,9 @@ addopts = "-v"
 # 静态检查：先宽松落地，避免一次大手术；逐步收紧。
 # 顺序（勿跳到 mypy --strict）：
 #   1) ruff clean
-#   2) mypy 核心包（packages / solver 关键）
+#   2) mypy 核心包（packages / solver 入口）
 #   3) 逐目录收紧并删 disable_error_code
+# Phase 7.5-B：按目录恢复 return-value / arg-type / assignment（见 overrides）。
 # Pydantic / union / dynamic metrics 多，全仓 strict 过早。
 [tool.ruff]
 target-version = "py312"
@@ -93,8 +94,8 @@ warn_unused_ignores = false
 pretty = true
 packages = ["packages", "solver", "backend"]
 exclude = ["(?x)(^build/|^dist/)"]
-# Phase 3.5+：先接入工具，存量类型债不阻断。
-# 禁止立刻 --strict；按目录收紧时再删对应 disable。
+# 全局仍禁用较重项；Round 1–3 目标目录用 enable_error_code 覆盖。
+# 禁止立刻 --strict / 一次删光下列列表。
 disable_error_code = [
     "arg-type",
     "assignment",
@@ -106,10 +107,38 @@ disable_error_code = [
     "misc",
 ]
 
+# 7.5-B Round 1–3：恢复 return-value / arg-type / assignment
+[[tool.mypy.overrides]]
+module = [
+    "packages.schema",
+    "packages.schema.*",
+    "solver.geometry",
+    "solver.geometry.*",
+    "solver.constraints",
+    "solver.constraints.*",
+    "solver.evaluation",
+    "solver.evaluation.*",
+    "backend.services",
+    "backend.services.*",
+    "backend.routes",
+    "backend.routes.*",
+    "packages.llm",
+    "packages.llm.*",
+]
+enable_error_code = ["return-value", "arg-type", "assignment"]
+
 [[tool.mypy.overrides]]
 module = "solver.tests.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "packages.schema.tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "packages.llm.tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "backend.tests.*"
 ignore_errors = true

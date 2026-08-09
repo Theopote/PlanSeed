@@ -171,11 +171,8 @@ def _values_equal(expected: object, actual: object) -> bool:
         return True
     if actual is None:
         return False
-    if isinstance(expected, float) or isinstance(actual, float):
-        try:
-            return abs(float(expected) - float(actual)) < 1e-6
-        except (TypeError, ValueError):
-            return False
+    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        return abs(float(expected) - float(actual)) < 1e-6
     return expected == actual
 
 
