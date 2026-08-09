@@ -50,8 +50,27 @@ Report HTML（只 rotate 或「北向未定义」）
 
 ## 7.1.1-B — RequirementSpec TS fidelity（P1）✅
 
-`unknown.priority` / `assumption.source` / `site.north_angle` 往返不丢。  
-见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md)。
+**风险：** 手写 `RequirementSpecPayload` 瘦于 Python → Save/Reload 丢 `priority` / `source` / `north_angle`。
+
+**本任务范围：** 仅 Python `RequirementSpec` ↔ TS `RequirementSpecPayload` 字段核对 + round-trip。  
+**不做：** OpenAPI codegen。
+
+| 字段 | 结论 |
+|------|------|
+| `site.north_angle` / `entrance_edge` / `road_edges` / `setbacks` | ✅ TS 已有 |
+| `assumptions[].source` | ✅ + `cloneAssumptionPayload` |
+| `unknowns[].priority` | ✅ + `cloneUnknownPayload` |
+| `spaces[].preferred_orientation` / `floor_preference` / `min_width` | ✅ |
+| `relation_intents` | ✅ |
+
+**契约 fixture：** [`fixtures/requirement_spec_full.json`](../fixtures/requirement_spec_full.json)
+
+| 侧 | 命令 |
+|----|------|
+| Python | `uv run pytest backend/tests/test_requirement_spec_fidelity.py`（含 project save/reload） |
+| Desktop | `cd desktop && pnpm check:fidelity` |
+
+危险模式（瘦 rebuild 丢语义）与正确 spread clone 均有测试锁定。
 
 ---
 
@@ -65,7 +84,7 @@ Report HTML（只 rotate 或「北向未定义」）
 ## Definition of Done
 
 1. [x] 7.1.1-A 北向链路 + 四项测试  
-2. [x] 7.1.1-B TS fidelity 审计  
+2. [x] 7.1.1-B TS fidelity：共享 fixture + Python/TS 检查 + project save/reload  
 3. [ ] 7.1.1-C Print smoke 结果表  
 4. [x] 路线图含 7.2 → 7.5 → 8.0（优化建议进 7.5/8，不塞 7.2）
 

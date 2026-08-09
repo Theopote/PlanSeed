@@ -42,21 +42,25 @@ hydrate → stair_* from stair-* placements → evaluate
 
 ---
 
-## TS Fidelity Audit（Phase 7.1.1 收口；✅ Engineering）
+## TS Fidelity Audit（Phase 7.1.1-B；✅ + fixture 锁定）
 
 **风险类同 5.1.1：** frontend 用瘦 schema / 瘦 `.map()` 重建对象 → Save → Report 时语义静默丢失  
 （例如 `unknown.priority` 丢失 → Cover 不再显示 blocking）。
 
 对照：`packages/schema/requirements.py` ↔ `desktop/src/api/client.ts` `RequirementSpecPayload`。
 
-| 字段 | 要求 | 7.1.1 |
-|------|------|-------|
+**共享 fixture：** [`fixtures/requirement_spec_full.json`](../fixtures/requirement_spec_full.json)  
+**测试：** `backend/tests/test_requirement_spec_fidelity.py` · `desktop` → `pnpm check:fidelity`
+
+| 字段 | 要求 | 7.1.1-B |
+|------|------|---------|
 | `assumptions[].source` | 保留；编辑时 `{ ...a, value, reason }` | ✅ |
 | `unknowns[].priority` | 保留；禁止 `{ key, description }` 重建 | ✅ |
 | `relation_intents` | TS 类型完整；往返不得丢 | ✅ |
 | `spaces[].preferred_orientation` / `floor_preference` / `min_width` / `tags` | sync 用 spread | ✅ |
-| `site.north_angle` | 报告北针依赖；未知 ≠ 默认 0 | ✅ |
+| `site.north_angle` / `entrance_edge` / `road_edges` / `setbacks` | 报告北针与场地语义 | ✅ |
 
 **规则：** 复制子行只用 spread / `cloneUnknownPayload` / `cloneAssumptionPayload`。  
 `fallbackRequirementFromForm(program)` 须带回 `program.assumptions` / `unknowns`。  
-总收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md)。
+总收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md)。  
+**不做**本任务顺手 OpenAPI。

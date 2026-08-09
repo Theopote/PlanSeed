@@ -327,9 +327,13 @@ export async function parseRequirementsNl(
   return r.json() as Promise<ParseNLResponse>;
 }
 
-/** Phase 5.1.1 — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。
+/** Phase 5.1.1 / 7.1.1-B — 与 packages.schema.requirements.RequirementSpec 对齐的会话事实源。
  *
  * ## TS Fidelity Audit（对照 Python；禁止瘦 map 重建子对象）
+ *
+ * 共享契约 fixture：`fixtures/requirement_spec_full.json`
+ * - Python：`backend/tests/test_requirement_spec_fidelity.py`
+ * - Desktop：`pnpm check:fidelity` → `scripts/check-requirement-fidelity.mjs`
  *
  * | Python field                         | TS field                                      | 状态 |
  * |--------------------------------------|-----------------------------------------------|------|
@@ -343,9 +347,12 @@ export async function parseRequirementsNl(
  * | site.north_angle                     | site.north_angle                              | ✅   |
  * | site.entrance_edge / road_edges      | site.entrance_edge / road_edges               | ✅   |
  * | site.setbacks                        | site.setbacks (SetbackPayload)                | ✅   |
+ * | household.notes                      | household.notes                               | ✅   |
+ * | preferences.*                        | preferences.*                                 | ✅   |
  *
  * 规则：复制 / 编辑时用 `{ ...row, ...patch }`；禁止 `{ key, description }` 之类缩字段。
  * 报告 Cover blocking / 北向 / Key Intent 关系句均依赖完整语义。
+ * **不做**本任务顺手 OpenAPI codegen。
  */
 export type RelationKind =
   | "adjacency"

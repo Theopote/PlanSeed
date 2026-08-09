@@ -1,0 +1,119 @@
+{
+  "_comment": "Phase 7.1.1-B — RequirementSpec Python↔TS fidelity fixture. Shared by pytest + desktop check script. Do not strip semantic fields.",
+  "raw_text": "11×13 两层，客厅朝南，厨房近餐厅，入口在南侧，北向偏东 45°。",
+  "floor_count": 2,
+  "site": {
+    "width": 11.0,
+    "depth": 13.0,
+    "north_angle": 45.0,
+    "entrance_edge": "south",
+    "road_edges": ["south", "east"],
+    "setbacks": {
+      "north": 1.0,
+      "south": 2.0,
+      "east": 1.5,
+      "west": 1.5
+    }
+  },
+  "household": {
+    "occupants": 4,
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "has_garage": true,
+    "notes": "多代同堂，需主卧套房"
+  },
+  "spaces": [
+    {
+      "id": "living",
+      "name": "客厅",
+      "category": "public",
+      "target_area": 24.0,
+      "floor_preference": ["F1"],
+      "tags": ["living"],
+      "preferred_orientation": "south",
+      "min_width": 3.6
+    },
+    {
+      "id": "kitchen",
+      "name": "厨房",
+      "category": "wet",
+      "target_area": 8.0,
+      "floor_preference": ["F1"],
+      "tags": ["kitchen"],
+      "preferred_orientation": "east",
+      "min_width": 2.1
+    },
+    {
+      "id": "master",
+      "name": "主卧",
+      "category": "private",
+      "target_area": 16.0,
+      "floor_preference": ["F2"],
+      "tags": ["bedroom", "master"],
+      "preferred_orientation": "south",
+      "min_width": 3.0
+    }
+  ],
+  "preferences": {
+    "prefer_south_facing_living": true,
+    "prefer_open_kitchen_dining": true,
+    "prefer_compact_footprint": false,
+    "prefer_short_corridor": true,
+    "quiet_zone_away_from_entry": true,
+    "wet_stack_preference": true
+  },
+  "assumptions": [
+    {
+      "key": "site.setbacks",
+      "value": "from_fixture",
+      "reason": "业主口头确认退界",
+      "source": "user_authorized"
+    },
+    {
+      "key": "site.stair_width",
+      "value": 1.8,
+      "reason": "产品默认楼梯净宽",
+      "source": "planseed_default"
+    }
+  ],
+  "unknowns": [
+    {
+      "key": "site.boundary_survey",
+      "description": "正式测绘图未提供",
+      "priority": "blocking"
+    },
+    {
+      "key": "preferences.roof_type",
+      "description": "坡屋顶或平屋顶未定",
+      "priority": "optional"
+    },
+    {
+      "key": "spaces.study",
+      "description": "是否需要书房待确认",
+      "priority": "recommended"
+    }
+  ],
+  "relation_intents": [
+    {
+      "a": "厨房",
+      "b": "餐厅",
+      "kind": "near",
+      "strength": "required",
+      "note": "厨餐靠近"
+    },
+    {
+      "a": "客厅",
+      "b": "主卧",
+      "kind": "separation",
+      "strength": "preferred",
+      "note": "动静分离"
+    },
+    {
+      "a": "玄关",
+      "b": "客厅",
+      "kind": "access",
+      "strength": "required",
+      "note": "入户可达客厅"
+    }
+  ]
+}
