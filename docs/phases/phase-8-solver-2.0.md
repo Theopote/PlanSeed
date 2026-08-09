@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：▶ 8.0-A LayoutGenerator Interface ← 当前 · 7.5 ✅ · 禁止一上来 GA / NSGA-II · 禁止 Code Compliance**  
+> **状态：▶ 8.0-C Generator Benchmark ← 当前 · 8.0-A/B ✅ · 7.5 ✅ · 禁止 GA 先行 · 禁止 Code Compliance**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -14,9 +14,9 @@
 ## 顺序
 
 ```text
-8.0-A LayoutGenerator Interface     ← 当前
-  → 8.0-B MaxRect packing strategy
-  → 8.0-C Generator Benchmark（Guillotine vs MaxRect）
+8.0-A LayoutGenerator Interface     ✅
+  → 8.0-B MaxRect packing strategy    ✅
+  → 8.0-C Generator Benchmark         ← 当前（Guillotine vs MaxRect）
 8.1 Diversity Selection（top-score + diverse alternatives）
 8.2 Pareto Frontier（多 generator 之后）
 8.3 CP-SAT Research（topology / assignment，非整几何）
@@ -25,9 +25,9 @@
 
 | 项 | 主题 | 状态 |
 |----|------|------|
-| **8.0-A** | `LayoutGenerator` Protocol；Guillotine = Strategy | **← 当前** |
-| **8.0-B** | MaxRect / Maximal Rectangles | 后续 |
-| **8.0-C** | `layout-generation-benchmark` | 后续 |
+| **8.0-A** | `LayoutGenerator` Protocol；Guillotine = Strategy | ✅ |
+| **8.0-B** | MaxRect / Maximal Rectangles | ✅ |
+| **8.0-C** | `layout-generation-benchmark` | **← 当前** |
 | **8.1** | Diversity Selection | 后续 |
 | **8.2** | Pareto Frontier | 后续 |
 | **8.3** | CP-SAT Research | 研究 |
@@ -69,9 +69,15 @@ class LayoutGenerator(Protocol):
 
 **不改变**默认几何 / 评分行为。
 
-## 8.0-B — MaxRect（预告）
+## 8.0-B — MaxRect ✅
 
-第一个新增 strategy：**Maximal Rectangles**，不是遗传算法。
+第一个新增 strategy：**Maximal Rectangles**（不是遗传算法）。
+
+- `solver/geometry/maxrects.py` — free-list update / BSSF / prune  
+- `solver/generators/maxrect.py` — `MaxRectGenerator`（`strategy_id="maxrect"`）  
+- 复用 Guillotine 的 StairCore / Zone / Topology；**仅替换叶子** `_layout_rooms`  
+- `run_pipeline(..., generator=MaxRectGenerator())`  
+- `generator_version = "maxrect-v1"`（与 Guillotine 的 provenance 区分）
 
 理由：确定性 · 易 debug · 易 benchmark · 与 Guillotine 分布差异明显。
 
@@ -92,10 +98,11 @@ class LayoutGenerator(Protocol):
 - Code Compliance（「三层必须电梯」等）  
 - 无 Jurisdiction / CodeProfile / Rule / Source / Version / Applicability 前禁止声称「符合某规范」
 
-## Definition of Done（8.0-A）
+## Definition of Done（8.0）
 
 - [x] `LayoutGenerator` Protocol  
 - [x] `GuillotineGenerator` 实现该接口（含 `strategy_id`）  
 - [x] `run_pipeline` 可注入 generator  
 - [x] 默认路径仍为 Guillotine，行为不变  
-- [ ] 8.0-B MaxRect（未开始）
+- [x] 8.0-B MaxRect
+- [ ] 8.0-C Generator Benchmark

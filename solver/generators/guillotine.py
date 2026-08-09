@@ -78,6 +78,7 @@ class GuillotineGenerator:
     """
 
     strategy_id = "guillotine"
+    generator_version = GENERATOR_VERSION
 
 
     def __init__(self) -> None:
@@ -141,12 +142,12 @@ class GuillotineGenerator:
                     ],
                     provenance=CandidateProvenance(
                         solver_version=SOLVER_VERSION,
-                        generator_version=GENERATOR_VERSION,
+                        generator_version=self.generator_version,
                     ),
                     metrics={
                         "core_unfit": True,
                         "core_unfit_reason": str(err),
-                        "generator_version": GENERATOR_VERSION,
+                        "generator_version": self.generator_version,
                         "solver_version": SOLVER_VERSION,
                     },
                 )
@@ -289,7 +290,7 @@ class GuillotineGenerator:
         from solver.topology.doors import place_door_openings
 
         metrics: dict[str, float | int | str | bool] = {
-            "generator_version": GENERATOR_VERSION,
+            "generator_version": self.generator_version,
             "solver_version": SOLVER_VERSION,
             "locked_room_count": len(locks.rooms),
             "locked_zone_count": len(locks.zones),
@@ -303,7 +304,7 @@ class GuillotineGenerator:
             zone_placements=zone_placements,
             provenance=CandidateProvenance(
                 solver_version=SOLVER_VERSION,
-                generator_version=GENERATOR_VERSION,
+                generator_version=self.generator_version,
             ),
             metrics=metrics,
         )

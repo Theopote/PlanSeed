@@ -27,7 +27,8 @@ class LayoutGenerator(Protocol):
 - 默认实现：`GuillotineGenerator`（`strategy_id="guillotine"`）
 - `CandidateGenerator` 为兼容别名
 - `run_pipeline(..., generator=)` 可注入 Strategy
-- 下一策略：**MaxRect**（8.0-B）；**不要**先做 GA / NSGA-II
+- 第二策略：`MaxRectGenerator`（`strategy_id="maxrect"`，8.0-B ✅）
+- 下一：**layout-generation-benchmark**（8.0-C）；**不要**先做 GA / NSGA-II
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 
