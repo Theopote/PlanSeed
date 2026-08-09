@@ -1,21 +1,18 @@
 # Phase 6 — Local LLM Requirement Parsing
 
-> **状态：✅ 6.0–6.6 LLM Infrastructure · ← 6.7 Qualification & Runtime Hardening**  
+> **状态：✅ Phase 6 Strict Alpha Qualified（Blind v4 + qwen2.5:7b）**  
 > 总览：[roadmap.md](roadmap.md) · 下一：[phase-7-deliverables.md](phase-7-deliverables.md)  
-> 前置：[phase-6.0-llm-boundary.md](phase-6.0-llm-boundary.md)
+> 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md) · 资格：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)
 
 ## 完成标准
 
 ```text
 0–5.1.1  ✅ Design Kernel
 6.0–6.6  ✅ LLM Infrastructure
-6.7      ← Real Model Qualification & Runtime Hardening
-Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过门
-Phase 7  Deliverables / Export
+6.7–6.7.2 ✅ Blind v4 Gate PASS
+Phase 6  ✅ Strict Alpha Qualified
+Phase 7  ← Deliverables / Export
 ```
-
-**不要**把 Infrastructure Complete 写成 Phase 6 ✅。  
-**6.7 期间不做：** 扩 LLM 功能 · 重构 solver · 提前开工 Phase 7。
 
 ## 最高原则
 

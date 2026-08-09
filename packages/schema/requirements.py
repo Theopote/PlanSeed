@@ -9,10 +9,10 @@ from pydantic import BaseModel, Field
 from packages.schema.site import CardinalEdge, CardinalOrientation, SetbackSpec
 
 RelationKind = Literal[
-    "adjacency",  # 共享边界级邻接（遗留）
-    "near",  # 靠近 / 邻近（不必连通）
+    "adjacency",  # 共享边界级邻接（遗留；禁止当靠近/连通/通行的万能桶）
+    "near",  # 靠近 / 邻近（不必连通、不必通行）
     "separation",  # 远离 / 私密分离
-    "access",  # 可通行 / 内部相连
+    "access",  # 可通行 / 内部相连（≠ 仅邻近）
     "open_connection",  # 开敞连通（客餐厅等）
     "visual_connection",  # 视线联系（预留）
 ]

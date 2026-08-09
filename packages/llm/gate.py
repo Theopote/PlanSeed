@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from packages.llm.boundary import GeometryForbiddenError, assert_no_geometry_payload
+from packages.llm.coerce import coerce_llm_draft_payload
 from packages.llm.enrich import enrich_requirement_draft
 from packages.llm.semantic import (
     RequirementSemanticValidator,
@@ -87,6 +88,9 @@ def ingest_llm_requirement(
                 )
             ],
         ) from exc
+
+    # Hybrid：确定性容错后再严格校验（降低无谓 repair）
+    payload = coerce_llm_draft_payload(payload)
 
     try:
         draft = LLMRequirementDraft.model_validate(payload)

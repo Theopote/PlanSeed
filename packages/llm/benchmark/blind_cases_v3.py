@@ -1,12 +1,6 @@
-"""Phase 6.7.3 — Blind Set v3（严格独立资格认证语料）。
+"""Phase 6.7.2 — Blind Set v3（**已归档**，Gate FAIL）。
 
-纪律：
-- Blind v2 Gate FAIL 已归档；本集为 **新** 冻结语料
-- 禁止在看过 Blind v3 失败后再改解析规则并宣称本集通过
-- 不得再驱动 enricher 逐案 regex / 补丁
-- 语气偏口语/叙事；刻意避开 v1 / v2 / Holdout 原句
-
-六类：explicit | intent | access_near | weak_pref | negative | ambiguous
+当前严格资格见 `blind_cases_v4.py`。
 """
 
 from __future__ import annotations

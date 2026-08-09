@@ -110,16 +110,17 @@ def test_ingest_rejects_bad_floor_preference():
     assert any(i.code == "req.floor_preference_range" for i in ei.value.issues)
 
 
-def test_ingest_rejects_illegal_floor_id():
+def test_ingest_strips_illegal_floor_id_via_coerce():
+    """非法 F7 由 coerce 丢弃，避免整份 draft 因形状失败。"""
     raw = {
         "known": {
             "floor_count": 2,
             "spaces": [{"name": "书房", "floor_preference": ["F7"]}],
         }
     }
-    with pytest.raises(LLMIngestError) as ei:
-        ingest_llm_requirement(raw)
-    assert any(i.code == "req.floor_preference" for i in ei.value.issues)
+    result = ingest_llm_requirement(raw)
+    study = next(s for s in result.draft.known.spaces if s.name == "书房")
+    assert study.floor_preference == []
 
 
 def test_mock_provider_and_system_prompt():

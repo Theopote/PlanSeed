@@ -61,6 +61,7 @@ LLM Phase 6 目标：`Natural Language → Hybrid Semantic Parser → Requiremen
 - **Circulation**：系统生成（`source=generated`），用户可约束
 - **Setbacks 默认 0**：表示未提供规划信息，非法规结论
 - **Finding = design heuristic**：与 **code compliance** 严格分开；无 CodeProfile / Jurisdiction / Rule source 时，禁止「符合规范 / 合法 / 满足消防 / 无障碍」等合规语气
+- **Adjacency ≠ Access Intent**：Solver 拓扑与 Requirement `relation_intents` 均须分流（near / access / open_connection / separation…）；见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 - **版本签名**：`solver_version` / `generator_version` / `evaluation_version`（`packages/schema/identity.py`）；解释历史分数与 regression，≠ `engine_version`
 - **静态检查**：ruff clean → mypy 核心 → 逐目录收紧；**不做**全仓 `mypy --strict`
 - **CI**：`.github/workflows/ci.yml`（pytest / ruff / mypy / pnpm build / cargo check）；sidecar 打包不进每次 commit

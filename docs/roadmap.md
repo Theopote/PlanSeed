@@ -1,22 +1,23 @@
 # PlanSeed 路线图
 
-> **当前焦点：Phase 6.7.2 Blind Requalification**  
-> 详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · [phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md)  
-> **Phase 7 ⏸** 等 Blind Gate 后再开 · 契约：[api-contract.md](api-contract.md)
+> **当前焦点：Phase 7 Deliverables / Export**  
+> Phase 6 ✅ Strict Alpha Qualified（Blind v4 Gate PASS）  
+> 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)  
+> 契约：[api-contract.md](api-contract.md)
 
 ## 项目状态（阶段判断）
 
 | 阶段 | 主题 | 状态 |
 |------|------|------|
 | **0–5.1.1** | **Design Kernel** | **✅** |
-| **6.0–6.6** | **LLM Infrastructure** | **✅ Engineering Complete** |
-| **6.7 / 6.7.1** | **Qualification · Parser Precision** | ✅ Engineering；Holdout 过门但**已泄漏** |
-| **6.7.2** | **Blind Requalification** | **← 当前** |
-| **7** | **Deliverables / Export** | ⏸ Blind 过门后 |
+| **6.0–6.6** | **LLM Infrastructure** | **✅** |
+| **6.7 / 6.7.1** | **Qualification · Parser Precision** | ✅ Engineering；Holdout 泄漏 |
+| **6.7.2** | **Blind Requalification** | ✅ **Blind v4 PASS → Strict Alpha Qualified** |
+| **7** | **Deliverables / Export** | **← 当前** |
 
 ```text
-现在做：Blind v3 已 FAIL → Development（parse/repair，非无限 regex）→ Blind v4  
-不做：开工 Phase 7 · 对着 Blind 逐案加 regex · 回头改 solver
+现在做：Phase 7 Export / Deliverable Layer
+不做：回头大改 solver · 对着 Blind 扩 regex · 扩云端 LLM
 ```
 
 ## 阶段总览（以代码为准）
@@ -33,8 +34,8 @@
 | **6.0–6.6** | **LLM Infrastructure** | **✅ Engineering Complete** |
 | **6.7** | **Real Model Qualification & Runtime Hardening** | ✅ |
 | **6.7.1** | **Parser Precision & Holdout** | ✅ Engineering（Holdout 泄漏 → 非严格独立） |
-| **6.7.2** | **Blind Requalification** | **← 当前** |
-| **7** | **Deliverables / Export** | ⏸ |
+| **6.7.2** | **Blind Requalification** | ✅ Blind v4 PASS |
+| **7** | **Deliverables / Export** | **← 当前** |
 | **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（避免失焦） |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -377,23 +378,23 @@ Phase 6  ✅ Alpha Qualified  ← 仅当某本地模型过 Alpha Gate
 | Field / Rel F1·P / Case pass | 96.2% / 82.4%·75% / 76.7% |
 | Unknown P·R / Assumption P | 100%·89% / 100% |
 
-### Phase 6.7.2 — Blind Requalification ← 当前（v3 FAIL）
+### Phase 6.7.2 — Blind Requalification ✅ Strict Alpha Qualified
 
 详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ```text
-Blind v1–v3：均 Gate FAIL（已归档）
-v3：关系精度已过门；卡在 parse 86% · repair 耗尽 14% · field 87%
-下一：Development 稳 parse/repair → Blind v4（禁逐案 regex）
+Blind v4 + qwen2.5:7b Pipeline：Alpha Gate PASS
+parse 100% · field 96% · rel F1/P 91%/84% · repair 0% · case 89%
 ```
 
-- [x] Blind v1 / v2 / v3 单次入库 FAIL
-- [x] Hybrid Semantic Parser 定性
-- [ ] Blind v4 Gate PASS → Strict Alpha Qualified → Phase 7
+- [x] Blind v1–v3 FAIL 归档
+- [x] Hybrid Parser · Relation Kind 分流 · Draft Coerce
+- [x] Blind v4 Gate PASS → **Phase 6 ✅ Strict Alpha Qualified**
+- [x] 解锁 Phase 7
 
 ---
 
-## Phase 7 — Deliverables / Export（⏸ Blind 过门后）
+## Phase 7 — Deliverables / Export ← 当前
 
 详案：[phase-7-deliverables.md](phase-7-deliverables.md)
 
@@ -499,7 +500,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 6.7.2** Blind Requalification；过门后 **Phase 7 Export** |
+| **当前主线** | **Phase 7** Deliverables / Export（Phase 6 Strict Alpha Qualified） |
 
 ---
 

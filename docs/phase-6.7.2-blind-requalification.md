@@ -1,8 +1,8 @@
 # Phase 6.7.2 — Blind Requalification
 
-> **状态：Blind v3 ❌ Gate FAIL（已单次入库）；禁止对着 Blind 调规则**  
+> **状态：✅ Blind v4 Gate PASS — Strict Alpha Qualified**  
 > 前置：[phase-6.7.1-parser-precision-holdout.md](phase-6.7.1-parser-precision-holdout.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)  
-> 下一：Development 一般规律（尤其 parse/repair 稳定性）→ Blind v4 → 过门后再进 Phase 7
+> 下一：可开 [phase-7-deliverables.md](phase-7-deliverables.md)；Holdout / Blind v1–v3 仅作工程对照
 
 ## 为什么还要 6.7.2
 
@@ -33,8 +33,9 @@ Pipeline 对「已参与规则设计的 30 句」可过门
 | Blind v1 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v1.json`） |
 | Blind v2 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v2.json`） |
 | Blind v3 | ❌ FAIL（归档 `llm-alpha-baseline-blind-v3.json`） |
-| Blind v4 | ⏳ 下一严格资格语料 |
-| Phase 7 | ⏸ Blind Gate PASS 后再开 |
+| Blind v4 | ✅ **PASS**（`llm-alpha-baseline.json` / `…-blind-v4.json`） |
+| Phase 6 | ✅ **Strict Alpha Qualified** |
+| Phase 7 | ▶ 可开 |
 
 ## 本阶段唯一目标
 
@@ -91,10 +92,10 @@ Record summary → PASS / FAIL
 
 ## 完成标准
 
-- [x] Blind Set v1 ≥40，六类齐全 → 单次跑分 **FAIL**
-- [x] Development 口语标量一般规律后开 Blind v2
-- [x] Blind Set v2（44 条）`qwen2.5:7b` Pipeline **单次**入库 → Gate **FAIL**
-- [ ] Gate PASS（Blind v3+）→ 写 **Phase 6 ✅ Strict Alpha Qualified** → 开 Phase 7
+- [x] Blind Set v1–v3 单次跑分 **FAIL**（已归档）
+- [x] Development：口语标量 · 关系证据收紧 · Draft Coerce
+- [x] Blind Set v4（44 条）`qwen2.5:7b` Pipeline **单次**入库 → Gate **PASS**
+- [x] **Phase 6 ✅ Strict Alpha Qualified** → 可开 Phase 7
 
 ## Blind v1 单次结果（2026-08-09，`qwen2.5:7b` Pipeline）
 
@@ -124,8 +125,20 @@ Record summary → PASS / FAIL
 | **Scalar field accuracy** | **86.6%** | ≥90% | ❌ |
 | Case pass rate | 81.8% | ≥70% | ✅ |
 
-分字段：garage ≈75%；south ≈86%；site ≈92%。
+## Blind v4 单次结果（2026-08-09，`qwen2.5:7b` Pipeline）— **PASS**
 
-**解读：** 关系精度相对 v2 已过门（证据收紧有效）；瓶颈转到 **parse / repair 耗尽** 与标量差一线。  
-**下一步：** Development 侧提高草稿可解析性 / repair 稳定性（短 prompt、schema 容错），**非** Blind 逐案 regex → Blind v4。  
-**禁止：** 打开 Blind v3 失败明细逐案补丁后宣称通过。
+| 指标 | 实际 | Gate | |
+|------|------|------|--|
+| Geometry | 0% | 0% | ✅ |
+| Parse success | **100%** | ≥95% | ✅ |
+| Relation F1 / precision | **91.4% / 84.2%** | ≥80% / ≥75% | ✅ |
+| Unknown precision / recall | 100% / 100% | ≥70% | ✅ |
+| Assumption precision | 100% | ≥80% | ✅ |
+| Repair exhausted | **0%** | ≤5% | ✅ |
+| Scalar field accuracy | **96.2%** | ≥90% | ✅ |
+| Case pass rate | **88.6%** | ≥70% | ✅ |
+
+分字段：garage / south / 卧卫 / 层数 = 100%；site ≈77%（未拖垮总 field）。
+
+**解读：** Draft Coerce 把 parse/repair 耗尽压到 0；关系 precision-first 仍过门（P 84% · R 100% · F1 91%）。  
+**结论：** Phase 6 **Strict Alpha Qualified**；可进入 Phase 7 Deliverables。

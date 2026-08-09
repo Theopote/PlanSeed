@@ -19,6 +19,7 @@ Local LLM 提出草稿 + 确定性抽取 / 词表归一 / Semantic Gate / Repair
 Natural Language
     │
     ├─ 1. Local LLM（Ollama）     结构化草稿 LLMRequirementDraft
+    ├─ 1b. Draft Coerce           字符串数字 / kind 别名等 schema 缓冲（packages/llm/coerce.py）
     ├─ 2. Deterministic Extraction  enrich：显式标量 / 关系 / 空间（高置信）
     ├─ 3. Vocabulary Normalization  vocabulary：别名 → 规范名
     ├─ 4. Semantic Gate             semantic + ingest gate
@@ -30,6 +31,7 @@ Natural Language
 | 段 | 职责 | 不做 |
 |----|------|------|
 | Local LLM | 口语 → 草稿 JSON | 坐标 / DesignProgram / 几何 |
+| Draft Coerce | 可恢复的形状归一（降 repair 耗尽） | 臆造业务事实 |
 | Deterministic Extraction | 原文**显式**事实补全与假阳性剔除 | 臆造设计意图；单案 regex |
 | Vocabulary | 表面形式归一 | 扩房间种类冒充产品功能 |
 | Semantic Gate | 硬约束 / 一致性 | 用 Gate「猜」用户没说的 |
@@ -44,6 +46,43 @@ Natural Language
 1. **LLM 不是唯一解析器** — 它是草稿生成器。  
 2. **准确率主要靠 Schema · Vocabulary · Enrich · Gate · Benchmark**，不是堆 prompt。  
 3. **假阳性比漏报更贵**（尤其 `relation_intents`）— precision-first 仍成立。
+
+## Relation：precision-first + Kind 分流（已对齐 Solver 原则）
+
+Solver 侧早已成立：
+
+```text
+Adjacency ≠ Access Intent
+邻接 ≠ 通行（见 solver/topology/derive_access.py）
+```
+
+**Requirement / Hybrid Parser 输入端现已同一原则**，不得再把口语里的靠近 / 连通 / 进入全部压成 `adjacency`。
+
+| RelationKind | 口语线索（例） | 语义 |
+|--------------|----------------|------|
+| `near` | 靠近、挨着、邻近 | 靠近，**不必**连通或通行 |
+| `separation` | 远离、不要靠、避免噪声 | 分离 / 私密 |
+| `open_connection` | 连通、开敞连通 | 开敞空间连通（如客餐厅） |
+| `access` | 相连、连着、从 A 进 B | **可通行** / 内部相连 |
+| `visual_connection` | 望向、视野（预留） | 视线，非几何 |
+| `adjacency` | （遗留） | 仅共享边界级；**禁止**当万能桶 |
+
+纪律：
+
+```text
+宁可少关系，不可乱关系
+precision ↓ 时，禁止为抬 recall 无限补 relation_intents
+```
+
+证据策略：仅高置信二元模板 / 显式通行句 / 复合词（客餐厅·餐厨）；**两端共现 + 全文任意「近」不够**。  
+Normalizer 再把已支持的 kind 映射到 solver intents；RequirementSpec 须保留用户原意。
+
+健康方向（相对早期「Recall 100% / Precision ~18%」）：
+
+```text
+Recall 高但可控 · Precision 过门 · F1 健康
+→ 假阳性约束不再廉价灌进 DesignProgram
+```
 
 ## Regex / 模板增长纪律（硬约束）
 

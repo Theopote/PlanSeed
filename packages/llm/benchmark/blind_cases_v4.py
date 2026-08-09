@@ -1,6 +1,12 @@
-"""Phase 6.7.2 — Blind Set v2（**已归档**，Gate FAIL）。
+"""Phase 6.7.2 — Blind Set v4（严格独立资格认证语料）。
 
-当前严格资格见 `blind_cases_v4.py`。
+纪律：
+- Blind v3 Gate FAIL 已归档；本集为 **新** 冻结语料
+- 禁止在看过 Blind v4 失败后再改解析规则并宣称本集通过
+- 不得再驱动 enricher 逐案 regex / 补丁
+- 语气偏口语/叙事；刻意避开 v1 / v2 / v3 / Holdout 原句
+
+六类：explicit | intent | access_near | weak_pref | negative | ambiguous
 """
 
 from __future__ import annotations
@@ -16,43 +22,43 @@ from packages.llm.benchmark.cases import (
 )
 from packages.schema.site import CardinalOrientation
 
-BLIND_VERSION = "blind-v2"
+BLIND_VERSION = "blind-v4"
 BLIND_FREEZE_NOTE = (
-    "Blind v2 创建时解析层应已相对冻结；本集不得再驱动 enricher 逐案补丁。"
+    "Blind v4 创建时解析层应已相对冻结；本集不得再驱动 enricher 逐案补丁。"
 )
 
 
 def load_blind_cases() -> list[RequirementBenchmarkCase]:
-    """Blind Set v2（目标 40–60；口语化住宅需求）。"""
+    """Blind Set v4（目标 40–60；口语化住宅需求）。"""
     cases: list[RequirementBenchmarkCase] = [
         # ========== 1. Explicit Facts ==========
         _c(
-            "bl2-001",
-            "家里想盖两层，卧室四个、卫浴两间，地块宽九米深十二米。",
+            "bl4-001",
+            "计划建两层，睡房四间、卫生间两个，宅基地宽九米深十一米。",
             tags=["blind", "explicit"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=4,
                 bathrooms=2,
                 site_width=9,
-                site_depth=12,
+                site_depth=11,
             ),
         ),
         _c(
-            "bl2-002",
-            "做一层就够，两室一厅一卫，没有车位。宽深还没测，别瞎写。",
+            "bl4-002",
+            "单层就够用了，三室一厅一卫，不要车库，地块长短还没量别乱填。",
             tags=["blind", "explicit", "anti-hallucination"],
             expect=ExpectKnown(
                 floor_count=1,
-                bedrooms=2,
+                bedrooms=3,
                 bathrooms=1,
                 has_garage=False,
             ),
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-003",
-            "三层住宅，五间卧室，卫生间四个，双车位。用地尺寸以后补。",
+            "bl4-003",
+            "准备做三层，五间卧室四个洗手间，双车位，用地大小回头再报。",
             tags=["blind", "explicit", "3f"],
             expect=ExpectKnown(
                 floor_count=3,
@@ -64,48 +70,48 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-004",
-            "二层小别墅：三房两厅两卫，带车库。场地大约十三乘十六米。",
+            "bl4-004",
+            "两层小洋房，三房两厅两卫，得有个车库，场地大约十一乘十四米。",
             tags=["blind", "explicit"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=3,
                 bathrooms=2,
                 has_garage=True,
-                site_width=13,
-                site_depth=16,
+                site_width=11,
+                site_depth=14,
             ),
         ),
         _c(
-            "bl2-005",
-            "平层三居，两个卫生间，客厅要南向。地块十乘十一。",
+            "bl4-005",
+            "一层三居室两卫，南向客厅，地块宽十米进深十三米。",
             tags=["blind", "explicit", "orientation"],
             expect=ExpectKnown(
                 floor_count=1,
                 bedrooms=3,
                 bathrooms=2,
                 site_width=10,
-                site_depth=11,
+                site_depth=13,
                 prefer_south_facing_living=True,
                 space_names_contains=["客厅"],
             ),
         ),
         _c(
-            "bl2-006",
-            "两层，六个卧室，三个卫生间，要车库。宽十四米、进深十七米。",
+            "bl4-006",
+            "两层六卧三卫，车位要有，宽十五米、深十八米。",
             tags=["blind", "explicit"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=6,
                 bathrooms=3,
                 has_garage=True,
-                site_width=14,
-                site_depth=17,
+                site_width=15,
+                site_depth=18,
             ),
         ),
         _c(
-            "bl2-007",
-            "单层两卧一卫，车库不要。地块宽八米深十米。",
+            "bl4-007",
+            "平层两间卧室一个卫生间，车库不要，宽八米深九米。",
             tags=["blind", "explicit"],
             expect=ExpectKnown(
                 floor_count=1,
@@ -113,12 +119,12 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
                 bathrooms=1,
                 has_garage=False,
                 site_width=8,
-                site_depth=10,
+                site_depth=9,
             ),
         ),
         _c(
-            "bl2-008",
-            "复式两层，四居室，卫生间三个，车位要有。场地未定勿编造。",
+            "bl4-008",
+            "跃式两层四居三卫，带车库，用地还没批下来请勿编造尺寸。",
             tags=["blind", "explicit"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -131,8 +137,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
         ),
         # ========== 2. Design Intent ==========
         _c(
-            "bl2-010",
-            "两层三卧两卫。厨房靠近餐厅，客厅与餐厅连通。场地以后再说。",
+            "bl4-010",
+            "两层三间卧室两卫。厨房紧挨餐厅，客厅与餐厅连通。宽深稍后再量。",
             tags=["blind", "intent", "near"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -147,12 +153,12 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-011",
-            "二层四房两卫。书房挨着主卧，餐厅最好靠近厨房。用地未量。",
+            "bl4-011",
+            "二层五房两卫。书房挨着主卧，餐厅最好靠近厨房。宽深没给。",
             tags=["blind", "intent", "near"],
             expect=ExpectKnown(
                 floor_count=2,
-                bedrooms=4,
+                bedrooms=5,
                 bathrooms=2,
                 space_names_contains=["书房", "主卧", "餐厅", "厨房"],
                 relations=[
@@ -163,8 +169,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-012",
-            "两层三卧。客餐厅开敞连通，厨房邻近餐厅。宽深未知。",
+            "bl4-012",
+            "双层三卧。客餐厅开敞连着，厨房邻近餐厅。地块尺寸未知。",
             tags=["blind", "intent"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -178,8 +184,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-013",
-            "一层两卧一卫。卫生间靠近主卧，客厅朝南。地块未定。",
+            "bl4-013",
+            "一层两卧一卫。卫生间靠近主卧，起居室朝南。地块没定。",
             tags=["blind", "intent", "orientation"],
             expect=ExpectKnown(
                 floor_count=1,
@@ -194,16 +200,16 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-014",
-            "两层五卧三卫带车库。餐厅和厨房连通，客厅偏南。场地九乘十二。",
+            "bl4-014",
+            "两层六卧三卫带车库。餐厅和厨房连通，客厅偏南。场地八乘十。",
             tags=["blind", "intent", "explicit"],
             expect=ExpectKnown(
                 floor_count=2,
-                bedrooms=5,
+                bedrooms=6,
                 bathrooms=3,
                 has_garage=True,
-                site_width=9,
-                site_depth=12,
+                site_width=8,
+                site_depth=10,
                 space_names_contains=["餐厅", "厨房", "客厅"],
                 relations=[
                     ExpectRelation(a="餐厅", b="厨房", kind="open_connection"),
@@ -216,8 +222,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-015",
-            "三层四卧。儿童房邻近主卧，书房朝北。用地宽深未给。",
+            "bl4-015",
+            "三层四卧。儿童房邻近主卧，书房朝西。用地未量。",
             tags=["blind", "intent", "orientation"],
             expect=ExpectKnown(
                 floor_count=3,
@@ -228,22 +234,22 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
                 ],
                 orientations=[
                     ExpectOrientation(
-                        space_name="书房", orientation=CardinalOrientation.NORTH
+                        space_name="书房", orientation=CardinalOrientation.WEST
                     ),
                 ],
             ),
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-016",
-            "两层三卧两卫。厨餐靠近一点，客厅与餐厅相连。地块十二乘十四。",
+            "bl4-016",
+            "双层三卧两卫。厨餐靠近一点，客厅连着餐厅。地块十三乘十五。",
             tags=["blind", "intent"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=3,
                 bathrooms=2,
-                site_width=12,
-                site_depth=14,
+                site_width=13,
+                site_depth=15,
                 space_names_contains=["厨房", "餐厅", "客厅"],
                 relations=[
                     ExpectRelation(a="厨房", b="餐厅", kind="near"),
@@ -253,8 +259,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
         ),
         # ========== 3. Access vs Near ==========
         _c(
-            "bl2-020",
-            "两层三卧两卫有车库。从车库能进门厅，厨房靠近餐厅。场地未定。",
+            "bl4-020",
+            "两层三卧两卫要车库。从车库能进玄关，厨房靠近餐厅。场地未定。",
             tags=["blind", "access_near"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -270,8 +276,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-021",
-            "二层四卧。车库连着玄关，主卧远离客厅。宽深以后说。",
+            "bl4-021",
+            "二层四卧。车库连着门厅，主卧远离客厅。用地宽深以后再说。",
             tags=["blind", "access_near", "negative"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -286,7 +292,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-022",
+            "bl4-022",
             "两层三卧。从门厅进入客厅，餐厅靠近厨房。场地未知。",
             tags=["blind", "access_near"],
             expect=ExpectKnown(
@@ -301,8 +307,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-023",
-            "一层两卧。卫生间与主卧内部相连，车库靠近入口。用地未测。",
+            "bl4-023",
+            "一层两卧。卫生间与主卧内部相连，车库靠近入口。场地还没测。",
             tags=["blind", "access_near"],
             expect=ExpectKnown(
                 floor_count=1,
@@ -317,15 +323,15 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-024",
-            "两层四卧两卫。书房和主卧相连，厨房挨着餐厅。地块十五乘十八。",
+            "bl4-024",
+            "两层四卧两卫。书房和主卧相连，厨房挨着餐厅。地块十六乘十九。",
             tags=["blind", "access_near"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=4,
                 bathrooms=2,
-                site_width=15,
-                site_depth=18,
+                site_width=16,
+                site_depth=19,
                 space_names_contains=["书房", "主卧", "厨房", "餐厅"],
                 relations=[
                     ExpectRelation(a="书房", b="主卧", kind="access"),
@@ -334,8 +340,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-025",
-            "三层五卧。从车库进入门厅即可，客厅朝南。场地未提供。",
+            "bl4-025",
+            "三层五卧。从车库进入门厅即可，客厅朝南。场地尺寸未提供。",
             tags=["blind", "access_near", "orientation"],
             expect=ExpectKnown(
                 floor_count=3,
@@ -351,7 +357,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
         ),
         # ========== 4. Weak Preference ==========
         _c(
-            "bl2-030",
+            "bl4-030",
             "两层三卧两卫。客厅尽量朝南就好，厨房靠近餐厅。宽深未定。",
             tags=["blind", "weak_pref"],
             expect=ExpectKnown(
@@ -367,7 +373,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-031",
+            "bl4-031",
             "二层四房。书房偏北，餐厅最好挨着厨房。场地以后补。",
             tags=["blind", "weak_pref"],
             expect=ExpectKnown(
@@ -386,8 +392,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-032",
-            "两层三卧。老人最好住楼下，儿童房靠近主卧。用地未知。",
+            "bl4-032",
+            "两层三卧。老人最好住楼下，儿童房和主卧近一点。用地未知。",
             tags=["blind", "weak_pref", "floor"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -403,15 +409,15 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-033",
-            "一层三卧两卫。主卧放一层，客厅要南向。地块十一乘十三。",
+            "bl4-033",
+            "一层三卧两卫。主卧放一层，南向客厅。地块十二乘十四。",
             tags=["blind", "weak_pref"],
             expect=ExpectKnown(
                 floor_count=1,
                 bedrooms=3,
                 bathrooms=2,
-                site_width=11,
-                site_depth=13,
+                site_width=12,
+                site_depth=14,
                 prefer_south_facing_living=True,
                 space_names_contains=["主卧", "客厅"],
                 floor_preferences=[
@@ -420,7 +426,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-034",
+            "bl4-034",
             "两层四卧。一楼留间老人房，书房朝东。场地未量。",
             tags=["blind", "weak_pref", "floor"],
             expect=ExpectKnown(
@@ -439,7 +445,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-035",
+            "bl4-035",
             "三层别墅。父母房不要上楼，厨房邻近餐厅。宽深未给。",
             tags=["blind", "weak_pref", "floor"],
             expect=ExpectKnown(
@@ -456,7 +462,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
         ),
         # ========== 5. Negative Constraints ==========
         _c(
-            "bl2-040",
+            "bl4-040",
             "两层三卧两卫。主卧不要靠着客厅，儿童房远离厨房。场地未定。",
             tags=["blind", "negative"],
             expect=ExpectKnown(
@@ -472,7 +478,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-041",
+            "bl4-041",
             "二层四房。书房保持私密远离客厅，厨房靠近餐厅。用地未知。",
             tags=["blind", "negative"],
             expect=ExpectKnown(
@@ -487,7 +493,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-042",
+            "bl4-042",
             "两层三卧。不要让主卧靠着餐厅，车库连着门厅。宽深以后说。",
             tags=["blind", "negative", "access_near"],
             expect=ExpectKnown(
@@ -503,7 +509,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-043",
+            "bl4-043",
             "一层两卧一卫。儿童房不要靠客厅，卫生间靠近主卧。地块未测。",
             tags=["blind", "negative"],
             expect=ExpectKnown(
@@ -519,14 +525,14 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-044",
-            "两层五卧。主卧远离客厅，餐厅与厨房连通。场地十乘十二。",
+            "bl4-044",
+            "两层五卧。主卧远离客厅，餐厅与厨房连通。场地十一乘十三。",
             tags=["blind", "negative"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=5,
-                site_width=10,
-                site_depth=12,
+                site_width=11,
+                site_depth=13,
                 space_names_contains=["主卧", "客厅", "餐厅", "厨房"],
                 relations=[
                     ExpectRelation(a="主卧", b="客厅", kind="separation"),
@@ -535,8 +541,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-045",
-            "三层四卧两卫。书房尽量避免厨房噪声，客厅朝南。用地未定。",
+            "bl4-045",
+            "三层四卧两卫。书房尽量避免厨房噪声，起居室朝南。用地未定。",
             tags=["blind", "negative"],
             expect=ExpectKnown(
                 floor_count=3,
@@ -552,8 +558,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
         ),
         # ========== 6. Ambiguous ==========
         _c(
-            "bl2-050",
-            "想要宽敞一点的独栋，层数和卧室数还没想好，场地也没定。",
+            "bl4-050",
+            "想要个通透一点的独栋，几层几间睡房还没想好，场地也没定。",
             tags=["blind", "ambiguous"],
             expect=ExpectKnown(),
             must_unknown=[
@@ -564,8 +570,8 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ],
         ),
         _c(
-            "bl2-051",
-            "两层三卧，客厅希望大一点，具体面积先别填。宽深未提供。",
+            "bl4-051",
+            "两层三卧，客厅希望宽敞些，具体面积先别填。宽深未提供。",
             tags=["blind", "ambiguous"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -575,22 +581,22 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-052",
-            "帮我做一个舒服的家，有没有车库再说，场地尺寸未知。",
+            "bl4-052",
+            "帮我设计个温馨的家，要不要车库再议，场地地块尺寸未知。",
             tags=["blind", "ambiguous"],
             expect=ExpectKnown(),
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-053",
-            "三层别墅感觉阔气，卧室大概四五间吧还没定，地块未量。",
+            "bl4-053",
+            "三层看着气派，卧室大概四五间吧还没定，地块未量。",
             tags=["blind", "ambiguous"],
             expect=ExpectKnown(floor_count=3),
             must_unknown=["household.bedrooms", "site.width", "site.depth"],
         ),
         _c(
-            "bl2-054",
-            "一层小房子，两卧一卫，采光好就行。用地宽深以后再说。",
+            "bl4-054",
+            "一层小宅，两卧一卫，采光通透就行。用地用地宽深以后再说。",
             tags=["blind", "ambiguous", "explicit"],
             expect=ExpectKnown(
                 floor_count=1,
@@ -600,7 +606,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-055",
+            "bl4-055",
             "两层四房两卫带车库。厨房靠近餐厅即可，别的随意。场地未定。",
             tags=["blind", "ambiguous", "intent"],
             expect=ExpectKnown(
@@ -617,17 +623,17 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
         ),
         # ========== Mixed ==========
         _c(
-            "bl2-060",
-            "两层小宅，三卧两卫有车位。从车库能进玄关；主卧不要靠着客厅。"
-            "地块大约十二乘十五米。",
+            "bl4-060",
+            "两层小家三卧两卫有车位。从车库能进玄关；主卧别挨着客厅。"
+            "地块大约十一乘十六米。",
             tags=["blind", "mixed", "access_near", "negative"],
             expect=ExpectKnown(
                 floor_count=2,
                 bedrooms=3,
                 bathrooms=2,
                 has_garage=True,
-                site_width=12,
-                site_depth=15,
+                site_width=11,
+                site_depth=16,
                 space_names_contains=["车库", "门厅", "主卧", "客厅"],
                 relations=[
                     ExpectRelation(a="车库", b="门厅", kind="access"),
@@ -636,16 +642,16 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-061",
-            "平层三室两卫，客厅与餐厅连通，厨房邻近餐厅，客厅朝南。"
-            "宽十米深十二米。",
+            "bl4-061",
+            "平层三室两卫，客厅与餐厅连通，厨房邻近餐厅，南向客厅。"
+            "宽十一米深十三米。",
             tags=["blind", "mixed", "intent"],
             expect=ExpectKnown(
                 floor_count=1,
                 bedrooms=3,
                 bathrooms=2,
-                site_width=10,
-                site_depth=12,
+                site_width=11,
+                site_depth=13,
                 prefer_south_facing_living=True,
                 space_names_contains=["客厅", "餐厅", "厨房"],
                 relations=[
@@ -655,9 +661,9 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-062",
+            "bl4-062",
             "三层五卧三卫带车库。老人住楼下，书房朝北，厨房靠近餐厅。"
-            "场地未提供请勿编造。",
+            "场地尺寸未提供请勿编造。",
             tags=["blind", "mixed", "floor", "weak_pref"],
             expect=ExpectKnown(
                 floor_count=3,
@@ -680,9 +686,9 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             must_unknown=["site.width", "site.depth"],
         ),
         _c(
-            "bl2-063",
+            "bl4-063",
             "两层四卧两卫。餐厅和厨房连通；儿童房远离厨房；车库连着门厅。"
-            "用地宽十三米深十六米。",
+            "用地宽十三米深十七米。",
             tags=["blind", "mixed"],
             expect=ExpectKnown(
                 floor_count=2,
@@ -690,7 +696,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
                 bathrooms=2,
                 has_garage=True,
                 site_width=13,
-                site_depth=16,
+                site_depth=17,
                 space_names_contains=["餐厅", "厨房", "儿童房", "车库", "门厅"],
                 relations=[
                     ExpectRelation(a="餐厅", b="厨房", kind="open_connection"),
@@ -700,7 +706,7 @@ def load_blind_cases() -> list[RequirementBenchmarkCase]:
             ),
         ),
         _c(
-            "bl2-064",
+            "bl4-064",
             "二层三卧。厨房最好挨着餐厅；主卧安静一点不要靠着客厅；"
             "别让老人上二楼。场地未定。",
             tags=["blind", "mixed", "negative", "floor"],

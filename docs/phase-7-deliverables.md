@@ -1,9 +1,8 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：⏸ 等待 Phase 6.7.2 Blind Gate**  
+> **状态：▶ 可开工（前置 Blind v4 Gate PASS）**  
 > 总览：[roadmap.md](roadmap.md)  
-> 前置：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)（严格独立资格）  
-> 说明：6.7.1 Holdout 已过门但语料泄漏，**不**据此开工 Phase 7。
+> 前置：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)（Strict Alpha Qualified）
 
 ## 为什么是 Export，不是高级分析
 

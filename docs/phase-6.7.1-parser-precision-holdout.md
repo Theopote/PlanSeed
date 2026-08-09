@@ -115,15 +115,15 @@ rather than inventing RelationIntent.
 
 Do not map all proximity/connectivity concepts to adjacency.
 
-Refine Requirement-level relation vocabulary, preferably additive:
+**Status：已落地（Hybrid Parser）。**  
+`Adjacency ≠ Access Intent` 从 Solver 拓扑延伸到 Requirement / LLM 输入端。  
+正式说明：[hybrid-semantic-parser.md](hybrid-semantic-parser.md) § Relation。
+
+Requirement-level vocabulary:
 
 ```text
-ADJACENT
-NEAR
-SEPARATE
-ACCESS
-OPEN_CONNECTION
-VISUAL_CONNECTION
+near | separation | access | open_connection | visual_connection
+adjacency   ← legacy only; not a dump bucket
 ```
 
 Normalizer may later map supported relations into current solver intents.
