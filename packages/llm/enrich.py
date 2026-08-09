@@ -1,13 +1,14 @@
-"""Requirement Draft enricher — 高置信度确定性抽取（Phase 6.7.1 precision-first）。
+"""Requirement Draft enricher — Hybrid Semantic Parser 的确定性抽取段。
+
+正式架构见 docs/hybrid-semantic-parser.md：
+  Local LLM + Deterministic Extraction + Vocabulary + Semantic Gate + Repair
 
 原则：
 - 只恢复原文**显式**出现的事实；不确定则留空
 - 禁止制造设计意图（假阳性关系比漏报更贵）
 - 规则须是一般语言规律，禁止为单条 benchmark 句式硬编码
 - Assumption：仅 user_authorized；丢弃 llm_inference（Alpha）
-
-Phase 6.7.2：Blind v1 已 FAIL 入库；允许 Development 一般规律改进后开 Blind v2。
-禁止对着 Blind 失败案逐案加 regex。
+- **不要无限扩 regex**：新模板须能用一句话说明一般规律；Blind 失败不得逐案补丁
 """
 
 from __future__ import annotations

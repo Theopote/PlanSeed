@@ -1,8 +1,10 @@
-"""住宅需求词汇表 — 空间别名 / 入口别名（供 enrich · semantic · score 共用）。
+"""住宅需求词汇表 — Hybrid Semantic Parser 的 Vocabulary Normalization 段。
+
+空间别名 / 入口别名（供 enrich · semantic · score 共用）。
+正式架构见 docs/hybrid-semantic-parser.md。
 
 Solver 不得直接依赖中文字符串；本模块只服务 Requirement 解析层。
-
-Phase 6.7.2：Blind v1 已归档；当前严格资格语料为 Blind v2。
+词表可缓慢扩展；禁止为单条 Blind 失败加一次性别名。
 """
 
 from __future__ import annotations

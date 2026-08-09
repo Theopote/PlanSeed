@@ -24,7 +24,17 @@ Natural Language / Manual Input
 → Interactive Floorplan（SVG）
 ```
 
-**LLM 只负责理解自然语言**，不得生成坐标、SVG 或最终平面。
+**LLM 不单独充当 parser，也不生成几何。**  
+自然语言需求由 **Hybrid Semantic Parser** 解析为 `RequirementSpec`（详见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)）：
+
+```text
+Local LLM + Deterministic Extraction + Vocabulary
+  + Semantic Gate + Repair
+→ RequirementSpec
+→ normalize → DesignProgram → Solver
+```
+
+LLM **不得**输出坐标、SVG、DesignProgram 或最终平面。
 
 Phase 2 终态流水线见 [roadmap.md](roadmap.md)。
 
@@ -42,7 +52,7 @@ RequirementSpec → normalize → DesignProgram → generate → LayoutCandidate
 
 `ProjectSpec` 保留为内部过渡模型，不暴露给 LLM 直接输出。
 
-LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Solver`
+LLM Phase 6 目标：`Natural Language → Hybrid Semantic Parser → RequirementSpec → normalize → Solver`
 
 ## 3. 已拍板决策
 
@@ -62,7 +72,7 @@ LLM Phase 6 目标：`Natural Language → RequirementSpec → normalize → Sol
 ```text
 UI (Tauri + React)
 ↓
-Requirement Parsing (FastAPI + Ollama)
+Requirement Parsing (Hybrid：Ollama + enrich + vocab + gate + repair)
 ↓
 Design Program (packages/schema + solver/program)
 ↓

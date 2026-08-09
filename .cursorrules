@@ -8,7 +8,9 @@
 ## 架构术语
 RequirementSpec → normalize → DesignProgram → generate → LayoutCandidate
 
-LLM 只输出 RequirementSpec，不直接输出 DesignProgram 或坐标。
+NL → RequirementSpec 由 **Hybrid Semantic Parser** 完成（非纯 LLM parser）：
+Local LLM + Deterministic Extraction + Vocabulary + Semantic Gate + Repair。
+详见 docs/hybrid-semantic-parser.md。LLM 不直接输出 DesignProgram 或坐标。
 
 ## 原则
 1. 严格分层：Solver 纯 Python 确定性；Evaluator 只评分；Renderer 只渲染
@@ -19,7 +21,8 @@ LLM 只输出 RequirementSpec，不直接输出 DesignProgram 或坐标。
 6. Phase 1 专注 solver；FastAPI / Tauri / Ollama 在 solver 验收后再做
 7. 相同 DesignProgram + seed 必须相同结果；禁止未注入的全局 random
 8. reference/floorplan-generator.html 算法迁移到 GuillotineGenerator，不原样复制架构
-9. LLM：Prompt 保持短；准确率靠 Benchmark→失败模式→Schema/Semantic/Normalizer，禁止堆 few-shot/长指令冒充可靠
+9. Hybrid Parser：Prompt 保持短；准确率靠 Benchmark→失败模式→Schema/Vocab/Enrich/Gate；
+   禁止堆 few-shot/长指令冒充可靠；禁止对着 Blind 逐案扩 regex；确定性抽取只收「一般语言规律」
 
 ## 技术栈（锁定）
 FastAPI、Tauri v2 + React + TS、Pydantic、SVG、SQLite、uv、pnpm

@@ -15,7 +15,8 @@
 | **7** | **Deliverables / Export** | ⏸ Blind 过门后 |
 
 ```text
-现在做：Blind v2 已 FAIL → Development 改一般规律 → Blind v3 单次跑分
+现在做：Blind v2 已 FAIL → Development 一般规律（非无限 regex）→ Blind v3  
+架构定性：Hybrid Semantic Parser（见 hybrid-semantic-parser.md）  
 不做：开工 Phase 7 · 对着 Blind 逐案加 regex · 回头改 solver
 ```
 

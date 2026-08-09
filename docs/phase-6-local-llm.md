@@ -23,17 +23,17 @@ Phase 7  Deliverables / Export
 LLM NEVER GENERATES GEOMETRY
 ```
 
-LLM 只做：
+Requirement 解析层正式定为 **Hybrid Semantic Parser**（非纯 LLM parser），详见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)：
 
 ```text
-Natural Language → RequirementSpec
+NL → Local LLM → Deterministic Extraction → Vocabulary
+  → Semantic Gate → Repair → RequirementSpec
 ```
 
-然后退出核心链。完整链路：
+LLM 只参与草稿；确定性抽取与 Gate 负责精度。完整链路：
 
 ```text
-NL → Local LLM → RequirementSpec
-  → Pydantic validate → Semantic validate
+NL → Hybrid Semantic Parser → RequirementSpec
   → Normalizer → DesignProgram
   → Deterministic Solver → Candidates → Evaluator
 ```

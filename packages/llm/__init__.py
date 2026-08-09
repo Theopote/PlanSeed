@@ -1,4 +1,7 @@
-"""Phase 6 — Local LLM 适配层（Provider / Gate；不含几何）。"""
+"""Phase 6 — Hybrid Semantic Parser（Local LLM + enrich + vocab + gate + repair）。
+
+正式说明：docs/hybrid-semantic-parser.md。不含几何。
+"""
 
 from packages.llm.boundary import (
     FORBIDDEN_GEOMETRY_KEYS,

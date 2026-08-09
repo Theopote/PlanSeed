@@ -1,6 +1,7 @@
 # PlanSeed — Phase 6.7.1: Parser Precision & Holdout Qualification
 
 > **状态：✅ Engineering Complete（Holdout 过门但独立性已泄漏；严格资格见 6.7.2）**  
+> **架构定性：** Requirement 解析 = [Hybrid Semantic Parser](hybrid-semantic-parser.md)（非纯 LLM parser）  
 > 相关：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · [roadmap.md](roadmap.md)
 
 Current real-model baseline (Holdout + Pipeline, precision-first):
