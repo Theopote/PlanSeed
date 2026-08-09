@@ -12,6 +12,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException
 from packages.persistence import ProjectStore
 from packages.schema.report import DesignReport, ReportStatus
+from packages.schema.report_i18n import DEFAULT_REPORT_LOCALE, ReportLocale
 from pydantic import BaseModel, Field, model_validator
 
 from backend.routes.projects import APP_VERSION, ProjectPayload
@@ -23,7 +24,6 @@ from backend.services.report_builder import (
 from backend.services.report_html import render_report_html
 from backend.services.report_svg_sanitize import SvgSanitizeError
 from backend.services.serialization import resolve_revision_id
-from packages.schema.report_i18n import DEFAULT_REPORT_LOCALE, ReportLocale
 
 router = APIRouter(tags=["reports"])
 

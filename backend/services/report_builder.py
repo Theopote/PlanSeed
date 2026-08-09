@@ -5,11 +5,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from packages.schema.report import (
-    REPORT_BOUNDARY_LINES,
     CandidateSummary,
     DesignReport,
     EvaluationSummary,
@@ -31,6 +30,7 @@ from packages.schema.report_i18n import (
     tr,
 )
 from packages.schema.scoring import DesignScore
+
 from backend.services.serialization import resolve_revision_id
 
 
@@ -218,7 +218,7 @@ def build_design_report(
         project=ProjectMetadata(
             project_id=project_id,
             project_name=project_name or "Untitled",
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
             app_version=app_version,
             locale=report_locale,
             geometry_origin=origin,

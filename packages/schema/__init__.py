@@ -48,6 +48,7 @@ from packages.schema.mutation import (
 from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import HouseholdSpec, PreferencesSpec, ProjectSpec
 from packages.schema.report import (
+    GEOMETRY_ORIGIN_LABELS,
     REPORT_BOUNDARY_LINES,
     CandidateSummary,
     DesignReport,
@@ -55,7 +56,6 @@ from packages.schema.report import (
     EvaluationSummary,
     FloorPlanBlock,
     GeometryOrigin,
-    GEOMETRY_ORIGIN_LABELS,
     ProjectMetadata,
     ReportAssumption,
     ReportProvenance,

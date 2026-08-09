@@ -26,7 +26,7 @@ import os
 import platform
 import subprocess
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -270,7 +270,7 @@ def _write_baseline(
             "Blind v4 历史基线见 docs：工程资格 ✅ / 严格可复现 ⚠。"
         ),
         "meta": {
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "timestamp_utc": datetime.now(UTC).isoformat(),
             "git_commit": git_meta.get("git_commit"),
             "git_dirty": git_meta.get("git_dirty"),
             "git_dirty_paths": git_meta.get("git_dirty_paths"),

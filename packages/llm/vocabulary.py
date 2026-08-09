@@ -10,10 +10,10 @@ Solver 不得直接依赖中文字符串；本模块只服务 Requirement 解析
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class RoomKind(str, Enum):
+class RoomKind(StrEnum):
     LIVING = "living"
     DINING = "dining"
     KITCHEN = "kitchen"

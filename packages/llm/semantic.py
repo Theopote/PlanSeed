@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from packages.llm.vocabulary import endpoint_alias_group
 from packages.schema.llm_contract import LLMRequirementDraft
 from packages.schema.requirements import RequirementSpec
 
@@ -132,9 +133,6 @@ class RequirementSemanticValidator:
                 )
 
         return out
-
-
-from packages.llm.vocabulary import endpoint_alias_group
 
 
 def _endpoint_resolves(endpoint: str, names: set[str]) -> bool:

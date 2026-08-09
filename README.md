@@ -1,5 +1,8 @@
 # PlanSeed
 
+[![CI](https://github.com/Theopote/PlanSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/Theopote/PlanSeed/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Local-first、本地运行的独栋住宅生成式设计工具。
 
 > AI understands the design intent.  
@@ -7,7 +10,10 @@ Local-first、本地运行的独栋住宅生成式设计工具。
 > The evaluator explains the quality.  
 > The architect remains in control.
 
-## 开发
+**技术栈**：Python 3.12（uv）· FastAPI · Tauri v2 + React + TypeScript · Pydantic · SVG · SQLite  
+**约束**：纯本地运行；禁止云端 LLM API / Electron / Three.js 平面图库。
+
+## 快速开始
 
 ```bash
 # 安装依赖（Python 3.12 + uv）
@@ -62,17 +68,17 @@ pnpm tauri:dev
 RequirementSpec  →  normalize  →  DesignProgram  →  generate  →  LayoutCandidate
 ```
 
-- **RequirementSpec**：用户 / LLM 表达的需求（LLM 阶段仍延后）
+- **RequirementSpec**：用户 / LLM 表达的需求（Hybrid Semantic Parser，非纯 LLM）
 - **DesignProgram**：Normalizer 规范化后的建筑任务
 - **LayoutCandidate**：Solver 生成的几何方案
+
+LLM 不直接输出 DesignProgram 或坐标。详见 [docs/hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)。
 
 ## 当前阶段
 
 **Desktop UI MVP**（进行中）：四区壳 + `POST /api/generate`。
 
-Solver 拓扑与 Phase 3 评价已可用。LLM / 交互编辑 / 持久化仍延后。
-
-见 [docs/roadmap.md](docs/roadmap.md)。
+Solver 拓扑与 Phase 3 评价已可用。见 [docs/roadmap.md](docs/roadmap.md)。
 
 ## 文档
 
@@ -80,7 +86,17 @@ Solver 拓扑与 Phase 3 评价已可用。LLM / 交互编辑 / 持久化仍延�
 - [schema.md](docs/schema.md)
 - [solver.md](docs/solver.md)
 - [scoring.md](docs/scoring.md)
+- [hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)
+
+## 贡献
+
+欢迎 Issue / PR。约定与检查清单见 [CONTRIBUTING.md](CONTRIBUTING.md)。  
+安全相关披露见 [SECURITY.md](SECURITY.md)。
 
 ## 参考原型
 
 `reference/floorplan-generator.html` — GuillotineGenerator 逻辑来源。
+
+## License
+
+本项目以 [MIT License](LICENSE) 开源。

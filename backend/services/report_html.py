@@ -63,14 +63,7 @@ def render_report_html(report: DesignReport) -> str:
     )
 
     schedule_rows = "".join(
-        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.2f}</td><td>{:.2f}</td><td>{:.2f}</td></tr>".format(
-            html.escape(row.name),
-            html.escape(row.floor_id),
-            html.escape(row.room_id),
-            row.width,
-            row.depth,
-            row.area,
-        )
+        f"<tr><td>{html.escape(row.name)}</td><td>{html.escape(row.floor_id)}</td><td>{html.escape(row.room_id)}</td><td>{row.width:.2f}</td><td>{row.depth:.2f}</td><td>{row.area:.2f}</td></tr>"
         for row in r.room_schedule
     ) or (
         f"<tr><td colspan='6' class='muted'>"

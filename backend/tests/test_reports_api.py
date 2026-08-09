@@ -14,8 +14,8 @@ from backend.services.report_builder import (
 from backend.services.report_html import render_report_html
 from backend.services.report_svg_sanitize import SvgSanitizeError, sanitize_report_svg
 from fastapi.testclient import TestClient
-from packages.schema.scoring import DesignFinding, DesignScore, FindingSeverity
 from packages.schema.report_i18n import ReportLocale
+from packages.schema.scoring import DesignFinding, DesignScore, FindingSeverity
 from pytest import raises
 
 

@@ -6,8 +6,19 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .idea/
+.vscode/
+*.egg-info/
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
 debug/*.svg
 !debug/.gitkeep
+node_modules/
 desktop/node_modules/
 desktop/dist/
 desktop/src-tauri/target/

@@ -1,10 +1,10 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "PlanSeed desktop shell (Tauri)"
+authors = ["Theopote"]
+license = "MIT"
+repository = "https://github.com/Theopote/PlanSeed"
 edition = "2021"
 rust-version = "1.77.2"
 

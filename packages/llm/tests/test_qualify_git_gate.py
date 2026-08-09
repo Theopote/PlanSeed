@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from packages.llm.benchmark.qualify import (
     QualificationError,
     git_is_dirty,

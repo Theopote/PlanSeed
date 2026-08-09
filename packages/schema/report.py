@@ -11,12 +11,15 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from packages.schema.scoring import DesignFinding, DesignScore
 from packages.schema.report_i18n import (
     DEFAULT_REPORT_LOCALE,
     ReportLocale,
     boundary_lines_for_locale,
 )
+from packages.schema.report_i18n import (
+    geometry_origin_label as _geometry_origin_label,
+)
+from packages.schema.scoring import DesignFinding, DesignScore
 
 # 兼容旧引用：默认 locale 边界声明（新代码请用 boundary_lines_for_locale）
 REPORT_BOUNDARY_LINES: tuple[str, ...] = tuple(
@@ -51,8 +54,6 @@ class GeometryOrigin(StrEnum):
 
 
 # 兼容：默认 zh-CN 标签；渲染请用 geometry_origin_label(locale, …)
-from packages.schema.report_i18n import geometry_origin_label as _geometry_origin_label
-
 GEOMETRY_ORIGIN_LABELS: dict[GeometryOrigin, str] = {
     o: _geometry_origin_label(DEFAULT_REPORT_LOCALE, o) for o in GeometryOrigin
 }
