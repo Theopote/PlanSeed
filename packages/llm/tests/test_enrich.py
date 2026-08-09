@@ -40,17 +40,56 @@ def test_enrich_fills_unknowns_without_inventing_site():
     assert out.draft.known.floor_count == 2
 
 
-def test_enrich_does_not_always_add_site_unknowns():
-    """precision-first：无场地不确定语义时不主动问卷式补列 site。"""
+def test_enrich_does_not_questionnaire_optional_unknowns():
+    """precision-first：结构化简述不把 has_garage 等做成问卷。"""
     draft = LLMRequirementDraft(
         raw_text="两层三卧",
         known={"floor_count": 2, "household": {"bedrooms": 3}},  # type: ignore[arg-type]
+        unknowns=[
+            {"key": "household.has_garage", "description": "未说明车库"},
+            {"key": "site.entrance_edge", "description": "入口"},
+        ],
     )
     out = enrich_requirement_draft(draft)
     keys = {u.key for u in out.draft.unknowns}
-    assert "site.width" not in keys
-    assert "site.depth" not in keys
+    assert "household.has_garage" not in keys
+    assert "site.entrance_edge" not in keys
+    assert "site.width" in keys
+    assert "site.depth" in keys
 
+
+def test_enrich_strips_ungrounded_llm_relations():
+    draft = LLMRequirementDraft(
+        raw_text="两层三卧，客厅朝南",
+        known={  # type: ignore[arg-type]
+            "floor_count": 2,
+            "spaces": [{"name": "客厅"}, {"name": "厨房"}, {"name": "餐厅"}],
+            "relation_intents": [
+                {"a": "厨房", "b": "餐厅", "kind": "near"},
+            ],
+        },
+    )
+    out = enrich_requirement_draft(draft)
+    assert out.draft.known.relation_intents == []
+
+
+def test_enrich_keeps_cued_relations():
+    draft = LLMRequirementDraft(
+        raw_text="两层三卧，厨房靠近餐厅，客厅朝南",
+        known={  # type: ignore[arg-type]
+            "floor_count": 2,
+            "spaces": [{"name": "厨房"}, {"name": "餐厅"}],
+            "relation_intents": [
+                {"a": "厨房", "b": "餐厅", "kind": "near"},
+            ],
+        },
+    )
+    out = enrich_requirement_draft(draft)
+    assert any(
+        r.kind == "near"
+        and {r.a, r.b} == {"厨房", "餐厅"}
+        for r in out.draft.known.relation_intents
+    )
 
 def test_enrich_extracts_scalars_from_raw_text():
     draft = LLMRequirementDraft(raw_text="两层三卧两卫带车库，客厅朝南")

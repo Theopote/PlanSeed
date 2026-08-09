@@ -87,8 +87,10 @@ def test_ingest_happy_path_to_requirement_spec():
     # Alpha：丢弃 llm_inference assumptions；无场地不确定语义不主动补 site
     assert result.spec.assumptions == []
     unk = {u.key for u in result.spec.unknowns}
-    assert "site.entrance_edge" in unk
-    assert "site.width" not in unk
+    assert "site.entrance_edge" not in unk
+    # 无尺寸 → site 为 blocking unknown
+    assert "site.width" in unk
+    assert "site.depth" in unk
     assert len(result.spec.relation_intents) == 1
     assert result.spec.relation_intents[0].kind == "near"
     assert result.semantic.ok

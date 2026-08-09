@@ -1,39 +1,70 @@
 {
-  "note": "LLM Alpha Baseline（真模型）。勿与 CI oracle 100% 混淆：oracle 只验证 harness。Phase 6 ✅ Alpha Qualified 仅当 Alpha Gate 全部通过。",
-  "summary": {
-    "mode": "real",
+  "note": "Requirement Parsing Pipeline Baseline（真模型）。勿与 CI oracle 100% 混淆。Alpha Qualified 仅当 Holdout + Pipeline 过 Alpha Gate。",
+  "meta": {
+    "timestamp_utc": "2026-08-09T05:11:00.541048+00:00",
+    "git_commit": "41219d2a0bf9f87ef9fcc8f1ddc24dad2814fff1",
+    "case_set": "holdout",
+    "case_set_version": "holdout-v1",
+    "mode": "pipeline",
     "model": "qwen2.5:7b",
-    "case_count": 62,
-    "field_accuracy": 0.7091,
-    "case_pass_rate": 0.3226,
-    "hallucination_rate": 0.0161,
+    "host": {
+      "os": "Windows-11-10.0.26200-SP0",
+      "python": "3.12.0",
+      "machine": "AMD64",
+      "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+      "ram_gb": null,
+      "cpu_count": 32,
+      "gpu": [
+        "NVIDIA GeForce GTX 1060 6GB, 6144 MiB"
+      ]
+    }
+  },
+  "summary": {
+    "mode": "pipeline",
+    "case_set": "holdout",
+    "model": "qwen2.5:7b",
+    "case_count": 30,
+    "field_accuracy": 0.9615,
+    "floor_count_accuracy": 1.0,
+    "bedrooms_accuracy": 0.9167,
+    "bathrooms_accuracy": 0.875,
+    "site_width_accuracy": 1.0,
+    "site_depth_accuracy": 1.0,
+    "garage_accuracy": 1.0,
+    "south_orientation_accuracy": 1.0,
+    "case_pass_rate": 0.3,
+    "hallucination_rate": 0.0,
     "geometry_fail_rate": 0.0,
     "geometry_fails": 0,
     "geometry_violation_rate": 0.0,
-    "parse_failure_rate": 0.0645,
-    "parse_success_rate": 0.9355,
-    "repair_rate": 0.3387,
-    "schema_fail": 4,
+    "parse_failure_rate": 0.0,
+    "parse_success_rate": 1.0,
+    "repair_rate": 0.3667,
+    "schema_fail": 0,
     "semantic_fail": 0,
     "geometry_violation": 0,
     "json_parse_fail": 0,
-    "repair_success": 17,
-    "repair_exhausted": 4,
-    "repair_exhausted_rate": 0.0645,
-    "average_attempts": 1.4355,
-    "average_latency_s": 19.4243,
-    "relation_recall": 1.0,
-    "relation_precision": 0.1852,
-    "relation_f1": 0.3125,
-    "floor_preference_accuracy": 1.0,
-    "orientation_accuracy": 1.0,
-    "unknown_detection_recall": 0.5306,
-    "unknown_precision": 0.1538,
-    "unknown_false_positive_rate": 0.8462,
-    "assumption_precision": 0.0106,
+    "repair_success": 11,
+    "repair_exhausted": 0,
+    "repair_exhausted_rate": 0.0,
+    "average_attempts": 1.3667,
+    "average_latency_s": 21.0355,
+    "latency_p50": 14.7299,
+    "latency_p90": 38.1036,
+    "latency_p95": 41.4154,
+    "max_latency": 52.6004,
+    "relation_recall": 0.5652,
+    "relation_precision": 0.4194,
+    "relation_f1": 0.4815,
+    "floor_preference_accuracy": 0.4,
+    "orientation_accuracy": 0.8889,
+    "unknown_detection_recall": 0.7031,
+    "unknown_precision": 0.4839,
+    "unknown_false_positive_rate": 0.5161,
+    "assumption_precision": 1.0,
     "assumption_recall": 1.0,
-    "field_hits": 156,
-    "field_total": 220
+    "field_hits": 75,
+    "field_total": 78
   },
   "alpha_gate": {
     "passed": false,
@@ -50,34 +81,43 @@
       {
         "key": "parse_success_rate",
         "label": "Parse success",
-        "actual": 0.9355,
+        "actual": 1.0,
         "threshold": 0.95,
         "cmp": "ge",
-        "passed": false,
+        "passed": true,
         "note": ""
       },
       {
         "key": "field_accuracy",
         "label": "Scalar field accuracy",
-        "actual": 0.7091,
+        "actual": 0.9615,
         "threshold": 0.9,
         "cmp": "ge",
-        "passed": false,
+        "passed": true,
         "note": ""
       },
       {
         "key": "relation_f1",
         "label": "Relation F1",
-        "actual": 0.3125,
+        "actual": 0.4815,
         "threshold": 0.8,
         "cmp": "ge",
         "passed": false,
         "note": ""
       },
       {
+        "key": "relation_precision",
+        "label": "Relation precision",
+        "actual": 0.4194,
+        "threshold": 0.75,
+        "cmp": "ge",
+        "passed": false,
+        "note": "假阳性关系对 solver 很贵"
+      },
+      {
         "key": "hallucination_rate",
         "label": "Unknown hallucination",
-        "actual": 0.0161,
+        "actual": 0.0,
         "threshold": 0.05,
         "cmp": "le",
         "passed": true,
@@ -86,526 +126,64 @@
       {
         "key": "repair_exhausted_rate",
         "label": "Repair exhausted",
-        "actual": 0.0645,
+        "actual": 0.0,
         "threshold": 0.05,
         "cmp": "le",
-        "passed": false,
+        "passed": true,
         "note": ""
       },
       {
         "key": "case_pass_rate",
         "label": "Case pass rate",
-        "actual": 0.3226,
+        "actual": 0.3,
         "threshold": 0.7,
         "cmp": "ge",
         "passed": false,
         "note": ""
+      },
+      {
+        "key": "unknown_precision",
+        "label": "Unknown precision",
+        "actual": 0.4839,
+        "threshold": 0.7,
+        "cmp": "ge",
+        "passed": false,
+        "note": "勿把解析变成调查问卷"
+      },
+      {
+        "key": "unknown_recall",
+        "label": "Unknown recall",
+        "actual": 0.7031,
+        "threshold": 0.7,
+        "cmp": "ge",
+        "passed": true,
+        "note": ""
+      },
+      {
+        "key": "assumption_precision",
+        "label": "Assumption precision",
+        "actual": 1.0,
+        "threshold": 0.8,
+        "cmp": "ge",
+        "passed": true,
+        "note": "宁可少假设，不可乱假设"
       }
     ],
     "metrics": {
       "geometry_violation_rate": 0.0,
-      "parse_success_rate": 0.9355,
-      "field_accuracy": 0.7091,
-      "relation_f1": 0.3125,
-      "hallucination_rate": 0.0161,
-      "repair_exhausted_rate": 0.0645,
-      "case_pass_rate": 0.3226,
-      "relation_precision": 0.1852,
-      "relation_recall": 1.0
+      "parse_success_rate": 1.0,
+      "field_accuracy": 0.9615,
+      "relation_f1": 0.4815,
+      "relation_precision": 0.4194,
+      "relation_recall": 0.5652,
+      "hallucination_rate": 0.0,
+      "repair_exhausted_rate": 0.0,
+      "case_pass_rate": 0.3,
+      "unknown_precision": 0.4839,
+      "unknown_recall": 0.7031,
+      "assumption_precision": 1.0,
+      "assumption_recall": 1.0
     }
   },
-  "failed_cases": [
-    {
-      "id": "rb-001",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 16.843
-    },
-    {
-      "id": "rb-002",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width, site.depth"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 13.417
-    },
-    {
-      "id": "rb-003",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 25.484
-    },
-    {
-      "id": "rb-004",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 11.556
-    },
-    {
-      "id": "rb-006",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：household.bedrooms, site.width"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 20.926
-    },
-    {
-      "id": "rb-008",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 8.61
-    },
-    {
-      "id": "rb-009",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.321
-    },
-    {
-      "id": "rb-010",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 29.797
-    },
-    {
-      "id": "rb-011",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 15.722
-    },
-    {
-      "id": "rb-012",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 28.209
-    },
-    {
-      "id": "rb-013",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width, site.depth"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 14.828
-    },
-    {
-      "id": "rb-014",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 30.33
-    },
-    {
-      "id": "rb-015",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：household.bedrooms"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 9.07
-    },
-    {
-      "id": "rb-017",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：household.bedrooms"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 5.373
-    },
-    {
-      "id": "rb-018",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 31.994
-    },
-    {
-      "id": "rb-020",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 9.974
-    },
-    {
-      "id": "rb-021",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.349
-    },
-    {
-      "id": "rb-022",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.843
-    },
-    {
-      "id": "rb-024",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：household.has_garage, site.width"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 10.526
-    },
-    {
-      "id": "rb-027",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 34.244
-    },
-    {
-      "id": "rb-028",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：household.bedrooms, floor_count"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 9.279
-    },
-    {
-      "id": "rb-029",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": true,
-      "geometry_fail": false,
-      "failure_kind": "schema_fail",
-      "repair_exhausted": true,
-      "attempts": 3,
-      "latency_s": 36.139
-    },
-    {
-      "id": "rb-030",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：household.bathrooms, site.width"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 17.273
-    },
-    {
-      "id": "rb-031",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 11.807
-    },
-    {
-      "id": "rb-032",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 32.41
-    },
-    {
-      "id": "rb-034",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": true,
-      "geometry_fail": false,
-      "failure_kind": "schema_fail",
-      "repair_exhausted": true,
-      "attempts": 3,
-      "latency_s": 32.528
-    },
-    {
-      "id": "rb-036",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 13.147
-    },
-    {
-      "id": "rb-037",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": true,
-      "geometry_fail": false,
-      "failure_kind": "schema_fail",
-      "repair_exhausted": true,
-      "attempts": 3,
-      "latency_s": 53.015
-    },
-    {
-      "id": "rb-038",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 10.046
-    },
-    {
-      "id": "rb-041",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": true,
-      "geometry_fail": false,
-      "failure_kind": "schema_fail",
-      "repair_exhausted": true,
-      "attempts": 3,
-      "latency_s": 61.422
-    },
-    {
-      "id": "rb-042",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width, site.depth"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 16.122
-    },
-    {
-      "id": "rb-043",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 15.973
-    },
-    {
-      "id": "rb-044",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 25.428
-    },
-    {
-      "id": "rb-045",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 15.031
-    },
-    {
-      "id": "rb-046",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.932
-    },
-    {
-      "id": "rb-047",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width, household.bathrooms"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 9.917
-    },
-    {
-      "id": "rb-048",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 27.203
-    },
-    {
-      "id": "rb-049",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.334
-    },
-    {
-      "id": "rb-050",
-      "hallucinations": [],
-      "notes": [],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 14.308
-    },
-    {
-      "id": "rb-058",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.995
-    },
-    {
-      "id": "rb-059",
-      "hallucinations": [],
-      "notes": [
-        "unknowns 漏列：site.width, site.depth"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 2,
-      "latency_s": 30.749
-    },
-    {
-      "id": "rb-061",
-      "hallucinations": [
-        "floor_count"
-      ],
-      "notes": [
-        "unknowns 漏列：floor_count"
-      ],
-      "parse_failed": false,
-      "geometry_fail": false,
-      "failure_kind": null,
-      "repair_exhausted": false,
-      "attempts": 1,
-      "latency_s": 12.194
-    }
-  ]
+  "failed_case_count": 21
 }

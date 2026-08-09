@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from packages.llm.vocabulary import (
     ENTRY_ALIAS_GROUP,
+    RESIDENTIAL_ROOMS,
     all_space_lexicon_zh,
     canonical_zh_for_alias,
 )
@@ -69,17 +70,37 @@ _ORIENT_PHRASES: tuple[tuple[str, CardinalOrientation], ...] = (
 # 一般规律：显式二元谓词，不把「靠近」与「连通」混为 adjacency
 _REL_TEMPLATES: tuple[tuple[str, RelationKind], ...] = (
     ("{a}靠近{b}", "near"),
+    ("{a}挨着{b}", "near"),
+    ("{a}邻近{b}", "near"),
     ("{a}远离{b}", "separation"),
     ("{a}与{b}连通", "open_connection"),
     ("{a}和{b}连通", "open_connection"),
     ("{a}与{b}开敞连通", "open_connection"),
+    ("{a}和{b}开敞连通", "open_connection"),
     ("{a}与{b}内部相连", "access"),
     ("{a}和{b}内部相连", "access"),
     ("{a}与{b}相连", "access"),
     ("{a}和{b}相连", "access"),
+    ("{a}连着{b}", "access"),
     ("{a}保持私密远离{b}", "separation"),
     ("{a}私密远离{b}", "separation"),
+    ("{a}不要靠着{b}", "separation"),
+    ("{a}不要靠{b}", "separation"),
+    ("不要让{a}靠着{b}", "separation"),
+    ("不要让{a}靠{b}", "separation"),
+    ("{a}尽量避免{b}", "separation"),
+    ("{a}避免{b}噪声", "separation"),
 )
+
+# kind → 原文须出现的谓词线索（两端共现不够，防假阳性）
+_KIND_CUES: dict[RelationKind, tuple[str, ...]] = {
+    "near": ("靠近", "挨着", "邻近", "距离近", "近一点", "近一些"),
+    "separation": ("远离", "私密", "不要靠", "避免", "隔开", "安静"),
+    "open_connection": ("连通", "开敞"),
+    "access": ("相连", "连着", "能进", "直通", "内部相连"),
+    "adjacency": ("相邻", "紧邻", "靠近", "挨着", "连通"),
+    "visual_connection": ("望向", "视野", "看见", "看到"),
+}
 
 
 @dataclass(frozen=True)
@@ -103,13 +124,14 @@ def _parse_cn_int(token: str) -> int | None:
 
 
 def extract_space_names(text: str) -> list[str]:
-    """从原文抽取空间规范名（词表命中；复合「客餐厅」→客厅+餐厅）。"""
+    """从原文抽取空间规范名（词表命中；复合词展开）。"""
     if not text:
         return []
     found: list[str] = []
-    # 一般复合词：客餐厅 = 客厅 + 餐厅（开敞/连通语境常见）
     if "客餐厅" in text:
         found.extend(["客厅", "餐厅"])
+    if "餐厨" in text or "厨餐" in text:
+        found.extend(["厨房", "餐厅"])
     for name in all_space_lexicon_zh():
         if name in text:
             canon = canonical_zh_for_alias(name)
@@ -148,10 +170,15 @@ def extract_relation_intents(text: str, space_names: set[str]) -> list[RelationI
             for tmpl, kind in _REL_TEMPLATES:
                 if tmpl.format(a=a, b=b) in text:
                     add(a, b, kind)
+            if f"从{a}能进{b}" in text or f"从{a}进入{b}" in text:
+                add(a, b, "access")
 
-    # 客餐厅 + 连通/开敞 → 客厅 open_connection 餐厅（复合词一般规律）
     if "客餐厅" in text and ("连通" in text or "开敞" in text):
         add("客厅", "餐厅", "open_connection")
+    if ("餐厨" in text or "厨餐" in text) and (
+        "近" in text or "挨" in text or "靠" in text
+    ):
+        add("厨房", "餐厅", "near")
 
     return out
 
@@ -181,17 +208,19 @@ def _endpoint_mentioned_in_text(name: str, text: str) -> bool:
     return False
 
 
-def relation_evidenced_in_text(rel: RelationIntent, text: str) -> bool:
-    """关系是否能在原文找到证据（过滤无端点支撑的假阳性）。
+def _kind_cue_in_text(kind: RelationKind, text: str) -> bool:
+    return any(c in text for c in _KIND_CUES.get(kind, ()))
 
-    保留条件：两端均在原文出现（含别名/复合词），或命中高置信模板。
-    不要求谓词与 kind 完全同形——paraphrase 由 LLM 承担，enrich 只拦幻觉房间对。
+
+def relation_evidenced_in_text(rel: RelationIntent, text: str) -> bool:
+    """关系是否有原文证据（precision-first）。
+
+    保留：高置信模板，或「两端均出现 + kind 谓词线索」。
+    仅两端共现不够（LLM 常给共现房间乱加 near/adjacency）。
     """
     if not text:
         return False
     a, b = rel.a.strip(), rel.b.strip()
-    if _endpoint_mentioned_in_text(a, text) and _endpoint_mentioned_in_text(b, text):
-        return True
     variants_a = {a, canonical_zh_for_alias(a)} | (
         set(ENTRY_ALIAS_GROUP) if a in ENTRY_ALIAS_GROUP else set()
     )
@@ -209,15 +238,26 @@ def relation_evidenced_in_text(rel: RelationIntent, text: str) -> bool:
                         continue
                 if tmpl.format(a=va, b=vb) in text or tmpl.format(a=vb, b=va) in text:
                     return True
-            if rel.kind in ("open_connection", "adjacency") and "客餐厅" in text:
-                if {canonical_zh_for_alias(va), canonical_zh_for_alias(vb)} == {
-                    "客厅",
-                    "餐厅",
-                }:
-                    if "连通" in text or "开敞" in text:
-                        return True
-    return False
+            if f"从{va}能进{vb}" in text or f"从{va}进入{vb}" in text:
+                if rel.kind in ("access", "adjacency"):
+                    return True
 
+    if not (
+        _endpoint_mentioned_in_text(a, text) and _endpoint_mentioned_in_text(b, text)
+    ):
+        return False
+
+    ends = {canonical_zh_for_alias(a), canonical_zh_for_alias(b)}
+    if rel.kind in ("open_connection", "adjacency") and "客餐厅" in text:
+        if ends == {"客厅", "餐厅"} and ("连通" in text or "开敞" in text):
+            return True
+    if ("餐厨" in text or "厨餐" in text) and rel.kind in ("near", "adjacency"):
+        if ends == {"厨房", "餐厅"} and (
+            _kind_cue_in_text("near", text) or "近" in text
+        ):
+            return True
+
+    return _kind_cue_in_text(rel.kind, text)
 
 def _critical_value(draft: LLMRequirementDraft, key: str) -> object | None:
     k = draft.known
@@ -249,7 +289,12 @@ def _is_sparse_requirement(text: str) -> bool:
 def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
     """一般数量表达：N层 / N卧 / N卫 / 带车库 / 宽×深。"""
     if known.floor_count is None:
-        m = re.search(r"([一二两三四五六七八九十\d]+)\s*层", text)
+        m = (
+            re.search(r"([一二两三四五六七八九十\d]+)\s*层", text)
+            or re.search(r"层数\s*[=：:]\s*([一二两三四五六七八九十\d]+)", text)
+            or re.search(r"楼层\s*[=：:]\s*([一二两三四五六七八九十\d]+)", text)
+            or re.search(r"\bF([123])\b", text)
+        )
         if m:
             n = _parse_cn_int(m.group(1))
             if n in (1, 2, 3):
@@ -260,7 +305,17 @@ def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
             notes.append("known.floor_count=1")
 
     if known.household.bedrooms is None:
-        m = re.search(r"([一二两三四五六七八九十\d]+)\s*卧", text)
+        m = (
+            re.search(r"([一二两三四五六七八九十\d]+)\s*卧", text)
+            or re.search(r"卧室\s*([一二两三四五六七八九十\d]+)\s*间", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*间卧室", text)
+            or re.search(r"床位\s*([一二两三四五六七八九十\d]+)\s*间", text)
+            or re.search(r"卧室数\s*([一二两三四五六七八九十\d]+)", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*房(?!屋)", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*居", text)
+            or re.search(r"([一二两三四五六七八九十\d]+)\s*室(?!内)", text)
+            or re.search(r"(\d+)\s*bed", text, flags=re.IGNORECASE)
+        )
         if m:
             n = _parse_cn_int(m.group(1))
             if n is not None and 1 <= n <= 10:
@@ -297,6 +352,32 @@ def _extract_scalars_into_known(known, text: str, notes: list[str]) -> None:
             if known.site.depth is None and 6 <= d <= 60:
                 known.site.depth = d
                 notes.append(f"known.site.depth={d}")
+        else:
+            # 「宽 12 米、深 15 米」/「地块 9 米宽 11 米深」
+            mw = re.search(
+                r"(?:宽|宽度)\s*(\d+(?:\.\d+)?)\s*米?",
+                text,
+            ) or re.search(
+                r"(\d+(?:\.\d+)?)\s*米\s*宽",
+                text,
+            )
+            md = re.search(
+                r"(?:深|进深)\s*(\d+(?:\.\d+)?)\s*米?",
+                text,
+            ) or re.search(
+                r"(\d+(?:\.\d+)?)\s*米\s*深",
+                text,
+            )
+            if mw and known.site.width is None:
+                w = float(mw.group(1))
+                if 6 <= w <= 60:
+                    known.site.width = w
+                    notes.append(f"known.site.width={w}")
+            if md and known.site.depth is None:
+                d = float(md.group(1))
+                if 6 <= d <= 60:
+                    known.site.depth = d
+                    notes.append(f"known.site.depth={d}")
 
 
 def _extract_user_authorized_assumptions(
@@ -321,6 +402,77 @@ def _extract_user_authorized_assumptions(
             notes.append(f"assumption.user_authorized.bedrooms={n}")
 
 
+def _has_site_dimensions(text: str) -> bool:
+    return bool(
+        re.search(r"\d+(?:\.\d+)?\s*[×xX＊*]\s*\d+(?:\.\d+)?", text)
+        or re.search(r"(?:宽|宽度)\s*\d+", text)
+        or re.search(r"(?:深|进深)\s*\d+", text)
+        or re.search(r"\d+(?:\.\d+)?\s*米\s*宽", text)
+        or re.search(r"\d+(?:\.\d+)?\s*米\s*深", text)
+    )
+
+
+def _text_provides_bedrooms(text: str) -> bool:
+    return bool(
+        re.search(r"([一二两三四五六七八九十\d]+)\s*卧", text)
+        or re.search(r"卧室\s*([一二两三四五六七八九十\d]+)\s*间", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*间卧室", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*房(?!屋)", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*居", text)
+        or re.search(r"([一二两三四五六七八九十\d]+)\s*室(?!内)", text)
+        or re.search(r"\b\d+\s*bed", text, flags=re.IGNORECASE)
+        or re.search(r"床位\s*([一二两三四五六七八九十\d]+)", text)
+    )
+
+
+def _text_provides_bathrooms(text: str) -> bool:
+    return bool(
+        re.search(r"([一二两三四五六七八九十\d]+)\s*卫", text)
+        or re.search(r"卫生间\s*([一二两三四五六七八九十\d]+)", text)
+        or re.search(r"\b\d+\s*bath", text, flags=re.IGNORECASE)
+    )
+
+
+def _text_provides_floor_count(text: str) -> bool:
+    return bool(
+        re.search(r"([一二两三四五六七八九十\d]+)\s*层", text)
+        or "单层" in text
+        or "平层" in text
+        or re.search(r"\bF[123]\b", text)
+        or re.search(r"层数\s*[=：:]\s*([一二两三四五六七八九十\d]+)", text)
+        or re.search(r"楼层\s*[=：:]\s*([一二两三四五六七八九十\d]+)", text)
+    )
+
+
+def _explicit_unknown_phrase(key: str, text: str) -> bool:
+    """用户明示某项未定 / 别瞎猜。"""
+    deferred = "别的以后再说" in text or "其余未定" in text
+    if key == "household.bedrooms":
+        return bool(
+            re.search(r"卧室.{0,8}(还没|未|没想好|未定)", text)
+            or (
+                "卧室数量" in text
+                and re.search(r"还没|未定|没想好", text)
+            )
+            or deferred
+        )
+    if key == "household.bathrooms":
+        return bool(
+            re.search(r"(卫生间|卫浴).{0,8}(未定|还没|未说明)", text)
+            or "卫生间数量" in text
+            or deferred
+        )
+    if key == "floor_count":
+        return bool(
+            re.search(r"(层数|楼层).{0,6}(未|还没)", text) or deferred
+        )
+    if key == "household.has_garage":
+        return bool(
+            re.search(r"不提车库|不要瞎加车库|未说明车库|车库未定", text)
+        )
+    return False
+
+
 def _should_mark_unknown(
     key: str,
     text: str,
@@ -331,20 +483,44 @@ def _should_mark_unknown(
     """
     Unknown 纪律（precision-first）：
 
-    - site.*：仅场地语义未说明时列为 blocking
-    - floor_count / bedrooms / bathrooms：仅稀疏需求
-    - has_garage：不自动列
+    - site.*：值缺失且原文无尺寸 → blocking
+    - bedrooms/bathrooms/floor：稀疏、明示未定、或原文未给出该标量时不主动问卷；
+      主动补列仅 sparse / 明示未定（保留 incoming 见 enrich）
+    - has_garage：仅明示「不要瞎加」类
     """
     if key in assumed_keys:
         return False
     if key in ("site.width", "site.depth"):
-        return bool(_SITE_UNCERTAIN_RE.search(text)) or sparse
+        if _has_site_dimensions(text):
+            return False
+        return bool(text.strip())
     if key == "floor_count":
-        return sparse
-    if key in ("household.bedrooms", "household.bathrooms"):
-        return sparse
+        if _text_provides_floor_count(text):
+            return False
+        return sparse or _explicit_unknown_phrase(key, text)
+    if key == "household.bedrooms":
+        if _text_provides_bedrooms(text):
+            return False
+        return sparse or _explicit_unknown_phrase(key, text)
+    if key == "household.bathrooms":
+        if _text_provides_bathrooms(text):
+            return False
+        return sparse or _explicit_unknown_phrase(key, text)
+    if key == "household.has_garage":
+        return _explicit_unknown_phrase(key, text)
     return False
 
+
+_MANAGED_UNKNOWN_KEYS = frozenset(
+    {
+        "floor_count",
+        "site.width",
+        "site.depth",
+        "household.bedrooms",
+        "household.bathrooms",
+        "household.has_garage",
+    }
+)
 
 def _priority_for_unknown(key: str) -> str:
     if key in ("site.width", "site.depth"):
@@ -352,6 +528,45 @@ def _priority_for_unknown(key: str) -> str:
     if key in ("floor_count", "household.bedrooms"):
         return "recommended"
     return "optional"
+
+
+def _surface_forms_for_space(canon: str) -> tuple[str, ...]:
+    """规范名的表面形式（含别名），用于楼层/朝向短语匹配。"""
+    forms = {canon}
+    for room in RESIDENTIAL_ROOMS:
+        if room.canonical_zh == canon:
+            forms.update(room.aliases_zh)
+            forms.add(room.canonical_zh)
+    if canon in ENTRY_ALIAS_GROUP:
+        forms |= set(ENTRY_ALIAS_GROUP)
+    return tuple(sorted(forms, key=len, reverse=True))
+
+
+def _text_has_floor1_pref(name: str, text: str) -> bool:
+    """一般规律：某空间放/在/住一层或楼下。"""
+    for surf in _surface_forms_for_space(name):
+        for pat in (
+            f"{surf}放一层",
+            f"{surf}在一层",
+            f"{surf}置于一层",
+            f"{surf}住一层",
+            f"{surf}放楼下",
+            f"{surf}在楼下",
+            f"{surf}住楼下",
+            f"一层放{surf}",
+            f"一层布置{surf}",
+        ):
+            if pat in text:
+                return True
+    return False
+
+
+def _orientation_for_space(name: str, text: str) -> CardinalOrientation | None:
+    for surf in _surface_forms_for_space(name):
+        for phrase, ori in _ORIENT_PHRASES:
+            if f"{surf}{phrase}" in text:
+                return ori
+    return None
 
 
 def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
@@ -379,6 +594,39 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
 
     tmp = draft.model_copy(update={"known": known})
     sparse = _is_sparse_requirement(text)
+    incoming_unknowns = set(unknown_by_key)
+
+    # 剔除 LLM 问卷式 / 无策略依据的 unknowns（抬 unknown precision）
+    for key in list(unknown_by_key):
+        if key not in _MANAGED_UNKNOWN_KEYS:
+            unknown_by_key.pop(key, None)
+            notes.append(f"剔除非托管 unknown:{key}")
+            continue
+        val = _critical_value(tmp, key)
+        if val is not None:
+            unknown_by_key.pop(key, None)
+            notes.append(f"已知剔除 unknown:{key}")
+            continue
+        if _should_mark_unknown(
+            key, text, sparse=sparse, assumed_keys=assumed_keys
+        ):
+            continue
+        # 保留调用方已声明的 unknown：site / 未给出的标量；车库仅明示未定
+        if key in incoming_unknowns:
+            if key == "household.has_garage":
+                if _explicit_unknown_phrase(key, text):
+                    continue
+            elif key in ("site.width", "site.depth"):
+                continue
+            elif key in (
+                "floor_count",
+                "household.bedrooms",
+                "household.bathrooms",
+            ):
+                continue
+        unknown_by_key.pop(key, None)
+        notes.append(f"策略剔除 unknown:{key}")
+
     for key in (
         "floor_count",
         "site.width",
@@ -389,12 +637,10 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
     ):
         val = _critical_value(tmp, key)
         if val is not None:
-            unknown_by_key.pop(key, None)
             continue
         if not _should_mark_unknown(
             key, text, sparse=sparse, assumed_keys=assumed_keys
         ):
-            # 不主动补列；已有 unknowns 保留（由评分 / Gate 罚假阳性）
             continue
         if key not in unknown_by_key:
             unknown_by_key[key] = UnknownRequirement(
@@ -405,11 +651,11 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
                     "site.depth": "未提供用地深度",
                     "household.bedrooms": "未说明卧室数",
                     "household.bathrooms": "未说明卫浴数",
+                    "household.has_garage": "未说明是否需要车库",
                 }.get(key, "用户未提供"),
                 priority=_priority_for_unknown(key),  # type: ignore[arg-type]
             )
             notes.append(f"补列 unknown:{key}")
-
     existing_names = {
         canonical_zh_for_alias(s.name.strip())
         for s in known.spaces
@@ -430,13 +676,26 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
         if s.name
     }
 
-    # 关系：先过滤 LLM 无证据关系，再补高置信抽取
+    # 关系：先过滤 LLM 无证据关系，再补高置信抽取；遗留 adjacency 按线索细化
     grounded: list[RelationIntent] = []
     for r in known.relation_intents:
-        if relation_evidenced_in_text(r, text):
-            grounded.append(r)
-        else:
+        if not relation_evidenced_in_text(r, text):
             notes.append(f"剔除无证据关系:{r.a}-{r.kind}-{r.b}")
+            continue
+        kind = r.kind
+        if kind == "adjacency":
+            if _kind_cue_in_text("open_connection", text):
+                kind = "open_connection"
+            elif _kind_cue_in_text("access", text):
+                kind = "access"
+            elif _kind_cue_in_text("near", text) or "近" in text:
+                kind = "near"
+            elif _kind_cue_in_text("separation", text):
+                kind = "separation"
+        if kind != r.kind:
+            notes.append(f"细化关系:{r.kind}->{kind}")
+            r = r.model_copy(update={"kind": kind})
+        grounded.append(r)
 
     def rel_key(r: RelationIntent) -> tuple[str, str, str]:
         ends = tuple(
@@ -464,29 +723,21 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
         if i is None:
             continue
         sp = known.spaces[i]
-        # 一般规律：X放/在一层 → F1
-        if not sp.floor_preference and (
-            f"{name}放一层" in text
-            or f"{name}在一层" in text
-            or f"{name}置于一层" in text
-        ):
+        if not sp.floor_preference and _text_has_floor1_pref(name, text):
             known.spaces[i] = sp.model_copy(update={"floor_preference": ["F1"]})
             notes.append(f"楼层偏好:{name}=F1")
             sp = known.spaces[i]
         if sp.preferred_orientation is None:
-            for phrase, ori in _ORIENT_PHRASES:
-                if f"{name}{phrase}" in text:
-                    known.spaces[i] = sp.model_copy(
-                        update={"preferred_orientation": ori}
-                    )
-                    notes.append(f"朝向:{name}={ori}")
-                    if name == "客厅" and ori == CardinalOrientation.SOUTH:
-                        if known.preferences.prefer_south_facing_living is None:
-                            known.preferences.prefer_south_facing_living = True
-                    break
+            ori = _orientation_for_space(name, text)
+            if ori is not None:
+                known.spaces[i] = sp.model_copy(update={"preferred_orientation": ori})
+                notes.append(f"朝向:{name}={ori}")
+                if name == "客厅" and ori == CardinalOrientation.SOUTH:
+                    if known.preferences.prefer_south_facing_living is None:
+                        known.preferences.prefer_south_facing_living = True
 
     if known.preferences.prefer_south_facing_living is None and re.search(
-        r"客厅.{0,4}朝南|朝南.{0,4}客厅", text
+        r"(?:客厅|起居室).{0,4}朝南|朝南.{0,4}(?:客厅|起居室)", text
     ):
         known.preferences.prefer_south_facing_living = True
         notes.append("prefer_south_facing_living")

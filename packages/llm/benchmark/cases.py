@@ -90,6 +90,24 @@ def _c(
     )
 
 
+def _normalize_must_unknown(case: RequirementBenchmarkCase) -> RequirementBenchmarkCase:
+    """Development gold 对齐：site 成对；无场地尺寸期望时须检测 site unknowns。"""
+    mu = list(case.must_unknown)
+    if "site.width" in mu and "site.depth" not in mu:
+        mu.append("site.depth")
+    if "site.depth" in mu and "site.width" not in mu:
+        mu.append("site.width")
+    if (
+        case.expect.site_width is None
+        and case.expect.site_depth is None
+        and "site.width" not in mu
+    ):
+        mu.extend(["site.width", "site.depth"])
+    if mu == case.must_unknown:
+        return case
+    return case.model_copy(update={"must_unknown": mu})
+
+
 def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
     """
     Development Benchmark（原 62 条）。
@@ -750,7 +768,7 @@ def load_benchmark_cases() -> list[RequirementBenchmarkCase]:
             ],
         ),
     ]
-    return cases
+    return [_normalize_must_unknown(c) for c in cases]
 
 
 def benchmark_case_count() -> int:

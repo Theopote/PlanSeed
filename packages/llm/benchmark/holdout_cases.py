@@ -16,6 +16,7 @@ from packages.llm.benchmark.cases import (
     ExpectRelation,
     RequirementBenchmarkCase,
     _c,
+    _normalize_must_unknown,
 )
 from packages.schema.site import CardinalOrientation
 
@@ -493,7 +494,7 @@ def load_holdout_cases() -> list[RequirementBenchmarkCase]:
     assert len(cases) >= 30, len(cases)
     ids = [c.id for c in cases]
     assert len(ids) == len(set(ids))
-    return cases
+    return [_normalize_must_unknown(c) for c in cases]
 
 
 def holdout_case_count() -> int:

@@ -71,10 +71,9 @@ def test_parse_requirement_text_happy_path():
     assert result.draft.known.floor_count == 2
     assert result.raw["known"]["floor_count"] == 2
     assert len(result.spec.assumptions) == 1
-    # precision-first：保留已有 unknown；无场地不确定语义时不主动补另一维
+    # 无尺寸 → 补列 site.depth；保留已有 site.width
     unk = {u.key for u in result.spec.unknowns}
-    assert "site.width" in unk
-    assert "site.depth" not in unk
+    assert unk == {"site.width", "site.depth"}
 
 
 def test_parser_passes_system_and_user_to_provider():

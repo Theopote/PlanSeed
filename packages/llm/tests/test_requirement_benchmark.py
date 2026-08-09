@@ -193,16 +193,16 @@ def test_score_relations_and_floor_pref():
 def test_oracle_draft_includes_intent():
     case = RequirementBenchmarkCase(
         id="t-oracle-intent",
-        text="厨房靠近餐厅",
+        text="两层，厨房靠近餐厅，老人房在一层",
         expect=ExpectKnown(
             floor_count=2,
-            space_names_contains=["厨房", "餐厅"],
-            relations=[ExpectRelation(a="厨房", b="餐厅", kind="adjacency")],
+            space_names_contains=["厨房", "餐厅", "老人房"],
+            relations=[ExpectRelation(a="厨房", b="餐厅", kind="near")],
             floor_preferences=[
                 ExpectFloorPreference(space_name="老人房", floors=["F1"]),
             ],
         ),
-        must_unknown=["site.width"],
+        must_unknown=["site.width", "site.depth"],
     )
     draft = expect_to_draft(case)
     assert "relation_intents" in draft["known"]
