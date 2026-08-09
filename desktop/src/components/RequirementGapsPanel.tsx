@@ -30,7 +30,6 @@ function valueToEditString(value: unknown): string {
   return String(value);
 }
 
-/** App 回调用：把编辑框字符串还原为较合理的 JSON 值。 */
 const ASSUMPTION_SOURCE_LABEL: Record<string, string> = {
   user_authorized: "用户授权",
   planseed_default: "产品默认",

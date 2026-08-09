@@ -227,22 +227,25 @@ export function FloorplanView({
     [placements],
   );
 
-  const floorIndexOf = useCallback((floorId: string, fallbackSvgY: number): number => {
-    const idx = floorIds.indexOf(floorId);
-    if (idx >= 0) return idx;
-    if (floorDepth > 0) {
-      return Math.max(0, Math.round(fallbackSvgY / (floorDepth + FLOOR_GAP)));
-    }
-    return 0;
-  }, [floorIds, floorDepth]);
+  const floorIndexOf = useCallback(
+    (floorId: string, fallbackSvgY: number): number => {
+      const idx = floorIds.indexOf(floorId);
+      if (idx >= 0) return idx;
+      if (floorDepth > 0) {
+        return Math.max(0, Math.round(fallbackSvgY / (floorDepth + FLOOR_GAP)));
+      }
+      return 0;
+    },
+    [floorIds, floorDepth],
+  );
 
   const applyNodeGeometry = useCallback((
-    roomId: string,
-    modelX: number,
-    modelY: number,
-    width: number,
-    depth: number,
-  ) => {
+      roomId: string,
+      modelX: number,
+      modelY: number,
+      width: number,
+      depth: number,
+    ) => {
     const root = stageRef.current;
     const base = basesRef.current.get(roomId);
     if (!root || !base) return;
@@ -274,7 +277,7 @@ export function FloorplanView({
       else if (i === 1) t.setAttribute("y", String(cy));
       else t.setAttribute("y", String(cy + 0.28));
     });
-  }, [floorDepth]);
+    }, [floorDepth]);
 
   const syncFromPlacements = useCallback(() => {
     const root = stageRef.current;
@@ -445,18 +448,18 @@ export function FloorplanView({
   };
 
   const syncPreviewOverlay = useCallback((
-    floorIndex: number,
-    snapped: { x: number; y: number; width: number; depth: number } | null,
-    ok: boolean,
-    hasWarning: boolean,
-    conflictIds: string[],
-    snappedPartner: {
-      x: number;
-      y: number;
-      width: number;
-      depth: number;
-    } | null = null,
-  ) => {
+      floorIndex: number,
+      snapped: { x: number; y: number; width: number; depth: number } | null,
+      ok: boolean,
+      hasWarning: boolean,
+      conflictIds: string[],
+      snappedPartner: {
+        x: number;
+        y: number;
+        width: number;
+        depth: number;
+      } | null = null,
+    ) => {
     const root = stageRef.current;
     if (!root) return;
     const svgEl = root.querySelector("svg");
@@ -502,7 +505,7 @@ export function FloorplanView({
     };
     if (snapped) addRect(snapped);
     if (snappedPartner) addRect(snappedPartner);
-  }, [floorDepth]);
+    }, [floorDepth]);
 
   useEffect(() => {
     const root = stageRef.current;
