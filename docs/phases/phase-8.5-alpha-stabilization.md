@@ -17,12 +17,19 @@
 
 1. **Alpha 默认**恢复：`SolverConfig.rank_mode = "axis"`  
    （score + 轴叙事 + 几何 diversity；8.1）  
-2. **Pareto** 保留为 **opt-in**：`rank_mode="pareto"`  
+2. **Pareto** 保留为 **Experimental / opt-in**：`rank_mode="pareto"`  
+   - 目标复用七轴语言（禁止 Efficiency 别名）  
+   - slot1 = 全局 top-score；slot2–k = Pareto crowding  
 3. 新增 `SELECTION_VERSION`（默认 `axis-diversity-v1`）；候选 metrics / provenance 写入实际策略  
 4. `SOLVER_VERSION` → `0.5`（Solver 2.0 能力面存在，但默认语义回稳）  
 5. `EVALUATION_VERSION` **不变**（`residential-alpha-v1`；七轴规则未改）
 
 ```text
+rank_mode:
+  score     纯总分
+  axis      ← Alpha default（最高分 + 轴优势 + 几何 diversity）
+  pareto    ← Experimental（slot1=最高分 + 前沿 crowding）
+
 默认路径：  Guillotine + axis selection
 opt-in：    MaxRect · multi-gen pool · pareto · CP-SAT · Shapely irregular
 ```

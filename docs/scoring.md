@@ -111,7 +111,8 @@ selection_version = axis-diversity-v1
 ```
 
 贪心选取 Top K：优先最高总分，再选轴优势替代方案，并用 `layout_similarity` 去重。  
-`rank_mode="pareto"` 为 **opt-in**（非默认）。`min_diversity_threshold=None` → 纯分数。  
+`rank_mode="pareto"` 为 **Experimental**（非默认；`pareto-top1-axes-v2`：slot1=最高总分，目标复用七轴语言）。  
+`min_diversity_threshold=None` → 纯分数。  
 配置：`SolverConfig.rank_mode` / `min_diversity_threshold`。详见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)。
 
 ### Orientation (`evaluation/orientation.py`)
@@ -252,7 +253,7 @@ environment 0.10 | technical 0.16 | robustness 0.14
 | `solver_version` | `0.5` | Solver 管线总签名（含 Solver 2.0 能力面；默认语义见 selection） |
 | `generator_version` | `guillotine-lock-v4` | 当前主生成器（lock 管线契约 + 按层隔离洞） |
 | `evaluation_version` | `residential-alpha-v1` | 七轴权重 / Finding 规则包 |
-| `selection_version` | `axis-diversity-v1` | Alpha 默认 Top-K（score+轴叙事+几何 diversity）；Pareto=`pareto-crowding-v1` opt-in |
+| `selection_version` | `axis-diversity-v1` | Alpha 默认 Top-K（score+轴叙事+几何 diversity）；Pareto Experimental=`pareto-top1-axes-v2` |
 
 持久化示例：
 

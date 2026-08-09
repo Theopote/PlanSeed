@@ -1,12 +1,14 @@
 """Phase 8.2 — Pareto / non-dominated selection（静态前沿，非 GA）。
 
-目标轴（均为越高越好）：
-  Efficiency ← spatial_score
-  Privacy    ← privacy_score
-  Circulation← circulation_score
-  Environment← environment_score
+Experimental / opt-in（``rank_mode=pareto``）。Alpha 默认仍为 ``axis``。
 
-从已有候选中取非支配集；用拥挤距离在前沿上截断到 top_k。
+目标轴直接复用 DesignScore 七轴语言（禁止另造 Efficiency 等第二套语义）：
+  Program / Spatial / Circulation / Privacy / Environment
+
+产品语义：
+  slot 1 = 全局最高总分（top_score）
+  slot 2..k = 非支配集上的 crowding 多样性
+
 禁止 NSGA-II / 遗传搜索生成新几何。
 """
 
@@ -14,11 +16,12 @@ from __future__ import annotations
 
 from packages.schema.layout import LayoutCandidate
 
-# (evaluation 字段, role 片段, 短标签)
+# (evaluation 字段, role id, UI 短标签) — 与七轴合同对齐
 PARETO_OBJECTIVES: tuple[tuple[str, str, str], ...] = (
-    ("spatial_score", "efficiency", "效率更好"),
-    ("privacy_score", "privacy", "隐私更好"),
+    ("program_score", "program", "功能配置更好"),
+    ("spatial_score", "spatial", "空间品质更好"),
     ("circulation_score", "circulation", "流线更好"),
+    ("privacy_score", "privacy", "私密性更好"),
     ("environment_score", "environment", "朝向更好"),
 )
 
@@ -58,7 +61,7 @@ def pareto_front(
     *,
     objectives: tuple[tuple[str, str, str], ...] = PARETO_OBJECTIVES,
 ) -> list[LayoutCandidate]:
-    """返回非支配候选（保持输入相对顺序中的稳定：先按总分再筛）。"""
+    """返回非支配候选（先按总分排序再筛，保持稳定）。"""
     valid = [
         c
         for c in candidates
@@ -117,11 +120,10 @@ def _tradeoff_label(
             strengths.append(label)
     if not strengths:
         return "权衡前沿"
-    # 最多展示两轴，避免标签过长
     return " · ".join(strengths[:2])
 
 
-def _tag(candidate: LayoutCandidate, *, label: str, front_size: int) -> None:
+def _tag_pareto(candidate: LayoutCandidate, *, label: str, front_size: int) -> None:
     candidate.metrics["selection_role"] = "pareto"
     candidate.metrics["selection_label"] = label
     candidate.metrics["pareto_front"] = True
@@ -135,9 +137,11 @@ def select_pareto_frontier(
     objectives: tuple[tuple[str, str, str], ...] = PARETO_OBJECTIVES,
 ) -> list[LayoutCandidate]:
     """
-    非支配集 → 拥挤距离截断到 top_k → 打权衡标签。
+    Experimental Top-K：
 
-    前沿不足时按总分从剩余 valid 补齐（role=diverse）。
+    1. slot 1 = 全局最高总分（``top_score``）—— Alpha 产品直觉
+    2. slot 2..k = 非支配集 crowding 多样性（``pareto``）
+    3. 仍不足则按总分从剩余 valid 补齐（``diverse``）
     """
     if top_k <= 0:
         return []
@@ -150,25 +154,40 @@ def select_pareto_frontier(
     if not valid:
         return []
 
+    valid.sort(key=lambda c: c.score or 0.0, reverse=True)
+    top = valid[0]
+    top.metrics["selection_role"] = "top_score"
+    top.metrics["selection_label"] = "最高总分"
+    top.metrics["pareto_front"] = False
+
+    selected: list[LayoutCandidate] = [top]
+    selected_ids: set[str] = {top.id}
+    if top_k == 1:
+        return selected
+
     front = pareto_front(valid, objectives=objectives)
     front_size = len(front)
+    remaining = [c for c in front if c.id not in selected_ids]
+    slots = top_k - 1
 
-    if len(front) > top_k:
-        crowd = crowding_distances(front, objectives=objectives)
-        # 拥挤优先；同分看总分
-        front = sorted(
-            front,
+    if len(remaining) > slots:
+        crowd = crowding_distances(remaining, objectives=objectives)
+        remaining = sorted(
+            remaining,
             key=lambda c: (crowd.get(c.id, 0.0), c.score or 0.0),
             reverse=True,
-        )[:top_k]
+        )[:slots]
     else:
-        # 稳定：前沿内按总分
-        front = sorted(front, key=lambda c: c.score or 0.0, reverse=True)
+        remaining = sorted(remaining, key=lambda c: c.score or 0.0, reverse=True)
 
-    selected: list[LayoutCandidate] = []
-    selected_ids: set[str] = set()
-    for c in front:
-        _tag(c, label=_tradeoff_label(c, front, objectives=objectives), front_size=front_size)
+    # 标签相对「含 top 的完整前沿」表达轴优势，避免丢掉全局最优参考
+    label_ref = front if front else remaining
+    for c in remaining:
+        _tag_pareto(
+            c,
+            label=_tradeoff_label(c, label_ref, objectives=objectives),
+            front_size=front_size,
+        )
         selected.append(c)
         selected_ids.add(c.id)
 

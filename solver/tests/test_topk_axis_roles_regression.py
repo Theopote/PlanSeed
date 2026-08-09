@@ -86,5 +86,6 @@ def test_pareto_opt_in_diverges_from_axis_fixture():
     pareto_roles = [c.metrics.get("selection_role") for c in pareto]
     assert axis_ids == [row[0] for row in EXPECTED_TOP_ROLES]
     assert pareto_roles != [row[1] for row in EXPECTED_TOP_ROLES]
-    assert all(r in ("pareto", "diverse") for r in pareto_roles)
-    assert all(c.metrics.get("selection_version") == "pareto-crowding-v1" for c in pareto)
+    assert all(r in ("top_score", "pareto", "diverse") for r in pareto_roles)
+    assert pareto_roles[0] == "top_score"
+    assert all(c.metrics.get("selection_version") == "pareto-top1-axes-v2" for c in pareto)

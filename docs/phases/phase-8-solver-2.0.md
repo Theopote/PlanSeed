@@ -119,22 +119,32 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 - 候选 `metrics.selection_role` / `selection_label`；CandidateStrip 展示标签
 - **不是** Pareto（8.2）
 
-## 8.2 — Pareto Frontier ✅
+## 8.2 — Pareto Frontier ✅（Experimental / opt-in）
 
-静态非支配选择（**不是** NSGA-II 进化）：
+静态非支配选择（**不是** NSGA-II 进化；**不是** Alpha 默认）：
 
-| 目标 | DesignScore 字段 |
-|------|------------------|
-| Efficiency | `spatial_score` |
-| Privacy | `privacy_score` |
-| Circulation | `circulation_score` |
-| Environment | `environment_score` |
+| 目标 | DesignScore 字段 | 标签 |
+|------|------------------|------|
+| Program | `program_score` | 功能配置更好 |
+| Spatial | `spatial_score` | 空间品质更好 |
+| Circulation | `circulation_score` | 流线更好 |
+| Privacy | `privacy_score` | 私密性更好 |
+| Environment | `environment_score` | 朝向更好 |
+
+**禁止**另造 Efficiency 等第二套评分语义（`spatial_score ≠ efficiency`）。
+
+产品截断：
+
+```text
+slot 1   = 全局最高总分（top_score）
+slot 2–k = 非支配集 crowding（pareto）
+```
 
 - `solver/optimization/pareto.py` — `pareto_front` / crowding / `select_pareto_frontier`
-- `SolverConfig.rank_mode = "pareto"`（**opt-in**；Alpha 默认仍为 `axis`）
+- `SolverConfig.rank_mode = "pareto"`（**Experimental**；Alpha 默认仍为 `axis`）
 - `run_pipeline(..., generators=[GuillotineGenerator(), MaxRectGenerator()])` 合并池再选
-- 标签：`selection_role=pareto` · `selection_label`（如「效率更好 · 流线更好」）
-- 稳定化：见 [phase-8.5-alpha-stabilization.md](phase-8.5-alpha-stabilization.md)（禁止静默改默认 ranking）
+- `selection_version=pareto-top1-axes-v2`
+- 稳定化：见 [phase-8.5-alpha-stabilization.md](phase-8.5-alpha-stabilization.md)
 
 ## 8.3 — CP-SAT Research ✅
 

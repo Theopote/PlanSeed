@@ -29,8 +29,10 @@ class SolverConfig(BaseModel):
     rank_mode: str = Field(
         default="axis",
         description=(
-            "Top-K selection: axis=Alpha 默认（score+轴叙事+几何 diversity）；"
-            "score=纯总分；pareto=8.2 非支配前沿（opt-in，非默认）"
+            "Top-K selection: "
+            "score=纯总分；"
+            "axis=Alpha 默认（最高分+轴优势替代+几何 diversity）；"
+            "pareto=Experimental（slot1=最高分，其余非支配 crowding；非默认）"
         ),
     )
     max_wet_stacks: int = Field(

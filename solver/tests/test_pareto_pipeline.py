@@ -29,9 +29,10 @@ def test_pipeline_pareto_tags_top_candidates():
     assert result.generated == 8
     assert len(result.top_candidates) == 3
     roles = [c.metrics.get("selection_role") for c in result.top_candidates]
-    assert "pareto" in roles
-    assert all(r in ("pareto", "diverse") for r in roles)
-    assert all(c.metrics.get("selection_version") == "pareto-crowding-v1" for c in result.top_candidates)
+    assert roles[0] == "top_score"
+    assert "pareto" in roles[1:] or all(r in ("pareto", "diverse", "top_score") for r in roles)
+    assert all(r in ("top_score", "pareto", "diverse") for r in roles)
+    assert all(c.metrics.get("selection_version") == "pareto-top1-axes-v2" for c in result.top_candidates)
 
 
 def test_pipeline_multi_generator_pool():

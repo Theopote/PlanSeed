@@ -16,7 +16,7 @@ SELECTION_VERSION = "axis-diversity-v1"
 
 _SELECTION_BY_MODE: dict[str, str] = {
     "axis": "axis-diversity-v1",
-    "pareto": "pareto-crowding-v1",
+    "pareto": "pareto-top1-axes-v2",
     "score": "score-only-v1",
     "geom": "geom-diversity-v1",
 }
