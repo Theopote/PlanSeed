@@ -1,67 +1,168 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 可开工（前置 Blind v4 Gate PASS）**  
-> 总览：[roadmap.md](roadmap.md)  
-> 前置：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)（Strict Alpha Qualified）
+> **状态：▶ 可开工**  
+> **前置已满足：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 Gate **PASS** → Phase 6 ✅ Strict Alpha Qualified  
+> 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
-## 为什么是 Export，不是高级分析
+## 产品闭环
 
-Design Kernel（0–5.1.1）与 LLM Infrastructure（6.0–6.6）之后，用户已经能：
+完整链已是：
 
 ```text
-理解需求 → 生成 → 比较 → 修改 → 评价 → 保存
+NL → RequirementSpec → Generate → Evaluate → Compare
+  → Edit → Revalidate → Save
 ```
 
-自然下一问：
+下一步自然是 **Deliver**。Phase 7 = Deliverable Layer，不是高级分析或再扩 LLM。
 
-> 然后呢？我怎么把这个方案带走？
+## 第一刀：Export Design Report
 
-因此 Phase 7 的产品闭环是 **Deliverable Layer**，不是再堆分析轴或再扩 LLM。
+格式优先级（**不要**被建筑软件惯性拖进 DWG / IFC / Revit）：
 
-## 第一版范围（建议）
+1. **HTML → Print / PDF**（Alpha 首选，见下）  
+2. SVG / PNG 平面图  
+3. JSON（`DesignReportPayload` 快照）  
+4. DXF — **later**，不挡 7.0
 
-**Export Design Report**（最有价值的第一刀）：
+## 7.0 先建 Deliverable Model
 
-| 内容 | 说明 |
-|------|------|
-| 项目需求 | RequirementSpec 摘要 |
-| 平面图 | SVG / PNG |
-| 房间面积表 | 自 placements / program |
-| 设计评分 | 七轴 `DesignScore` |
-| 主要 Findings | `DesignFinding` |
-| Assumptions / Unknowns | 会话事实源 |
-| Candidate provenance | seed / generator / versions |
+**禁止**「React 截图 → PDF」各写一套。先建立权威文档模型，再挂 Renderer：
 
-格式优先级：
+```text
+DesignReport
+├ ProjectMetadata
+├ RequirementSummary          # Key Intent（层数 / 卧卫 / 朝南 / 关系…）
+├ Assumptions
+├ Unknowns
+├ CandidateSummary            # 如 Candidate A.2 · Score 84
+├ FloorPlans[]                # SVG 引用或内嵌
+├ RoomSchedule                # 面积表 ← placements / report builder
+├ EvaluationSummary           # DesignScore 七轴
+├ Findings                    # DesignFinding[]
+└ Provenance                  # seed / generator / versions / 边界声明
+```
 
-1. PDF（或 HTML→打印成报告）  
-2. SVG / PNG  
-3. JSON 项目快照  
-4. DXF（后续，不挡第一版）
+之后：
+
+```text
+DesignReport → HTML Renderer
+DesignReport → JSON export
+DesignReport →（未来）专业 PDF / DXF
+```
+
+同一事实源，多 renderer。
+
+## 权威数据必须来自 Backend
+
+继续：**frontend does not reinterpret design data**。
+
+| 内容 | 来源 | 禁止 |
+|------|------|------|
+| Room area table | canonical placements / report builder | React 自算 `width × depth` |
+| Evaluation | `DesignScore` | exporter 另发明一套分 |
+| Findings | `DesignFinding` | 报告层重写启发式 |
+| Assumptions / Unknowns | 会话 `RequirementSpec` | 前端臆造 |
+
+## Export API（additive，保持简单）
+
+```text
+POST /api/reports/build
+  in:  { project_id | project payload, candidate_id }
+  out: DesignReportPayload   # 第一阶段即可为 JSON
+```
+
+Desktop：
+
+```text
+Report Preview（HTML，即所得）
+  → Print / Save PDF（系统打印）
+```
+
+契约写入 [api-contract.md](api-contract.md)（additive）。
+
+## PDF 策略：HTML → Print，不手搓 PDF layout
+
+Phase 7 Alpha **不建议**在 Python 里排版 PDF。
+
+```text
+DesignReport
+  → HTML template（CSS + 中文字体 + 内嵌 SVG）
+  → Tauri WebView 预览
+  → Print / PDF
+```
+
+优势：排版快、中文易、SVG 原生、预览即所得。专业排版以后再升级。
+
+## 报告要可解释，不是「漂亮」
+
+首页建议结构：
+
+```text
+PlanSeed Design Report
+Project · Generated / Edited · Candidate A.2 · Score 84
+
+Key Intent
+  - Two-story residence
+  - 3 bedrooms
+  - Living room south-oriented
+  - Kitchen near dining
+  …
+
+Assumptions …
+Unresolved (Unknowns) …
+
+（再）Floor plans · Room schedule · Evaluation · Findings
+```
+
+### 必须声明 AI / Solver 边界（页脚或 Provenance）
+
+准确写法示例：
+
+```text
+Requirement interpretation: Local LLM + deterministic semantic pipeline
+Geometry: PlanSeed deterministic solver
+Evaluation: PlanSeed residential heuristic evaluator
+
+AI interpreted design intent; deterministic solver generated and evaluated geometry.
+```
+
+**禁止**写：「AI designed this house.」
 
 ## 明确不做（本阶段）
 
 - Advanced Site / Environmental Analysis  
-- Code Profiles  
-- Interoperability / BIM  
+- Code Profiles / Jurisdiction  
+- BIM / IFC / Revit / DWG  
+- DXF（7.0 不做）  
 - 跨平台 packaging 硬化  
 - 交互编辑加深  
-- 回头重构 solver · 扩 LLM feature  
+- solver 重构 · LLM 扩功能 · 性能专项（量化/换模）
 
-这些若需要，以后**单独开阶段**；现在不正式规划到 Phase 10，避免「7+ 大杂烩」再次失焦。
+NL 解析进度文案属最小 UX（「正在理解需求…」），见下；**不**把 P90 压到数秒当 Phase 7 门槛。
 
-## 与 6.7 的边界
+## Blind Gate 与开工条件（状态）
+
+严格顺序曾为：
 
 ```text
-6.7 证明 LLM 可用（Blind v4 Gate → Strict Alpha Qualified）
-  → 7 做「可以输出成果的设计工具」
+冻结 parser → Blind 单次跑分 → Gate → Phase 7
 ```
 
-**延迟不挡 Phase 7：** 解析约十几秒属 Alpha 可接受；优先用进度文案避免「死机感」，绝对耗时另阶段优化。见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md) § 延迟与产品体验。
+**当前：** Blind v4（44 案，`qwen2.5:7b` Pipeline）已 **PASS** 入库  
+（`docs/baselines/llm-alpha-baseline.json` / `…-blind-v4.json`）。
 
-## NL 解析进度（Export 同期最小 UX，非性能专项）
+| 门槛 | Blind v4 |
+|------|----------|
+| Field ≥90% | ✅ 96.2% |
+| Rel F1 ≥80% / P ≥75% | ✅ 91.4% / 84.2% |
+| Unknown P ≥70% | ✅ 100% |
+| Case pass ≥70% | ✅ 88.6% |
+| Geometry = 0 | ✅ |
 
-用户提交完整住宅需求后，界面应可感知阶段，例如：
+→ **Phase 6 正式冻结抠分；立即 Phase 7。**  
+post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)，不挡 Export。
+
+## NL 解析进度（最小 UX）
 
 ```text
 正在理解需求…
@@ -69,14 +170,12 @@ Design Kernel（0–5.1.1）与 LLM Infrastructure（6.0–6.6）之后，用户
 正在整理未确定信息…
 ```
 
-不要求本阶段把 P90 压到数秒。
+## Definition of Done（7.0）
 
-## Definition of Done（草案）
+1. Backend 可 `POST /api/reports/build` → `DesignReportPayload`（JSON）  
+2. Desktop 可预览 HTML 报告并 Print/PDF  
+3. 报告含：Key Intent · Assumptions · Unknowns · 平面 · Room schedule · Score · Findings · Provenance（含 AI/Solver 边界）  
+4. 面积 / 评分 / Finding **不**由前端重算  
+5. 不引入云端渲染 / 云端 LLM / DXF  
 
-1. 用户可从当前选中方案导出一份 Design Report  
-2. 报告含上表核心块；平面图可读  
-3. JSON 快照可再导入或至少可归档  
-4. 不引入云端渲染 / 云端 LLM  
-5. NL→Requirement 路径有明确进行中状态（非空白卡死）
-
-（正式开工前再细化为子任务与 API 契约 additive。）
+开工时再拆子任务与 schema 落点（建议 `packages/schema/report.py` + `solver`/`api` report builder）。

@@ -16,9 +16,16 @@
 | **7** | **Deliverables / Export** | **← 当前** |
 
 ```text
-现在做：Phase 7 Export / Deliverable Layer
-顺带：NL 解析进度反馈（体感，非砍 latency）
-不做：为性能继续卡 Phase 7 · 回头大改 solver · 对着 Blind 扩 regex · 扩云端 LLM
+0–5.1.1   Design Kernel                ✅
+6.0–6.6   LLM Infrastructure           ✅
+6.7.1     Precision Pipeline           ✅
+6.7.2     Blind Qualification          ✅ Blind v4 PASS → Strict Alpha Qualified
+7         Deliverables / Export        ← 当前（DesignReport → HTML/JSON/Print）
+```
+
+```text
+现在做：Phase 7.0 DesignReport model + /api/reports/build + HTML 预览/Print
+不做：DXF/DWG/IFC · 手搓 PDF layout · 前端重算面积 · 继续抠 Phase 6 分数 · 云端 LLM
 ```
 
 ## 阶段总览（以代码为准）
