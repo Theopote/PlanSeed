@@ -1,6 +1,6 @@
 # Phase 8 — Solver 2.0 / Design Kernel Next Generation
 
-> **状态：▶ 8.2 Pareto Frontier ✅ · 下一 8.3 CP-SAT · 8.0–8.1 ✅ · 7.5 ✅ · 禁止 GA 进化生成**  
+> **状态：▶ 8.3 CP-SAT Research ✅ · 下一 8.4 Advanced Geometry · 8.0–8.2 ✅ · CP-SAT≠几何**  
 > 总览：[../roadmap.md](../roadmap.md) · Solver：[../solver.md](../solver.md) · ADR：[../adr/](../adr/)
 
 ## 原则
@@ -19,8 +19,8 @@
   → 8.0-C Generator Benchmark         ✅（Guillotine vs MaxRect）
 8.1 Diversity Selection（top-score + diverse alternatives） ✅
 8.2 Pareto Frontier（非支配集） ✅
-8.3 CP-SAT Research（topology / assignment） ← 当前
-8.4 Advanced Geometry（不规则场地才 Shapely）
+8.3 CP-SAT Research（floor assignment opt-in） ✅
+8.4 Advanced Geometry（不规则场地才 Shapely） ← 当前
 ```
 
 | 项 | 主题 | 状态 |
@@ -30,8 +30,8 @@
 | **8.0-C** | `layout-generation-benchmark` | ✅ |
 | **8.1** | Diversity Selection | ✅ |
 | **8.2** | Pareto Frontier | ✅ |
-| **8.3** | CP-SAT Research | **← 当前** |
-| **8.4** | Advanced Geometry（Shapely） | 更后 |
+| **8.3** | CP-SAT Research | ✅ |
+| **8.4** | Advanced Geometry（Shapely） | **← 当前** |
 
 ## 8.0-A — Generator Interface
 
@@ -135,10 +135,33 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 - `run_pipeline(..., generators=[GuillotineGenerator(), MaxRectGenerator()])` 合并池再选
 - 标签：`selection_role=pareto` · `selection_label`（如「效率更好 · 流线更好」）
 
-## 8.3–8.4（摘要）
+## 8.3 — CP-SAT Research ✅
 
-- **8.3**：CP-SAT 做 floor/zone/topology/adjacency；几何仍 packing + repair ← 当前预告  
-- **8.4**：不规则场地 / 庭院多边形才考虑 Shapely  
+```text
+RequirementSpec / ProjectSpec
+      ↓
+CP-SAT Floor Assignment（opt-in research）
+      ↓
+DesignProgram
+      ↓
+Geometric Packing（Guillotine / MaxRect）
+      ↓
+Repair → Evaluation
+```
+
+- 模块：`solver/assignment/cpsat_floor.py`
+- 依赖：`uv sync --group research`（ortools）
+- **默认** normalize 仍用 `FloorAssignmentSolver`；CP-SAT **不**自动接入
+- 硬：FloorConstraint / floor_id / room_ids  
+  软：preference · adjacency 同层 · kitchen/garage 底层 · master 上层
+- ADR：[adr/008-cpsat-assignment-not-geometry.md](../adr/008-cpsat-assignment-not-geometry.md)
+
+后续可扩：zone assignment · topology · orientation eligibility — **仍禁止**输出坐标。
+
+## 8.4 — Advanced Geometry（预告）
+
+仅当进入不规则场地 / 庭院多边形 / 非矩形 footprint / 复杂退线时，才考虑 Shapely / GEOS。  
+**不要**现在迁移整个 Rect engine。
 
 ## 明确不做（Phase 8）
 
@@ -155,4 +178,5 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 - [x] 8.0-C Generator Benchmark
 - [x] 8.1 Diversity Selection
 - [x] 8.2 Pareto Frontier
-- [ ] 8.3 CP-SAT Research
+- [x] 8.3 CP-SAT Research
+- [ ] 8.4 Advanced Geometry

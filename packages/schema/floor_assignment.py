@@ -17,6 +17,7 @@ class FloorAssignmentSource(StrEnum):
     EXPLICIT_FLOOR_ID = "explicit_floor_id"  # RoomSpec.floor_id
     FLOOR_PREFERENCE = "floor_preference"  # RoomSpec.floor_preference
     RESIDENTIAL_RULE = "residential_rule"  # 住宅默认规则
+    CPSAT = "cpsat"  # Phase 8.3 CP-SAT 研究求解（非默认路径）
     FALLBACK = "fallback"  # 兜底，永不丢弃
 
 

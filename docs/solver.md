@@ -31,7 +31,8 @@ class LayoutGenerator(Protocol):
 - Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
 - Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅）
 - Pareto：`rank_mode=pareto` 非支配前沿（8.2 ✅；非 GA 进化）
-- 下一：**8.3 CP-SAT Research**；**不要**用 GA 替代几何 packing
+- CP-SAT floor assignment（opt-in，`solver.assignment`，8.3 ✅）
+- 下一：**8.4 Advanced Geometry**；**禁止** CP-SAT/GA 输出坐标
 
 详见：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md)
 

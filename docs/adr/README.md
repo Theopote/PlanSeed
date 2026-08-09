@@ -10,6 +10,6 @@
 | [004](004-adjacency-vs-access-intent.md) | Adjacency ≠ Access Intent |
 | [005](005-geometry-mutation-authority.md) | Geometry Mutation Authority |
 | [006](006-designreport-canonical-deliverable.md) | DesignReport canonical deliverable |
-| [007](007-html-print-strategy.md) | HTML Print strategy |
+| [008](008-cpsat-assignment-not-geometry.md) | CP-SAT scopes assignment, not geometry |
 
 格式：Context → Decision → Consequences。
