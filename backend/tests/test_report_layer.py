@@ -268,7 +268,7 @@ def test_missing_candidate_id_rejected(client: TestClient):
 
 
 def test_room_area_uses_canonical_area():
-    """面积必须用 placements.area，禁止 width×depth。"""
+    """面积必须用 placements.area，禁止 width×depth；目标面积来自 program。"""
     report = build_design_report(
         project_name="Area",
         requirement_spec=_requirement_spec(),
@@ -280,6 +280,8 @@ def test_room_area_uses_canonical_area():
     assert living.depth == 3.5
     assert living.area == 99.0  # ≠ 14.0
     assert living.area != living.width * living.depth
+    assert living.target_area == 20.0
+    assert living.area_delta == 79.0
 
 
 def test_missing_area_rejected():
@@ -326,7 +328,6 @@ def test_header_score_ignores_stale_candidate_score_cache():
     doc = render_report_html(report)
     assert '<span class="score">76</span>' in doc
     assert '<span class="score">81</span>' not in doc
-    assert "81" not in doc
 
 
 def test_findings_preserved():
@@ -357,8 +358,9 @@ def test_assumptions_preserved():
     assert report.assumptions[0].key == "site.setbacks"
     assert report.assumptions[0].reason == "未提供退界，按 0 处理"
     doc = render_report_html(report)
-    assert "site.setbacks" in doc
+    # 7.1：主文案用人话 reason，不把 key 当主视觉
     assert "未提供退界" in doc
+    assert "06 假设与待决" in doc
 
 
 def test_unknowns_preserved():
@@ -372,8 +374,8 @@ def test_unknowns_preserved():
     assert report.unknowns[0].key == "site.entrance_edge"
     assert report.unknowns[0].description == "入口朝向未定"
     doc = render_report_html(report)
-    assert "site.entrance_edge" in doc
     assert "入口朝向未定" in doc
+    assert "06 假设与待决" in doc
 
 
 def test_provenance_preserved():
@@ -462,3 +464,70 @@ def test_html_escape():
     assert "<b>未解决</b>" not in doc
     assert "&lt;b&gt;未解决&lt;/b&gt;" in doc
     assert "Proj <script>" not in doc
+
+
+def test_presentation_hierarchy_and_schedule_columns():
+    """7.1：Cover→平面→面积表→评价；Assumptions 后置；主表无 room_id。"""
+    report = build_design_report(
+        project_name="Present",
+        requirement_spec=_requirement_spec(),
+        program=_program(),
+        candidate=_candidate(),
+    )
+    doc = render_report_html(report)
+    assert "01 设计要点" in doc
+    assert "02 平面快照" in doc or "02 分层平面" in doc
+    assert "03 空间面积表" in doc
+    assert "04 设计评价" in doc
+    assert "06 假设与待决" in doc
+    assert "目标面积" in doc
+    assert "宽 × 深" in doc
+    # 主表不应再以 Id 列展示 room_id
+    assert ">Id<" not in doc
+    assert "r1" not in doc.split("07 溯源")[0]  # room_id 不进主视觉区
+    # Assumptions 章节应在平面之后
+    assert doc.index("02 ") < doc.index("06 假设与待决")
+    assert "良好" in doc or "尚可" in doc or "可改善" in doc
+    assert "主要优点" in doc
+    assert "主要关注" in doc
+    assert 'class="north"' in doc
+
+
+def test_blocking_unknown_on_cover():
+    report = build_design_report(
+        project_name="Block",
+        requirement_spec=_requirement_spec(
+            unknowns=[
+                {
+                    "key": "site.width",
+                    "description": "场地宽度未定",
+                    "priority": "blocking",
+                }
+            ]
+        ),
+        program=_program(),
+        candidate=_candidate(),
+    )
+    doc = render_report_html(report)
+    assert "阻塞性待决" in doc
+    assert "场地宽度未定" in doc
+
+
+def test_evaluation_presenter_deterministic():
+    from backend.services.report_evaluation_presenter import present_evaluation
+
+    score = _score()
+    presented = present_evaluation(
+        locale="zh-CN",
+        design_score=score,
+        findings=list(score.findings),
+        key_intents=["两层住宅", "客厅朝南"],
+        candidate_label="A",
+    )
+    assert len(presented.axes) == 7
+    assert presented.axes[0].band_label == "良好"  # program 80
+    assert any(a.score == 75 and a.band_label == "尚可" for a in presented.axes)
+    assert presented.strengths[0].title == "比例尚可"
+    assert presented.concerns[0].title == "流线偏长"
+    assert "76" in presented.executive_summary
+    assert "客厅朝南" in presented.executive_summary

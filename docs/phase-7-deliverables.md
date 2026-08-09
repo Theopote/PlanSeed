@@ -1,7 +1,7 @@
 # Phase 7 — Deliverables / Export
 
 > **状态：▶ 7.1 Report Presentation（当前）← 7.0 / 7.0.1 ✅ → 7.2 Formats**  
-> **前置：** [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) — Blind v4 **工程 PASS**；严格可复现 ⚠（Phase 6 冻结，仅修 qualify）  
+> **前置：** Phase 6 **彻底冻结**（Blind 工程 PASS；`qualify --gate` 拒 dirty worktree；不开抠分）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ## 产品闭环
@@ -18,13 +18,14 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 
 ## 子阶段优先级
 
-| 子阶段 | 主题 | 做 |
-|--------|------|-----|
-| **7.0 / 7.0.1** | Deliverable Model + Report Integrity | ✅ 关闭（含总分事实源 = `DesignScore.total_score`） |
-| **7.1** | Report Presentation | 中文文案 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印 ← 当前 |
-| **7.2** | Export Formats | HTML · PDF via Print · JSON · SVG / PNG |
+| 子阶段 | 主题 | 状态 |
+|--------|------|------|
+| **7.0** | Deliverable Model | ✅ |
+| **7.0.1** | Report Integrity | ✅ |
+| **7.1** | Report Presentation | **← 当前** |
+| **7.2** | Export Formats | 下一 |
 
-**不做（本 Phase）：** DXF / DWG / IFC · ReportLab / WeasyPrint / Chromium headless / PDF canvas 引擎。
+**不做（本 Phase）：** DXF / DWG / IFC · ReportLab / WeasyPrint / Chromium headless / PDF canvas 引擎 · Phase 6 抠分。
 
 ## 第一刀：Export Design Report
 
@@ -281,3 +282,64 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 ## 已知 P2（不挡 7.1）
 
 - **`ProjectMetadata.generated_at` 命名不准**：实际是**报告构建时间**，不是 Candidate 生成时间。后续宜改为 `report_generated_at`，并另留 `candidate_created_at` / `revision_created_at`（需 schema / HTML / API 一并改）。
+
+## 7.1 — Report Presentation（当前）
+
+目标：报告成为建筑师愿意给客户 / 同事 / 自己归档的**设计成果**，不是开发面板导出。
+
+**不再补 backend Integrity 主线**（7.0.1 已关）；本阶段做呈现。
+
+### A. 信息层级
+
+```text
+Cover / Executive Summary
+  项目 · Candidate · Score · 关键意图 · 一句话摘要
+01 Design Brief
+02 Floor Plans
+03 Space Schedule
+04 Design Evaluation
+05 Key Findings
+06 Assumptions & Open Questions
+07 Provenance
+```
+
+第一眼不是技术数据流。
+
+### B. Floor Plan = 视觉核心
+
+每层独立页 · 楼层标题 · 北向 · 尺度说明 · 图例 · 留白 · 打印分页。  
+接近建筑方案报告，避免 Web UI 截图感。  
+（房间标签 / 面积标注仍消费既有 SVG；本阶段不切 SVG DOM。）
+
+### C. Space Schedule 建筑化
+
+主表列：房间 · 楼层 · 目标面积 · 实际面积 · 差值 · 宽 × 深。  
+`room_id` 留在 JSON / Provenance，不进主表首列。
+
+### D. Evaluation Presenter
+
+```text
+DesignScore + DesignFinding
+  → ReportEvaluationPresenter（确定性）
+  → 七轴分数 + 档位（良好/尚可/可改善）
+  → Top 3 strengths / Top 3 concerns
+```
+
+**禁止** LLM 重写优缺点。
+
+### E. 阅读顺序
+
+Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。  
+仅 **blocking** unknown 在 Cover 醒目标出。
+
+### Definition of Done（7.1）
+
+1. [x] Cover / 编号章节信息层级（HTML）  
+2. [x] 平面章节：独立页样式 · 北向 · 尺度/图例 · print page-break  
+3. [x] 面积表：目标/实际/差值/宽×深；主表无 room_id  
+4. [x] `report_evaluation_presenter`：档位 + top strengths/concerns（仅 DesignFinding）  
+5. [x] Assumptions/Unknowns 后置；blocking 首页提示  
+6. [ ] 打印预览手测（Desktop WebView）— 工程验收项  
+7. [ ] 中文关系/轴名持续打磨（可随 Blind 文案迭代，不挡呈现骨架）
+
+实现落点：`report_html.py` · `report_evaluation_presenter.py` · `report_i18n.py` · `RoomScheduleRow`。

@@ -138,12 +138,20 @@ class FloorPlanBlock(BaseModel):
 class RoomScheduleRow(BaseModel):
     """面积表行 — area 必须来自 placements 权威字段；缺 area 则报告组装失败，禁止 width×depth。"""
 
-    room_id: str
+    room_id: str = Field(description="调试 / Provenance 用；主表不作为首列展示")
     name: str
     floor_id: str
     width: float
     depth: float
     area: float
+    target_area: float | None = Field(
+        default=None,
+        description="来自 DesignProgram.rooms[].target_area；缺省则差值为空",
+    )
+    area_delta: float | None = Field(
+        default=None,
+        description="实际面积 − 目标面积（仅 target_area 已知时）",
+    )
 
 
 class EvaluationSummary(BaseModel):

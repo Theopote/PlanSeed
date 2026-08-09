@@ -76,7 +76,7 @@ LLM 不直接输出 DesignProgram 或坐标。详见 [docs/hybrid-semantic-parse
 
 ## 当前阶段
 
-**Phase 7.1 Report Presentation**（当前）：7.0 / 7.0.1 Integrity ✅。见 [docs/roadmap.md](docs/roadmap.md)。
+**Phase 7.1 Report Presentation**（当前）：7.0 / 7.0.1 ✅；Phase 6 彻底冻结。见 [docs/roadmap.md](docs/roadmap.md) · [docs/phase-7-deliverables.md](docs/phase-7-deliverables.md)。
 
 ## 文档
 

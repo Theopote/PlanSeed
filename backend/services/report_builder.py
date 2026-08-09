@@ -179,7 +179,12 @@ def build_design_report(
     findings = list(design_score.findings)
 
     name_by_id = _room_names(program, req)
-    schedule = _room_schedule(candidate.get("placements") or [], name_by_id)
+    target_by_id = _room_target_areas(program)
+    schedule = _room_schedule(
+        candidate.get("placements") or [],
+        name_by_id,
+        target_by_id,
+    )
 
     svg = candidate.get("svg")
     if not isinstance(svg, str) or not svg.strip():
@@ -318,10 +323,25 @@ def _room_names(
     return out
 
 
+def _room_target_areas(program: dict[str, Any] | None) -> dict[str, float]:
+    out: dict[str, float] = {}
+    if not isinstance(program, dict):
+        return out
+    for r in program.get("rooms") or []:
+        if not isinstance(r, dict) or not r.get("id"):
+            continue
+        raw = r.get("target_area")
+        if isinstance(raw, (int, float)):
+            out[str(r["id"])] = float(raw)
+    return out
+
+
 def _room_schedule(
     placements: list[Any],
     name_by_id: dict[str, str],
+    target_by_id: dict[str, float] | None = None,
 ) -> list[RoomScheduleRow]:
+    targets = target_by_id or {}
     if not placements:
         raise ReportBuildError(
             "placements_missing",
@@ -352,6 +372,8 @@ def _room_schedule(
         if p.get("area") is None:
             raise ReportAreaMissingError(room_id=rid_s)
         area = float(p["area"])
+        target = targets.get(rid_s)
+        delta = round(area - target, 2) if target is not None else None
         rows.append(
             RoomScheduleRow(
                 room_id=rid_s,
@@ -360,6 +382,8 @@ def _room_schedule(
                 width=w,
                 depth=d,
                 area=area,
+                target_area=target,
+                area_delta=delta,
             )
         )
     rows.sort(key=lambda r: (r.floor_id, r.name, r.room_id))

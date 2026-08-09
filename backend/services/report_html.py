@@ -1,11 +1,15 @@
-"""DesignReport → HTML（Print/PDF 预览用；不做 Python PDF layout）。"""
+"""DesignReport → HTML（Print/PDF 预览用；不做 Python PDF layout）。
+
+Phase 7.1：建筑方案报告信息层级 — Cover → Brief → Plans → Schedule →
+Evaluation → Findings → Assumptions/Unknowns → Provenance。
+"""
 
 from __future__ import annotations
 
 import html
 from typing import Any
 
-from packages.schema.report import DesignReport
+from packages.schema.report import DesignReport, ReportUnknown
 from packages.schema.report_i18n import (
     DEFAULT_REPORT_LOCALE,
     geometry_origin_label,
@@ -13,6 +17,7 @@ from packages.schema.report_i18n import (
     tr,
 )
 
+from backend.services.report_evaluation_presenter import present_evaluation
 from backend.services.report_svg_sanitize import sanitize_report_svg
 
 
@@ -23,9 +28,8 @@ def render_report_html(report: DesignReport) -> str:
     score = r.candidate.total_score
     score_s = f"{score:.0f}" if isinstance(score, (int, float)) else "—"
     origin_label = geometry_origin_label(locale, r.project.geometry_origin)
-    status_val = (
-        r.status.value if hasattr(r.status, "value") else str(r.status)
-    )
+    status_val = r.status.value if hasattr(r.status, "value") else str(r.status)
+
     stale_banner = ""
     if status_val == "stale_evaluation" or not r.evaluation.evaluation_fresh:
         stale_banner = (
@@ -37,15 +41,32 @@ def render_report_html(report: DesignReport) -> str:
 
     empty_intents = html.escape(tr(locale, "empty.intents"))
     empty_list = html.escape(tr(locale, "empty.list"))
+
+    blocking = [u for u in r.unknowns if _is_blocking_unknown(u)]
+    blocking_banner = ""
+    if blocking:
+        items = "".join(
+            f"<li><strong>{html.escape(u.description or u.key)}</strong></li>"
+            for u in blocking
+        )
+        blocking_banner = (
+            f"<div class='banner-blocking'>"
+            f"<strong>{html.escape(tr(locale, 'section.blocking'))}</strong>"
+            f"<ul>{items}</ul></div>"
+        )
+
+    cover_intents = "".join(
+        f"<li>{html.escape(x)}</li>" for x in r.requirement.key_intents[:5]
+    ) or f"<li class='muted'>{empty_intents}</li>"
+
     intents = "".join(f"<li>{html.escape(x)}</li>" for x in r.requirement.key_intents) or (
         f"<li class='muted'>{empty_intents}</li>"
     )
     assumptions = (
         "".join(
-            "<li><code>{}</code> = {} — {}</li>".format(
-                html.escape(a.key),
+            "<li>{} — {}</li>".format(
+                html.escape(a.reason or a.key),
                 html.escape(_fmt_val(a.value)),
-                html.escape(a.reason or "—"),
             )
             for a in r.assumptions
         )
@@ -53,58 +74,115 @@ def render_report_html(report: DesignReport) -> str:
     )
     unknowns = (
         "".join(
-            "<li><code>{}</code> — {}</li>".format(
-                html.escape(u.key),
-                html.escape(u.description or tr(locale, "section.unresolved")),
+            "<li>{}</li>".format(
+                html.escape(u.description or u.key),
             )
             for u in r.unknowns
         )
         or f"<li class='muted'>{empty_list}</li>"
     )
 
-    schedule_rows = "".join(
-        f"<tr><td>{html.escape(row.name)}</td><td>{html.escape(row.floor_id)}</td><td>{html.escape(row.room_id)}</td><td>{row.width:.2f}</td><td>{row.depth:.2f}</td><td>{row.area:.2f}</td></tr>"
-        for row in r.room_schedule
-    ) or (
+    schedule_rows = "".join(_schedule_row_html(row) for row in r.room_schedule) or (
         f"<tr><td colspan='6' class='muted'>"
         f"{html.escape(tr(locale, 'empty.placements'))}</td></tr>"
     )
 
-    axes = ""
     ds = r.evaluation.design_score
+    eval_block = ""
+    findings_block = ""
+    executive = ""
     if ds is not None:
-        for axis_key, val in (
-            ("axis.program", ds.program_score),
-            ("axis.spatial", ds.spatial_score),
-            ("axis.circulation", ds.circulation_score),
-            ("axis.privacy", ds.privacy_score),
-            ("axis.environment", ds.environment_score),
-            ("axis.technical", ds.technical_score),
-            ("axis.robustness", ds.robustness_score),
-        ):
-            axes += (
-                f"<tr><td>{html.escape(tr(locale, axis_key))}</td>"
-                f"<td>{val:.1f}</td></tr>"
-            )
-
-    findings = "".join(
-        "<li class='sev-{}'><strong>{}</strong> — {}</li>".format(
-            html.escape(str(f.severity.value if hasattr(f.severity, "value") else f.severity)),
-            html.escape(f.title),
-            html.escape(f.message),
+        presented = present_evaluation(
+            locale=locale,
+            design_score=ds,
+            findings=list(r.findings),
+            key_intents=list(r.requirement.key_intents),
+            candidate_label=r.candidate.label,
         )
-        for f in r.findings
-    ) or f"<li class='muted'>{empty_list}</li>"
+        executive = html.escape(presented.executive_summary)
+        axes = "".join(
+            "<tr>"
+            f"<td>{html.escape(ax.label)}</td>"
+            f"<td class='num'>{ax.score:.0f}</td>"
+            f"<td><span class='band {html.escape(ax.band_key.split('.')[-1])}'>"
+            f"{html.escape(ax.band_label)}</span></td>"
+            "</tr>"
+            for ax in presented.axes
+        )
+        strengths = (
+            "".join(
+                f"<li class='sev-positive'><strong>{html.escape(f.title)}</strong>"
+                f" — {html.escape(f.message)}</li>"
+                for f in presented.strengths
+            )
+            or f"<li class='muted'>{empty_list}</li>"
+        )
+        concerns = (
+            "".join(
+                "<li class='sev-{}'><strong>{}</strong> — {}</li>".format(
+                    html.escape(
+                        f.severity.value if hasattr(f.severity, "value") else str(f.severity)
+                    ),
+                    html.escape(f.title),
+                    html.escape(f.message),
+                )
+                for f in presented.concerns
+            )
+            or f"<li class='muted'>{empty_list}</li>"
+        )
+        eval_block = f"""
+    <section class="chapter" id="evaluation">
+      <h2>{html.escape(tr(locale, "section.evaluation"))}</h2>
+      <table class="eval-table">
+        <thead><tr>
+          <th>{html.escape(tr(locale, "table.axis"))}</th>
+          <th>{html.escape(tr(locale, "table.score"))}</th>
+          <th>{html.escape(tr(locale, "table.band"))}</th>
+        </tr></thead>
+        <tbody>{axes}</tbody>
+      </table>
+      <div class="eval-columns">
+        <div>
+          <h3>{html.escape(tr(locale, "section.strengths"))}</h3>
+          <ul>{strengths}</ul>
+        </div>
+        <div>
+          <h3>{html.escape(tr(locale, "section.concerns"))}</h3>
+          <ul>{concerns}</ul>
+        </div>
+      </div>
+    </section>
+"""
+        findings_block = "".join(
+            "<li class='sev-{}'><strong>{}</strong> — {}</li>".format(
+                html.escape(
+                    f.severity.value if hasattr(f.severity, "value") else str(f.severity)
+                ),
+                html.escape(f.title),
+                html.escape(f.message),
+            )
+            for f in r.findings
+        ) or f"<li class='muted'>{empty_list}</li>"
+    else:
+        findings_block = f"<li class='muted'>{empty_list}</li>"
 
     plans = ""
     for fp in r.floor_plans:
         safe_svg = sanitize_report_svg(fp.svg)
-        plans += (
-            f"<section class='plan'>"
-            f"<h3>{html.escape(fp.label)}"
-            f" <span class='muted'>({html.escape(fp.floor_id)})</span></h3>"
-            f"<div class='svg-wrap'>{safe_svg}</div></section>"
-        )
+        plans += f"""
+      <section class="plan-page">
+        <header class="plan-head">
+          <h3>{html.escape(fp.label)}</h3>
+          <div class="plan-meta">
+            <span class="floor-id">{html.escape(fp.floor_id)}</span>
+            {_north_compass(tr(locale, "meta.north"))}
+          </div>
+        </header>
+        <div class="svg-wrap">{safe_svg}</div>
+        <p class="plan-note">{html.escape(tr(locale, "meta.scale"))}</p>
+        <p class="plan-note muted">{html.escape(tr(locale, "meta.legend"))}</p>
+      </section>
+"""
     plans_heading = tr(
         locale,
         "section.floor_plans"
@@ -127,122 +205,253 @@ def render_report_html(report: DesignReport) -> str:
 <meta charset="utf-8"/>
 <title>PlanSeed Design Report — {title}</title>
 <style>
-  :root {{
-    --ink: #1a1a1a;
-    --muted: #666;
-    --line: #ddd;
-    --bg: #faf9f7;
-    --card: #fff;
-  }}
-  * {{ box-sizing: border-box; }}
-  body {{
-    margin: 0; padding: 2rem 1.5rem 4rem;
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    color: var(--ink); background: var(--bg); line-height: 1.45;
-  }}
-  .sheet {{
-    max-width: 880px; margin: 0 auto; background: var(--card);
-    padding: 2rem 2.25rem; border: 1px solid var(--line);
-  }}
-  h1 {{ font-size: 1.65rem; font-weight: 650; margin: 0 0 0.25rem; letter-spacing: -0.02em; }}
-  .eyebrow {{ text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; color: var(--muted); }}
-  .meta {{ color: var(--muted); margin-bottom: 1.5rem; font-size: 0.95rem; }}
-  .score {{
-    display: inline-block; font-size: 1.75rem; font-weight: 700;
-    border: 1px solid var(--ink); padding: 0.15rem 0.6rem; margin-left: 0.5rem;
-  }}
-  h2 {{ font-size: 1.05rem; margin: 1.75rem 0 0.6rem; border-bottom: 1px solid var(--line); padding-bottom: 0.3rem; }}
-  ul {{ margin: 0.3rem 0 0; padding-left: 1.2rem; }}
-  li {{ margin: 0.25rem 0; }}
-  .muted {{ color: var(--muted); }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.4rem; }}
-  th, td {{ border-bottom: 1px solid var(--line); padding: 0.35rem 0.4rem; text-align: left; }}
-  th {{ color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }}
-  .svg-wrap {{ margin-top: 0.75rem; overflow: auto; border: 1px solid var(--line); background: #fff; }}
-  .svg-wrap svg {{ max-width: 100%; height: auto; display: block; }}
-  footer.boundary {{
-    margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line);
-    font-size: 0.78rem; color: var(--muted); line-height: 1.55;
-  }}
-  code {{ font-size: 0.85em; }}
-  .sev-problem {{ color: #8b1e1e; }}
-  .sev-warning {{ color: #8a5a00; }}
-  .sev-positive {{ color: #1e5b2f; }}
-  .banner-stale {{
-    margin: 0 0 1.25rem; padding: 0.75rem 1rem;
-    border: 1px solid #8a5a00; background: #fff8e8; color: #5c3d00;
-    font-size: 0.9rem;
-  }}
-  @media print {{
-    body {{ background: #fff; padding: 0; }}
-    .sheet {{ border: none; max-width: none; }}
-    .no-print {{ display: none !important; }}
-  }}
+{_REPORT_CSS}
 </style>
 </head>
 <body>
   <article class="sheet">
-    <div class="eyebrow">PlanSeed Design Report · {html.escape(status_val)}</div>
-    <h1>{title}</h1>
-    {stale_banner}
-    <div class="meta">
-      {html.escape(origin_label)}
-      · {html.escape(tr(locale, "meta.candidate"))} <strong>{label}</strong>
-      <span class="score">{score_s}</span>
-      <div style="margin-top:0.35rem">{html.escape(tr(locale, "meta.id"))}: {cid}
-        · {html.escape(tr(locale, "meta.evaluation_fresh"))}={str(r.evaluation.evaluation_fresh).lower()}
-        · {html.escape(tr(locale, "meta.source_revision"))}={html.escape(r.source_revision_id or "—")}
-        · {html.escape(tr(locale, "meta.export"))}={html.escape(r.provenance.export_mode)}</div>
-    </div>
+    <header class="cover">
+      <div class="eyebrow">{html.escape(tr(locale, "cover.eyebrow"))}</div>
+      <h1>{title}</h1>
+      {stale_banner}
+      {blocking_banner}
+      <div class="cover-meta">
+        <div class="cover-line">
+          {html.escape(origin_label)}
+          · {html.escape(tr(locale, "meta.candidate"))}
+          <strong>{label}</strong>
+          <span class="score">{score_s}</span>
+        </div>
+        <p class="executive"><strong>{html.escape(tr(locale, "cover.summary"))}</strong>
+          — {executive or html.escape(tr(locale, "empty.list"))}</p>
+        <ul class="cover-intents">{cover_intents}</ul>
+      </div>
+    </header>
 
-    <h2>{html.escape(tr(locale, "section.key_intent"))}</h2>
-    <ul>{intents}</ul>
+    <section class="chapter" id="brief">
+      <h2>{html.escape(tr(locale, "section.brief"))}</h2>
+      <ul>{intents}</ul>
+    </section>
 
-    <h2>{html.escape(tr(locale, "section.assumptions"))}</h2>
-    <ul>{assumptions}</ul>
+    <section class="chapter plans-chapter" id="plans">
+      <h2>{html.escape(plans_heading)}</h2>
+      {plans or f"<p class='muted'>{html.escape(tr(locale, 'empty.plans'))}</p>"}
+    </section>
 
-    <h2>{html.escape(tr(locale, "section.unresolved"))}</h2>
-    <ul>{unknowns}</ul>
+    <section class="chapter" id="schedule">
+      <h2>{html.escape(tr(locale, "section.room_schedule"))}</h2>
+      <table class="schedule-table">
+        <thead><tr>
+          <th>{html.escape(tr(locale, "table.room"))}</th>
+          <th>{html.escape(tr(locale, "table.floor"))}</th>
+          <th>{html.escape(tr(locale, "table.target_area"))}</th>
+          <th>{html.escape(tr(locale, "table.area"))}</th>
+          <th>{html.escape(tr(locale, "table.delta"))}</th>
+          <th>{html.escape(tr(locale, "table.wxd"))}</th>
+        </tr></thead>
+        <tbody>{schedule_rows}</tbody>
+      </table>
+    </section>
 
-    <h2>{html.escape(plans_heading)}</h2>
-    {plans or f"<p class='muted'>{html.escape(tr(locale, 'empty.plans'))}</p>"}
+    {eval_block}
 
-    <h2>{html.escape(tr(locale, "section.room_schedule"))}</h2>
-    <table>
-      <thead><tr>
-        <th>{html.escape(tr(locale, "table.room"))}</th>
-        <th>{html.escape(tr(locale, "table.floor"))}</th>
-        <th>{html.escape(tr(locale, "table.id"))}</th>
-        <th>{html.escape(tr(locale, "table.w"))}</th>
-        <th>{html.escape(tr(locale, "table.d"))}</th>
-        <th>{html.escape(tr(locale, "table.area"))}</th>
-      </tr></thead>
-      <tbody>{schedule_rows}</tbody>
-    </table>
+    <section class="chapter" id="findings">
+      <h2>{html.escape(tr(locale, "section.findings"))}</h2>
+      <ul>{findings_block}</ul>
+    </section>
 
-    <h2>{html.escape(tr(locale, "section.evaluation"))}</h2>
-    <table>
-      <thead><tr>
-        <th>{html.escape(tr(locale, "table.axis"))}</th>
-        <th>{html.escape(tr(locale, "table.score"))}</th>
-      </tr></thead>
-      <tbody>{axes or f"<tr><td colspan='2' class='muted'>{html.escape(tr(locale, 'empty.scores'))}</td></tr>"}</tbody>
-    </table>
+    <section class="chapter appendix" id="assumptions">
+      <h2>{html.escape(tr(locale, "section.assumptions_unknowns"))}</h2>
+      <h3>{html.escape(tr(locale, "section.assumptions"))}</h3>
+      <ul>{assumptions}</ul>
+      <h3>{html.escape(tr(locale, "section.unresolved"))}</h3>
+      <ul>{unknowns}</ul>
+    </section>
 
-    <h2>{html.escape(tr(locale, "section.findings"))}</h2>
-    <ul>{findings}</ul>
-
-    <footer class="boundary">
-      <strong>{html.escape(tr(locale, "section.provenance"))}</strong>
-      <div>solver={html.escape(r.provenance.solver_version or "—")}
-        · generator={html.escape(r.provenance.generator_version or "—")}
-        · evaluation={html.escape(r.provenance.evaluation_version or "—")}</div>
+    <footer class="boundary chapter" id="provenance">
+      <h2>{html.escape(tr(locale, "section.provenance"))}</h2>
+      <div class="prov-grid">
+        <div>{html.escape(tr(locale, "meta.id"))}: {cid}</div>
+        <div>{html.escape(tr(locale, "meta.source_revision"))}:
+          {html.escape(r.source_revision_id or "—")}</div>
+        <div>{html.escape(tr(locale, "meta.evaluation_fresh"))}:
+          {str(r.evaluation.evaluation_fresh).lower()}</div>
+        <div>{html.escape(tr(locale, "meta.export"))}:
+          {html.escape(r.provenance.export_mode)}</div>
+        <div>solver={html.escape(r.provenance.solver_version or "—")}</div>
+        <div>generator={html.escape(r.provenance.generator_version or "—")}</div>
+        <div>evaluation={html.escape(r.provenance.evaluation_version or "—")}</div>
+      </div>
       {boundary}
     </footer>
   </article>
 </body>
 </html>
 """
+
+
+_REPORT_CSS = """
+  :root {
+    --ink: #1c1917;
+    --muted: #78716c;
+    --line: #e7e5e4;
+    --bg: #f5f5f4;
+    --card: #fff;
+    --band-good: #166534;
+    --band-fair: #a16207;
+    --band-improve: #9f1239;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.25rem 4rem;
+    font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC",
+      "Source Han Serif SC", "Noto Serif CJK SC", Georgia, serif;
+    color: var(--ink); background: var(--bg); line-height: 1.5;
+  }
+  .sheet {
+    max-width: 920px; margin: 0 auto; background: var(--card);
+    padding: 2.5rem 2.5rem 3rem; border: 1px solid var(--line);
+  }
+  .cover { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    letter-spacing: 0.12em; font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
+  h1 {
+    font-size: 2rem; font-weight: 600; margin: 0.4rem 0 0.75rem;
+    letter-spacing: -0.02em; line-height: 1.2;
+  }
+  h2 {
+    font-size: 1.05rem; margin: 0 0 0.75rem; font-weight: 650;
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+    letter-spacing: 0.02em;
+  }
+  h3 {
+    font-size: 0.92rem; margin: 1rem 0 0.4rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif; font-weight: 600;
+  }
+  .cover-meta { color: var(--ink); }
+  .cover-line { font-size: 1rem; margin-bottom: 0.75rem; }
+  .executive { margin: 0.5rem 0 0.75rem; font-size: 1.02rem; }
+  .cover-intents { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+  .score {
+    display: inline-block; font-size: 1.85rem; font-weight: 700;
+    border: 1.5px solid var(--ink); padding: 0.1rem 0.55rem; margin-left: 0.55rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif; vertical-align: middle;
+  }
+  .chapter { margin-top: 2.25rem; }
+  .chapter.appendix { margin-top: 2.5rem; color: var(--ink); }
+  .chapter.appendix h2, .chapter.appendix h3 { color: var(--muted); }
+  ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+  li { margin: 0.28rem 0; }
+  .muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.35rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif; }
+  th, td { border-bottom: 1px solid var(--line); padding: 0.45rem 0.4rem; text-align: left; }
+  th {
+    color: var(--muted); font-weight: 600; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  td.num, .schedule-table td:nth-child(n+3) { font-variant-numeric: tabular-nums; }
+  .eval-columns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1rem;
+  }
+  .band {
+    font-size: 0.78rem; font-weight: 650; letter-spacing: 0.02em;
+  }
+  .band.good { color: var(--band-good); }
+  .band.fair { color: var(--band-fair); }
+  .band.improve { color: var(--band-improve); }
+  .plan-page {
+    margin: 1.25rem 0 2rem; padding: 1rem 0 1.5rem;
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  .plan-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 1rem; margin-bottom: 0.75rem;
+  }
+  .plan-head h3 { margin: 0; font-size: 1rem; }
+  .plan-meta { display: flex; align-items: center; gap: 0.75rem; color: var(--muted);
+    font-family: "Segoe UI", "PingFang SC", sans-serif; font-size: 0.8rem; }
+  .north {
+    display: inline-flex; flex-direction: column; align-items: center;
+    width: 28px; line-height: 1; color: var(--ink);
+  }
+  .north .arrow { font-size: 0.95rem; }
+  .north .n { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; }
+  .svg-wrap {
+    margin-top: 0.35rem; overflow: auto; border: 1px solid var(--line);
+    background: #fff; padding: 1.25rem 1rem;
+  }
+  .svg-wrap svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  .plan-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--muted);
+    font-family: "Segoe UI", "PingFang SC", sans-serif; }
+  footer.boundary {
+    margin-top: 2.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line);
+    font-size: 0.78rem; color: var(--muted); line-height: 1.55;
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
+  footer.boundary h2 { color: var(--muted); font-size: 0.95rem; }
+  .prov-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 1rem; margin: 0.5rem 0 0.75rem;
+  }
+  .sev-problem { color: #9f1239; }
+  .sev-warning { color: #a16207; }
+  .sev-positive { color: #166534; }
+  .sev-info { color: var(--muted); }
+  .banner-stale {
+    margin: 0 0 1rem; padding: 0.75rem 1rem;
+    border: 1px solid #a16207; background: #fffbeb; color: #713f12; font-size: 0.9rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
+  .banner-blocking {
+    margin: 0 0 1rem; padding: 0.75rem 1rem;
+    border: 1px solid #9f1239; background: #fff1f2; color: #881337; font-size: 0.9rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
+  .banner-blocking ul { margin: 0.35rem 0 0; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .sheet { border: none; max-width: none; padding: 0; }
+    .plan-page { page-break-after: always; }
+    .plan-page:last-child { page-break-after: auto; }
+    .chapter { break-inside: avoid; }
+    .no-print { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .eval-columns, .prov-grid { grid-template-columns: 1fr; }
+    .sheet { padding: 1.25rem; }
+  }
+"""
+
+
+def _is_blocking_unknown(u: ReportUnknown) -> bool:
+    return str(u.priority or "").lower() == "blocking"
+
+
+def _schedule_row_html(row: Any) -> str:
+    target = f"{row.target_area:.2f}" if row.target_area is not None else "—"
+    delta = f"{row.area_delta:+.2f}" if row.area_delta is not None else "—"
+    wxd = f"{row.width:.2f} × {row.depth:.2f}"
+    return (
+        f"<tr>"
+        f"<td>{html.escape(row.name)}</td>"
+        f"<td>{html.escape(row.floor_id)}</td>"
+        f"<td>{target}</td>"
+        f"<td>{row.area:.2f}</td>"
+        f"<td>{delta}</td>"
+        f"<td>{wxd}</td>"
+        f"</tr>"
+    )
+
+
+def _north_compass(label: str) -> str:
+    return (
+        f'<span class="north" title="{html.escape(label)}">'
+        f'<span class="arrow" aria-hidden="true">▲</span>'
+        f'<span class="n">{html.escape(label)}</span>'
+        f"</span>"
+    )
 
 
 def _fmt_val(v: Any) -> str:

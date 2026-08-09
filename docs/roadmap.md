@@ -1,8 +1,8 @@
 # PlanSeed 路线图
 
 > **当前焦点：Phase 7.1 Report Presentation → 7.2 Export Formats**  
-> Phase 6 冻结（工程资格 ✅；严格可复现 ⚠ — 仅修 qualify 证据链，不开 6.7.3+）  
-> Phase 7.0 / 7.0.1 Report Integrity ✅ 关闭  
+> Phase 6 **彻底冻结**（工程资格 ✅；`qualify --gate` 要求 worktree clean；**不开** 6.7.3+ 抠分）  
+> Phase 7.0 Deliverable Model ✅ · 7.0.1 Report Integrity ✅  
 > 详案：[phase-7-deliverables.md](phase-7-deliverables.md) · [phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md)  
 > 契约：[api-contract.md](api-contract.md)
 
@@ -13,28 +13,25 @@
 | **0–5.1.1** | **Design Kernel** | **✅** |
 | **6.0–6.6** | **LLM Infrastructure** | **✅** |
 | **6.7.1** | **Precision Pipeline** | **✅** |
-| **6.7.2** | **Blind engineering pass** | **✅**；reproducibility caveat **⚠** |
-| **7.0** | **Deliverable Model** | **✅ MVP** |
+| **6.7.2** | **Blind engineering pass** | **✅ 冻结**（`--gate` 拒 dirty worktree） |
+| **7.0** | **Deliverable Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **← 当前** |
-| **7.2** | **Export Formats** | 后续 |
+| **7.2** | **Export Formats** | 下一 |
 
 ```text
 0–5.1.1   Design Kernel              ✅
-6.0–6.6   LLM Infrastructure         ✅
-6.7.1     Precision Pipeline         ✅
-6.7.2     Blind engineering pass     ✅
-           reproducibility caveat    ⚠
-7.0       Deliverable Model          ✅ MVP
+6.0–6.7.2 Local LLM / Blind          ✅ 彻底冻结
+7.0       Deliverable Model          ✅
 7.0.1     Report Integrity           ✅
 7.1       Report Presentation        ← 当前
-7.2       Export Formats             后续
+7.2       Export Formats             下一
 ```
 
 ```text
-现在做：7.1 文案与分页 → 7.2 HTML/Print-PDF/JSON/SVG·PNG
+现在做：7.1 报告呈现（信息层级 · 平面为核心 · 建筑化面积表 · 评价 Presenter · 阅读顺序）
+下一：7.2 HTML/Print-PDF/JSON/SVG·PNG
 不做：DXF/DWG/IFC · ReportLab/WeasyPrint/Chromium PDF 引擎 · 重开 Phase 6 Blind 抠分 · 云端 LLM
-产品问题已从「AI 能不能理解需求？」转为「能否把真实 revision 变成不会误导用户的交付物？」
 ```
 ## 阶段总览（以代码为准）
 
@@ -50,11 +47,11 @@
 | **6.0–6.6** | **LLM Infrastructure** | **✅ Engineering Complete** |
 | **6.7** | **Real Model Qualification & Runtime Hardening** | ✅ |
 | **6.7.1** | **Parser Precision & Holdout** | ✅ Engineering（Holdout 泄漏 → 非严格独立） |
-| **6.7.2** | **Blind Requalification** | ✅ 工程 PASS；严格可复现 ⚠（冻结；仅修 qualify） |
-| **7.0** | **Deliverable Model** | **✅ MVP** |
+| **6.7.2** | **Blind Requalification** | ✅ 工程 PASS；`--gate` 拒 dirty；**彻底冻结** |
+| **7.0** | **Deliverable Model** | **✅** |
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **← 当前** |
-| **7.2** | **Export Formats** | 后续（HTML · Print/PDF · JSON · SVG/PNG；**无 DXF**） |
+| **7.2** | **Export Formats** | 下一（HTML · Print/PDF · JSON · SVG/PNG；**无 DXF**） |
 | **8+** | Advanced Site / Code Profiles / Interop… | **暂不正式规划**（≠ Interoperability Platform） |
 | — | SVG Debug | ✅ 开发工具 |
 
@@ -401,22 +398,20 @@ Phase 6 工程资格见 6.7.2；产品主线已进入 Phase 7。
 | Field / Rel F1·P / Case pass | 96.2% / 82.4%·75% / 76.7% |
 | Unknown P·R / Assumption P | 100%·89% / 100% |
 
-### Phase 6.7.2 — Blind Requalification ✅ 工程 PASS / 严格可复现 ⚠
+### Phase 6.7.2 — Blind Requalification ✅ 工程 PASS / 彻底冻结
 
 详案：[phase-6.7.2-blind-requalification.md](phase-6.7.2-blind-requalification.md) · 架构：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 
 ```text
 Blind v4 + qwen2.5:7b Pipeline：Alpha Gate 数字 PASS
-parse 100% · field 96% · rel F1/P 91%/84% · repair 0% · case 89%
-provenance：baseline git_commit 与 blind-v4 落地不一致 → 非冻结可复现
+qualify --gate：git worktree dirty → 直接拒绝（防 baseline SHA ≠ 未提交代码）
 ```
 
 - [x] Blind v1–v3 FAIL 归档
 - [x] Hybrid Parser · Relation Kind 分流 · Draft Coerce
 - [x] Blind v4 Gate **工程** PASS → Phase 6 engineering qualification ✅
-- [x] **不**再宣称 Strict Alpha Qualified；可选日后干净 commit 复跑
-- [x] `qualify --gate`：`git_dirty` → **拒绝**（防旧 SHA + 未提交代码）
-- [x] 继续 Phase 7（不为 provenance 停工；不开 6.7.3+）
+- [x] `qualify --gate`：`git_dirty` → **拒绝**
+- [x] **Phase 6 彻底冻结** — 不开 6.7.3+ 抠分；产品主线 → Phase 7.1
 
 ---
 
@@ -430,16 +425,16 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 
 | 子阶段 | 主题 | 状态 |
 |--------|------|------|
-| **7.0** | Deliverable Model（`DesignReport`） | ✅ MVP |
-| **7.0.1** | Report Integrity（Dirty / id / area / SVG / revision / score 事实源 / tests） | ✅ |
-| **7.1** | Report Presentation（中文 · RelationPresenter · per-floor · 页眉页脚 · 分页 · 打印） | **← 当前** |
-| **7.2** | Export Formats（HTML · Print→PDF · JSON · SVG/PNG） | 后续 |
+| **7.0** | Deliverable Model（`DesignReport`） | ✅ |
+| **7.0.1** | Report Integrity（Dirty / id / area / SVG / revision / score / validation） | ✅ |
+| **7.1** | Report Presentation（信息层级 · 平面核心 · 面积表 · Evaluation Presenter · 阅读顺序） | **← 当前** |
+| **7.2** | Export Formats（HTML · Print→PDF · JSON · SVG/PNG） | 下一 |
 
 **PDF：** `DesignReport → HTML → WebView → Print/PDF`。**禁止**本阶段引入 ReportLab / WeasyPrint / Chromium headless / PDF canvas。  
 **禁止：** DXF / DWG / IFC / BIM · 前端重算面积 · 重开 Phase 6 Blind 抠分 · 云端 LLM。
 
-报告内容：项目需求 · 平面（`floor_svgs` / snapshot）· 房间面积表 · 评分 · Findings · Assumptions · Unknowns · provenance。  
-**Report renderer ≠ Evaluator。** 报告总分只取 `DesignScore.total_score`。当前 P0：7.1 Presentation。NL 进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。
+报告目标：建筑师愿意给客户 / 同事 / 自己归档的设计成果（非开发面板导出）。  
+**Report renderer ≠ Evaluator。** 总分只取 `DesignScore.total_score`；优缺点只来自 deterministic `DesignFinding`。详案 A–E 见 [phase-7-deliverables.md](phase-7-deliverables.md)。
 
 **明确不塞进 Phase 7：** Advanced Site · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · LLM 性能专项。
 ---
@@ -531,7 +526,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **Phase 7** Deliverables / Export（Phase 6 工程资格；严格可复现 ⚠） |
+| **当前主线** | **Phase 7.1** Report Presentation（Phase 6 彻底冻结） |
 
 ---
 

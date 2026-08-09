@@ -194,7 +194,9 @@ def test_report_locale_en_us_key_intents():
     assert "厨房 is near 餐厅" in report.requirement.key_intents
     doc = render_report_html(report)
     assert 'lang="en-US"' in doc
-    assert "Key Intent" in doc
+    assert "01 Design Brief" in doc
+    assert "02 Plan Snapshot" in doc or "02 Floor Plans" in doc
+    assert "03 Space Schedule" in doc
 
 
 def test_present_relation_intent_covers_kinds():
