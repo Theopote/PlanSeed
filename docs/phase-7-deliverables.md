@@ -57,12 +57,24 @@ DesignReport →（未来）专业 PDF / DXF
 
 继续：**frontend does not reinterpret design data**。
 
-| 内容 | 来源 | 禁止 |
-|------|------|------|
-| Room area table | canonical placements.**area**（缺则组装失败） | React 自算 `width × depth`；builder 猜测面积 |
-| Evaluation | `DesignScore` | exporter 另发明一套分 |
-| Findings | `DesignFinding` | 报告层重写启发式 |
-| Assumptions / Unknowns | 会话 `RequirementSpec` | 前端臆造 |
+交付物原则：**不能生成错误报告** — 缺权威数据时 fail loudly，禁止 best-effort 半成品报告。
+
+| 内容 | 来源 | 失败时 |
+|------|------|--------|
+| Room area | placements.**area** | 400 `placement_area_missing`（禁止 width×depth） |
+| Evaluation / Findings | `DesignScore` | 400 `design_score_missing` / `design_score_invalid` |
+| Key Intent / Assumptions / Unknowns | `RequirementSpec` | 400 `requirement_spec_missing` |
+| Floor plan SVG | candidate.svg | 400 `floor_plan_svg_missing` |
+| Dirty evaluation | revision_status | 409 `candidate_requires_revalidation` |
+| Broken candidate | 缺 id / placements | 409 `invalid_candidate` |
+| Wrong candidate id | 查找 | 404 `candidate_not_found` |
+
+| 内容 | 禁止 |
+|------|------|
+| Room area | React / builder 自算 `width × depth` |
+| Evaluation | exporter 另发明一套分 |
+| Findings | 报告层重写启发式 |
+| Assumptions / Unknowns | 前端臆造 |
 
 ## 7.0.1 — Report Integrity Gate（P0）
 

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from backend.main import create_app
-from backend.services.report_builder import ReportAreaMissingError, build_design_report
+from backend.services.report_builder import (
+    ReportAreaMissingError,
+    ReportBuildError,
+    build_design_report,
+)
 from backend.services.report_html import render_report_html
 from fastapi.testclient import TestClient
 from packages.schema.scoring import DesignFinding, DesignScore, FindingSeverity
@@ -140,6 +144,44 @@ def test_missing_placement_area_raises():
             candidate=cand,
         )
     assert ei.value.room_id == "r1"
+    assert ei.value.code == "placement_area_missing"
+
+
+def test_missing_requirement_spec_raises():
+    with raises(ReportBuildError) as ei:
+        build_design_report(
+            project_name="Demo",
+            requirement_spec=None,
+            program=_payload()["program"],
+            candidate=_candidate(),
+        )
+    assert ei.value.code == "requirement_spec_missing"
+
+
+def test_missing_design_score_raises():
+    cand = _candidate()
+    del cand["design_score"]
+    with raises(ReportBuildError) as ei:
+        build_design_report(
+            project_name="Demo",
+            requirement_spec=_payload()["requirement_spec"],
+            program=_payload()["program"],
+            candidate=cand,
+        )
+    assert ei.value.code == "design_score_missing"
+
+
+def test_empty_placements_is_invalid_candidate():
+    cand = _candidate()
+    cand["placements"] = []
+    with raises(ReportBuildError) as ei:
+        build_design_report(
+            project_name="Demo",
+            requirement_spec=_payload()["requirement_spec"],
+            program=_payload()["program"],
+            candidate=cand,
+        )
+    assert ei.value.code == "invalid_candidate"
 
 
 def test_render_report_html_contains_boundary_and_schedule():
@@ -289,3 +331,37 @@ def test_reports_build_missing_area_is_400():
     detail = r.json()["detail"]
     assert detail["code"] == "placement_area_missing"
     assert detail["room_id"] == "r2"
+
+
+def test_reports_build_missing_requirement_spec_is_400():
+    client = TestClient(create_app())
+    payload = _payload()
+    payload["requirement_spec"] = None
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "No req",
+            "payload": payload,
+            "candidate_id": "c-a",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"]["code"] == "requirement_spec_missing"
+
+
+def test_reports_build_empty_placements_is_409():
+    client = TestClient(create_app())
+    payload = _payload()
+    payload["candidates"][0]["placements"] = []
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "No place",
+            "payload": payload,
+            "candidate_id": "c-a",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["code"] == "invalid_candidate"

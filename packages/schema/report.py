@@ -1,6 +1,7 @@
 """Phase 7 — Design Report 权威文档模型（Deliverable）。
 
 Frontend / HTML / JSON 均从此模型渲染；禁止各端重算面积或另发明评分。
+原则：不能生成错误报告 — 权威数据缺失时 fail loudly（非 best-effort）。
 Phase 7.0.1：报告须声明评价是否与几何 revision 一致（Report Integrity）。
 """
 

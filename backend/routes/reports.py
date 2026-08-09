@@ -1,4 +1,4 @@
-"""Phase 7 — Design Report API（含 7.0.1 Report Integrity Gate）。"""
+"""Phase 7 — Design Report API（Integrity Gate + fail-loudly 组装）。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from backend.routes.projects import APP_VERSION, ProjectPayload
 from backend.services.report_builder import (
-    ReportAreaMissingError,
+    ReportBuildError,
     build_design_report,
     report_status_for_candidate,
 )
@@ -55,9 +55,22 @@ def _store() -> ProjectStore:
     return ProjectStore()
 
 
+def _http_for_build_error(exc: ReportBuildError) -> HTTPException:
+    status = 409 if exc.code == "invalid_candidate" else 400
+    detail: dict[str, Any] = {
+        "code": exc.code,
+        "message": str(exc),
+    }
+    if exc.room_id is not None:
+        detail["room_id"] = exc.room_id
+    if exc.candidate_id is not None:
+        detail["candidate_id"] = exc.candidate_id
+    return HTTPException(status_code=status, detail=detail)
+
+
 @router.post("/api/reports/build", response_model=BuildReportResponse)
 def build_report(body: BuildReportRequest) -> BuildReportResponse:
-    """从项目快照 + 候选组装 DesignReport（不重评）。Dirty → 409（除非 allow_stale）。"""
+    """从项目快照 + 候选组装 DesignReport。缺权威数据 → 明确错误，不 best-effort。"""
     project_id = body.project_id
     project_name = body.project_name or "Untitled"
     payload: ProjectPayload
@@ -82,7 +95,13 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
 
     candidates: list[dict[str, Any]] = list(payload.candidates or [])
     if not candidates:
-        raise HTTPException(status_code=400, detail="项目无候选，无法出报告")
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "candidates_missing",
+                "message": "项目无候选，无法出报告",
+            },
+        )
 
     # 显式 candidate_id 优先；否则用 selected_id。任一指定但找不到 → 404，禁止静默换候选。
     requested_id = body.candidate_id or payload.selected_id
@@ -105,7 +124,13 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
         # 过渡：仅当未指定任何候选 id 时才 fallback 第一个（日后宜取消）
         first = candidates[0]
         if not isinstance(first, dict):
-            raise HTTPException(status_code=400, detail="候选格式无效")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "invalid_candidate",
+                    "message": "候选格式无效",
+                },
+            )
         candidate = first
 
     status = report_status_for_candidate(candidate)
@@ -127,7 +152,7 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
             status_code=409,
             detail={
                 "code": "invalid_candidate",
-                "message": "候选无效，无法导出正式报告。",
+                "message": "候选无效（缺 id 或 placements），无法导出正式报告。",
                 "candidate_id": candidate.get("id"),
             },
         )
@@ -141,15 +166,7 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
             program=payload.program,
             candidate=candidate,
         )
-    except ReportAreaMissingError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "placement_area_missing",
-                "message": str(exc),
-                "room_id": exc.room_id,
-                "candidate_id": candidate.get("id"),
-            },
-        ) from exc
+    except ReportBuildError as exc:
+        raise _http_for_build_error(exc) from exc
     html_out = render_report_html(report) if body.include_html else None
     return BuildReportResponse(report=report, html=html_out)
