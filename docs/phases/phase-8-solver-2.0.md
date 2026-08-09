@@ -195,7 +195,10 @@ Repair → Evaluation
   软：preference · adjacency 同层 · kitchen/garage 底层 · master 上层
 - ADR：[adr/008-cpsat-assignment-not-geometry.md](../adr/008-cpsat-assignment-not-geometry.md)
 
-后续可扩：zone assignment · topology · orientation eligibility — **仍禁止**输出坐标。
+**定位正确 · 保持现状：** CP-SAT **不输出坐标**；`ortools` 仅 `research` 组。  
+**不要继续扩：** CP-SAT geometry / 用 CP-SAT 替代 Geometric Packing。  
+
+后续若扩：仅离散归属（zone / topology eligibility）— **仍禁止**输出坐标。
 
 ## 8.4 — Advanced Geometry ✅
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted（Phase 8.3 Research）
+Accepted（Phase 8.3 Research）· **几何边界冻结**：不扩 CP-SAT geometry
 
 ## Context
 

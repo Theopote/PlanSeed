@@ -33,7 +33,7 @@ class LayoutGenerator(Protocol):
 - Benchmark：`uv run python -m solver.benchmark`（8.0-C ✅）
 - Diversity Selection：`metrics.selection_role` / `selection_label`（8.1 ✅；**Alpha 默认** `rank_mode=axis`）
 - Pareto：`rank_mode=pareto` Experimental（slot1=最高分 + 七轴非支配 crowding；非默认）
-- CP-SAT floor assignment（opt-in，`solver.assignment`，8.3 ✅）
+- CP-SAT floor assignment（opt-in research，8.3 ✅；**不**输出坐标；**不**扩 CP-SAT geometry）
 - 不规则场地：`solver.geometry.irregular`（Shapely opt-in，8.4 ✅）
 - **8.5**：Alpha Stabilization — SolverProvenance + 禁止静默改默认 ranking；见 [phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
 - Phase 8 能力面收口；**禁止** CP-SAT/GA/Shapely 替代默认 Rect packing

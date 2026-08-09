@@ -45,6 +45,7 @@ research：  MaxRect 单策略 · Guillotine+MaxRect multi-gen 池 · pareto · 
   （`solver/fixtures/topk_axis_roles.py` · `test_topk_axis_roles_regression.py`）  
 - [x] **SolverProvenance** 升级（strategy 层：generator / selection / assignment / geometry）  
 - [x] Alpha 默认候选池 = **Guillotine only**（MaxRect multi-gen 仅显式 research）  
+- [x] CP-SAT 定位保持：**assignment-only research**（不扩 CP-SAT geometry；`ortools` 不进 Alpha runtime）  
 - [ ] MaxRect **product qualification**（须过 [Layout Suite v1](../baselines/layout-benchmark-suite-v1.md)；单 case aspect 劣化不足据）  
 - [ ] 文档：凡写「Phase 8 完成」须注明 **默认语义已 requalify**  
 - [ ] 7.1.1 WebView2 Print Smoke（产品手测，独立于本项）  
