@@ -152,57 +152,87 @@ body,
   align-items: center;
 }
 
-.export-svg-menu {
-  position: relative;
+.export-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(28, 26, 22, 0.35);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
 }
 
-.export-svg-menu > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-}
-
-.export-svg-menu > summary::-webkit-details-marker {
-  display: none;
-}
-
-.export-svg-menu[aria-disabled="true"] > summary,
-.export-svg-menu > summary[aria-disabled="true"] {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-.export-svg-menu-panel {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  right: 0;
-  z-index: 20;
-  min-width: 9.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.35rem;
+.export-dialog {
+  width: min(26rem, 100%);
+  max-height: min(78vh, 36rem);
+  overflow: auto;
   background: var(--bg-panel);
   border: 1px solid var(--line);
-  box-shadow: 0 8px 24px rgba(28, 26, 22, 0.14);
+  padding: 0.85rem 1rem 1.1rem;
+  box-shadow: 0 12px 40px rgba(28, 26, 22, 0.18);
 }
 
-.export-svg-menu-panel button {
+.export-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.export-dialog-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.export-dialog-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.export-dialog-section {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.export-dialog-section:first-of-type {
+  margin-top: 0.25rem;
+}
+
+.export-dialog-section h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #78716c);
+}
+
+.export-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.export-dialog-actions button {
   text-align: left;
   font: inherit;
-  font-size: 0.85rem;
-  padding: 0.35rem 0.5rem;
-  border: none;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
   cursor: pointer;
 }
 
-.export-svg-menu-panel button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--line) 45%, transparent);
+.export-dialog-actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--line) 40%, transparent);
 }
 
-.export-svg-menu-panel button:disabled {
+.export-dialog-actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

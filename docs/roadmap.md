@@ -1,7 +1,7 @@
 # PlanSeed 路线图
 
-> **主线：7.1.1 收口 → 7.2 交付格式 → 7.5 Alpha Hardening → 8.0 Solver 2.0**  
-> Phase 6 **彻底冻结** · 7.0 / 7.0.1 / 7.1 Engineering ✅  
+> **主线：7.2 ✅ → 7.5 Alpha Hardening → 8.0 Solver 2.0**（7.1.1 Print smoke 人手待勾）  
+> Phase 6 **彻底冻结** · 7.0 / 7.0.1 / 7.1 Engineering ✅ · **7.2 Alpha Product Loop Complete**  
 > 收口：[phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · 打印：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 详案：[phase-7-deliverables.md](phase-7-deliverables.md)
 
 ## 项目状态（阶段判断）
@@ -14,8 +14,8 @@
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **✅ Engineering** |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
-| **7.2** | **Export Formats** | **← 当前主线**（SVG/PNG/JSON ✅ · 下一 Print polish） |
-| **7.5** | **Alpha Engineering Hardening** | **7.2 完成后**（类型/OpenAPI/持久化…） |
+| **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
+| **7.5** | **Alpha Engineering Hardening** | **← 下一工程主线** |
 | **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 
@@ -26,8 +26,8 @@
 7.0.1     Report Integrity                  ✅
 7.1       Report Presentation               ✅ Engineering
 7.1.1     Presentation Accuracy & Smoke     Engineering ✅ / Print ☐
-7.2       Export Formats                    ← 当前主线（下一 7.2.4 Print）
-7.5       Alpha Engineering Hardening       ← 7.2 完成后
+7.2       Export Formats                    ✅ Alpha Product Loop
+7.5       Alpha Engineering Hardening       ← 下一工程主线
 8.0       Solver Diversity / Solver 2.0     ← 后续
 8.x       Advanced Site / Code / Interop    ← 更后
 ```
@@ -35,9 +35,9 @@
 ```text
 纪律：发现一个问题 ≠ 新开一个 Phase。
 优化建议（mypy strict / OpenAPI / 持久化 hardening / Solver 多样性 / LLM 可维护性）
-  → 进 7.5 或 8.0，禁止塞进 7.2。
+  → 进 7.5 或 8.0，禁止塞进已关闭的 7.2。
 现在不做：重开 Phase 6 · Shapely/CP-SAT/GA · 全面 strict mypy · Canva 品牌。
-产品问题：生成的东西能不能离开 PlanSeed？
+产品问题：生成的东西能不能离开 PlanSeed？→ 7.2 已答「能」。
 ```
 ## 阶段总览（以代码为准）
 
@@ -58,8 +58,8 @@
 | **7.0.1** | **Report Integrity** | **✅** |
 | **7.1** | **Report Presentation** | **✅ Engineering**（收口 7.1.1） |
 | **7.1.1** | **Presentation Accuracy & Smoke** | Engineering ✅；Print smoke ☐ |
-| **7.2** | **Export Formats** | **← 当前**（下一 7.2.4 Print） |
-| **7.5** | **Alpha Engineering Hardening** | **7.2 后** |
+| **7.2** | **Export Formats** | **✅** |
+| **7.5** | **Alpha Engineering Hardening** | **← 下一** |
 | **8.0** | **Solver Diversity / Solver 2.0** | **后续** |
 | **8.x** | Advanced Site / Code / Interop | **更后** |
 | — | SVG Debug | ✅ 开发工具 |
@@ -438,8 +438,8 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.0.1** | Report Integrity | ✅ |
 | **7.1** | Report Presentation | ✅ Engineering |
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke 待手测勾选 |
-| **7.2** | Export Formats | **← 当前主线**（SVG/PNG/JSON ✅ → Print polish → Export Dialog） |
-| **7.5** | Alpha Engineering Hardening | 7.2 后：类型安全 / OpenAPI / 持久化…（审计建议落点） |
+| **7.2** | Export Formats | **✅**（SVG · PNG · JSON · Print · Export Dialog） |
+| **7.5** | Alpha Engineering Hardening | **← 下一**：类型安全 / OpenAPI / 持久化… |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续研究；禁止提前塞进 7.x |
 | **8.x** | Advanced Site / Code / Interop | 更后 |
 
@@ -537,7 +537,7 @@ Evaluator（→ LayoutCandidate.evaluation）
 | **2.0.1 ✅** | `[Kitchen,Dining,Living]` 同一 slicing group |
 | **2.1 ✅** | AccessGraph + ConnectionResolver 局部修补 |
 | **2.1.2–2.1.3 ✅** | 跨区重切 / 绕核多 free-rect |
-| **当前主线** | **7.1.1** → **7.2** → **7.5** → **8.0**（Phase 6 冻结） |
+| **当前主线** | **7.5** → **8.0**（7.2 ✅ · Phase 6 冻结 · 7.1.1 Print ☐） |
 
 ---
 

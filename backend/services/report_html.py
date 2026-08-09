@@ -444,12 +444,107 @@ _REPORT_CSS = """
     font-family: "Segoe UI", "PingFang SC", sans-serif;
   }
   .banner-blocking ul { margin: 0.35rem 0 0; }
+  /* Phase 7.2.4 — Print polish（HTML→WebView2→Print；非 PDF 引擎） */
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 16mm 12mm;
+  }
   @media print {
-    body { background: #fff; padding: 0; }
-    .sheet { border: none; max-width: none; padding: 0; }
-    .plan-page { page-break-after: always; }
-    .plan-page:last-child { page-break-after: auto; }
-    .chapter { break-inside: avoid; }
+    body {
+      background: #fff;
+      padding: 0;
+      color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet {
+      border: none;
+      max-width: none;
+      padding: 0;
+      margin: 0;
+    }
+    .cover {
+      page-break-after: always;
+      break-after: page;
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .cover h1 {
+      orphans: 2;
+      widows: 2;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+    .banner-stale,
+    .banner-blocking {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .toc a {
+      border-bottom: none;
+      text-decoration: none;
+      color: inherit;
+    }
+    /* 平面：每层尽量独占一页；禁止整章强制同页（会制造大块空白） */
+    .plans-chapter > h2 {
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+    .plan-page {
+      page-break-after: always;
+      break-after: page;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      margin: 0 0 0;
+      padding: 0 0 8mm;
+    }
+    .plan-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    .plan-head,
+    .svg-wrap {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .svg-wrap {
+      overflow: visible;
+    }
+    h2, h3 {
+      break-after: avoid;
+      page-break-after: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+    p, li {
+      orphans: 3;
+      widows: 3;
+    }
+    /* 跨页表：表头重复；行尽量不拆 */
+    thead {
+      display: table-header-group;
+    }
+    tfoot {
+      display: table-footer-group;
+    }
+    tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .schedule-table,
+    .eval-table {
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+    .eval-columns {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    footer.boundary {
+      break-before: page;
+      page-break-before: always;
+    }
     .no-print { display: none !important; }
   }
   @media (max-width: 640px) {

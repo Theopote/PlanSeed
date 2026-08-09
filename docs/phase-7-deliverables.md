@@ -1,6 +1,6 @@
 # Phase 7 — Deliverables / Export
 
-> **状态：▶ 7.2.4 Print polish ← 下一 · 7.2.1–7.2.3 ✅ · 7.1.1 Print smoke 人手待勾**
+> **状态：▶ 7.2 ✅ Alpha Product Loop Complete · 下一 7.5 Hardening · 7.1.1 Print smoke 人手待勾**
 > **详案：** 本页 · [phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) · [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 > **前置：** Phase 6 **彻底冻结**（Blind 工程 PASS；`qualify --gate` 拒 dirty worktree；不开抠分）  
 > 总览：[roadmap.md](roadmap.md) · 架构原则：[hybrid-semantic-parser.md](hybrid-semantic-parser.md)
@@ -26,8 +26,8 @@ Phase 7 = **Deliverable Layer**（可靠地把真实 design revision 变成不�
 | **7.0.1** | Report Integrity | ✅（含 score 事实源 · `validation.valid` gate） |
 | **7.1** | Report Presentation | ✅ Engineering（收口见 7.1.1） |
 | **7.1.1** | Presentation Accuracy & Smoke | Engineering ✅；Print smoke ☐ |
-| **7.2** | Export Formats | **← 当前**（下一 7.2.4 Print polish） |
-| **7.5** | Alpha Engineering Hardening | 7.2 完成后 |
+| **7.2** | Export Formats | ✅ Alpha Product Loop Complete |
+| **7.5** | Alpha Engineering Hardening | **← 下一** |
 | **8.0** | Solver Diversity / Solver 2.0 | 后续 |
 
 **不做（本 Phase）：** DXF / DWG / IFC / Revit / BIM · ReportLab / WeasyPrint / Chromium headless / PDF canvas · ZIP Export Package · ExportManifest · Phase 6 抠分 · 新评价轴 · 新 LLM · solver refactor · Canva 式品牌模板 · 把审计优化建议塞进 7.2 · **继续美化 7.1 报告视觉**。
@@ -325,7 +325,7 @@ Cover / Executive Summary
 **未知 → 显示「北向未定义」，禁止默认 ↑N。** Renderer 不重新解释坐标系。
 
 **尺度文案：** 保持「单位：米 · 图示为方案示意…」即可。  
-**禁止**冒充 `1:100` / `1:50`，除非 7.2.4 真正做了打印物理尺度校准。
+**禁止**冒充 `1:100` / `1:50`（7.2.4 仅做 CSS 分页硬化，**未**做物理打印尺度校准）。
 
 ### C. Space Schedule 建筑化
 
@@ -389,8 +389,10 @@ Assumptions / Unknowns **后置**（06），不抢平面之前的主视觉。
 | **7.2.1** | SVG Export | ✅ |
 | **7.2.2** | PNG Export | ✅ |
 | **7.2.3** | DesignReport JSON | ✅ |
-| **7.2.4** | Print / PDF Polish | **← 下一** |
-| **7.2.5** | Export UX Consolidation | Export Dialog；防按钮爆炸 |
+| **7.2.4** | Print / PDF Polish | ✅ |
+| **7.2.5** | Export UX Consolidation | ✅ |
+
+→ **7.2 关闭 · Alpha Product Loop Complete**（Generate→…→Export）。下一工程主线：**7.5 Alpha Hardening**（或人手勾完 7.1.1-C Print smoke）。
 
 ### 7.2.1 — SVG Export ✅
 
@@ -445,16 +447,24 @@ Alpha 默认内嵌 SVG（sanitize）；禁止 `candidate.model_dump()` / Project
 **API：** `POST /api/exports/report-json`  
 **实现：** `backend/services/export/json_exporter.py` · 字段 `REPORT_SCHEMA_VERSION`（`packages/schema/report.py`）
 
-### 7.2.4 — Print / PDF Polish（← 下一）
+### 7.2.4 — Print / PDF Polish ✅
 
 继续 `HTML → WebView2 → Print → PDF`。  
-只做 `@page` / break / orphans / widows / 表头 / 封面。  
-**禁止**冒充 `1:100`（未做物理校准前）。
+已做：`@page`（A4 + margin）· 封面/平面分页 · orphans/widows · `thead` 跨页重复 · 行内尽量不拆 · `print-color-adjust` · 去掉整章 `break-inside:avoid`（防空白页）。  
+**禁止**冒充 `1:100`（未做物理校准前）。  
+**实现：** `backend/services/report_html.py` · 测试 `backend/tests/test_report_print_polish.py`  
+人手验收仍见 [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)。
 
-### 7.2.5 — Export UX Consolidation
+### 7.2.5 — Export UX Consolidation ✅
 
-单一 **Export Dialog**（报告预览/打印/JSON · 平面 SVG/PNG），避免按钮爆炸。
+单一 **Export Dialog**（项目栏只留 **导出**）：
+- 设计报告：预览/打印 PDF · DesignReport JSON  
+- 平面 SVG：当前层 / 全部楼层 zip / 整图  
+- 平面 PNG：2048/4096 · 整图 · 全部楼层 zip  
 
-### Definition of Done（7.2）
+**实现：** `desktop/src/components/ExportDialog.tsx`  
+避免按钮爆炸；信任边界仍在各 `POST /api/exports/*` / reports final。
+
+### Definition of Done（7.2）✅
 
 用户可导出：**Design Report · PDF(Print) · SVG · PNG · JSON**，且均走 Final Export trust boundary → **Alpha Product Loop Complete**。

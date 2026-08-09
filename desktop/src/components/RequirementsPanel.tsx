@@ -8,6 +8,7 @@ import type {
   RequirementSpecPayload,
 } from "../api/client";
 import { resolveRequirementGaps } from "../lib/requirementGaps";
+import { ExportDialog } from "./ExportDialog";
 import { RequirementGapsPanel } from "./RequirementGapsPanel";
 
 type Props = {
@@ -132,12 +133,18 @@ export function RequirementsPanel({
 }: Props) {
   const [rejectedOpen, setRejectedOpen] = useState(true);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const engineReady = engineStatus === "READY";
   const canParseNl =
     engineReady &&
     llmState !== "ModelMissing" &&
     llmState !== "LLMUnavailable";
   const gaps = resolveRequirementGaps(requirementSpec, program);
+  const canExport =
+    engineReady &&
+    !reportBusy &&
+    !!program &&
+    !!(onExportReport || onExportReportJson || onExportSvg || onExportPng);
 
   useEffect(() => {
     if (engineStatus !== "STARTING") {
@@ -236,119 +243,12 @@ export function RequirementsPanel({
           <button
             type="button"
             className="secondary"
-            disabled={!engineReady || reportBusy || !program || !onExportReport}
-            onClick={onExportReport}
-            title="导出 Design Report（HTML / Print PDF）"
+            disabled={!canExport}
+            onClick={() => setExportOpen(true)}
+            title="导出报告 / JSON / SVG / PNG"
           >
-            {reportBusy ? "…" : "报告"}
+            {reportBusy ? "导出中…" : "导出"}
           </button>
-          <button
-            type="button"
-            className="secondary"
-            disabled={
-              !engineReady || reportBusy || !program || !onExportReportJson
-            }
-            onClick={onExportReportJson}
-            title="导出 DesignReport JSON（交付契约，≠ 项目快照）"
-          >
-            JSON
-          </button>
-          <details className="export-svg-menu">
-            <summary
-              className="secondary"
-              title="导出 Canonical SVG（Store + revision）"
-              aria-disabled={
-                !engineReady || reportBusy || !program || !onExportSvg
-              }
-            >
-              SVG
-            </summary>
-            <div className="export-svg-menu-panel" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportSvg
-                }
-                onClick={() => onExportSvg?.("floor")}
-              >
-                当前层
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportSvg
-                }
-                onClick={() => onExportSvg?.("all_floors")}
-              >
-                全部楼层 (zip)
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportSvg
-                }
-                onClick={() => onExportSvg?.("snapshot")}
-              >
-                整图快照
-              </button>
-            </div>
-          </details>
-          <details className="export-svg-menu">
-            <summary
-              className="secondary"
-              title="导出 PNG（Canonical SVG → resvg；白底）"
-              aria-disabled={
-                !engineReady || reportBusy || !program || !onExportPng
-              }
-            >
-              PNG
-            </summary>
-            <div className="export-svg-menu-panel" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportPng
-                }
-                onClick={() => onExportPng?.("floor", 2048)}
-              >
-                当前层 2048
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportPng
-                }
-                onClick={() => onExportPng?.("floor", 4096)}
-              >
-                当前层 4096
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportPng
-                }
-                onClick={() => onExportPng?.("snapshot", 2048)}
-              >
-                整图 2048
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  !engineReady || reportBusy || !program || !onExportPng
-                }
-                onClick={() => onExportPng?.("all_floors", 2048)}
-              >
-                全部楼层 zip
-              </button>
-            </div>
-          </details>
           <button
             type="button"
             className="secondary"
@@ -359,6 +259,15 @@ export function RequirementsPanel({
           </button>
         </div>
       </div>
+      <ExportDialog
+        open={exportOpen}
+        busy={reportBusy}
+        onClose={() => setExportOpen(false)}
+        onExportReport={onExportReport}
+        onExportReportJson={onExportReportJson}
+        onExportSvg={onExportSvg}
+        onExportPng={onExportPng}
+      />
       {versionHint ? <p className="warn-hint version-hint">{versionHint}</p> : null}
 
       <section className="nl-block" aria-label="自然语言需求">
