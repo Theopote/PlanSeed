@@ -101,6 +101,30 @@ Recall 高但可控 · Precision 过门 · F1 健康
 
 **经验阈值：** 若新增规则只能解释 1–2 条已知失败句、且无法用一句话说明「一般规律」，就不该合并。
 
+## 延迟与产品体验（不阻塞 Phase 7）
+
+真模型量级（Holdout / Blind，`qwen2.5:7b`，约）：
+
+```text
+average ≈ 15–20s · P50 ≈ 14–15s · P90 ≈ 35–40s · max ≈ 45s
+```
+
+对最终桌面产品仍偏慢，但 **不作为卡住 Phase 7 的理由**。
+
+判断：
+
+| 点 | 结论 |
+|----|------|
+| 操作类型 | NL 解析 **不是** 60fps 交互；完整需求提交后等十几秒，Alpha 可接受 |
+| 真正痛点 | 界面无状态 → 像死机；不是「必须先砍到 2s」 |
+| Alpha UX | 进度文案：正在理解需求… / 正在检查设计条件… / 正在整理未确定信息… |
+| 性能优化 | 后置（量化、缓存、更小模型、流式…）；**另开**，不挡 Export |
+
+```text
+先交付可带走的方案（Phase 7）
+再优化等待体感与绝对耗时
+```
+
 ## 产品边界（不变）
 
 ```text
@@ -120,4 +144,5 @@ Solver / Evaluator / Renderer 仍严格分层、确定性。
 | `packages/llm/enrich.py` | Deterministic Extraction |
 | `packages/llm/vocabulary.py` | Vocabulary Normalization |
 | `packages/llm/semantic.py` + `gate.py` | Semantic Gate |
+| `packages/llm/coerce.py` | Draft schema 缓冲 |
 | `packages/llm/repair.py` | Repair |

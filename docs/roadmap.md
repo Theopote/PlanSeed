@@ -17,7 +17,8 @@
 
 ```text
 现在做：Phase 7 Export / Deliverable Layer
-不做：回头大改 solver · 对着 Blind 扩 regex · 扩云端 LLM
+顺带：NL 解析进度反馈（体感，非砍 latency）
+不做：为性能继续卡 Phase 7 · 回头大改 solver · 对着 Blind 扩 regex · 扩云端 LLM
 ```
 
 ## 阶段总览（以代码为准）
@@ -409,7 +410,8 @@ parse 100% · field 96% · rel F1/P 91%/84% · repair 0% · case 89%
 
 报告内容草案：项目需求 · 平面图 · 房间面积表 · 设计评分 · 主要 Findings · Assumptions · Unknowns · Candidate provenance。
 
-**明确不塞进 Phase 7：** Advanced Site 分析 · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深。这些若需要，以后单独开阶段，**现在不正式规划到 Phase 10**。
+**明确不塞进 Phase 7：** Advanced Site 分析 · Code Profiles · 跨平台 packaging · Interop · 交互编辑加深 · **LLM 性能专项**（量化/换模等）。这些若需要，以后单独开阶段，**现在不正式规划到 Phase 10**。  
+NL 解析进度文案属最小 UX，见 [phase-7-deliverables.md](phase-7-deliverables.md)。
 
 ---
 

@@ -53,10 +53,23 @@ Design Kernel（0–5.1.1）与 LLM Infrastructure（6.0–6.6）之后，用户
 ## 与 6.7 的边界
 
 ```text
-6.7 证明 LLM 好用（真模型 + Alpha Gate）
-  → Phase 6 ✅ Alpha Qualified
+6.7 证明 LLM 可用（Blind v4 Gate → Strict Alpha Qualified）
   → 7 做「可以输出成果的设计工具」
 ```
+
+**延迟不挡 Phase 7：** 解析约十几秒属 Alpha 可接受；优先用进度文案避免「死机感」，绝对耗时另阶段优化。见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md) § 延迟与产品体验。
+
+## NL 解析进度（Export 同期最小 UX，非性能专项）
+
+用户提交完整住宅需求后，界面应可感知阶段，例如：
+
+```text
+正在理解需求…
+正在检查设计条件…
+正在整理未确定信息…
+```
+
+不要求本阶段把 P90 压到数秒。
 
 ## Definition of Done（草案）
 
@@ -64,5 +77,6 @@ Design Kernel（0–5.1.1）与 LLM Infrastructure（6.0–6.6）之后，用户
 2. 报告含上表核心块；平面图可读  
 3. JSON 快照可再导入或至少可归档  
 4. 不引入云端渲染 / 云端 LLM  
+5. NL→Requirement 路径有明确进行中状态（非空白卡死）
 
 （正式开工前再细化为子任务与 API 契约 additive。）

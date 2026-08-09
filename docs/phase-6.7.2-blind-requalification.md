@@ -141,4 +141,5 @@ Record summary → PASS / FAIL
 分字段：garage / south / 卧卫 / 层数 = 100%；site ≈77%（未拖垮总 field）。
 
 **解读：** Draft Coerce 把 parse/repair 耗尽压到 0；关系 precision-first 仍过门（P 84% · R 100% · F1 91%）。  
-**结论：** Phase 6 **Strict Alpha Qualified**；可进入 Phase 7 Deliverables。
+**结论：** Phase 6 **Strict Alpha Qualified**；可进入 Phase 7 Deliverables。  
+**延迟：** Holdout/Blind 量级十几秒～P90 约 35–40s，**不阻塞** Phase 7；Alpha 用进度反馈，性能后置（见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)）。
