@@ -80,14 +80,25 @@ def build_report(body: BuildReportRequest) -> BuildReportResponse:
     if not candidates:
         raise HTTPException(status_code=400, detail="项目无候选，无法出报告")
 
-    cand_id = body.candidate_id or payload.selected_id
+    # 显式 candidate_id 优先；否则用 selected_id。任一指定但找不到 → 404，禁止静默换候选。
+    requested_id = body.candidate_id or payload.selected_id
     candidate: dict[str, Any] | None = None
-    if cand_id:
+    if requested_id:
         for c in candidates:
-            if isinstance(c, dict) and c.get("id") == cand_id:
+            if isinstance(c, dict) and c.get("id") == requested_id:
                 candidate = c
                 break
-    if candidate is None:
+        if candidate is None:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "code": "candidate_not_found",
+                    "message": f"候选不存在：{requested_id}",
+                    "candidate_id": requested_id,
+                },
+            )
+    else:
+        # 过渡：仅当未指定任何候选 id 时才 fallback 第一个（日后宜取消）
         first = candidates[0]
         if not isinstance(first, dict):
             raise HTTPException(status_code=400, detail="候选格式无效")

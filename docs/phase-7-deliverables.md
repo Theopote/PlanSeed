@@ -83,8 +83,10 @@ Desktop：dirty 时拦截并提示「请先重新验证」。
 ```text
 POST /api/reports/build
   in:  { project_id | project payload, candidate_id, allow_stale_evaluation?=false }
-  out: DesignReportPayload   # 或 409 Integrity Gate
+  out: DesignReportPayload   # 或 409 Integrity Gate / 404 candidate_not_found
 ```
+
+候选解析：**禁止**「id 找不到 → 静默用第一个」。`candidate_id` 或 `selected_id` 任一指定但缺失 → **404**。仅二者皆空时暂时 fallback 第一个（日后宜取消）。
 
 Desktop：
 

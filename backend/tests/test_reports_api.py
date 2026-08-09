@@ -204,3 +204,55 @@ def test_reports_build_allow_stale_evaluation():
     assert body["report"]["status"] == "stale_evaluation"
     assert body["report"]["evaluation"]["evaluation_fresh"] is False
     assert "STALE EVALUATION" in body["html"]
+
+
+def test_reports_build_missing_candidate_id_is_404():
+    """指定候选 id 不存在时禁止静默导出第一个。"""
+    client = TestClient(create_app())
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "Missing",
+            "payload": _payload(),
+            "candidate_id": "c-missing",
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 404, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "candidate_not_found"
+    assert detail["candidate_id"] == "c-missing"
+
+
+def test_reports_build_stale_selected_id_is_404():
+    """selected_id 指向不存在候选时同样 404，不 fallback。"""
+    client = TestClient(create_app())
+    payload = _payload()
+    payload["selected_id"] = "c-gone"
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "Stale sel",
+            "payload": payload,
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 404, r.text
+    assert r.json()["detail"]["code"] == "candidate_not_found"
+
+
+def test_reports_build_fallback_only_when_no_ids():
+    """仅 candidate_id 与 selected_id 皆空时允许用第一个候选。"""
+    client = TestClient(create_app())
+    payload = _payload()
+    payload["selected_id"] = None
+    r = client.post(
+        "/api/reports/build",
+        json={
+            "project_name": "Fallback",
+            "payload": payload,
+            "include_html": False,
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["report"]["candidate"]["candidate_id"] == "c-a"
