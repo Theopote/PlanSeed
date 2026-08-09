@@ -88,7 +88,13 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "intent.no_garage": "无车库",
         "intent.south_living": "客厅朝南",
         "intent.site": "场地 {w:g} × {d:g} m",
-        "intent.relation": "{a} {kind} {b}",
+        "intent.relation.near": "{a}靠近{b}",
+        "intent.relation.separation": "{a}与{b}保持距离",
+        "intent.relation.open_connection": "{a}与{b}开敞连通",
+        "intent.relation.access": "{a}可直接进入{b}",
+        "intent.relation.visual_connection": "{a}与{b}视线连通",
+        "intent.relation.adjacency": "{a}与{b}相邻",
+        "intent.relation.fallback": "{a}与{b}（{kind}）",
         "intent.space_floor": "{name} 位于 {floors}",
         "intent.space_orient": "{name} 朝向 {ori}",
         "axis.program": "程序",
@@ -151,7 +157,13 @@ _STRINGS: dict[ReportLocale, dict[str, str]] = {
         "intent.no_garage": "No garage",
         "intent.south_living": "Living room south-oriented",
         "intent.site": "Site {w:g} × {d:g} m",
-        "intent.relation": "{a} {kind} {b}",
+        "intent.relation.near": "{a} is near {b}",
+        "intent.relation.separation": "{a} is kept apart from {b}",
+        "intent.relation.open_connection": "{a} and {b} are openly connected",
+        "intent.relation.access": "{a} can access {b} directly",
+        "intent.relation.visual_connection": "{a} and {b} share a visual connection",
+        "intent.relation.adjacency": "{a} is adjacent to {b}",
+        "intent.relation.fallback": "{a} ↔ {b} ({kind})",
         "intent.space_floor": "{name} on {floors}",
         "intent.space_orient": "{name} faces {ori}",
         "axis.program": "Program",
@@ -214,6 +226,32 @@ def relation_kind_label(locale: ReportLocale, kind: str) -> str:
     return table.get(kind, kind)
 
 
+def present_relation_intent(
+    locale: ReportLocale,
+    a: str,
+    b: str,
+    kind: str,
+) -> str:
+    """
+    RelationPresenter：把 relation enum 收成用户可读短句。
+
+    禁止输出「厨房 near 餐厅」这类 enum 名。
+    """
+    loc = normalize_report_locale(locale)
+    kind_s = str(kind).strip()
+    key = f"intent.relation.{kind_s}"
+    catalog = _STRINGS.get(loc) or _STRINGS[DEFAULT_REPORT_LOCALE]
+    if key in catalog:
+        return tr(loc, key, a=a, b=b)
+    return tr(
+        loc,
+        "intent.relation.fallback",
+        a=a,
+        b=b,
+        kind=relation_kind_label(loc, kind_s),
+    )
+
+
 def boundary_lines_for_locale(locale: ReportLocale) -> list[str]:
     return [
         tr(locale, "boundary.req"),
@@ -264,15 +302,7 @@ def format_key_intents(
             continue
         a, b, kind = r.get("a"), r.get("b"), r.get("kind")
         if a and b and kind:
-            lines.append(
-                tr(
-                    loc,
-                    "intent.relation",
-                    a=a,
-                    b=b,
-                    kind=relation_kind_label(loc, str(kind)),
-                )
-            )
+            lines.append(present_relation_intent(loc, str(a), str(b), str(kind)))
     for sp in spaces:
         if not isinstance(sp, dict):
             continue

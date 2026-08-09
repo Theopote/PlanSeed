@@ -163,7 +163,8 @@ PlanSeed Design Report
 Project · 求解器生成 | 用户编辑 · 已验证 · Candidate A.2 · Score 84
 （用户编辑 · 评价过期 禁止正式报告）
 
-文案由 `ReportLocale` 集中管理（Alpha 默认 `zh-CN`；预留 `en-US`），禁止散落硬编码。
+文案由 `ReportLocale` 集中管理（Alpha 默认 `zh-CN`；预留 `en-US`），禁止散落硬编码。  
+关系 intent 经 `present_relation_intent`（RelationPresenter）：`near` →「厨房靠近餐厅」，禁止输出 enum 名。
 
 Key Intent
   - Two-story residence

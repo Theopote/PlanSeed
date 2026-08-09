@@ -137,6 +137,8 @@ def test_build_design_report_uses_placement_area():
     assert living.area == 14.0
     assert "两层住宅" in report.requirement.key_intents
     assert any("朝南" in x for x in report.requirement.key_intents)
+    assert "厨房靠近餐厅" in report.requirement.key_intents
+    assert not any(" near " in x or x.endswith(" near") for x in report.requirement.key_intents)
     assert report.findings and report.findings[0].title == "比例尚可"
     assert any("确定性求解器" in line for line in report.provenance.boundary_lines)
     assert report.project.locale == ReportLocale.ZH_CN
@@ -189,9 +191,30 @@ def test_report_locale_en_us_key_intents():
         locale=ReportLocale.EN_US,
     )
     assert "Two-story residence" in report.requirement.key_intents
+    assert "厨房 is near 餐厅" in report.requirement.key_intents
     doc = render_report_html(report)
     assert 'lang="en-US"' in doc
     assert "Key Intent" in doc
+
+
+def test_present_relation_intent_covers_kinds():
+    from packages.schema.report_i18n import present_relation_intent
+
+    assert present_relation_intent(ReportLocale.ZH_CN, "厨房", "餐厅", "near") == (
+        "厨房靠近餐厅"
+    )
+    assert present_relation_intent(
+        ReportLocale.ZH_CN, "客厅", "餐厅", "open_connection"
+    ) == "客厅与餐厅开敞连通"
+    assert present_relation_intent(
+        ReportLocale.ZH_CN, "车库", "门厅", "access"
+    ) == "车库可直接进入门厅"
+    assert present_relation_intent(
+        ReportLocale.ZH_CN, "主卧", "客厅", "separation"
+    ) == "主卧与客厅保持距离"
+    assert "near" not in present_relation_intent(
+        ReportLocale.ZH_CN, "A", "B", "near"
+    )
 
 
 def test_floor_plans_default_to_candidate_snapshot():
