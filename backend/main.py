@@ -11,6 +11,7 @@ from backend.routes import health as health_routes
 from backend.routes import llm as llm_routes
 from backend.routes import mutations as mutations_routes
 from backend.routes import projects as projects_routes
+from backend.routes import reports as reports_routes
 from backend.routes import requirements as requirements_routes
 
 
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(compare_routes.router)
     app.include_router(mutations_routes.router)
     app.include_router(projects_routes.router)
+    app.include_router(reports_routes.router)
     return app
 
 

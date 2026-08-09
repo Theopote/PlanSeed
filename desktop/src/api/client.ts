@@ -708,6 +708,46 @@ export async function loadProject(id: string): Promise<ProjectDetail> {
   return r.json() as Promise<ProjectDetail>;
 }
 
+/** Phase 7 — Design Report（权威 JSON + HTML 预览）。 */
+export type BuildReportResponse = {
+  report: {
+    project: { project_name: string; edited?: boolean };
+    candidate: { candidate_id: string; label: string; total_score: number | null };
+    requirement: { key_intents: string[] };
+  };
+  html: string | null;
+};
+
+export async function buildReport(opts: {
+  projectName?: string;
+  payload: ProjectPayload;
+  candidateId?: string | null;
+  includeHtml?: boolean;
+}): Promise<BuildReportResponse> {
+  const r = await fetch(`${_apiBase}/api/reports/build`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      project_name: opts.projectName ?? "Untitled",
+      payload: opts.payload,
+      candidate_id: opts.candidateId ?? opts.payload.selected_id,
+      include_html: opts.includeHtml ?? true,
+    }),
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: unknown };
+      if (typeof body.detail === "string") msg = body.detail;
+      else if (body.detail != null) msg = JSON.stringify(body.detail);
+    } catch {
+      /* keep */
+    }
+    throw new Error(msg);
+  }
+  return r.json() as Promise<BuildReportResponse>;
+}
+
 export type GeometryMutationRequest = {
   kind: "move" | "resize" | "adjust_wall" | "lock" | "unlock";
   room_id?: string | null;

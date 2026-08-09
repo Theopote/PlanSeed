@@ -7,6 +7,7 @@ import {
   generateFromProgram,
   listProjects,
   loadProject,
+  buildReport,
   parseRequirementsNl,
   patchFormFromRequirementSpec,
   previewMutation,
@@ -35,6 +36,7 @@ import {
   type RequirementSpecPayload,
 } from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
+import { ReportPreview } from "./components/ReportPreview";
 import { locksFingerprint } from "./lib/lineage";
 import {
   mutationLiveMessage,
@@ -148,6 +150,8 @@ function App() {
   const [projectPicker, setProjectPicker] = useState<ProjectSummary[] | null>(
     null,
   );
+  const [reportHtml, setReportHtml] = useState<string | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [rejectedCandidates, setRejectedCandidates] = useState<
     RejectedCandidatePayload[]
   >([]);
@@ -1158,6 +1162,61 @@ function App() {
     resolveCanonicalSpec,
   ]);
 
+  const onExportReport = useCallback(async () => {
+    if (!program || candidates.length === 0) {
+      setError("请先 Generate 再导出报告");
+      return;
+    }
+    setReportBusy(true);
+    setError(null);
+    try {
+      const fromCand = candidates.find((c) => c.provenance)?.provenance;
+      const schema_versions = {
+        solver_version:
+          solverIdentity?.solver_version ?? fromCand?.solver_version ?? null,
+        generator_version:
+          solverIdentity?.generator_version ?? fromCand?.generator_version ?? null,
+        evaluation_version:
+          solverIdentity?.evaluation_version ??
+          fromCand?.evaluation_version ??
+          null,
+      };
+      const out = await buildReport({
+        projectName: projectName.trim() || "未命名项目",
+        candidateId: selectedId,
+        payload: {
+          form,
+          program,
+          requirement_spec: resolveCanonicalSpec(),
+          locks: cloneLayoutLocks(locks),
+          candidates,
+          selected_id: selectedId,
+          compare_id: compareId,
+          schema_versions,
+        },
+      });
+      if (!out.html) {
+        setError("报告未返回 HTML");
+        return;
+      }
+      setReportHtml(out.html);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReportBusy(false);
+    }
+  }, [
+    program,
+    candidates,
+    projectName,
+    selectedId,
+    form,
+    locks,
+    compareId,
+    solverIdentity,
+    resolveCanonicalSpec,
+  ]);
+
   const onOpenProjects = useCallback(async () => {
     setProjectBusy(true);
     setError(null);
@@ -1368,6 +1427,13 @@ function App() {
           </div>
         </div>
       )}
+      {reportHtml ? (
+        <ReportPreview
+          html={reportHtml}
+          title={`${projectName.trim() || "未命名"} · Design Report`}
+          onClose={() => setReportHtml(null)}
+        />
+      ) : null}
       <div className="app-main">
         <RequirementsPanel
           form={form}
@@ -1398,8 +1464,10 @@ function App() {
           projectName={projectName}
           onProjectNameChange={setProjectName}
           onSaveProject={() => void onSaveProject()}
+          onExportReport={() => void onExportReport()}
           onOpenProjects={() => void onOpenProjects()}
           projectBusy={projectBusy}
+          reportBusy={reportBusy}
           versionHint={versionHint}
         />
         <FloorplanView

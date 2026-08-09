@@ -1095,6 +1095,51 @@ button.secondary {
   font-family: var(--font-mono);
 }
 
+/* Phase 7 — Design Report preview */
+.report-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(20, 18, 16, 0.55);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.report-preview-panel {
+  flex: 1;
+  max-width: 960px;
+  background: #faf9f7;
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.report-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.report-preview-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.report-preview-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+  min-height: 70vh;
+}
+
 @media (max-width: 1100px) {
   .app-main {
     grid-template-columns: 1fr;

@@ -172,10 +172,10 @@ post-alpha 已知限制（latency、Holdout bathrooms ≈87.5%）见 [hybrid-sem
 
 ## Definition of Done（7.0）
 
-1. Backend 可 `POST /api/reports/build` → `DesignReportPayload`（JSON）  
-2. Desktop 可预览 HTML 报告并 Print/PDF  
-3. 报告含：Key Intent · Assumptions · Unknowns · 平面 · Room schedule · Score · Findings · Provenance（含 AI/Solver 边界）  
-4. 面积 / 评分 / Finding **不**由前端重算  
-5. 不引入云端渲染 / 云端 LLM / DXF  
+1. [x] Backend 可 `POST /api/reports/build` → `DesignReportPayload`（JSON）  
+2. [x] Desktop 可预览 HTML 报告并 Print/PDF  
+3. [x] 报告含：Key Intent · Assumptions · Unknowns · 平面 · Room schedule · Score · Findings · Provenance（含 AI/Solver 边界）  
+4. [x] 面积 / 评分 / Finding **不**由前端重算  
+5. [x] 不引入云端渲染 / 云端 LLM / DXF  
 
-开工时再拆子任务与 schema 落点（建议 `packages/schema/report.py` + `solver`/`api` report builder）。
+实现落点：`packages/schema/report.py` · `backend/services/report_builder.py` · `backend/services/report_html.py` · `backend/routes/reports.py` · Desktop「报告」按钮。

@@ -44,9 +44,11 @@ type Props = {
   projectName: string;
   onProjectNameChange: (name: string) => void;
   onSaveProject: () => void;
+  onExportReport?: () => void;
   onOpenProjects: () => void;
   projectBusy?: boolean;
   versionHint?: string | null;
+  reportBusy?: boolean;
 };
 
 function topViolationEntries(
@@ -115,9 +117,11 @@ export function RequirementsPanel({
   projectName,
   onProjectNameChange,
   onSaveProject,
+  onExportReport,
   onOpenProjects,
   projectBusy = false,
   versionHint = null,
+  reportBusy = false,
 }: Props) {
   const [rejectedOpen, setRejectedOpen] = useState(true);
   const [retryBusy, setRetryBusy] = useState(false);
@@ -221,6 +225,15 @@ export function RequirementsPanel({
             onClick={onSaveProject}
           >
             {projectBusy ? "…" : "保存"}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!engineReady || reportBusy || !program || !onExportReport}
+            onClick={onExportReport}
+            title="导出 Design Report（HTML / Print PDF）"
+          >
+            {reportBusy ? "…" : "报告"}
           </button>
           <button
             type="button"
