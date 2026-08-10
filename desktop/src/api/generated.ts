@@ -489,7 +489,7 @@ export interface components {
             generator_version: string;
             /**
              * Geometry Backend
-             * @description rect | shapely-orthogonal
+             * @description 实际执行后端：rect（当前）| shapely-orthogonal（仅 8.4.1 接入后）
              * @default rect
              */
             geometry_backend: string;
