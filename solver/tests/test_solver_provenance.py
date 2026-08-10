@@ -65,7 +65,8 @@ def test_assignment_strategy_cpsat_detection():
     assert assignment_strategy_for(program) == "cpsat"
 
 
-def test_geometry_backend_polygon_intent():
+def test_geometry_backend_is_runtime_not_input_intent():
+    """有 site_polygon ≠ 已走 Shapely packing；8.4.1 前恒为 rect。"""
     program = benchmark_program()
     assert geometry_backend_for(program) == "rect"
     program.site = program.site.model_copy(
@@ -80,7 +81,9 @@ def test_geometry_backend_polygon_intent():
             )
         }
     )
-    assert geometry_backend_for(program) == "shapely-orthogonal"
+    assert geometry_backend_for(program) == "rect"
+    stamped = build_solver_provenance(program=program)
+    assert stamped.geometry_backend == "rect"
 
 
 def test_pipeline_stamps_full_provenance():

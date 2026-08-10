@@ -257,7 +257,7 @@ environment 0.10 | technical 0.16 | robustness 0.14
 | `selection_version` | `axis-diversity-v1` | 选优规则包；Pareto Experimental=`pareto-top1-axes-v2` |
 | `evaluation_version` | `residential-alpha-v1` | 七轴权重 / Finding 规则包 |
 | `assignment_strategy` | `heuristic` | 楼层归属；`cpsat` 为 research |
-| `geometry_backend` | `rect` | 默认矩形 packing；有 polygon 字段时可标 `shapely-orthogonal`（**意图**，≠ 8.4.1 已接入） |
+| `geometry_backend` | `rect` | **实际** packing/checker 后端；8.4.1 接入前恒为 `rect`（有 `site_polygon` 仍不得标 `shapely-orthogonal`） |
 
 完整模型：`SolverProvenance`（`packages/schema/provenance.py`）。
 

@@ -253,7 +253,8 @@ SVG
 Report
 ```
 
-未完成前：`geometry_backend=shapely-orthogonal` 仅表示场地**意图/工具可用**，不代表 pipeline 已走多边形路径。
+未完成前：`geometry_backend` **只记实际执行路径**，当前恒为 `rect`。  
+有 `site_polygon` 只是输入意图，**不得**因此写入 `shapely-orthogonal`。
 
 ## 明确不做（Phase 8）
 

@@ -77,6 +77,7 @@ geometry_backend
 定义：`packages/schema/provenance.py`（`SolverProvenance`；`CandidateProvenance` 为别名）  
 `solver_identity()`：`packages/schema/identity.py`。  
 
+`geometry_backend` = **实际执行路径**（8.4.1 前恒 `rect`；有 `site_polygon` 不得据此冒充 `shapely-orthogonal`）。  
 改 Top-K / ranking 默认 → bump `selection_version`；改七轴评分 → bump `evaluation_version`。
 
 ---

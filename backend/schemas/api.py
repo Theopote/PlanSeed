@@ -85,7 +85,7 @@ class CandidateProvenance(BaseModel):
     )
     geometry_backend: str = Field(
         default="rect",
-        description="rect | shapely-orthogonal",
+        description="实际执行后端：rect（当前）| shapely-orthogonal（仅 8.4.1 接入后）",
     )
 
 class RoomPlacementPayload(BaseModel):

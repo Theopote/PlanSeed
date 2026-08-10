@@ -61,7 +61,7 @@ class SolverProvenance(BaseModel):
     )
     geometry_backend: str = Field(
         default=DEFAULT_GEOMETRY_BACKEND,
-        description="rect | shapely-orthogonal",
+        description="实际执行后端：rect（当前）| shapely-orthogonal（仅 8.4.1 接入后显式写入）",
     )
 
 
@@ -81,18 +81,14 @@ def assignment_strategy_for(program: Any) -> str:
 
 
 def geometry_backend_for(program: Any) -> str:
-    """场地模型意图：有多边形则标 shapely-orthogonal。
+    """实际几何执行后端（≠ 输入里是否带 polygon）。
 
-    **注意：** 这不等于 packing 已走 irregular pipeline（8.4.1 ☐）。
-    Alpha 默认仍消费 ``DesignProgram.buildable: Rect2D``。
+    8.4.1 irregular-site pipeline 接入前，packing / checker / placement 均为 Rect，
+    故恒返回 ``rect``。有 ``site_polygon`` 只表示输入意图，不得冒充 runtime backend。
+    真正走 ``prepare_buildable_rects`` → free rects → generator 后，再由调用方显式传入
+    ``geometry_backend="shapely-orthogonal"``。
     """
-    site = getattr(program, "site", None)
-    if site is None:
-        return GEOMETRY_BACKEND_RECT
-    if getattr(site, "buildable_polygon", None) is not None:
-        return GEOMETRY_BACKEND_SHAPELY_ORTHOGONAL
-    if getattr(site, "site_polygon", None) is not None:
-        return GEOMETRY_BACKEND_SHAPELY_ORTHOGONAL
+    _ = program  # 预留：接入后按实际执行路径分支
     return GEOMETRY_BACKEND_RECT
 
 
