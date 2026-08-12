@@ -5,13 +5,13 @@
 | Constraint | Schema | Normalize | Generate | Validate | Evaluate | Tests | 备注 |
 |---|---|---|---|---|---|---|---|
 | AdjacencyConstraint | ✓ | 部分（偏好） | — | ✓ hard/soft | ✓ soft sat | ✓ | hard 邻接已闭环 |
-| SeparationConstraint | ✓ | — | — | — | — | — | **未接线** |
+| SeparationConstraint | ✓ | — | — | ✓ hard/soft | — | ✓ | checker 最小距离 |
 | OrientationConstraint | ✓ | ✓ 偏好 | — | ✓ hard | ✓ soft score | ✓ | **north_angle 感知** |
-| FloorConstraint | ✓ | ✓ FloorAssignment | — | 归属阶段 | — | ✓ | 不在 checker 再验 |
+| FloorConstraint | ✓ | ✓ FloorAssignment | — | ✓ hard/soft | — | ✓ | FloorAssignment + checker 双验 |
 | AlignmentConstraint | ✓ | ✓ wet_stack | ✓ WetStack anchor | ✓ | ✓ vertical | ✓ | stair/wet |
 | AreaConstraint | ✓ | — | — | ✓ hard/soft | area_accuracy | ✓ | soft 不再丢弃 |
 | WidthConstraint | ✓ | — | — | ✓ hard/soft | — | ✓ | soft 不再丢弃 |
-| AccessConstraint | ✓ | ✓ → SpaceConnection | — | — | — | ✓ | `requires_exterior` 入 AccessGraph；stair 靠 unreachable |
+| AccessConstraint | ✓ | ✓ → SpaceConnection | — | ✓ hard/soft | — | ✓ | stair_reach / requires_exterior |
 | SpaceConnection / AccessGraph | ✓ | ✓ 默认软边 | ✓ 连通度序 | ✓ unreachable / 共边 | ✓ circulation | ✓ | 硬必连需 required=True |
 
 ## 系统级 / 语义（Phase 1.6）
@@ -48,7 +48,7 @@
 ## 结论
 
 - **Adjacency ≠ Access Intent ≠ Realized Access**（Phase 2.3）
-- Separation：未接线
+- Separation / Floor / Access：checker 已接线（hard invalidates；soft → soft_violations）
 - Door：Intent 可实现则落开口（含 soft）；共墙 alone 不可通行；spanning-tree OPEN 为显式开口
-- FloorConstraint：FloorAssignmentSolver 消费
+- FloorConstraint：FloorAssignmentSolver 消费 + checker 复核 placement.floor_id
 - Generator 不「理解」约束语义；靠 zone/core + checker/evaluator 闭环

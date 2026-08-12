@@ -318,3 +318,129 @@ class TestConstraintEvaluationResult:
         merged = a.merge(b)
         assert len(merged.hard_violations) == 1
         assert len(merged.soft_violations) == 1
+
+
+class TestSeparationFloorAccess:
+    """Phase 1.6：Separation / Floor / Access 约束 checker 接线。"""
+
+    @staticmethod
+    def _kitchen_dining_program():
+        from packages.schema.program import DesignProgram, SolverConfig
+        from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
+        from packages.schema.site import SiteSpec
+
+        return DesignProgram(
+            project_id="chk-sep",
+            site=SiteSpec(width=11, depth=13),
+            buildable=SiteSpec(width=11, depth=13).buildable_envelope,
+            floors=[
+                FloorSpec(id="F1", label="一层", room_ids=["kitchen", "dining"]),
+                FloorSpec(id="F2", label="二层", room_ids=[]),
+            ],
+            rooms=[
+                RoomSpec(id="kitchen", name="厨房", category=RoomCategory.WET, target_area=10),
+                RoomSpec(id="dining", name="餐厅", category=RoomCategory.PUBLIC, target_area=12),
+            ],
+            constraints=[],
+            solver_config=SolverConfig(candidate_count=1),
+        )
+
+    def test_hard_separation_violation(self):
+        from packages.schema.constraints import ConstraintSource, SeparationConstraint
+
+        program = self._kitchen_dining_program()
+        program.constraints.append(
+            SeparationConstraint(
+                id="sep-k-d",
+                room_a_id="kitchen",
+                room_b_id="dining",
+                min_distance=3.0,
+                hard=True,
+                source=ConstraintSource.USER,
+            )
+        )
+        candidate = _candidate_with_two_rooms(
+            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
+            b_rect=PlacementRect(x=5, y=0, width=3, depth=3),
+        )
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "sep-k-d" for v in validation.hard_violations)
+
+    def test_soft_separation_does_not_invalidate(self):
+        from packages.schema.constraints import ConstraintSource, SeparationConstraint
+
+        program = self._kitchen_dining_program()
+        program.constraints.append(
+            SeparationConstraint(
+                id="sep-soft",
+                room_a_id="kitchen",
+                room_b_id="dining",
+                min_distance=3.0,
+                hard=False,
+                source=ConstraintSource.USER,
+            )
+        )
+        candidate = _candidate_with_two_rooms(
+            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
+            b_rect=PlacementRect(x=5, y=0, width=3, depth=3),
+        )
+        # 合成候选补楼梯核，避免 geometry.core_missing 干扰 soft sep 断言
+        candidate.floors[0].placements.insert(
+            0,
+            RoomPlacement(
+                room_id="stair-F1",
+                floor_id="F1",
+                rect=PlacementRect(x=9.0, y=0.0, width=1.8, depth=4.2),
+                source=PlacementSource.GENERATED,
+                name="楼梯",
+                category="circulation",
+            ),
+        )
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert validation.valid
+        assert any(v.constraint_id == "sep-soft" for v in validation.soft_violations)
+
+    def test_hard_floor_constraint_violation(self):
+        from packages.schema.constraints import ConstraintSource, FloorConstraint
+
+        program = self._kitchen_dining_program()
+        program.constraints.append(
+            FloorConstraint(
+                id="floor-k-f1",
+                room_id="kitchen",
+                floor_id="F2",
+                hard=True,
+                source=ConstraintSource.USER,
+            )
+        )
+        candidate = _candidate_with_two_rooms(
+            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
+            b_rect=PlacementRect(x=3, y=0, width=3, depth=3),
+            same_floor=False,
+        )
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "floor-k-f1" for v in validation.hard_violations)
+
+    def test_access_stair_reach_without_stair(self):
+        from packages.schema.constraints import AccessConstraint, ConstraintSource
+
+        program = self._kitchen_dining_program()
+        program.constraints.append(
+            AccessConstraint(
+                id="acc-bed-stair",
+                room_id="dining",
+                requires_stair_reach=True,
+                hard=True,
+                source=ConstraintSource.USER,
+            )
+        )
+        candidate = _candidate_with_two_rooms(
+            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
+            b_rect=PlacementRect(x=3, y=0, width=3, depth=3),
+            same_floor=False,
+        )
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert not validation.valid
+        assert any(v.constraint_id == "acc-bed-stair" for v in validation.hard_violations)

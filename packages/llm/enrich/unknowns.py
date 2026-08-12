@@ -198,9 +198,12 @@ class UnknownsStage:
         sparse = is_sparse_requirement(text)
         context.sparse = sparse
         incoming_unknowns = context.incoming_unknowns
+        dropped_inference_keys = context.dropped_inference_keys
 
         # 剔除 LLM 问卷式 / 无策略依据的 unknowns（抬 unknown precision）
         for key in list(unknown_by_key):
+            if key in dropped_inference_keys:
+                continue
             if key not in _MANAGED_UNKNOWN_KEYS:
                 unknown_by_key.pop(key, None)
                 notes.append(f"剔除非托管 unknown:{key}")

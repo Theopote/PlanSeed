@@ -81,6 +81,17 @@ class TestRoomSpec:
         assert room.resolved_min_area() == pytest.approx(20.4)
         assert room.resolved_max_area() == pytest.approx(30.0)
 
+    def test_rejects_inconsistent_area_bounds(self):
+        with pytest.raises(ValidationError, match="min_area"):
+            RoomSpec(
+                id="r1",
+                name="客厅",
+                category=RoomCategory.PUBLIC,
+                target_area=24,
+                min_area=30,
+                max_area=20,
+            )
+
 
 class TestConstraints:
     def test_adjacency_constraint_defaults(self):
@@ -135,6 +146,17 @@ class TestProjectSpec:
                 site=SiteSpec(width=11, depth=13),
                 floors=[],
                 rooms=[RoomSpec(id="r1", name="x", category=RoomCategory.OTHER, target_area=10)],
+            )
+
+    def test_rejects_duplicate_room_ids(self):
+        with pytest.raises(ValidationError, match="重复 id"):
+            ProjectSpec(
+                site=SiteSpec(width=11, depth=13),
+                floors=[{"id": "F1", "label": "一层", "room_ids": ["r1", "r2"]}],
+                rooms=[
+                    RoomSpec(id="r1", name="a", category=RoomCategory.PUBLIC, target_area=10),
+                    RoomSpec(id="r1", name="b", category=RoomCategory.PUBLIC, target_area=10),
+                ],
             )
 
 

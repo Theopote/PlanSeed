@@ -99,7 +99,8 @@ def test_ingest_accepts_coerced_messy_draft():
     )
     assert result.spec.floor_count == 2
     assert result.draft.known.household.bedrooms == 3
-    # llm_inference assumption 会被 enrich 丢弃；关系由 enrich 保留/补全
+    # ADR-003：llm_inference 转 unknown（spec 层可见）
+    assert "household.has_garage" in {u.key for u in result.spec.unknowns}
     assert any(
         {r.a, r.b} == {"厨房", "餐厅"} and r.kind == "near"
         for r in result.draft.known.relation_intents

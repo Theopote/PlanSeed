@@ -88,7 +88,8 @@ def _create_enrichment_context(draft: LLMRequirementDraft) -> EnrichmentContext:
         unknown_by_key=unknown_by_key,
         text=(draft.raw_text or "").strip(),
         notes=[],
-        incoming_unknowns=set(unknown_by_key),
+        incoming_unknowns={normalize_assumption_key(u.key) for u in draft.unknowns},
+        dropped_inference_keys={item.key for item in dropped_inferences},
     )
 
 

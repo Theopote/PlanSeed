@@ -34,6 +34,32 @@ def test_illegal_zone_rejected_by_schema():
         )
 
 
+def test_circulation_zone_lock_rejected():
+    with pytest.raises(ValidationError, match="circulation"):
+        LockedZoneRect(
+            zone="circulation",
+            floor_id="F1",
+            x=0,
+            y=0,
+            width=3,
+            depth=3,
+        )
+
+
+def test_duplicate_room_lock_rejected():
+    with pytest.raises(ValidationError, match="重复"):
+        LayoutLocks(
+            rooms=[
+                LockedRoomRect(
+                    room_id="r1", floor_id="F1", x=0, y=0, width=3, depth=3
+                ),
+                LockedRoomRect(
+                    room_id="r1", floor_id="F1", x=1, y=1, width=3, depth=3
+                ),
+            ]
+        )
+
+
 def test_validate_unknown_room_hard():
     program = benchmark_program()
     locks = LayoutLocks(

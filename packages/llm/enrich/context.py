@@ -36,6 +36,7 @@ class EnrichmentContext:
     notes: list[str] = field(default_factory=list)
     provenance: list[StageProvenance] = field(default_factory=list)
     incoming_unknowns: set[str] = field(default_factory=set)
+    dropped_inference_keys: set[str] = field(default_factory=set)
     sparse: bool = False
 
     def record(
