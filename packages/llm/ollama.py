@@ -70,7 +70,11 @@ class OllamaProvider:
 
             enforce_ollama_endpoint_policy(self.config.base_url, environ=environ)
         self._owns_client = client is None
-        self._client = client or httpx.Client(timeout=self.config.timeout_s)
+        self._client = client or httpx.Client(
+            timeout=self.config.timeout_s,
+            trust_env=False,
+            follow_redirects=False,
+        )
 
     def close(self) -> None:
         if self._owns_client:

@@ -58,6 +58,10 @@ class TestSiteSpec:
         assert site.buildable_envelope is not None
         assert site.building_footprint is None
 
+    def test_rejects_setbacks_that_consume_site(self):
+        with pytest.raises(ValidationError, match="无可建范围"):
+            SiteSpec(width=10, depth=10, setbacks={"west": 12, "east": 0})
+
 
 class TestRoomSpec:
     def test_resolved_area_bounds(self):

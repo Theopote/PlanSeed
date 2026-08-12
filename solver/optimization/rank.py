@@ -106,10 +106,8 @@ def rank_candidates(
         for c in candidates
         if c.validation and c.validation.valid and c.score is not None
     ]
-    invalid = [c for c in candidates if c not in valid]
 
     valid.sort(key=lambda c: c.score or 0.0, reverse=True)
-    invalid.sort(key=lambda c: c.score or 0.0, reverse=True)
 
     if min_diversity_threshold is None:
         resolved = "score"
@@ -121,7 +119,7 @@ def rank_candidates(
         resolved = DEFAULT_RANK_MODE
 
     if resolved == "score" or not valid:
-        selected = (valid + invalid)[:top_k]
+        selected = valid[:top_k]
         _stamp_selection(selected, resolved)
         return selected
 
@@ -148,8 +146,6 @@ def rank_candidates(
             buildable_depth=buildable_depth,
         )
 
-    if len(selected) < top_k:
-        selected.extend(invalid[: top_k - len(selected)])
     _stamp_selection(selected, resolved)
     return selected
 

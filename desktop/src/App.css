@@ -582,6 +582,10 @@ button.secondary {
   user-select: none;
 }
 
+.floorplan-svg.is-dirty .derived-overlay {
+  display: none;
+}
+
 .floorplan-svg svg {
   width: 100%;
   height: auto;

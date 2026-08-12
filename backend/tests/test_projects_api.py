@@ -346,3 +346,59 @@ def test_planseed_import_rejects_bad_zip(
     assert bad.status_code == 400
     detail = bad.json()["detail"]
     assert detail["code"] == "not_zip"
+
+
+def test_import_validates_before_write_and_conflict(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from packages.persistence.planseed_package import pack_planseed
+
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "import-gate.db"))
+    saved = client.post(
+        "/api/projects",
+        json={
+            "name": "local",
+            "id": "same-id",
+            "payload": {"form": {}, "candidates": []},
+        },
+    )
+    assert saved.status_code == 200, saved.text
+
+    blob = pack_planseed(
+        project_id="same-id",
+        name="incoming",
+        updated_at="2020-01-01T00:00:00+00:00",
+        payload={"form": {"width": 9}, "candidates": []},
+        app_version="0.1.0",
+    )
+    blocked = client.post(
+        "/api/projects/import",
+        content=blob,
+        headers={"Content-Type": "application/zip"},
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "project_exists"
+    assert client.get("/api/projects/same-id").json()["name"] == "local"
+
+    overwritten = client.post(
+        "/api/projects/import?overwrite=true",
+        content=blob,
+        headers={"Content-Type": "application/zip"},
+    )
+    assert overwritten.status_code == 200, overwritten.text
+    assert overwritten.json()["name"] == "incoming"
+
+    poison = pack_planseed(
+        project_id="poison",
+        name="poison",
+        updated_at="2020-01-01T00:00:00+00:00",
+        payload={"form": {}, "candidates": {}},
+        app_version="0.1.0",
+    )
+    rejected = client.post(
+        "/api/projects/import",
+        content=poison,
+        headers={"Content-Type": "application/zip"},
+    )
+    assert rejected.status_code == 400
+    assert client.get("/api/projects/poison").status_code == 404

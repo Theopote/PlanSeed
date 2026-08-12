@@ -72,7 +72,7 @@ class CompositeEvaluator:
         w = self.weights
         geo_m = compute_geometry_metrics(program, candidate, w)
         adj_m = compute_adjacency_metrics(program, candidate, w)
-        vert_m = compute_vertical_metrics(candidate)
+        vert_m = compute_vertical_metrics(candidate, program)
         orient_m = compute_orientation_metrics(program, candidate)
         site_m = compute_site_metrics(program, candidate)
         access_m = compute_access_metrics(program, candidate)

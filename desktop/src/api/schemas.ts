@@ -122,24 +122,7 @@ export type BuildReportResponse = Schemas["BuildReportResponse"];
 
 export type GeometryMutationRequest = Schemas["GeometryMutation"];
 
-export type MutationPreviewApiResult = {
-  ok: boolean;
-  reasons: Array<{ code: string; message: string }>;
-  warnings: Array<{ code: string; message: string }>;
-  snapped: {
-    x: number;
-    y: number;
-    width: number;
-    depth: number;
-  } | null;
-  snapped_partner: {
-    x: number;
-    y: number;
-    width: number;
-    depth: number;
-  } | null;
-  conflict_room_ids: string[];
-};
+export type MutationPreviewApiResult = Schemas["MutationPreviewResult"];
 
 /** 会话锁：OpenAPI 字段可选；UI 始终持有 rooms/zones 数组。 */
 export type LayoutLocks = {

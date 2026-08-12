@@ -314,7 +314,15 @@ export function Inspector({
   revalidating = false,
   canRegenerate,
 }: Props) {
-  if (candidate && compareWith && candidate.id !== compareWith.id) {
+  const eitherDirty =
+    candidate?.revision_status === "dirty" ||
+    compareWith?.revision_status === "dirty";
+  if (
+    candidate &&
+    compareWith &&
+    candidate.id !== compareWith.id &&
+    !eitherDirty
+  ) {
     return (
       <aside className="panel panel-right">
         <header className="panel-head compact">

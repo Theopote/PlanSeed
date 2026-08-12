@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type Dispatch,
@@ -66,7 +67,24 @@ export function useMutationWorkflow({
 }: UseMutationWorkflowArgs) {
   const [mutationHint, setMutationHint] = useState<string | null>(null);
   const [revalidating, setRevalidating] = useState(false);
+  const [authorityLive, setAuthorityLive] = useState<LivePreviewResult | null>(
+    null,
+  );
   const livePreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveSeq = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (livePreviewTimer.current) clearTimeout(livePreviewTimer.current);
+      liveSeq.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (livePreviewTimer.current) clearTimeout(livePreviewTimer.current);
+    liveSeq.current += 1;
+    setAuthorityLive(null);
+  }, [selectedId]);
 
   /** Phase 5.1：权威预览走 Python；TS 仅 visual。 */
   const callAuthorityPreview = useCallback(
@@ -104,14 +122,30 @@ export function useMutationWorkflow({
     [selected, program, locks, resolveCanonicalSpec],
   );
 
+  const onLiveDragStart = useCallback(() => {
+    if (livePreviewTimer.current) clearTimeout(livePreviewTimer.current);
+    liveSeq.current += 1;
+    setAuthorityLive(null);
+  }, []);
+
   const scheduleAuthorityLiveHint = useCallback(
     (mutation: Parameters<typeof previewMutation>[0]["mutation"]) => {
       if (livePreviewTimer.current) clearTimeout(livePreviewTimer.current);
+      const seq = ++liveSeq.current;
       livePreviewTimer.current = setTimeout(() => {
         void (async () => {
           const preview = await callAuthorityPreview(mutation);
+          if (seq !== liveSeq.current) return;
           if (!preview) return;
-          setMutationHint(mutationLiveMessage(preview));
+          const message = mutationLiveMessage(preview);
+          setMutationHint(message);
+          setAuthorityLive({
+            ok: preview.ok,
+            message,
+            snapped: preview.snapped,
+            snappedPartner: preview.snappedPartner,
+            conflictRoomIds: preview.conflictRoomIds,
+          });
         })();
       }, 80);
     },
@@ -504,6 +538,8 @@ export function useMutationWorkflow({
     mutationHint,
     setMutationHint,
     revalidating,
+    authorityLive,
+    onLiveDragStart,
     onLivePreview,
     onLiveWallPreview,
     onProposeMove,

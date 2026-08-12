@@ -206,7 +206,7 @@ export interface paths {
         put?: never;
         /**
          * Import Planseed Package
-         * @description 打开 / 导入 `.planseed`：请求体为 ZIP 字节；写入 ProjectStore（按包内 id upsert）。
+         * @description 打开 / 导入 `.planseed`：请求体为 ZIP 字节。默认拒绝覆盖已有 id。
          */
         post: operations["import_planseed_package_api_projects_import_post"];
         delete?: never;
@@ -2152,7 +2152,9 @@ export interface operations {
     };
     import_planseed_package_api_projects_import_post: {
         parameters: {
-            query?: never;
+            query?: {
+                overwrite?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2166,6 +2168,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

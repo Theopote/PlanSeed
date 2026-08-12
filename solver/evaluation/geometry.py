@@ -53,13 +53,38 @@ def _proportional_area_accuracy(
     return max(0.0, min(1.0, 1.0 - tv / 2.0))
 
 
+def _occupied_footprint(candidate: LayoutCandidate) -> tuple[float, float] | None:
+    """Largest per-floor AABB of program rooms (layout, not site)."""
+    best: tuple[float, float, float] | None = None
+    for fl in candidate.floors:
+        rooms = [p for p in fl.placements if _is_program_room(p)]
+        if not rooms:
+            continue
+        x0 = min(p.rect.x for p in rooms)
+        y0 = min(p.rect.y for p in rooms)
+        x1 = max(p.rect.x + p.rect.width for p in rooms)
+        y1 = max(p.rect.y + p.rect.depth for p in rooms)
+        w, d = x1 - x0, y1 - y0
+        if w <= 1e-6 or d <= 1e-6:
+            continue
+        area = w * d
+        if best is None or area > best[2]:
+            best = (w, d, area)
+    if best is None:
+        return None
+    return best[0], best[1]
+
+
 def compute_geometry_metrics(
     program: DesignProgram,
     candidate: LayoutCandidate,
     weights: ScoreWeights = DEFAULT_WEIGHTS,
 ) -> dict[str, float]:
-    w = program.buildable.width
-    d = program.buildable.depth
+    occupied = _occupied_footprint(candidate)
+    if occupied is None:
+        w, d = program.buildable.width, program.buildable.depth
+    else:
+        w, d = occupied
     footprint = w * d
     ideal_perimeter = 4 * math.sqrt(footprint)
     actual_perimeter = 2 * (w + d)

@@ -28,11 +28,11 @@ export function apiPreviewToLocal(
 ): MutationPreviewResult {
   return {
     ok: p.ok,
-    reasons: p.reasons,
-    warnings: p.warnings,
-    snapped: p.snapped,
-    snappedPartner: p.snapped_partner,
-    conflictRoomIds: p.conflict_room_ids,
+    reasons: p.reasons ?? [],
+    warnings: p.warnings ?? [],
+    snapped: p.snapped ?? null,
+    snappedPartner: p.snapped_partner ?? null,
+    conflictRoomIds: p.conflict_room_ids ?? [],
   };
 }
 

@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import HTTPException
 from packages.persistence import ProjectStore
 from packages.schema.report import ReportStatus
+from pydantic import ValidationError
 
 from backend.routes.projects import ProjectPayload
 from backend.services.report_builder import report_status_for_candidate
@@ -31,7 +32,16 @@ def load_final_candidate(
             status_code=404,
             detail={"code": "project_not_found", "message": "项目不存在"},
         )
-    payload = ProjectPayload.model_validate(row["payload"])
+    try:
+        payload = ProjectPayload.model_validate(row["payload"])
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "project_payload_invalid",
+                "message": f"项目 payload 无效：{exc}",
+            },
+        ) from exc
     project_name = str(row.get("name") or "Untitled")
 
     candidates = list(payload.candidates or [])

@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from packages.llm.factory import resolve_provider_kind
 from packages.llm.health import probe_llm_health
 from packages.llm.ollama import OllamaProvider
+from packages.llm.privacy import OllamaRemoteBlockedError
 from packages.llm.runtime import get_shared_requirement_provider
 
 router = APIRouter(tags=["llm"])
@@ -20,6 +21,9 @@ def llm_status() -> dict:
     """
     if resolve_provider_kind() == "mock":
         return probe_llm_health().to_dict()
-    shared = get_shared_requirement_provider()
+    try:
+        shared = get_shared_requirement_provider()
+    except OllamaRemoteBlockedError:
+        return probe_llm_health().to_dict()
     provider = shared if isinstance(shared, OllamaProvider) else None
     return probe_llm_health(provider=provider).to_dict()

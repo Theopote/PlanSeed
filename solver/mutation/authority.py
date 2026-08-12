@@ -93,11 +93,21 @@ def _preview_move(
         return early
     assert rid is not None and prop is not None and current is not None
 
+    current_rect = (
+        current.rect
+        if isinstance(current.rect, PlacementRect)
+        else PlacementRect(
+            x=current.rect.x,
+            y=current.rect.y,
+            width=current.rect.width,
+            depth=current.rect.depth,
+        )
+    )
     snapped = PlacementRect(
         x=snap_value(prop.x, module),
         y=snap_value(prop.y, module),
-        width=prop.width,
-        depth=prop.depth,
+        width=current_rect.width,
+        depth=current_rect.depth,
     )
     reasons, conflicts = _geometry_check(
         program=program,

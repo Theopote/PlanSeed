@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from packages.schema.layout import PlacementRect
+    from packages.schema.program import DesignProgram
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,16 @@ class Rect:
         short = min(self.width, self.depth)
         long = max(self.width, self.depth)
         return long / max(short, 1e-6)
+
+
+def local_buildable(width: float, depth: float) -> Rect:
+    """Placement frame: origin is the NW corner of the buildable envelope."""
+    return Rect(x=0.0, y=0.0, width=width, depth=depth)
+
+
+def program_local_buildable(program: DesignProgram) -> Rect:
+    """Solver / mutation / checker frame. ``program.buildable.x/y`` is site-space only."""
+    return local_buildable(program.buildable.width, program.buildable.depth)
 
 
 def intersects(a: Rect, b: Rect) -> bool:

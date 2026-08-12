@@ -151,13 +151,17 @@ def run_pipeline(
 
             candidates.append(candidate)
 
+    rank_mode = getattr(cfg, "rank_mode", None) or "axis"
+    if not getattr(cfg, "experimental", False) and rank_mode == "pareto":
+        rank_mode = "axis"
+
     top = rank_candidates(
         candidates,
         top_k=cfg.return_top_k,
         min_diversity_threshold=cfg.min_diversity_threshold,
         buildable_width=program.buildable.width,
         buildable_depth=program.buildable.depth,
-        mode=getattr(cfg, "rank_mode", None) or "axis",
+        mode=rank_mode,
     )
     valid = sum(1 for c in candidates if c.validation and c.validation.valid)
 

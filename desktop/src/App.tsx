@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   LayoutLocks,
@@ -171,6 +171,17 @@ function App() {
     resolveCanonicalSpec: requirement.resolveCanonicalSpec,
   });
 
+  const projectPicker = project.projectPicker;
+  const closeProjectPicker = project.setProjectPicker;
+  useEffect(() => {
+    if (projectPicker === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeProjectPicker(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [projectPicker, closeProjectPicker]);
+
   const emptyHint =
     engine.engineStatus === "ERROR"
       ? engine.engineHint || "本地引擎异常，请重试"
@@ -184,7 +195,12 @@ function App() {
     <div className="app-shell">
       {project.projectPicker !== null && (
         <div className="project-picker-backdrop" role="presentation">
-          <div className="project-picker" role="dialog" aria-label="打开项目">
+          <div
+            className="project-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-label="打开项目"
+          >
             <header className="project-picker-head">
               <h3>打开项目</h3>
               <button
@@ -289,13 +305,30 @@ function App() {
           floorDepth={candidate.program?.site_depth}
           snapModule={0.3}
           onSelectRoom={candidate.onSelectRoom}
-          onProposeMove={candidate.program ? mutation.onProposeMove : undefined}
-          onProposeWall={candidate.program ? mutation.onProposeWall : undefined}
-          onLivePreview={candidate.program ? mutation.onLivePreview : undefined}
+          onProposeMove={
+            candidate.program && !candidate.loading && !mutation.revalidating
+              ? mutation.onProposeMove
+              : undefined
+          }
+          onProposeWall={
+            candidate.program && !candidate.loading && !mutation.revalidating
+              ? mutation.onProposeWall
+              : undefined
+          }
+          onLivePreview={
+            candidate.program && !candidate.loading && !mutation.revalidating
+              ? mutation.onLivePreview
+              : undefined
+          }
           onLiveWallPreview={
-            candidate.program ? mutation.onLiveWallPreview : undefined
+            candidate.program && !candidate.loading && !mutation.revalidating
+              ? mutation.onLiveWallPreview
+              : undefined
           }
           mutationHint={mutation.mutationHint}
+          authorityLive={mutation.authorityLive}
+          revisionStatus={candidate.selected?.revision_status ?? null}
+          onLiveDragStart={mutation.onLiveDragStart}
         />
         <Inspector
           candidate={candidate.selected}

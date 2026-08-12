@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from packages.schema.layout import PlacementRect, PlacementSource, RoomPlacement
 from packages.schema.locks import LayoutLocks, LockedZoneRect
 from packages.schema.mutation import GeometryMutation, MutationKind
@@ -50,6 +51,28 @@ def test_preview_move_outside_buildable_rejected():
     )
     assert not result.ok
     assert any(r.code == "mutation.outside_buildable" for r in result.reasons)
+
+
+def test_preview_move_keeps_current_size():
+    program = benchmark_program()
+    fid = program.floors[0].id
+    placements = [_pl("a", fid, 0, 0, 3, 3)]
+    mut = GeometryMutation(
+        kind=MutationKind.MOVE,
+        room_id="a",
+        floor_id=fid,
+        proposed=PlacementRect(x=1, y=1, width=0.2, depth=8),
+    )
+    result = preview_mutation(
+        program=program,
+        placements=placements,
+        locks=LayoutLocks(),
+        mutation=mut,
+    )
+    assert result.ok
+    assert result.snapped is not None
+    assert result.snapped.width == pytest.approx(3)
+    assert result.snapped.depth == pytest.approx(3)
 
 
 def test_preview_move_overlap_rejected():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 from packages.persistence import ProjectStore
 from packages.persistence.planseed_package import (
@@ -19,7 +19,7 @@ from packages.schema.identity import (
     SOLVER_VERSION,
 )
 from packages.schema.limits import API_LIMITS
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from backend.services.export.svg_exporter import content_disposition_attachment
 
@@ -152,8 +152,55 @@ def _mismatch(payload: ProjectPayload) -> bool:
     return stored != EVALUATION_VERSION
 
 
+def _sanitize_candidate_svgs(payload: dict[str, Any]) -> None:
+    """Strip unsafe SVG from imported / saved candidates (workbench injects SVG)."""
+    from backend.services.report_svg_sanitize import SvgSanitizeError, sanitize_report_svg
+
+    for cand in payload.get("candidates") or []:
+        if not isinstance(cand, dict):
+            continue
+        raw_svg = cand.get("svg")
+        if isinstance(raw_svg, str) and raw_svg.strip():
+            try:
+                cand["svg"] = sanitize_report_svg(raw_svg)
+            except SvgSanitizeError:
+                cand["svg"] = ""
+        floors = cand.get("floor_svgs")
+        if not isinstance(floors, dict):
+            continue
+        cleaned: dict[str, str] = {}
+        for fid, raw in floors.items():
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            try:
+                cleaned[str(fid)] = sanitize_report_svg(raw)
+            except SvgSanitizeError:
+                continue
+        cand["floor_svgs"] = cleaned
+
+
+def _validated_payload_dict(raw: dict[str, Any]) -> dict[str, Any]:
+    try:
+        payload = ProjectPayload.model_validate(raw)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "project_payload_invalid", "message": str(exc)},
+        ) from exc
+    dumped = payload.model_dump()
+    _stamp_project_meta(dumped)
+    _sanitize_candidate_svgs(dumped)
+    return dumped
+
+
 def _detail_from_row(row: dict[str, Any]) -> ProjectDetail:
-    payload = ProjectPayload.model_validate(row["payload"])
+    try:
+        payload = ProjectPayload.model_validate(row["payload"])
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "project_payload_invalid", "message": str(exc)},
+        ) from exc
     return ProjectDetail(
         id=row["id"],
         name=row["name"],
@@ -174,16 +221,23 @@ def list_projects() -> list[ProjectSummaryOut]:
 
 @router.post("")
 def save_project(body: SaveProjectRequest) -> ProjectDetail:
-    payload = body.payload.model_dump()
-    _stamp_project_meta(payload)
+    payload = _validated_payload_dict(body.payload.model_dump())
     saved = _store().save(name=body.name, payload=payload, project_id=body.id)
     return _detail_from_row(saved)
 
 
 @router.post("/import")
-async def import_planseed_package(request: Request) -> ProjectDetail:
-    """打开 / 导入 `.planseed`：请求体为 ZIP 字节；写入 ProjectStore（按包内 id upsert）。"""
+async def import_planseed_package(
+    request: Request,
+    overwrite: bool = Query(default=False),
+) -> ProjectDetail:
+    """打开 / 导入 `.planseed`：请求体为 ZIP 字节。默认拒绝覆盖已有 id。"""
     data = await request.body()
+    if len(data) > API_LIMITS.max_package_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "package_too_large", "message": "项目包超过大小上限"},
+        )
     try:
         bundle = unpack_planseed(data)
     except PlanseedPackageError as e:
@@ -192,10 +246,20 @@ async def import_planseed_package(request: Request) -> ProjectDetail:
             detail={"code": e.code, "message": str(e)},
         ) from e
 
-    payload = dict(bundle.payload)
+    if not overwrite and _store().get(bundle.project_id) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "project_exists",
+                "message": "已存在同 id 项目；确认覆盖后重试",
+                "project_id": bundle.project_id,
+            },
+        )
+
+    raw = dict(bundle.payload)
     if isinstance(bundle.payload.get("schema_versions"), dict):
-        payload["schema_versions"] = dict(bundle.payload["schema_versions"])
-    _stamp_project_meta(payload)
+        raw["schema_versions"] = dict(bundle.payload["schema_versions"])
+    payload = _validated_payload_dict(raw)
 
     saved = _store().save(
         name=bundle.name,

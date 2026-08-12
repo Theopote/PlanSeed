@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { SvgExportScope, PngExportSize } from "../api/client";
 
 export type ExportDialogProps = {
@@ -23,6 +24,21 @@ export function ExportDialog({
   onExportSvg,
   onExportPng,
 }: ExportDialogProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const focusable = panelRef.current?.querySelector<HTMLElement>(
+      "button:not([disabled])",
+    );
+    focusable?.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, busy, onClose]);
+
   if (!open) return null;
 
   const run = (action: () => void) => {
@@ -35,11 +51,9 @@ export function ExportDialog({
       className="export-dialog-backdrop"
       role="presentation"
       onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
     >
       <div
+        ref={panelRef}
         className="export-dialog"
         role="dialog"
         aria-modal="true"

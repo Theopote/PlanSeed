@@ -56,6 +56,27 @@ class TestPipeline:
         jsons = {c.model_dump_json() for c in result.all_candidates}
         assert len(jsons) > 1
 
+    def test_nonzero_buildable_origin_still_valid(self):
+        """Placements are envelope-local; site-space origin must not fail every candidate."""
+        program = benchmark_program()
+        program.buildable = program.buildable.model_copy(update={"x": 2.0, "y": 1.5})
+        program.solver_config.candidate_count = 8
+        program.solver_config.return_top_k = 3
+        result = run_pipeline(program)
+        assert result.valid >= 1
+        assert result.top_candidates
+        assert all(
+            c.validation is not None and c.validation.valid for c in result.top_candidates
+        )
+        w, d = program.buildable.width, program.buildable.depth
+        for c in result.top_candidates:
+            for fl in c.floors:
+                for p in fl.placements:
+                    assert p.rect.x >= -1e-6
+                    assert p.rect.y >= -1e-6
+                    assert p.rect.right <= w + 1e-6
+                    assert p.rect.bottom <= d + 1e-6
+
     def test_requirement_spec_normalize(self):
         from solver.fixtures.benchmark import benchmark_requirement_spec
 
@@ -113,3 +134,28 @@ class TestRanking:
             min_diversity_threshold=None,
         )
         assert [c.seed for c in ranked] == [1, 2]
+
+    def test_rank_does_not_pad_with_invalid(self):
+        from packages.schema.layout import CandidateValidation, LayoutCandidate
+        from solver.optimization.rank import rank_candidates
+
+        ok = LayoutCandidate(
+            id="ok",
+            seed=1,
+            floors=[],
+            validation=CandidateValidation(valid=True),
+            score=80,
+        )
+        bad = LayoutCandidate(
+            id="bad",
+            seed=2,
+            floors=[],
+            validation=CandidateValidation(valid=False),
+            score=None,
+        )
+        ranked = rank_candidates(
+            [ok, bad],
+            top_k=5,
+            min_diversity_threshold=None,
+        )
+        assert [c.id for c in ranked] == ["ok"]

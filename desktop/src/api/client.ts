@@ -157,13 +157,23 @@ async function readApiError(r: Response): Promise<string> {
   let msg = `HTTP ${r.status}`;
   try {
     const body = (await r.json()) as {
-      detail?: string | { message?: string; errors?: string[] };
+      detail?:
+        | string
+        | {
+            message?: string;
+            errors?: string[];
+            issues?: Array<{ message?: string }>;
+          };
     };
     if (typeof body.detail === "string") msg = body.detail;
     else if (body.detail && typeof body.detail === "object") {
       const d = body.detail;
       msg = d.message ?? msg;
       if (d.errors?.length) msg = `${msg}（${d.errors[d.errors.length - 1]}）`;
+      else if (d.issues?.length) {
+        const last = d.issues[d.issues.length - 1]?.message;
+        if (last) msg = `${msg}（${last}）`;
+      }
     }
   } catch {
     /* keep */
@@ -353,16 +363,7 @@ export async function compareCandidates(
       label_b: labelB,
     }),
   });
-  if (!r.ok) {
-    let msg = `HTTP ${r.status}`;
-    try {
-      const body = (await r.json()) as { detail?: string };
-      if (body.detail) msg = body.detail;
-    } catch {
-      /* keep */
-    }
-    throw new Error(msg);
-  }
+  if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<CompareResponse>;
 }
 
@@ -378,10 +379,7 @@ export async function generateBenchmark(
       return_top_k: opts?.return_top_k ?? 5,
     }),
   });
-  if (!r.ok) {
-    const detail = await r.text();
-    throw new Error(detail || `HTTP ${r.status}`);
-  }
+  if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<GenerateResponse>;
 }
 
@@ -414,16 +412,7 @@ export async function generateFromForm(
       },
     }),
   });
-  if (!r.ok) {
-    let msg = `HTTP ${r.status}`;
-    try {
-      const body = (await r.json()) as { detail?: string };
-      if (body.detail) msg = body.detail;
-    } catch {
-      /* keep msg */
-    }
-    throw new Error(msg);
-  }
+  if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<GenerateResponse>;
 }
 
@@ -463,16 +452,7 @@ export async function generateFromProgram(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    let msg = `HTTP ${r.status}`;
-    try {
-      const errBody = (await r.json()) as { detail?: string };
-      if (errBody.detail) msg = errBody.detail;
-    } catch {
-      /* keep */
-    }
-    throw new Error(msg);
-  }
+  if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<GenerateResponse>;
 }
 
@@ -552,26 +532,22 @@ export async function exportPlanseedPackage(
 }
 
 /** Phase 7.5-D — 导入 / 打开 `.planseed`（body = ZIP 字节）。 */
-export async function importPlanseedPackage(file: Blob): Promise<ProjectDetail> {
-  const r = await fetch(`${_apiBase}/api/projects/import`, {
+export async function importPlanseedPackage(
+  file: Blob,
+  opts?: { overwrite?: boolean },
+): Promise<ProjectDetail> {
+  const qs = opts?.overwrite ? "?overwrite=true" : "";
+  const r = await fetch(`${_apiBase}/api/projects/import${qs}`, {
     method: "POST",
     headers: { "Content-Type": "application/zip" },
     body: file,
   });
   if (!r.ok) {
-    let msg = `HTTP ${r.status}`;
-    try {
-      const body = (await r.json()) as {
-        detail?: string | { message?: string; code?: string };
-      };
-      if (typeof body.detail === "string") msg = body.detail;
-      else if (body.detail && typeof body.detail.message === "string") {
-        msg = body.detail.message;
-      }
-    } catch {
-      /* keep */
+    if (r.status === 409 && !opts?.overwrite) {
+      const retry = window.confirm("已存在同 id 项目。覆盖本地版本？");
+      if (retry) return importPlanseedPackage(file, { overwrite: true });
     }
-    throw new Error(msg);
+    throw new Error(await readApiError(r));
   }
   return r.json() as Promise<ProjectDetail>;
 }
@@ -840,16 +816,7 @@ export async function previewMutation(opts: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    let msg = `HTTP ${r.status}`;
-    try {
-      const errBody = (await r.json()) as { detail?: string };
-      if (typeof errBody.detail === "string") msg = errBody.detail;
-    } catch {
-      /* keep */
-    }
-    throw new Error(msg);
-  }
+  if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<MutationPreviewApiResult>;
 }
 

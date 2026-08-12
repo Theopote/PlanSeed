@@ -20,6 +20,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from packages.schema.limits import API_LIMITS
+
 PLANSEED_FORMAT = "planseed-project"
 PLANSEED_PACKAGE_VERSION = 1
 PLANSEED_EXTENSION = ".planseed"
@@ -109,6 +111,8 @@ def _require_project_row(row: dict[str, Any]) -> dict[str, Any]:
         raise PlanseedPackageError("invalid_project", "project.id 无效")
     if not isinstance(row["name"], str) or not row["name"].strip():
         raise PlanseedPackageError("invalid_project", "project.name 无效")
+    if len(row["name"].strip()) > API_LIMITS.max_project_name_chars:
+        raise PlanseedPackageError("invalid_project", "project.name 过长")
     if not isinstance(row["updated_at"], str):
         raise PlanseedPackageError("invalid_project", "project.updated_at 无效")
     if not isinstance(row["payload"], dict):
@@ -191,6 +195,8 @@ def unpack_planseed(data: bytes) -> PlanseedBundle:
     """从 ZIP 字节解包；校验 format / version。"""
     if not data:
         raise PlanseedPackageError("empty_package", "空文件")
+    if len(data) > API_LIMITS.max_package_bytes:
+        raise PlanseedPackageError("package_too_large", "项目包超过大小上限")
     try:
         zf = zipfile.ZipFile(BytesIO(data), "r")
     except zipfile.BadZipFile as e:
@@ -198,6 +204,16 @@ def unpack_planseed(data: bytes) -> PlanseedBundle:
 
     with zf:
         names = zf.namelist()
+        if len(names) > API_LIMITS.max_package_members:
+            raise PlanseedPackageError("too_many_entries", "项目包条目过多")
+        uncompressed = 0
+        for info in zf.infolist():
+            uncompressed += max(0, int(info.file_size))
+            if uncompressed > API_LIMITS.max_package_uncompressed_bytes:
+                raise PlanseedPackageError(
+                    "package_too_large",
+                    "项目包解压后超过大小上限",
+                )
         if "manifest.json" not in names:
             raise PlanseedPackageError("missing_manifest", "缺少 manifest.json")
         if "project.json" not in names:

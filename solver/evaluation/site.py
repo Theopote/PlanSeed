@@ -5,7 +5,7 @@ from __future__ import annotations
 from packages.schema.layout import LayoutCandidate, PlacementSource
 from packages.schema.program import DesignProgram
 from solver.evaluation.orientation import exterior_world_orientations
-from solver.geometry.rect import Rect, contains, from_placement
+from solver.geometry.rect import contains, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 from solver.semantics.roles import is_garage
 
@@ -25,12 +25,7 @@ def compute_site_metrics(
         v > 0 for v in (sb.north, sb.south, sb.east, sb.west)
     )
 
-    buildable = Rect(
-        x=program.buildable.x,
-        y=program.buildable.y,
-        width=program.buildable.width,
-        depth=program.buildable.depth,
-    )
+    buildable = program_local_buildable(program)
 
     program_placements = [
         p

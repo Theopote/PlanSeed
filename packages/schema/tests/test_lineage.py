@@ -58,6 +58,40 @@ def test_locks_fingerprint_order_independent_for_dict_keys():
     assert locks_fingerprint(locks) == locks_fingerprint(locks.model_dump(mode="json"))
 
 
+def test_locks_fingerprint_integral_float_matches_int():
+    a = locks_fingerprint(
+        LayoutLocks(
+            rooms=[
+                LockedRoomRect(
+                    room_id="r1",
+                    floor_id="F1",
+                    x=1.0,
+                    y=2.0,
+                    width=3.0,
+                    depth=4.0,
+                )
+            ]
+        )
+    )
+    b = locks_fingerprint(
+        {
+            "rooms": [
+                {
+                    "room_id": "r1",
+                    "floor_id": "F1",
+                    "x": 1,
+                    "y": 2,
+                    "width": 3,
+                    "depth": 4,
+                }
+            ],
+            "stair": None,
+            "zones": [],
+        }
+    )
+    assert a == b
+
+
 def test_lineage_label():
     assert lineage_label("A", 0) == "A"
     assert lineage_label("A", 1) == "A·1"

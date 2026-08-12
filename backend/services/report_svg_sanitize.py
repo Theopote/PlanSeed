@@ -124,8 +124,9 @@ _ALLOWED_ATTR = frozenset(
 
 _HREF_ATTRS = frozenset({"href", "xlink:href", "{http://www.w3.org/1999/xlink}href"})
 
-_JS_SCHEME = re.compile(r"^\s*javascript:", re.I)
+_JS_SCHEME = re.compile(r"javascript:", re.I)
 _URL_SCHEME = re.compile(r"^\s*(https?:|data:|file:|//)", re.I)
+_CSS_URL = re.compile(r"url\s*\(\s*['\"]?\s*([^'\")\s]*)['\"]?\s*\)", re.I)
 
 
 def _local_tag(tag: str) -> str:
@@ -141,6 +142,17 @@ def _attr_key(name: str) -> str:
             return "xlink:href"
         return local.lower()
     return name.lower()
+
+
+def _safe_attr_value(value: str) -> bool:
+    """Reject external url() paint servers and scheme-prefixed values."""
+    if _URL_SCHEME.search(value):
+        return False
+    for match in _CSS_URL.finditer(value):
+        inner = (match.group(1) or "").strip()
+        if not inner.startswith("#"):
+            return False
+    return True
 
 
 def _safe_href(value: str) -> bool:
@@ -180,8 +192,7 @@ def _sanitize_element(el: ET.Element) -> ET.Element | None:
             continue
         if key not in _ALLOWED_ATTR and not key.startswith("data-"):
             continue
-        # style= 不在白名单；url(...) 类属性值拒绝外链
-        if _URL_SCHEME.search(val) and key not in ("xmlns",):
+        if key not in ("xmlns",) and not _safe_attr_value(val):
             continue
         out.set(key, val)
 
@@ -211,6 +222,10 @@ def sanitize_report_svg(raw: str) -> str:
     text = (raw or "").strip()
     if not text:
         raise SvgSanitizeError("SVG 为空")
+    from packages.schema.limits import API_LIMITS
+
+    if len(text) > API_LIMITS.max_svg_chars:
+        raise SvgSanitizeError("SVG 超过大小上限")
     try:
         root = ET.fromstring(text)
     except ET.ParseError as exc:

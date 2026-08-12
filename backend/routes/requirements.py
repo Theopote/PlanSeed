@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from packages.llm import LLMIngestError, LLMRepairExhaustedError
 from packages.llm.health import LlmHealthState, probe_llm_health
 from packages.llm.ollama import OllamaConnectionError, OllamaHTTPError, OllamaProvider
+from packages.llm.privacy import OllamaRemoteBlockedError
 from packages.schema.limits import API_LIMITS
 from packages.schema.requirements import RequirementSpec
 from pydantic import BaseModel, Field, field_validator
@@ -19,7 +20,10 @@ router = APIRouter(tags=["requirements"])
 
 def _preflight_llm_or_raise() -> None:
     """解析前检查模型是否已安装；避免点「解析需求」后才撞 model not found。"""
-    prov = get_nl_provider()
+    try:
+        prov = get_nl_provider()
+    except OllamaRemoteBlockedError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if not isinstance(prov, OllamaProvider):
         return  # mock / 测试注入：不探测本机 Ollama
     status = probe_llm_health(provider=prov)

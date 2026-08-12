@@ -2828,10 +2828,12 @@
         "description": "候选上的房间放置摘要（Phase 4.0 Inspector；additive）。",
         "properties": {
           "area": {
+            "minimum": 0.0,
             "title": "Area",
             "type": "number"
           },
           "depth": {
+            "exclusiveMinimum": 0.0,
             "title": "Depth",
             "type": "number"
           },
@@ -2844,14 +2846,17 @@
             "type": "string"
           },
           "width": {
+            "exclusiveMinimum": 0.0,
             "title": "Width",
             "type": "number"
           },
           "x": {
+            "minimum": 0.0,
             "title": "X",
             "type": "number"
           },
           "y": {
+            "minimum": 0.0,
             "title": "Y",
             "type": "number"
           }
@@ -3466,6 +3471,7 @@
         "description": "功能分区容器摘要（Phase 4 Lock Zone；additive）。",
         "properties": {
           "depth": {
+            "exclusiveMinimum": 0.0,
             "title": "Depth",
             "type": "number"
           },
@@ -3505,14 +3511,17 @@
             "type": "array"
           },
           "width": {
+            "exclusiveMinimum": 0.0,
             "title": "Width",
             "type": "number"
           },
           "x": {
+            "minimum": 0.0,
             "title": "X",
             "type": "number"
           },
           "y": {
+            "minimum": 0.0,
             "title": "Y",
             "type": "number"
           },
@@ -3946,8 +3955,20 @@
     },
     "/api/projects/import": {
       "post": {
-        "description": "打开 / 导入 `.planseed`：请求体为 ZIP 字节；写入 ProjectStore（按包内 id upsert）。",
+        "description": "打开 / 导入 `.planseed`：请求体为 ZIP 字节。默认拒绝覆盖已有 id。",
         "operationId": "import_planseed_package_api_projects_import_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "overwrite",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Overwrite",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3958,6 +3979,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Import Planseed Package",

@@ -145,10 +145,18 @@ class SiteSpec(BaseModel):
             self.site_boundary = Rect2D(x=0, y=0, width=self.width, depth=self.depth)
         if self.buildable_envelope is None:
             sb = self.setbacks
+            inner_w = self.width - sb.west - sb.east
+            inner_d = self.depth - sb.north - sb.south
+            if inner_w <= 0 or inner_d <= 0:
+                raise ValueError(
+                    "退线后无可建范围："
+                    f"site {self.width:g}×{self.depth:g}，"
+                    f"setbacks N{sb.north:g}/S{sb.south:g}/E{sb.east:g}/W{sb.west:g}"
+                )
             self.buildable_envelope = Rect2D(
                 x=sb.west,
                 y=sb.north,
-                width=max(0.1, self.width - sb.west - sb.east),
-                depth=max(0.1, self.depth - sb.north - sb.south),
+                width=inner_w,
+                depth=inner_d,
             )
         return self

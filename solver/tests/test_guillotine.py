@@ -84,16 +84,13 @@ class TestGuillotineGenerator:
                 assert p.rect.bottom <= d + 1e-6
 
     def test_compactness_near_reference(self):
-        """11×13 接近正方形，外墙效率应 ≈ 99.6%。"""
-        program = benchmark_program()
-        GuillotineGenerator().generate(program, seed=0)
-        footprint = 11 * 13
-        import math
+        """铺满 11×13 时布局 AABB 接近场地，compactness ≈ 0.996。"""
+        from solver.evaluation.geometry import compute_geometry_metrics
 
-        ideal = 4 * math.sqrt(footprint)
-        actual = 2 * (11 + 13)
-        efficiency = ideal / actual * 100
-        assert efficiency == pytest.approx(99.6, abs=0.5)
+        program = benchmark_program()
+        candidate = GuillotineGenerator().generate(program, seed=0)
+        metrics = compute_geometry_metrics(program, candidate)
+        assert metrics["compactness"] == pytest.approx(0.996, abs=0.02)
 
     def test_pairwise_no_area_overlap(self):
         program = benchmark_program()

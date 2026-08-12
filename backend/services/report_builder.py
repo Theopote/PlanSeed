@@ -337,8 +337,13 @@ def _room_names(
             if isinstance(r, dict) and r.get("id"):
                 out[str(r["id"])] = str(r.get("name") or r["id"])
     for sp in req.get("spaces") or []:
-        if isinstance(sp, dict) and sp.get("name"):
-            name = str(sp["name"])
+        if not isinstance(sp, dict):
+            continue
+        sid = str(sp.get("id") or "").strip()
+        name = str(sp.get("name") or sid).strip()
+        if sid:
+            out.setdefault(sid, name or sid)
+        elif name:
             out.setdefault(name, name)
     return out
 

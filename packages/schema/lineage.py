@@ -66,8 +66,21 @@ def locks_fingerprint(locks: LayoutLocks | dict[str, Any] | None) -> str:
     else:
         data = dict(locks)
     data = _canonicalize_locks_dict(data)
-    canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    data = _js_like_numbers(data)
+    # UTF-8 + integral floats as ints — 对齐 desktop/src/lib/lineage.ts JSON.stringify
+    canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def _js_like_numbers(value: Any) -> Any:
+    """Match JSON.stringify number formatting (1.0 → 1)."""
+    if isinstance(value, dict):
+        return {k: _js_like_numbers(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_js_like_numbers(v) for v in value]
+    if isinstance(value, float) and value.is_integer() and abs(value) < 2**53:
+        return int(value)
+    return value
 
 
 def lineage_label(base_label: str, generation: int) -> str:

@@ -37,11 +37,24 @@ def test_pipeline_default_rank_mode_is_axis():
         assert c.metrics.get("selection_role") != "pareto"
 
 
+def test_pipeline_pareto_without_experimental_stays_axis():
+    program = benchmark_program()
+    program.solver_config.candidate_count = 6
+    program.solver_config.return_top_k = 3
+    program.solver_config.rank_mode = "pareto"
+    program.solver_config.experimental = False
+    result = run_pipeline(program)
+    assert result.top_candidates
+    for c in result.top_candidates:
+        assert c.metrics.get("rank_mode") == "axis"
+
+
 def test_pipeline_pareto_tags_top_candidates():
     program = benchmark_program()
     program.solver_config.candidate_count = 8
     program.solver_config.return_top_k = 3
     program.solver_config.rank_mode = "pareto"
+    program.solver_config.experimental = True
     result = run_pipeline(program)
     assert result.generated == 8
     assert len(result.top_candidates) == 3
@@ -58,6 +71,7 @@ def test_pipeline_multi_generator_pool_research_opt_in():
     program.solver_config.candidate_count = 4
     program.solver_config.return_top_k = 3
     program.solver_config.rank_mode = "pareto"
+    program.solver_config.experimental = True
     result = run_pipeline(
         program,
         generators=[GuillotineGenerator(), MaxRectGenerator()],

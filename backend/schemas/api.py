@@ -93,11 +93,11 @@ class RoomPlacementPayload(BaseModel):
 
     room_id: str
     floor_id: str
-    x: float
-    y: float
-    width: float
-    depth: float
-    area: float
+    x: float = Field(ge=0)
+    y: float = Field(ge=0)
+    width: float = Field(gt=0)
+    depth: float = Field(gt=0)
+    area: float = Field(ge=0)
 
 
 class ZonePlacementPayload(BaseModel):
@@ -107,10 +107,10 @@ class ZonePlacementPayload(BaseModel):
     zone: str
     kind: str | None = Field(default=None, description="与 zone 同义")
     floor_id: str
-    x: float
-    y: float
-    width: float
-    depth: float
+    x: float = Field(ge=0)
+    y: float = Field(ge=0)
+    width: float = Field(gt=0)
+    depth: float = Field(gt=0)
     room_ids: list[str] = Field(default_factory=list)
 
 

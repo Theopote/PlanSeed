@@ -16,16 +16,37 @@ pub fn repo_root_from_manifest() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
+fn resolve_uv_python(root: &Path) -> Result<PathBuf, String> {
+    let out = Command::new("uv")
+        .args(["run", "python", "-c", "import sys; print(sys.executable)"])
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("failed to resolve uv python: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "uv run python failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if path.is_empty() {
+        return Err("uv python path empty".into());
+    }
+    Ok(PathBuf::from(path))
+}
+
 pub fn spawn_dev_backend(root: &Path, host: &str, port: u16) -> Result<Child, String> {
-    Command::new("uv")
-        .args(["run", "python", "-m", "backend"])
+    // Spawn the interpreter directly so kill() targets uvicorn, not the `uv` wrapper.
+    let python = resolve_uv_python(root)?;
+    Command::new(python)
+        .args(["-m", "backend"])
         .current_dir(root)
         .env("PLANSEED_HOST", host)
         .env("PLANSEED_PORT", port.to_string())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("failed to spawn uv backend: {e}"))
+        .map_err(|e| format!("failed to spawn python backend: {e}"))
 }
 
 fn sidecar_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -91,7 +112,20 @@ pub fn spawn_release_backend(
 }
 
 fn kill_child(child: &mut Child) {
-    let _ = child.kill();
+    let pid = child.id();
+    #[cfg(windows)]
+    {
+        // /T walks the tree in case uvicorn or a helper forked.
+        let _ = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = child.kill();
+    }
     let _ = child.wait();
 }
 

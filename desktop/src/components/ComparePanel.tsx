@@ -19,7 +19,15 @@ export function ComparePanel({ a, b, onClear }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const stale =
+    a.revision_status === "dirty" || b.revision_status === "dirty";
+
   useEffect(() => {
+    if (stale) {
+      setCmp(null);
+      setError(null);
+      return;
+    }
     if (!sa || !sb) {
       setCmp(null);
       setError(null);
@@ -44,7 +52,20 @@ export function ComparePanel({ a, b, onClear }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [sa, sb, a.label, b.label]);
+  }, [sa, sb, a.label, b.label, stale]);
+
+  if (stale) {
+    return (
+      <div className="inspector-body">
+        <p className="empty-hint">
+          方案已编辑，评价过期。请先 Revalidate 再比较。
+        </p>
+        <button type="button" className="btn-ghost" onClick={onClear}>
+          退出比较
+        </button>
+      </div>
+    );
+  }
 
   if (!sa || !sb) {
     return (

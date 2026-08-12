@@ -430,13 +430,13 @@ export function RequirementsPanel({
         </label>
 
         <div className="actions">
-          <button type="submit" disabled={loading || !engineReady}>
+          <button type="submit" disabled={loading || nlBusy || !engineReady}>
             {loading ? "生成中…" : "Generate"}
           </button>
           <button
             type="button"
             className="secondary"
-            disabled={loading || !engineReady}
+            disabled={loading || nlBusy || !engineReady}
             onClick={onBenchmark}
           >
             基准案例

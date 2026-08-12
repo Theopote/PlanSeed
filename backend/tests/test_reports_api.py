@@ -329,6 +329,17 @@ def test_sanitize_strips_script_and_keeps_geometry():
     assert 'fill="#eee"' in out or "fill='#eee'" in out or 'fill="#eee"' in out
 
 
+def test_sanitize_rejects_css_url_external():
+    dirty = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<rect width="10" height="10" fill="url(https://evil.example/x)"/>'
+        "</svg>"
+    )
+    out = sanitize_report_svg(dirty)
+    assert "evil.example" not in out
+    assert "<rect" in out
+
+
 def test_sanitize_rejects_non_svg_root():
     with raises(SvgSanitizeError):
         sanitize_report_svg("<div><svg/></div>")

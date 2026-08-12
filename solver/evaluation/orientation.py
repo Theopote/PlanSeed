@@ -6,7 +6,7 @@ from packages.schema.constraints import ConstraintKind, OrientationConstraint
 from packages.schema.layout import LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalOrientation
-from solver.geometry.rect import Rect, exterior_edges, from_placement
+from solver.geometry.rect import Rect, exterior_edges, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 
 EDGE_TOLERANCE = 0.05  # m：贴外墙判定
@@ -92,12 +92,7 @@ def compute_orientation_metrics(
             "north_angle": float(program.site.north_angle or 0.0),
         }
 
-    buildable = Rect(
-        x=program.buildable.x,
-        y=program.buildable.y,
-        width=program.buildable.width,
-        depth=program.buildable.depth,
-    )
+    buildable = program_local_buildable(program)
     placement_map = {
         p.room_id: p for fl in candidate.floors for p in fl.placements
     }
@@ -133,12 +128,7 @@ def orientation_soft_violations(
     candidate: LayoutCandidate,
 ) -> list[Violation]:
     """未满足的 soft OrientationConstraint → soft violations（可解释）。"""
-    buildable = Rect(
-        x=program.buildable.x,
-        y=program.buildable.y,
-        width=program.buildable.width,
-        depth=program.buildable.depth,
-    )
+    buildable = program_local_buildable(program)
     coords = _site_coords(program)
     placement_map = {
         p.room_id: p for fl in candidate.floors for p in fl.placements

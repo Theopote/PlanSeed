@@ -600,8 +600,12 @@ def _render_floor_geometry(
             floor_index=floor_index,
         )
     )
-    parts.append(_access_overlays(floor, oy, access_graph))
-    parts.append(_door_overlays(floor, oy, candidate.door_openings))
+    access = _access_overlays(floor, oy, access_graph)
+    if access.strip():
+        parts.append(f'<g class="derived-overlay" data-kind="access">{access}</g>')
+    doors = _door_overlays(floor, oy, candidate.door_openings)
+    if doors.strip():
+        parts.append(f'<g class="derived-overlay" data-kind="doors">{doors}</g>')
     return parts
 
 

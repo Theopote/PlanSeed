@@ -14,7 +14,7 @@ from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge
 
 from solver.evaluation.orientation import exterior_world_orientations
-from solver.geometry.rect import Rect, from_placement
+from solver.geometry.rect import Rect, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 
 _ENTRY_CATEGORY_RANK = {
@@ -68,12 +68,7 @@ def resolve_exterior_entry(
     road = list(program.site.road_edges or [])
     on_road = edge in road
 
-    buildable = Rect(
-        x=program.buildable.x,
-        y=program.buildable.y,
-        width=program.buildable.width,
-        depth=program.buildable.depth,
-    )
+    buildable = program_local_buildable(program)
     cx, cy = _point_on_buildable_edge(buildable, edge)
     ground = candidate.floors[0].floor_id if candidate.floors else "F1"
 

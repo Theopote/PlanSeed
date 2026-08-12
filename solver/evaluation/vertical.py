@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from packages.schema.layout import FloorLayout, LayoutCandidate, WetStack
+from packages.schema.layout import FloorLayout, LayoutCandidate
+from packages.schema.program import DesignProgram
+from solver.geometry.rect import Rect, from_placement, intersection
 
 
 def _is_stair_placement(room_id: str, category: str | None, name: str | None) -> bool:
@@ -28,52 +30,77 @@ def _stair_box(
     return (fl.stair_x0, fl.stair_y0, fl.stair_x1, fl.stair_y1)
 
 
-def _primary_wet_stack(candidate: LayoutCandidate) -> WetStack | None:
-    if candidate.wet_stacks:
-        return candidate.wet_stacks[0]
-    return None
+_WET_TAGS = frozenset({"kitchen", "ensuite", "master_bath", "bath", "bathroom"})
 
 
-def _floor_wet_anchor_aligned(candidate: LayoutCandidate) -> float:
-    """
-    WetStack 跨层对齐分。
+def wet_room_ids_for(
+    candidate: LayoutCandidate,
+    program: DesignProgram | None = None,
+) -> set[str]:
+    """Wet / kitchen / bath rooms from program + placement category."""
+    ids: set[str] = set()
+    if program is not None:
+        for room in program.rooms:
+            cat = room.category.value if hasattr(room.category, "value") else str(room.category or "")
+            tags = {str(t).lower() for t in (getattr(room, "tags", None) or [])}
+            if cat.lower() == "wet" or tags & _WET_TAGS:
+                ids.add(room.id)
+    for fl in candidate.floors:
+        for p in fl.placements:
+            if (p.category or "").lower() == "wet":
+                ids.add(p.room_id)
+    return ids
 
-    优先用 candidate.wet_stacks（单锚即视为对齐）；
-    无 stacks 时回退到各层 deprecated wet_zone_* 镜像比较。
-    缺 metadata 时不得默认满分（多层且无可比锚 → 0）。
-    """
-    stack = _primary_wet_stack(candidate)
-    if stack is not None:
-        # 整栋共享同一 anchor_rect → 天然对齐
-        return 1.0
 
+def _aabb(rects: list[Rect]) -> Rect:
+    x0 = min(r.x for r in rects)
+    y0 = min(r.y for r in rects)
+    x1 = max(r.right for r in rects)
+    y1 = max(r.bottom for r in rects)
+    return Rect(x=x0, y=y0, width=max(0.0, x1 - x0), depth=max(0.0, y1 - y0))
+
+
+def wet_alignment_from_geometry(
+    candidate: LayoutCandidate,
+    program: DesignProgram | None = None,
+) -> float:
+    """IoU of wet-room AABBs across floors. Metadata-only wet_stacks is not a pass."""
     if len(candidate.floors) < 2:
         return 1.0
-
-    ref = candidate.floors[0]
-    if ref.wet_zone_x0 is None or ref.wet_zone_x1 is None:
-        # 无 wet stack、无镜像锚：不可证对齐
+    wet_ids = wet_room_ids_for(candidate, program)
+    occupied: list[list[Rect]] = []
+    for fl in candidate.floors:
+        rects = [from_placement(p.rect) for p in fl.placements if p.room_id in wet_ids]
+        if rects:
+            occupied.append(rects)
+    if not occupied:
+        return 1.0
+    if len(occupied) < 2:
         return 0.0
-
-    comparable = 0
-    for fl in candidate.floors[1:]:
-        if fl.wet_zone_x0 is None or fl.wet_zone_x1 is None:
+    boxes = [_aabb(group) for group in occupied]
+    ref = boxes[0]
+    scores: list[float] = []
+    for box in boxes[1:]:
+        inter = intersection(ref, box)
+        if inter is None or inter.area <= 0:
+            scores.append(0.0)
             continue
-        comparable += 1
-        if abs(fl.wet_zone_x0 - ref.wet_zone_x0) > 0.01 or abs(
-            fl.wet_zone_x1 - ref.wet_zone_x1
-        ) > 0.01:
-            return 0.0
-        if ref.wet_zone_y0 is not None and fl.wet_zone_y0 is not None:
-            if abs(fl.wet_zone_y0 - ref.wet_zone_y0) > 0.01 or abs(
-                fl.wet_zone_y1 - ref.wet_zone_y1  # type: ignore[operator]
-            ) > 0.01:
-                return 0.0
-    # 仅有一层有锚、其余缺失 → 不可证
-    return 1.0 if comparable > 0 else 0.0
+        union = ref.area + box.area - inter.area
+        scores.append(inter.area / union if union > 0 else 0.0)
+    return sum(scores) / len(scores) if scores else 0.0
 
 
-def compute_vertical_metrics(candidate: LayoutCandidate) -> dict[str, float]:
+def _floor_wet_anchor_aligned(
+    candidate: LayoutCandidate,
+    program: DesignProgram | None = None,
+) -> float:
+    return wet_alignment_from_geometry(candidate, program)
+
+
+def compute_vertical_metrics(
+    candidate: LayoutCandidate,
+    program: DesignProgram | None = None,
+) -> dict[str, float]:
     """
     楼梯：评价当前几何 metadata。
 
@@ -107,7 +134,7 @@ def compute_vertical_metrics(candidate: LayoutCandidate) -> dict[str, float]:
                         stair = 0.0
                         break
 
-    wet = _floor_wet_anchor_aligned(candidate)
+    wet = _floor_wet_anchor_aligned(candidate, program)
     return {
         "stair_alignment": stair,
         "wet_stack_alignment": wet,

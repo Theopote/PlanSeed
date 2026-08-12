@@ -14,7 +14,14 @@ from packages.schema.layout import CandidateValidation, LayoutCandidate, Violati
 from packages.schema.program import DesignProgram
 from solver.constraints.checker import ConstraintEvaluationResult
 from solver.evaluation.orientation import exterior_world_orientations
-from solver.geometry.rect import Rect, contains, from_placement, intersects, shared_edge_length
+from solver.geometry.rect import (
+    Rect,
+    contains,
+    from_placement,
+    intersects,
+    program_local_buildable,
+    shared_edge_length,
+)
 from solver.geometry.site_coords import SiteCoordinateSystem
 
 OVERLAP_TOLERANCE = 1e-4
@@ -27,12 +34,7 @@ class DefaultConstraintChecker:
     def check(self, program: DesignProgram, candidate: LayoutCandidate) -> CandidateValidation:
         result = ConstraintEvaluationResult.empty()
 
-        buildable = Rect(
-            x=program.buildable.x,
-            y=program.buildable.y,
-            width=program.buildable.width,
-            depth=program.buildable.depth,
-        )
+        buildable = program_local_buildable(program)
 
         result.extend(self._check_overlaps(candidate))
         result.extend(self._check_boundary(candidate, buildable))
@@ -57,7 +59,7 @@ class DefaultConstraintChecker:
             elif constraint.kind == ConstraintKind.ALIGNMENT and isinstance(
                 constraint, AlignmentConstraint
             ):
-                result.extend(self._check_alignment(constraint, candidate))
+                result.extend(self._check_alignment(constraint, candidate, program))
 
         has_explicit_wet = any(
             isinstance(c, AlignmentConstraint)
@@ -65,7 +67,7 @@ class DefaultConstraintChecker:
             for c in program.constraints
         )
         if not has_explicit_wet:
-            result.extend(self._check_wet_stack_alignment(candidate))
+            result.extend(self._check_wet_stack_alignment(candidate, program))
 
         result.extend(self._check_access_reachability(program, candidate))
         result.extend(self._check_required_connection_boundaries(program, candidate))
@@ -361,36 +363,37 @@ class DefaultConstraintChecker:
         return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_wet_stack_alignment(
-        self, candidate: LayoutCandidate
+        self,
+        candidate: LayoutCandidate,
+        program: DesignProgram | None = None,
     ) -> ConstraintEvaluationResult:
-        """WetStack 跨层对齐；无 stacks 时回退 deprecated wet_zone_*。"""
-        if candidate.wet_stacks:
-            # 共享锚矩形即对齐；多 stack 时各 stack 自身已跨层共享
-            return ConstraintEvaluationResult.empty()
+        """Wet rooms must share plan overlap across floors; metadata is not a pass."""
+        from solver.evaluation.vertical import wet_alignment_from_geometry, wet_room_ids_for
 
         if len(candidate.floors) < 2:
             return ConstraintEvaluationResult.empty()
-        ref = candidate.floors[0]
-        if ref.wet_zone_x0 is None or ref.wet_zone_x1 is None:
+        score = wet_alignment_from_geometry(candidate, program)
+        if score > 1e-6:
             return ConstraintEvaluationResult.empty()
-        for fl in candidate.floors[1:]:
-            if fl.wet_zone_x0 is None or fl.wet_zone_x1 is None:
-                continue
-            if abs(fl.wet_zone_x0 - ref.wet_zone_x0) > 0.01 or abs(
-                fl.wet_zone_x1 - ref.wet_zone_x1
-            ) > 0.01:
-                return ConstraintEvaluationResult.from_violations(
-                    [
-                        Violation(
-                            constraint_id="vertical.wet_stack_alignment",
-                            room_ids=[],
-                            message="WetStack 锚区跨层未对齐",
-                            hard=False,
-                            source="system",
-                        )
-                    ]
+        wet_ids = wet_room_ids_for(candidate, program)
+        floors_with_wet = sum(
+            1
+            for fl in candidate.floors
+            if any(p.room_id in wet_ids for p in fl.placements)
+        )
+        if floors_with_wet < 2:
+            return ConstraintEvaluationResult.empty()
+        return ConstraintEvaluationResult.from_violations(
+            [
+                Violation(
+                    constraint_id="vertical.wet_stack_alignment",
+                    room_ids=sorted(wet_ids),
+                    message="湿区房间跨层无重叠（未形成竖向叠组）",
+                    hard=False,
+                    source="system",
                 )
-        return ConstraintEvaluationResult.empty()
+            ]
+        )
 
     def _check_access_reachability(
         self, program: DesignProgram, candidate: LayoutCandidate
@@ -491,7 +494,7 @@ class DefaultConstraintChecker:
 
     def _check_wet_alignment(self, candidate: LayoutCandidate) -> ConstraintEvaluationResult:
         """[deprecated] 请用 _check_wet_stack_alignment。"""
-        return self._check_wet_stack_alignment(candidate)
+        return self._check_wet_stack_alignment(candidate, None)
 
     def _check_adjacency(
         self, constraint: AdjacencyConstraint, candidate: LayoutCandidate
@@ -544,10 +547,13 @@ class DefaultConstraintChecker:
         return ConstraintEvaluationResult.empty()
 
     def _check_alignment(
-        self, constraint: AlignmentConstraint, candidate: LayoutCandidate
+        self,
+        constraint: AlignmentConstraint,
+        candidate: LayoutCandidate,
+        program: DesignProgram | None = None,
     ) -> ConstraintEvaluationResult:
         if constraint.alignment_group in ("wet_stack", "wet_zone"):
-            result = self._check_wet_stack_alignment(candidate)
+            result = self._check_wet_stack_alignment(candidate, program)
             # 尊重 constraint.hard：默认湿区检查产出 soft，若声明为 hard 则提升
             if constraint.hard and result.soft_violations:
                 promoted = [

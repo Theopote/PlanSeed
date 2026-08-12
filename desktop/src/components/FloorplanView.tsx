@@ -80,6 +80,9 @@ type Props = {
   ) => LivePreviewResult;
   onLiveWallPreview?: (pose: WallAdjustPose) => LivePreviewResult;
   mutationHint?: string | null;
+  authorityLive?: LivePreviewResult | null;
+  revisionStatus?: "generated" | "dirty" | "validated" | null;
+  onLiveDragStart?: () => void;
 };
 
 type BasePose = {
@@ -215,10 +218,15 @@ export function FloorplanView({
   onLivePreview,
   onLiveWallPreview,
   mutationHint = null,
+  authorityLive = null,
+  revisionStatus = null,
+  onLiveDragStart,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const basesRef = useRef<Map<string, BasePose>>(new Map());
   const dragRef = useRef<DragState | null>(null);
+  const authorityLiveRef = useRef<LivePreviewResult | null>(authorityLive);
+  authorityLiveRef.current = authorityLive;
   const [liveHint, setLiveHint] = useState<string | null>(null);
   const [liveConflict, setLiveConflict] = useState(false);
 
@@ -534,6 +542,21 @@ export function FloorplanView({
   }, [svg]);
 
   useEffect(() => {
+    const drag = dragRef.current;
+    if (!drag?.moved || !authorityLive) return;
+    setLiveHint(authorityLive.message ?? null);
+    setLiveConflict(!authorityLive.ok);
+    syncPreviewOverlay(
+      drag.floorIndex,
+      authorityLive.snapped ?? null,
+      authorityLive.ok,
+      !!(authorityLive.ok && authorityLive.message),
+      authorityLive.conflictRoomIds ?? [],
+      authorityLive.snappedPartner ?? null,
+    );
+  }, [authorityLive, syncPreviewOverlay]);
+
+  useEffect(() => {
     if (!svg || dragRef.current) return;
     syncFromPlacements();
     syncHandles();
@@ -696,6 +719,7 @@ export function FloorplanView({
       if (ev.button !== 0) return;
       const t = ev.target as Element | null;
       if (!t) return;
+      onLiveDragStart?.();
 
       const wallEl = t.closest(
         ".wall-handle[data-wall-axis], .wall-handle-knob[data-wall-axis]",
@@ -898,19 +922,19 @@ export function FloorplanView({
           wall_coord: coord,
         };
         const live = onLiveWallPreview?.(wallPose);
-        if (live) {
-          const msg = live.message ?? null;
-          setLiveHint(msg);
-          setLiveConflict(!live.ok);
-          syncPreviewOverlay(
-            drag.floorIndex,
-            live.snapped ?? null,
-            live.ok,
-            !!(live.ok && msg),
-            live.conflictRoomIds ?? [],
-            live.snappedPartner ?? null,
-          );
-        }
+        const auth = authorityLiveRef.current;
+        const ok = auth ? auth.ok : (live?.ok ?? true);
+        const msg = auth?.message ?? live?.message ?? null;
+        setLiveHint(msg);
+        setLiveConflict(!ok);
+        syncPreviewOverlay(
+          drag.floorIndex,
+          auth?.snapped ?? live?.snapped ?? null,
+          ok,
+          !!(ok && msg),
+          auth?.conflictRoomIds ?? live?.conflictRoomIds ?? [],
+          auth?.snappedPartner ?? live?.snappedPartner ?? null,
+        );
         return;
       }
 
@@ -968,15 +992,18 @@ export function FloorplanView({
         drag.kind,
       );
       if (live) {
-        const msg = live.message ?? null;
+        const auth = authorityLiveRef.current;
+        const ok = auth ? auth.ok : live.ok;
+        const msg = auth?.message ?? live.message ?? null;
         setLiveHint(msg);
-        setLiveConflict(!live.ok);
+        setLiveConflict(!ok);
         syncPreviewOverlay(
           drag.floorIndex,
-          live.snapped ?? { x, y, width: w, depth: d },
-          live.ok,
-          !!(live.ok && msg),
-          live.conflictRoomIds ?? [],
+          auth?.snapped ?? live.snapped ?? { x, y, width: w, depth: d },
+          ok,
+          !!(ok && msg),
+          auth?.conflictRoomIds ?? live.conflictRoomIds ?? [],
+          auth?.snappedPartner ?? live.snappedPartner ?? null,
         );
       }
     }
@@ -1011,6 +1038,7 @@ export function FloorplanView({
     onProposeWall,
     onLivePreview,
     onLiveWallPreview,
+    onLiveDragStart,
     syncPreviewOverlay,
     syncHandles,
     syncFromPlacements,
@@ -1058,7 +1086,11 @@ export function FloorplanView({
         {svg ? (
           <div
             ref={stageRef}
-            className="floorplan-svg"
+            className={
+              revisionStatus === "dirty"
+                ? "floorplan-svg is-dirty"
+                : "floorplan-svg"
+            }
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (

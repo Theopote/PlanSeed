@@ -28,6 +28,10 @@ class ApiLimits:
     max_rejected_samples: int = 8
     max_base_seed: int = 1_000_000
     max_mutation_batch: int = 1  # 单次 preview/commit 一条 mutation
+    max_package_bytes: int = 32 * 1024 * 1024
+    max_package_uncompressed_bytes: int = 80 * 1024 * 1024
+    max_package_members: int = 256
+    max_svg_chars: int = 2_000_000
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -25,6 +26,8 @@ import {
 } from "../api/client";
 import { locksFingerprint } from "../lib/lineage";
 import { cloneLayoutLocks } from "./sessionHelpers";
+
+const EMPTY_LOCKS: LayoutLocks = { rooms: [], stair: null, zones: [] };
 
 export type SolverIdentity = {
   solver_version: string;
@@ -138,7 +141,7 @@ export function useCandidateWorkflow({
   );
 
   const applyResult = useCallback(
-    (data: GenerateResponse) => {
+    (data: GenerateResponse, lockSnap?: string) => {
       setProgram(data.program_summary);
       if (data.requirement_spec) {
         const spec: RequirementSpecPayload = { ...data.requirement_spec };
@@ -154,7 +157,7 @@ export function useCandidateWorkflow({
       if (data.solver_identity) {
         setSolverIdentity(identityFromPayload(data.solver_identity));
       }
-      const fp = locksFingerprint(locks);
+      const fp = lockSnap ?? locksFingerprint(locks);
       setCandidates(stampRootLineage(relabel(data.candidates), fp));
       setStats({
         generated: data.generated,
@@ -173,8 +176,11 @@ export function useCandidateWorkflow({
     [relabel, stampRootLineage, locks, setRequirementSpec, setMutationHint, setError],
   );
 
+  const runSeq = useRef(0);
+
   const run = useCallback(
     async (mode: "form" | "benchmark" | "program" | "variant") => {
+      const token = ++runSeq.current;
       setLoading(true);
       setError(null);
       try {
@@ -208,7 +214,19 @@ export function useCandidateWorkflow({
               revision_status: c.revision_status ?? "generated",
               mutations: c.mutations ?? [],
             }));
-          const merged = relabel([...candidates, ...fresh]).slice(-16);
+          const labeled = relabel([...candidates, ...fresh]);
+          const keepIds = new Set<string>();
+          if (prevSelected) keepIds.add(prevSelected);
+          if (fresh[0]) keepIds.add(fresh[0].id);
+          let merged = labeled;
+          if (labeled.length > 16) {
+            const tail = labeled.slice(-16);
+            const missing = labeled.filter(
+              (c) => keepIds.has(c.id) && !tail.some((t) => t.id === c.id),
+            );
+            merged = [...missing, ...tail].slice(-16);
+          }
+          if (token !== runSeq.current) return;
           setCandidates(merged);
           setStats({
             generated: data.generated,
@@ -220,34 +238,44 @@ export function useCandidateWorkflow({
           const pick = fresh[0] ?? merged[merged.length - 1];
           if (pick) {
             setSelectedId(pick.id);
-            if (prevSelected && prevSelected !== pick.id) {
+            if (
+              prevSelected &&
+              prevSelected !== pick.id &&
+              merged.some((c) => c.id === prevSelected)
+            ) {
               setCompareId(prevSelected);
             }
           }
           setHighlightRoomIds([]);
           setSelectedRoomId(null);
+          setMutationHint(null);
           setError(null);
           return;
         }
 
         if (mode === "benchmark") {
-          setLocks({ rooms: [], stair: null, zones: [] });
-          applyResult(await generateBenchmark());
+          setLocks({ ...EMPTY_LOCKS });
+          const data = await generateBenchmark();
+          if (token !== runSeq.current) return;
+          applyResult(data, locksFingerprint(EMPTY_LOCKS));
           return;
         }
         if (mode === "program") {
           if (!program) throw new Error("尚无 Program，请先 Generate");
           const spec = resolveCanonicalSpec();
           if (!spec) throw new Error("缺少 RequirementSpec");
-          applyResult(
-            await generateFromProgram(spec, {
-              locks: cloneLayoutLocks(locks),
-            }),
-          );
+          const snap = locksFingerprint(locks);
+          const data = await generateFromProgram(spec, {
+            locks: cloneLayoutLocks(locks),
+          });
+          if (token !== runSeq.current) return;
+          applyResult(data, snap);
           return;
         }
-        setLocks({ rooms: [], stair: null, zones: [] });
-        applyResult(await generateFromForm(form));
+        setLocks({ ...EMPTY_LOCKS });
+        const data = await generateFromForm(form);
+        if (token !== runSeq.current) return;
+        applyResult(data, locksFingerprint(EMPTY_LOCKS));
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -265,10 +293,12 @@ export function useCandidateWorkflow({
       resolveCanonicalSpec,
       setRequirementSpec,
       setError,
+      setMutationHint,
     ],
   );
 
   const onParseAndGenerate = useCallback(async () => {
+    const token = ++runSeq.current;
     setNlBusy(true);
     setLoading(true);
     setLlmSessionState("ParseRunning");
@@ -277,12 +307,13 @@ export function useCandidateWorkflow({
     try {
       const parsed = await parseRequirementsNl(nlText);
       applyParsedSpec(parsed.requirement_spec);
-      setLocks({ rooms: [], stair: null, zones: [] });
+      setLocks({ ...EMPTY_LOCKS });
       const data = await generateFromProgram(parsed.requirement_spec, {
         candidate_count: 16,
         return_top_k: 5,
       });
-      applyResult(data);
+      if (token !== runSeq.current) return;
+      applyResult(data, locksFingerprint(EMPTY_LOCKS));
       const notes =
         parsed.attempts > 1
           ? `已解析并生成（修复 ${parsed.attempts - 1} 次）`
