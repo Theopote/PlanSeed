@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from packages.schema.site import CardinalOrientation
 
@@ -90,6 +90,16 @@ class RoomSpec(BaseModel):
         description="附加语义标签；Solver 判定顺序：semantic_role → tags → category → name",
     )
 
+    @model_validator(mode="after")
+    def _area_bounds_consistent(self) -> RoomSpec:
+        lo, hi, target = self.min_area, self.max_area, self.target_area
+        if lo is not None and hi is not None and lo > hi:
+            raise ValueError(f"min_area {lo} > max_area {hi}")
+        if lo is not None and lo > target:
+            raise ValueError(f"min_area {lo} > target_area {target}")
+        if hi is not None and hi < target:
+            raise ValueError(f"max_area {hi} < target_area {target}")
+        return self
 
     def resolved_min_area(self) -> float:
         return self.min_area if self.min_area is not None else self.target_area * 0.85

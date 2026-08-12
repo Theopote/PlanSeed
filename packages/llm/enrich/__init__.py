@@ -7,7 +7,7 @@
 - 只恢复原文**显式**出现的事实；不确定则留空
 - 禁止制造设计意图（假阳性关系比漏报更贵）
 - 规则须是一般语言规律，禁止为单条 benchmark 句式硬编码
-- Assumption：仅 user_authorized；丢弃 llm_inference（Alpha）
+- Assumption：仅 user_authorized / planseed_default；llm_inference 转 unknown
 - **不要无限扩 regex**：新模板须能用一句话说明一般规律；Blind 失败不得逐案补丁
 """
 
@@ -35,6 +35,7 @@ from packages.llm.enrich.scalar import ScalarStage
 from packages.llm.enrich.spaces import SpacesStage, extract_space_names
 from packages.llm.enrich.unknowns import UnknownsStage
 from packages.schema.llm_contract import LLMRequirementDraft
+from packages.schema.requirements import UnknownRequirement
 
 __all__ = [
     "EnrichResult",
@@ -63,16 +64,23 @@ _ENRICHMENT_STAGES: tuple[EnrichmentStage, ...] = (
 
 
 def _create_enrichment_context(draft: LLMRequirementDraft) -> EnrichmentContext:
-    # Alpha：丢弃 llm_inference 假设（污染 Assumption Precision）
-    assumptions = filter_llm_inference_assumptions(list(draft.assumptions))
-    # 兼容旧 Draft：无 source 字段时 pydantic 默认为 llm_inference → 已丢弃
-    # 若 reason 明示用户假设且 key 规范化后保留机会：由原文再抽
+    assumptions, dropped_inferences = filter_llm_inference_assumptions(
+        list(draft.assumptions)
+    )
     unknown_by_key = {
         normalize_assumption_key(u.key): u.model_copy(
             update={"key": normalize_assumption_key(u.key)}
         )
         for u in draft.unknowns
     }
+    for item in dropped_inferences:
+        if item.key in unknown_by_key:
+            continue
+        unknown_by_key[item.key] = UnknownRequirement(
+            key=item.key,
+            description=item.reason or f"模型推断未采用：{item.key}={item.value}",
+            priority="optional",
+        )
     return EnrichmentContext(
         original=draft,
         known=draft.known.model_copy(deep=True),

@@ -3,20 +3,29 @@
 from __future__ import annotations
 
 from packages.schema.constraints import (
+    AccessConstraint,
     AdjacencyConstraint,
     AlignmentConstraint,
     AreaConstraint,
     ConstraintKind,
+    FloorConstraint,
     OrientationConstraint,
+    SeparationConstraint,
     WidthConstraint,
 )
-from packages.schema.layout import CandidateValidation, LayoutCandidate, Violation
+from packages.schema.layout import (
+    CandidateValidation,
+    LayoutCandidate,
+    RoomPlacement,
+    Violation,
+)
 from packages.schema.program import DesignProgram
 from solver.constraints.checker import ConstraintEvaluationResult
 from solver.evaluation.orientation import exterior_world_orientations
 from solver.geometry.rect import (
     Rect,
     contains,
+    distance_between,
     from_placement,
     intersects,
     program_local_buildable,
@@ -60,6 +69,18 @@ class DefaultConstraintChecker:
                 constraint, AlignmentConstraint
             ):
                 result.extend(self._check_alignment(constraint, candidate, program))
+            elif constraint.kind == ConstraintKind.SEPARATION and isinstance(
+                constraint, SeparationConstraint
+            ):
+                result.extend(self._check_separation(constraint, candidate))
+            elif constraint.kind == ConstraintKind.FLOOR and isinstance(
+                constraint, FloorConstraint
+            ):
+                result.extend(self._check_floor_constraint(constraint, candidate))
+            elif constraint.kind == ConstraintKind.ACCESS and isinstance(
+                constraint, AccessConstraint
+            ):
+                result.extend(self._check_access_constraint(constraint, candidate, program))
 
         has_explicit_wet = any(
             isinstance(c, AlignmentConstraint)
@@ -578,7 +599,143 @@ class DefaultConstraintChecker:
                 ]
                 return ConstraintEvaluationResult(soft_violations=demoted)
             return result
+        if not constraint.hard:
+            return ConstraintEvaluationResult.empty()
+        return ConstraintEvaluationResult.from_optional(
+            Violation(
+                constraint_id=constraint.id,
+                room_ids=list(constraint.room_ids),
+                message=f"未接线的对齐组 {constraint.alignment_group!r}",
+                hard=True,
+                source=constraint.source.value,
+            )
+        )
+
+    def _placement_map(self, candidate: LayoutCandidate) -> dict[str, RoomPlacement]:
+        return {p.room_id: p for fl in candidate.floors for p in fl.placements}
+
+    def _check_separation(
+        self, constraint: SeparationConstraint, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        placed = self._placement_map(candidate)
+        pa = placed.get(constraint.room_a_id)
+        pb = placed.get(constraint.room_b_id)
+        if pa is None or pb is None:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_a_id, constraint.room_b_id],
+                    message="分离约束：房间缺失",
+                    hard=constraint.hard,
+                    source=constraint.source.value,
+                )
+            )
+        dist = distance_between(from_placement(pa.rect), from_placement(pb.rect))
+        if dist + 1e-6 < constraint.min_distance:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_a_id, constraint.room_b_id],
+                    message=(
+                        f"分离不足：{dist:.2f}m < {constraint.min_distance:.2f}m"
+                    ),
+                    measured_value=dist,
+                    required_value=constraint.min_distance,
+                    hard=constraint.hard,
+                    source=constraint.source.value,
+                )
+            )
         return ConstraintEvaluationResult.empty()
+
+    def _check_floor_constraint(
+        self, constraint: FloorConstraint, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        placed = self._placement_map(candidate)
+        p = placed.get(constraint.room_id)
+        if p is None:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_id],
+                    message=f"楼层约束：房间缺失（期望 {constraint.floor_id}）",
+                    hard=constraint.hard,
+                    source=constraint.source.value,
+                )
+            )
+        if p.floor_id != constraint.floor_id:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_id],
+                    message=(
+                        f"楼层不符：{p.floor_id} ≠ {constraint.floor_id}"
+                    ),
+                    hard=constraint.hard,
+                    source=constraint.source.value,
+                )
+            )
+        return ConstraintEvaluationResult.empty()
+
+    def _check_access_constraint(
+        self,
+        constraint: AccessConstraint,
+        candidate: LayoutCandidate,
+        program: DesignProgram,
+    ) -> ConstraintEvaluationResult:
+        placed = self._placement_map(candidate)
+        p = placed.get(constraint.room_id)
+        if p is None:
+            return ConstraintEvaluationResult.from_optional(
+                Violation(
+                    constraint_id=constraint.id,
+                    room_ids=[constraint.room_id],
+                    message="通行约束：房间缺失",
+                    hard=constraint.hard,
+                    source=constraint.source.value,
+                )
+            )
+        violations: list[Violation] = []
+        if constraint.requires_stair_reach:
+            ground = program.floors[0].id if program.floors else "F1"
+            if p.floor_id != ground:
+                has_stair = any(
+                    pl.room_id.startswith("stair-")
+                    for fl in candidate.floors
+                    for pl in fl.placements
+                )
+                if not has_stair:
+                    violations.append(
+                        Violation(
+                            constraint_id=constraint.id,
+                            room_ids=[constraint.room_id],
+                            message="上层房间要求楼梯可达，但方案无楼梯",
+                            hard=constraint.hard,
+                            source=constraint.source.value,
+                        )
+                    )
+        if constraint.requires_exterior:
+            coords = SiteCoordinateSystem.from_site(program.site)
+            faces = exterior_world_orientations(
+                from_placement(p.rect),
+                program_local_buildable(program),
+                coords,
+            )
+            entry = candidate.exterior_entry
+            on_entry = bool(
+                entry is not None
+                and constraint.room_id in (entry.connected_room_ids or [])
+            )
+            if not faces and not on_entry:
+                violations.append(
+                    Violation(
+                        constraint_id=constraint.id,
+                        room_ids=[constraint.room_id],
+                        message="要求对外入口/外墙，但房间不贴可建区外缘",
+                        hard=constraint.hard,
+                        source=constraint.source.value,
+                    )
+                )
+        return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_orientation_hard(
         self,

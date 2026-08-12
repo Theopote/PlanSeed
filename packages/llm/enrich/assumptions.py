@@ -50,17 +50,20 @@ def extract_user_authorized_assumptions(
 
 def filter_llm_inference_assumptions(
     assumptions: list[Assumption],
-) -> list[Assumption]:
-    """Alpha：丢弃 llm_inference 假设（污染 Assumption Precision）。
+) -> tuple[list[Assumption], list[Assumption]]:
+    """Keep user/default assumptions; return dropped llm_inference separately.
 
-    兼容旧 Draft：无 source 字段时 pydantic 默认为 llm_inference → 已丢弃。
-    若 reason 明示用户假设且 key 规范化后保留机会：由原文再抽。
+    Dropped items must surface as unknowns (ADR-003)；不得无声消失。
     """
-    return [
-        a.model_copy(update={"key": normalize_assumption_key(a.key)})
-        for a in assumptions
-        if (a.source or "llm_inference") != "llm_inference"
-    ]
+    kept: list[Assumption] = []
+    dropped: list[Assumption] = []
+    for raw in assumptions:
+        item = raw.model_copy(update={"key": normalize_assumption_key(raw.key)})
+        if (item.source or "llm_inference") == "llm_inference":
+            dropped.append(item)
+        else:
+            kept.append(item)
+    return kept, dropped
 
 
 class AssumptionsStage:

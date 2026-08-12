@@ -15,7 +15,7 @@ Lock = 不可变几何契约（immutable geometry contract），不是 generator
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from packages.schema.zoning import ArchitecturalZone
 
@@ -74,6 +74,12 @@ class LockedZoneRect(BaseModel):
             return v.lower().strip()
         return v
 
+    @model_validator(mode="after")
+    def _not_circulation(self) -> LockedZoneRect:
+        if self.zone == ArchitecturalZone.CIRCULATION:
+            raise ValueError("Zone lock 不得为 circulation")
+        return self
+
 
 class LayoutLocks(BaseModel):
     """Generate 时尊重的锁；空 = 全自由生成。"""
@@ -81,6 +87,15 @@ class LayoutLocks(BaseModel):
     rooms: list[LockedRoomRect] = Field(default_factory=list)
     stair: LockedStairCore | None = None
     zones: list[LockedZoneRect] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _unique_room_locks(self) -> LayoutLocks:
+        seen: set[str] = set()
+        for room in self.rooms:
+            if room.room_id in seen:
+                raise ValueError(f"房间锁重复：{room.room_id}")
+            seen.add(room.room_id)
+        return self
 
     @property
     def locked_room_ids(self) -> set[str]:

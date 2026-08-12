@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from packages.schema.constraints import Constraint
 from packages.schema.limits import SOLVER_LIMITS
@@ -48,6 +48,13 @@ class ProjectSpec(BaseModel):
     rooms: list[RoomSpec] = Field(min_length=1, max_length=SOLVER_LIMITS.max_rooms)
     constraints: list[Constraint] = Field(default_factory=list)
     preferences: PreferencesSpec = Field(default_factory=PreferencesSpec)
+
+    @model_validator(mode="after")
+    def _unique_room_ids(self) -> ProjectSpec:
+        ids = [r.id for r in self.rooms]
+        if len(ids) != len(set(ids)):
+            raise ValueError("ProjectSpec.rooms 含重复 id")
+        return self
 
     @property
     def floor_count(self) -> int:

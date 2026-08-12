@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from packages.schema.constraints import Constraint
 from packages.schema.entry import ExteriorEntrySpec
@@ -117,6 +117,13 @@ class DesignProgram(BaseModel):
         description="用户未提供且未推断的信息",
     )
     solver_config: SolverConfig = Field(default_factory=SolverConfig)
+
+    @model_validator(mode="after")
+    def _unique_room_ids(self) -> DesignProgram:
+        ids = [r.id for r in self.rooms]
+        if len(ids) != len(set(ids)):
+            raise ValueError("DesignProgram.rooms 含重复 id")
+        return self
 
     def rooms_on_floor(self, floor_id: str) -> list[RoomSpec]:
         floor = next((f for f in self.floors if f.id == floor_id), None)
