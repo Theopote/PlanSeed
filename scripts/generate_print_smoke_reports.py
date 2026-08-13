@@ -213,16 +213,7 @@ def _build(
     return render_report_html(report)
 
 
-def main() -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
-    # 清掉旧编号样本，避免与 P01–P08 混淆
-    for old in OUT.glob("*.html"):
-        old.unlink()
-
-    rows: list[tuple[str, str, str]] = []
-    print(f"generating → {OUT}")
-
-    cases: list[tuple[str, str, dict]] = [
+PRINT_CASES: list[tuple[str, str, dict]] = [
         (
             "P01_single_floor",
             "P01 · 单层 / 少房间",
@@ -326,6 +317,114 @@ def main() -> None:
         ),
     ]
 
+
+def _case_kwargs(case_id: str) -> tuple[str, str, dict]:
+    for cid, title, kwargs in PRINT_CASES:
+        if cid == case_id:
+            return cid, title, dict(kwargs)
+    raise KeyError(case_id)
+
+
+def desktop_project_payload(case_id: str) -> dict:
+    """构建可写入 /api/projects 的 Desktop 手测项目（与 HTML 样本同数据）。"""
+    from packages.schema.identity import (
+        EVALUATION_VERSION,
+        GENERATOR_VERSION,
+        SELECTION_VERSION,
+        SOLVER_VERSION,
+    )
+
+    _, _, raw = _case_kwargs(case_id)
+    kwargs = dict(raw)
+    floor_ids = kwargs.pop("floor_ids")
+    locale = kwargs.pop("locale", "zh-CN")
+    project_name = kwargs.pop("project_name", case_id)
+    locale_en = locale.lower().startswith("en")
+    cand = _candidate(
+        floor_ids=floor_ids,
+        rooms_per_floor=kwargs.get("rooms_per_floor", 4),
+        n_findings=kwargs.get("n_findings", 4),
+        locale_en=locale_en,
+    )
+    rid = f"print-{case_id}"
+    cand["id"] = rid
+    cand["revision_id"] = f"{rid}:gen:hand"
+    cand["revision_status"] = "generated"
+    req = _req(
+        floor_count=len(floor_ids),
+        assumptions=kwargs.get("assumptions"),
+        unknowns=kwargs.get("unknowns"),
+        north_angle=kwargs.get("north_angle", 30.0),
+    )
+    program = _program_from_placements(cand["placements"], locale_en=locale_en)
+    return {
+        "name": f"PrintHand-{case_id}",
+        "payload": {
+            "form": {"width": 11, "depth": 13, "floors": len(floor_ids)},
+            "requirement_spec": req,
+            "program": program,
+            "locks": {"rooms": [], "stair": None, "zones": []},
+            "candidates": [cand],
+            "selected_id": rid,
+            "schema_versions": {
+                "solver_version": SOLVER_VERSION,
+                "generator_strategy": "guillotine",
+                "generator_version": GENERATOR_VERSION,
+                "selection_strategy": "axis-diverse",
+                "selection_version": SELECTION_VERSION,
+                "evaluation_version": EVALUATION_VERSION,
+                "assignment_strategy": "heuristic",
+                "geometry_backend": "rect",
+            },
+        },
+    }
+
+
+def seed_desktop_projects(case_ids: list[str]) -> None:
+    """写入 Desktop 手测项目（与 HTML 样本同数据）。"""
+    import json
+    import os
+    import urllib.error
+    import urllib.request
+
+    host = os.environ.get("PLANSEED_HOST", "127.0.0.1")
+    port = os.environ.get("PLANSEED_PORT", "8787")
+    base = f"http://{host}:{port}"
+    valid = {c[0] for c in PRINT_CASES}
+    for case_id in case_ids:
+        if case_id not in valid:
+            raise SystemExit(f"Unknown case {case_id!r}")
+        body = desktop_project_payload(case_id)
+        data = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(
+            f"{base}/api/projects",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                saved = json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            raise SystemExit(
+                f"POST /api/projects failed {e.code}: {e.read()[:300]!r}"
+            ) from e
+        print(f"OK: {saved['name']}  id={saved['id']}")
+    print("")
+    print("Desktop: Open project picker -> PrintHand-* -> Export -> Report preview")
+
+
+def main() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    # 清掉旧编号样本，避免与 P01–P08 混淆
+    for old in OUT.glob("*.html"):
+        old.unlink()
+
+    rows: list[tuple[str, str, str]] = []
+    print(f"generating → {OUT}")
+
+    cases = PRINT_CASES
+
     for case_id, title, kwargs in cases:
         floor_ids = kwargs.pop("floor_ids")
         locale = kwargs.pop("locale", "zh-CN")
@@ -363,4 +462,23 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Phase 7.1.1-C print smoke fixtures")
+    parser.add_argument(
+        "--seed-desktop",
+        action="store_true",
+        help="Write P02/P06 (or --cases) projects to running engine for Desktop hand-test",
+    )
+    parser.add_argument(
+        "--cases",
+        nargs="+",
+        default=["P02_two_floor", "P06_many_findings"],
+        help="Case ids for --seed-desktop",
+    )
+    args = parser.parse_args()
+    if args.seed_desktop:
+        print("== seed print hand-test projects ==")
+        seed_desktop_projects(args.cases)
+    else:
+        main()

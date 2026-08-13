@@ -11,6 +11,10 @@ Write-Host "== Prepare Desktop Hand Gate assets =="
 uv run python scripts/prepare_desktop_hand_gate.py
 if ($LASTEXITCODE -ne 0) { throw "prepare_desktop_hand_gate.py failed" }
 
+Write-Host "-- seed Print hand-test projects (P02 + P06) --"
+uv run python scripts/generate_print_smoke_reports.py --seed-desktop
+if ($LASTEXITCODE -ne 0) { throw "generate_print_smoke_reports --seed-desktop failed" }
+
 $pkg = Join-Path $Root "debug\desktop-hand-gate\alpha-v0.1-hand-gate.planseed"
 $setup = Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis\PlanSeed_0.1.0_x64-setup.exe"
 $printIdx = Join-Path $Root "debug\print-smoke\index.html"

@@ -41,7 +41,7 @@ Edge 打开 `debug/print-smoke/` 仅作对照；**Pass 以 Desktop 为准**。
 | 1 | Desktop：**导出** → **报告预览 / 打印 PDF**（或先 Generate 再导出） | ☐ |
 | 2 | 报告预览浮层 → **打印 / PDF** | ☐ |
 | 3 | 打印机：**Microsoft Print to PDF** · A4 纵向 | ☐ |
-| 4 | 抽测 **P02**（两层）+ **P06**（长 Findings）或真实项目报告 | ☐ |
+| 4 | 抽测 **P02** + **P06**：**打开…** → `PrintHand-P02_two_floor` / `PrintHand-P06_many_findings`（或 `generate_print_smoke_reports.py --seed-desktop`） | ☐ |
 | 5 | 封面/目录不截断；平面 SVG 不跨页切开；中文无方框 | ☐ |
 
 **禁止：** 对主窗口 `window.print()`（应走 iframe 内报告）。
