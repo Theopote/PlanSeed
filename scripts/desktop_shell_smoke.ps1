@@ -55,7 +55,7 @@ if (-not $desktopExe) {
 }
 Write-Host "OK: desktop exe $desktopExe"
 
-& "$PSScriptRoot\desktop_b1_watch.ps1" -ExePath $desktopExe -Port $Port -WaitSeconds $WaitSeconds
+& "$PSScriptRoot\desktop_b1_watch.ps1" -ExePath $desktopExe -Port $Port -StrictPort -WaitSeconds $WaitSeconds
 if ($LASTEXITCODE -ne 0) {
     throw "desktop_b1_watch failed"
 }

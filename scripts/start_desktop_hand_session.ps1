@@ -15,13 +15,15 @@ Set-Location $Root
 
 Write-Host "== Start Desktop hand-test session =="
 
-$shellArgs = @("-Port", $Port)
-if ($InstallDir) { $shellArgs += @("-InstallDir", $InstallDir) }
-& "$PSScriptRoot\desktop_shell_smoke.ps1" @shellArgs
-if ($LASTEXITCODE -ne 0) { throw "desktop_shell_smoke failed" }
-
 $env:PLANSEED_HOST = "127.0.0.1"
 $env:PLANSEED_PORT = "$Port"
+
+if ($InstallDir) {
+    & "$PSScriptRoot\desktop_shell_smoke.ps1" -Port $Port -InstallDir $InstallDir
+} else {
+    & "$PSScriptRoot\desktop_shell_smoke.ps1" -Port $Port
+}
+if ($LASTEXITCODE -ne 0) { throw "desktop_shell_smoke failed" }
 
 Write-Host ""
 Write-Host "-- prepare hand-gate assets on port $Port --"

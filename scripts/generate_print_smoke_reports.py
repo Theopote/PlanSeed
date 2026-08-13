@@ -100,20 +100,46 @@ def _placements(floor_ids: list[str], rooms_per_floor: int) -> list[dict]:
     return out
 
 
-def _program_from_placements(placements: list[dict], *, locale_en: bool = False) -> dict:
+def _program_from_placements(
+    placements: list[dict],
+    *,
+    locale_en: bool = False,
+    floor_ids: list[str] | None = None,
+) -> dict:
+    """与 backend ProgramSummary 对齐；缺 floors 会导致 Desktop 白屏。"""
+    if floor_ids is None:
+        floor_ids = sorted({p["floor_id"] for p in placements})
+    floor_room_ids: dict[str, list[str]] = {fid: [] for fid in floor_ids}
     rooms = []
     for p in placements:
         name = f"Room {p['room_id'][1:]}" if locale_en else f"房间{p['room_id'][1:]}"
+        rid = p["room_id"]
+        fid = p["floor_id"]
         rooms.append(
             {
-                "id": p["room_id"],
+                "id": rid,
                 "name": name,
                 "category": "living",
                 "target_area": 10.0,
-                "floor_id": p["floor_id"],
+                "floor_id": fid,
             }
         )
-    return {"rooms": rooms}
+        if fid in floor_room_ids and rid not in floor_room_ids[fid]:
+            floor_room_ids[fid].append(rid)
+    floors = [
+        {"id": fid, "label": fid, "room_ids": floor_room_ids.get(fid, [])}
+        for fid in floor_ids
+    ]
+    return {
+        "project_id": "print-smoke",
+        "site_width": 11.0,
+        "site_depth": 13.0,
+        "floor_count": len(floor_ids),
+        "rooms": rooms,
+        "floors": floors,
+        "assumptions": [],
+        "unknowns": [],
+    }
 
 
 def _req(
@@ -138,7 +164,7 @@ def _req(
                 "key": "site.setbacks",
                 "value": 0,
                 "reason": "未提供退界，按 0 处理",
-                "source": "implicit",
+                "source": "planseed_default",
             }
         ],
         "unknowns": unknowns
@@ -356,7 +382,9 @@ def desktop_project_payload(case_id: str) -> dict:
         unknowns=kwargs.get("unknowns"),
         north_angle=kwargs.get("north_angle", 30.0),
     )
-    program = _program_from_placements(cand["placements"], locale_en=locale_en)
+    program = _program_from_placements(
+        cand["placements"], locale_en=locale_en, floor_ids=floor_ids
+    )
     return {
         "name": f"PrintHand-{case_id}",
         "payload": {

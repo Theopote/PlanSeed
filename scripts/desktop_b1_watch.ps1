@@ -9,13 +9,16 @@ param(
     [string]$ExePath = "",
     [int]$Port = 8796,
     [int[]]$Ports = @(),
+    [switch]$StrictPort,
     [int]$WaitSeconds = 120
 )
 
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_release_path.ps1"
 
-if ($Ports.Count -eq 0) {
+if ($StrictPort) {
+    $Ports = @($Port)
+} elseif ($Ports.Count -eq 0) {
     $Ports = @($Port, 8787, 8788, 8789, 8790, 8791)
 }
 $env:PLANSEED_HOST = "127.0.0.1"

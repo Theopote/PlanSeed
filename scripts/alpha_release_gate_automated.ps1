@@ -50,17 +50,29 @@ if (-not $SkipPytest) {
 }
 
 $backendProc = $null
-if ($StartBackend) {
-    Write-Host "-- starting backend (background) --"
-    $backendProc = Start-Process -FilePath "uv" -ArgumentList @(
-        "run", "python", "-m", "backend"
-    ) -WorkingDirectory $Root -PassThru -WindowStyle Hidden
-    Start-Sleep -Seconds 3
-}
 
 try {
     if (-not $SkipEngine) {
         Write-Host "-- engine smoke (health / generate / compare / export / report / .planseed) --"
+        # 勿继承 Desktop 手测会话的 PLANSEED_PORT（如 8796）
+        $env:PLANSEED_HOST = "127.0.0.1"
+        $env:PLANSEED_PORT = "8787"
+        $healthOk = $false
+        try {
+            $h = Invoke-RestMethod -Uri "http://127.0.0.1:8787/api/health" -Method Get -TimeoutSec 3
+            $healthOk = ($h.ok -eq $true -and $h.service -eq "planseed")
+        } catch { }
+        if (-not $healthOk -and -not $StartBackend) {
+            Write-Host "8787 not ready; starting dev backend (-StartBackend implicit)"
+            $StartBackend = $true
+        }
+        if ($StartBackend -and $null -eq $backendProc) {
+            Write-Host "-- starting backend on 8787 (background) --"
+            $backendProc = Start-Process -FilePath "uv" -ArgumentList @(
+                "run", "python", "-m", "backend"
+            ) -WorkingDirectory $Root -PassThru -WindowStyle Hidden
+            Start-Sleep -Seconds 4
+        }
         uv run python scripts/alpha_release_engine_smoke.py
         Assert-Exit $LASTEXITCODE "alpha_release_engine_smoke.py"
 

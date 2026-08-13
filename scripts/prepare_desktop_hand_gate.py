@@ -64,20 +64,26 @@ def _program_from_summary(summary: dict[str, Any] | None) -> dict[str, Any] | No
     if not isinstance(summary, dict):
         return None
     rooms = summary.get("rooms") or []
+    floors = summary.get("floors") or []
     return {
         "project_id": summary.get("project_id"),
         "site_width": summary.get("site_width"),
         "site_depth": summary.get("site_depth"),
+        "floor_count": summary.get("floor_count") or len(floors) or None,
         "rooms": [
             {
                 "id": r.get("id"),
                 "name": r.get("name"),
                 "category": r.get("category"),
                 "target_area": r.get("target_area"),
+                "floor_id": r.get("floor_id"),
             }
             for r in rooms
             if isinstance(r, dict)
         ],
+        "floors": floors,
+        "assumptions": summary.get("assumptions") or [],
+        "unknowns": summary.get("unknowns") or [],
     }
 
 

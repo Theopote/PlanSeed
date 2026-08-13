@@ -300,7 +300,7 @@ function App() {
               : []),
           ]}
           placements={candidate.selected?.placements}
-          floorIds={candidate.program?.floors.map((f) => f.id)}
+          floorIds={candidate.program?.floors?.map((f) => f.id)}
           floorWidth={candidate.program?.site_width}
           floorDepth={candidate.program?.site_depth}
           snapModule={0.3}

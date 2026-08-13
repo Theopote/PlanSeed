@@ -26,6 +26,8 @@ def main() -> int:
         errors.append("missing requirement_spec")
     if not payload.get("program"):
         errors.append("missing program")
+    elif not (payload.get("program") or {}).get("floors"):
+        errors.append("program.floors empty (Desktop white-screen risk)")
     cands = payload.get("candidates") or []
     if not cands:
         errors.append("missing candidates")
