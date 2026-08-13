@@ -17,10 +17,10 @@ uv run python scripts/generate_print_smoke_reports.py
 
 | # | 动作 | Pass |
 |---|------|------|
-| A1 | Desktop 打开任意完整报告 → Print → **Microsoft Print to PDF** · A4 纵向 | ☐ |
-| A2 | 封面 / 目录不被截断；平面 SVG 不被跨页切开 | ☐ |
-| A3 | 中文不方框；P08（若测）英文字体正常 | ☐ |
-| A4 | 至少抽测 **P02**（两层）+ **P06**（长 Findings）或等价真实项目 | ☐ |
+| A1 | Desktop 打开任意完整报告 → Print → **Microsoft Print to PDF** · A4 纵向 | ☑ |
+| A2 | 封面 / 目录不被截断；平面 SVG 不被跨页切开 | ☑ |
+| A3 | 中文不方框；P08（若测）英文字体正常 | ☑（P02/P06；P08 未测） |
+| A4 | 至少抽测 **P02**（两层）+ **P06**（长 Findings）或等价真实项目 | ☑ |
 
 全部 ☐→☑ 后勾 [phase-7.1.1-accuracy-print-smoke.md](phase-7.1.1-accuracy-print-smoke.md) DoD 第 3 条。
 
@@ -44,9 +44,9 @@ powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 | # | 层 | 动作 | Pass |
 |---|-----|------|------|
 | B-E | Engine | `installer_release_smoke.ps1`：NSIS → 装包 backend → PNG/SVG/report/.planseed | ☑（脚本；发布前 rebuild 重跑） |
-| B1 | Desktop | 安装包启动 → 左栏引擎 **已就绪**（`desktop_b1_watch.ps1` 可辅助） | ☐ |
-| B2 | Desktop | **重试引擎** 可恢复 READY | ☐ |
-| B3 | Desktop | **打开…** → `PrintHand-P02` / `P06` 可加载（`--seed-desktop`） | ☐ |
+| B1 | Desktop | 安装包启动 → 左栏引擎 **已就绪**（`desktop_b1_watch.ps1` 可辅助） | ☑ |
+| B2 | Desktop | **重试引擎** 可恢复 READY | ☑ |
+| B3 | Desktop | **打开…** → `PrintHand-P02` / `P06` 可加载（`--seed-desktop`） | ☑ |
 | B4 |（可选）| Ollama 解析一条短需求 | ☐ |
 
 ---
@@ -61,15 +61,16 @@ powershell -File scripts/prepare_desktop_hand_gate.ps1
 
 | # | 动作 | Pass |
 |---|------|------|
-| C1 | 项目 A：生成 → 锁一间房 → 可选 nudge → 选中候选 → **导出 .planseed** | ☐ |
-| C2 | 删除本地项目（或换机）→ **导入** 同文件 | ☐ |
-| C3 | 检视：RequirementSpec / Program / Candidates / revision / locks / mutations / provenance | ☐ |
-| C4 | 报告可打开；再导出 SVG 或 PNG 一次成功 | ☐ |
-| C5 | **不**改包格式、不扩字段 | ☐ |
+| C1 | 项目 A：生成 → 锁一间房 → 可选 nudge → 选中候选 → **导出 .planseed** | ☑（预制样本路径 A） |
+| C2 | 删除本地项目（或换机）→ **导入** 同文件 | ☑ |
+| C3 | 检视：RequirementSpec / Program / Candidates / revision / locks / mutations / provenance | ☑ |
+| C4 | 报告可打开；再导出 SVG 或 PNG 一次成功 | ☑ |
+| C5 | **不**改包格式、不扩字段 | ☑ |
 
 ---
 
 ## 勾完后
 
-把本页 A/B/C 全部 ☑ → 回写 [alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) §3–5 → 才可称 **Alpha v0.1 Release Ready**。  
+**Alpha v0.1 Release Ready ✅**（2026-08-14 · A/B1/C 已勾）。  
+下一步：打 tag 并 GitHub Release（`scripts/publish_github_release.ps1`）。  
 在此之前 **禁止** 开 Phase 9 / Advanced AI / BIM / Code 扩面。

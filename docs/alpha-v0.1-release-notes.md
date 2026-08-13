@@ -1,6 +1,6 @@
-# Alpha v0.1.0 — Release Notes（草稿）
+# Alpha v0.1.0 — Release Notes
 
-> 在 Gate A/B1/C 手测全部勾选后，配合 `scripts/publish_github_release.ps1` 发布。  
+> Gate A/B1/C 手测已于 2026-08-14 关门。配合 `scripts/publish_github_release.ps1` 发布。  
 > Tag 建议：`v0.1.0` 或 `v0.1.0-alpha`（与脚本 `PLANSEED_RELEASE_TAG` 一致）。
 
 ## PlanSeed Alpha v0.1.0

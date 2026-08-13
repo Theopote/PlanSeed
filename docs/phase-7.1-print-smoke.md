@@ -72,11 +72,11 @@ uv run python scripts/generate_print_smoke_reports.py
 | ID | 总评 | 失败项 (#) | 日期 | 操作者 | 备注 |
 |----|------|------------|------|--------|------|
 | P01 | | | | | |
-| P02 | | | | | |
+| P02 | Pass | — | 2026-08-14 | local | Desktop · PrintHand-P02_two_floor · 5p |
 | P03 | | | | | |
 | P04 | | | | | |
 | P05 | | | | | |
-| P06 | | | | | |
+| P06 | Pass | — | 2026-08-14 | local | Desktop · PrintHand-P06_many_findings · 6p |
 | P07 | | | | | |
 | P08 | | | | | |
 

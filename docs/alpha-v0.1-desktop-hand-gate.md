@@ -22,11 +22,11 @@ powershell -File scripts/start_desktop_hand_session.ps1
 
 | 步骤 | 操作 | Pass |
 |------|------|------|
-| 1 | 双击 `PlanSeed_0.1.0_x64-setup.exe` 完成安装（或半自动见下） | ☐ |
-| 1b | 半自动：`powershell -File scripts/desktop_shell_smoke.ps1`（静默安装 → `app.exe` → health @8796） | ☐ |
-| 2 | 从开始菜单启动 **PlanSeed**（或 `desktop_b1_watch.ps1` 已启动则跳过） | ☐ |
-| 3 | 左栏引擎状态：**已就绪**（非「启动中→异常→已就绪」闪跳） | ☐ |
-| 4 | 若异常：点 **重试引擎** 应恢复已就绪 | ☐ |
+| 1 | 双击 `PlanSeed_0.1.0_x64-setup.exe` 完成安装（或半自动见下） | ☑ |
+| 1b | 半自动：`powershell -File scripts/desktop_shell_smoke.ps1`（静默安装 → `app.exe` → health @8796） | ☑ |
+| 2 | 从开始菜单启动 **PlanSeed**（或 `desktop_b1_watch.ps1` 已启动则跳过） | ☑ |
+| 3 | 左栏引擎状态：**已就绪**（非「启动中→异常→已就绪」闪跳） | ☑ |
+| 4 | 若异常：点 **重试引擎** 应恢复已就绪 | ☑ |
 
 **Fail 记录：** 引擎状态文案、端口、是否误连外来 8787 服务。
 
@@ -38,11 +38,11 @@ Edge 打开 `debug/print-smoke/` 仅作对照；**Pass 以 Desktop 为准**。
 
 | 步骤 | 操作 | Pass |
 |------|------|------|
-| 1 | Desktop：**导出** → **报告预览 / 打印 PDF**（或先 Generate 再导出） | ☐ |
-| 2 | 报告预览浮层 → **打印 / PDF** | ☐ |
-| 3 | 打印机：**Microsoft Print to PDF** · A4 纵向 | ☐ |
-| 4 | 抽测 **P02** + **P06**：**打开…** → `PrintHand-P02_two_floor` / `PrintHand-P06_many_findings`（或 `generate_print_smoke_reports.py --seed-desktop`） | ☐ |
-| 5 | 封面/目录不截断；平面 SVG 不跨页切开；中文无方框 | ☐ |
+| 1 | Desktop：**导出** → **报告预览 / 打印 PDF**（或先 Generate 再导出） | ☑ |
+| 2 | 报告预览浮层 → **打印 / PDF** | ☑ |
+| 3 | 打印机：**Microsoft Print to PDF** · A4 纵向 | ☑ |
+| 4 | 抽测 **P02** + **P06**：**打开…** → `PrintHand-P02_two_floor` / `PrintHand-P06_many_findings`（或 `generate_print_smoke_reports.py --seed-desktop`） | ☑ |
+| 5 | 封面/目录不截断；平面 SVG 不跨页切开；中文无方框 | ☑ |
 
 **禁止：** 对主窗口 `window.print()`（应走 iframe 内报告）。
 
@@ -58,11 +58,11 @@ API 保真单测已绿；本表验证 **文件选择器 + UI 状态**。
 
 | 步骤 | UI 位置 | 操作 | Pass |
 |------|---------|------|------|
-| C1 | 顶栏 | **导入包** → 选 `debug/desktop-hand-gate/alpha-v0.1-hand-gate.planseed` | ☐ |
-| C2 | 平面图 / 候选条 | 候选 A 已选中；平面图有 SVG | ☐ |
-| C3 | Inspector | 锁状态 / provenance 可见（generator=guillotine） | ☐ |
-| C4 | **导出** → **报告预览 / 打印 PDF** | 报告可打开 | ☐ |
-| C5 | **导出** → **当前层 2048** PNG 或 **当前层** SVG | 下载成功 | ☐ |
+| C1 | 顶栏 | **导入包** → 选 `debug/desktop-hand-gate/alpha-v0.1-hand-gate.planseed` | ☑ |
+| C2 | 平面图 / 候选条 | 候选 A 已选中；平面图有 SVG | ☑ |
+| C3 | Inspector | 锁状态 / provenance 可见（generator=guillotine） | ☑ |
+| C4 | **导出** → **报告预览 / 打印 PDF** | 报告可打开 | ☑ |
+| C5 | **导出** → **当前层 2048** PNG 或 **当前层** SVG | 下载成功 | ☑ |
 
 ### 路径 B — 完整用户路径（推荐勾选一次）
 
@@ -79,22 +79,22 @@ API 保真单测已绿；本表验证 **文件选择器 + UI 状态**。
 
 ### 导入后必查字段（Inspector / 需求面板）
 
-- [ ] `requirement_spec.floor_count` / spaces 未丢
-- [ ] `program.rooms` 与平面图房间一致
-- [ ] `candidates[0].revision_status` / `revision_id`
-- [ ] `locks.rooms` 非空（样本包应锁客厅）
-- [ ] `mutations` 含 nudge 记录（样本包）
-- [ ] `provenance.generator_strategy` = `guillotine`
-- [ ] `provenance.selection_strategy` = `axis-diverse`
-- [ ] `provenance.selection_version` = `axis-diversity-v1`（或当前 `SELECTION_VERSION`）
-- [ ] `provenance.evaluation_version` = `residential-alpha-v1`
-- [ ] `schema_versions.geometry_backend` = `rect`
-- [ ] `schema_versions.assignment_strategy` = `heuristic`（Solver 2.0 字段未截断）
+- [x] `requirement_spec.floor_count` / spaces 未丢
+- [x] `program.rooms` 与平面图房间一致
+- [x] `candidates[0].revision_status` / `revision_id`
+- [x] `locks.rooms` 非空（样本包应锁客厅）
+- [x] `mutations` 含 nudge 记录（样本包）
+- [x] `provenance.generator_strategy` = `guillotine`
+- [x] `provenance.selection_strategy` = `axis-diverse`
+- [x] `provenance.selection_version` = `axis-diversity-v1`（或当前 `SELECTION_VERSION`）
+- [x] `provenance.evaluation_version` = `residential-alpha-v1`
+- [x] `schema_versions.geometry_backend` = `rect`
+- [x] `schema_versions.assignment_strategy` = `heuristic`（Solver 2.0 字段未截断）
 
 ---
 
 ## 勾完后
 
-1. 回写 [alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) A/B/C 列
-2. 回写 [alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) §3–5
-3. 方可称 **Alpha v0.1 Release Ready**
+1. ~~回写 [alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) A/B/C 列~~ ✅ 2026-08-14
+2. ~~回写 [alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) §3–5~~ ✅ 2026-08-14
+3. **Alpha v0.1 Release Ready** ✅

@@ -15,7 +15,7 @@
 8.4       Irregular Geometry Foundation  ✅（非端到端）
 8.4.1     Irregular Site Pipeline        ☐（Post-v0.1 backlog）
 
-Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结）
+Alpha v0.1 Release Qualification         ✅ Release Ready（2026-08-14 手测关门）
 ```
 
 ### 核心语义冻结（Release Gate 期间）
@@ -94,11 +94,9 @@ Desktop UI 手测一键准备：`powershell -File scripts/start_desktop_hand_ses
 - [x] export regression（SVG/PNG/JSON API）
 - [x] **语义修正后重跑**（`d6628a2`：Separation / Access / parser audit）— `scripts/alpha_release_gate_automated.ps1`
 
-仍须产品手测勾选：Print / 安装包 / 完整 `.planseed` 场景（§3–5）。
-
 ### 3. Windows WebView2 Print Smoke（7.1.1）
 
-- [ ] 真实 Windows 桌面：打开报告 → Print → 预览/出纸无空白、无裁切灾难  
+- [x] 真实 Windows 桌面：打开报告 → Print → 预览/出纸无空白、无裁切灾难（2026-08-14 · Desktop · P02+P06 + 生成流补充）  
   最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §A · 详表：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 
 ### 4. 安装包 Smoke（Gate B）
@@ -122,11 +120,10 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 
 `installer_release_smoke` 手工启动 backend，**未**证明 `PlanSeed.exe` → sidecar manager → READY：
 
-- [ ] NSIS GUI 安装最新 `PlanSeed_0.1.0_x64-setup.exe`
-- [ ] 从开始菜单启动 PlanSeed → 窗口正常
-- [ ] Tauri 自启 sidecar → 左栏引擎 **已就绪**（半自动：`desktop_shell_smoke.ps1` / `desktop_b1_watch.ps1` 可探测 health；UI READY / 重试仍须手勾）
-- [ ] **重试引擎** 可恢复 READY
-- [ ]（可选）Ollama 解析一条短需求
+- [x] NSIS 安装 + 启动 PlanSeed → 窗口正常（`desktop_shell_smoke.ps1` + 手测 2026-08-14）
+- [x] Tauri 自启 sidecar → 左栏引擎 **已就绪**（无闪跳）
+- [x] **重试引擎** 可恢复 READY
+- [ ]（可选）Ollama 解析一条短需求 — 未测，不阻塞 Alpha
 
 最短步骤：[alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md) §B1 · [alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §B
 
@@ -134,8 +131,8 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 
 - [x] API 保真单测：`test_planseed_full_fidelity_roundtrip`
 - [x] 手测样本生成：`scripts/prepare_desktop_hand_gate.py`
-- [ ] Desktop 场景手测（[alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md)）  
-- [ ] **不**在本 Gate 扩格式
+- [x] Desktop 场景手测（[alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md) · 2026-08-14）  
+- [x] **不**在本 Gate 扩格式
 
 ### 6. 明确不做（本 Gate）
 
@@ -154,9 +151,17 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 
 ## 通过标准
 
-全部 **Gate 清单 1–5** 勾完（含 **B-Desktop Shell** §4），且 Alpha Stable 下无已知 P0，方可称 **Alpha v0.1 Release Ready** 并打 tag / GitHub Release。
+全部 **Gate 清单 1–5** 已勾完（含 **B-Desktop Shell** §4）；Alpha Stable 下无已知 P0 → **Alpha v0.1 Release Ready ✅**（2026-08-14）。
 
-**Release Ready 后第一件事**：发布 `v0.1.0`（`scripts/publish_github_release.ps1`），而非开 Phase 9。
+**下一步**：打 tag 并发布 `v0.1.0`（`scripts/publish_github_release.ps1`），而非开 Phase 9。
+
+### 手测记录（2026-08-14）
+
+| Gate | 证据 | 备注 |
+|------|------|------|
+| A Print | `PrintHand-P02_two_floor · 设计报告.pdf` · `PrintHand-P06_many_findings.pdf`；补充 `01.pdf` / `02.pdf` | Desktop WebView2 · Microsoft Print to PDF · A4 纵向 |
+| B1 Shell | 手测 + `desktop_shell_smoke.ps1` | 已就绪无闪跳；重试引擎可恢复 |
+| C `.planseed` | `debug/desktop-hand-gate/alpha-v0.1-hand-gate.planseed` | 导入 · 平面图 · provenance · 再导出报告/PNG/SVG |
 
 ### Known limitations（Release notes 须写明）
 
