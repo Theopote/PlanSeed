@@ -26,32 +26,28 @@ uv run python scripts/generate_print_smoke_reports.py
 
 ---
 
-## B. 安装包 + resvg PNG（必过）
+## B. 安装包（Gate B）
+
+**B-Engine**（装包 backend API）可脚本验证；**B-Desktop**（Tauri 壳自启）须手测。详见 [alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) §4。
 
 ```powershell
-uv sync --group build
-pwsh scripts/build_backend_sidecar.ps1
-# 需 Rust + pnpm：
-pwsh scripts/build_installer.ps1
-# 安装 NSIS setup → 启动 PlanSeed
-pwsh scripts/windows_alpha_smoke.ps1
-uv run python scripts/alpha_release_engine_smoke.py
-# 装包引擎（PyInstaller onedir，无需 NSIS）：
+# B-Engine（自动化）
 powershell -File scripts/sidecar_release_smoke.ps1
-# NSIS 静默安装 + 装包 sidecar smoke（Gate B3 半自动）：
 powershell -File scripts/installer_release_smoke.ps1
-# 预检工具链与产物：
+# B-Desktop 准备：安装 NSIS → 启动 PlanSeed.exe
+desktop\src-tauri\target\release\bundle\nsis\PlanSeed_0.1.0_x64-setup.exe
+# 预检 / 一键回归子集
 powershell -File scripts/preflight_release_gate.ps1
-# 或本地开发引擎已启动时一键跑自动化子集：
 powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 ```
 
-| # | 动作 | Pass |
-|---|------|------|
-| B1 | 安装包启动 → 引擎 **已就绪**（非仅开发 `uv run`） | ☐ |
-| B2 | `windows_alpha_smoke.ps1`：health + generate + compare | ☐ |
-| B3 | `sidecar_release_smoke.ps1` / `installer_release_smoke.ps1`：Alpha Stable + PNG + SVG + report + `.planseed` | ☐（脚本可自动化；装包须 rebuild 后勾） |
-| B4 |（可选）Ollama 解析一条短需求；失败只记备注，不挡 Gate 除非宣称 LLM 必过 | ☐ |
+| # | 层 | 动作 | Pass |
+|---|-----|------|------|
+| B-E | Engine | `installer_release_smoke.ps1`：NSIS → 装包 backend → PNG/SVG/report/.planseed | ☑（脚本；发布前 rebuild 重跑） |
+| B1 | Desktop | 安装包启动 → 左栏引擎 **已就绪** | ☐ |
+| B2 | Desktop | **重试引擎** 可恢复 READY | ☐ |
+| B3 | Desktop | **打开…** → `PrintHand-P02` / `P06` 可加载（`--seed-desktop`） | ☐ |
+| B4 |（可选）| Ollama 解析一条短需求 | ☐ |
 
 ---
 

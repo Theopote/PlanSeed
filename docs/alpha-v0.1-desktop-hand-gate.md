@@ -85,7 +85,11 @@ API 保真单测已绿；本表验证 **文件选择器 + UI 状态**。
 - [ ] `locks.rooms` 非空（样本包应锁客厅）
 - [ ] `mutations` 含 nudge 记录（样本包）
 - [ ] `provenance.generator_strategy` = `guillotine`
+- [ ] `provenance.selection_strategy` = `axis-diverse`
+- [ ] `provenance.selection_version` = `axis-diversity-v1`（或当前 `SELECTION_VERSION`）
+- [ ] `provenance.evaluation_version` = `residential-alpha-v1`
 - [ ] `schema_versions.geometry_backend` = `rect`
+- [ ] `schema_versions.assignment_strategy` = `heuristic`（Solver 2.0 字段未截断）
 
 ---
 

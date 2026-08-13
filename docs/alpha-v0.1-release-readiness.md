@@ -99,18 +99,34 @@ Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结�
 - [ ] 真实 Windows 桌面：打开报告 → Print → 预览/出纸无空白、无裁切灾难  
   最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §A · 详表：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)
 
-### 4. 安装包 Smoke
+### 4. 安装包 Smoke（Gate B）
 
-尤其 `resvg-py` / Pillow 进入正式依赖后：
+Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」混在一起。
 
-- [x] PyInstaller sidecar 能启动（`sidecar_release_smoke.ps1` ✅）
-- [x] NSIS 装包 sidecar 路径（`installer_release_smoke.ps1` 静默安装 ✅；**发布前须 rebuild**）
-- [ ] Windows Desktop 窗口自启引擎（B1 手测）
-- [ ] Windows release bundle 安装可运行（`build_installer.ps1` → 最新 setup.exe）
-- [ ] PNG export / SVG export / report 在**安装包**环境验证（`scripts/alpha_release_engine_smoke.py`）
-- [ ]（可选）Ollama
+#### B-Engine Packaging（API · 装包 backend · 可自动化）
 
-最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §B
+`sidecar_release_smoke.ps1` / `installer_release_smoke.ps1` → `alpha_release_engine_smoke.py`：
+
+- [x] PyInstaller sidecar 启动（`sidecar_release_smoke.ps1`）
+- [x] NSIS 静默安装 → 装包 `planseed-backend.exe`（`installer_release_smoke.ps1`）
+- [x] health · generate · compare
+- [x] PNG export（resvg）· SVG export · report build（final）
+- [x] `.planseed` API 导出 / 导入
+- [x] Alpha Stable provenance（`guillotine` · `axis-diverse` · `rect`）
+
+发布前须对**当前 master** 重跑：`powershell -File scripts/installer_release_smoke.ps1`（含 rebuild 可选）。
+
+#### B-Desktop Shell（Tauri 生命周期 · 须手测）
+
+`installer_release_smoke` 手工启动 backend，**未**证明 `PlanSeed.exe` → sidecar manager → READY：
+
+- [ ] NSIS GUI 安装最新 `PlanSeed_0.1.0_x64-setup.exe`
+- [ ] 从开始菜单启动 PlanSeed → 窗口正常
+- [ ] Tauri 自启 sidecar → 左栏引擎 **已就绪**
+- [ ] **重试引擎** 可恢复 READY
+- [ ]（可选）Ollama 解析一条短需求
+
+最短步骤：[alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md) §B1 · [alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §B
 
 ### 5. `.planseed` 完整往返
 
@@ -130,11 +146,23 @@ Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结�
 
 | 级 | 项 |
 |----|-----|
-| **P0** | 默认回稳（已落地）· selection provenance（已落地）· Solver regression 重跑 · Print Smoke |
-| **P1** | Benchmark 扩到 10–12 案（Suite v1 已有骨架）· MaxRect 保持 experimental · `.planseed` roundtrip · 安装包 PNG/export |
-| **P2** | 8.4.1 polygon pipeline · 各向退线精确算法 |
+| **P0** | Desktop B1 · Print Smoke · `.planseed` Desktop 手测（§3–5） |
+| **P1** | Benchmark 扩面 · MaxRect 保持 experimental（Post-v0.1 候选） |
+| **P2** | 8.4.1 · Exposure/Vertical 约束 · `PRINT_CASES` 以外代码卫生 |
 
 ## 通过标准
 
-全部 **Gate 清单 1–5** 勾完，且 Alpha Stable 下无已知「默认行为与文档不符」的 P0，方可称 **Alpha v0.1 Release Ready**。  
+全部 **Gate 清单 1–5** 勾完（含 **B-Desktop Shell** §4），且 Alpha Stable 下无已知 P0，方可称 **Alpha v0.1 Release Ready** 并打 tag / GitHub Release。
+
+**Release Ready 后第一件事**：发布 `v0.1.0`（`scripts/publish_github_release.ps1`），而非开 Phase 9。
+
+### Known limitations（Release notes 须写明）
+
+- Windows 10/11 x64 only
+- 独栋住宅 Alpha；矩形场地 Alpha geometry
+- MaxRect / Pareto / CP-SAT：experimental / research，非默认
+- Irregular site：非产品支持（8.4.1 backlog）
+- 本地 Ollama 可选；非云端 LLM
+- 非规范合规 · 非施工图交付
+
 勾选前不得把 roadmap 主线标成 Phase 9。

@@ -423,9 +423,8 @@ def main() -> None:
     rows: list[tuple[str, str, str]] = []
     print(f"generating → {OUT}")
 
-    cases = PRINT_CASES
-
-    for case_id, title, kwargs in cases:
+    for case_id, title, raw_kwargs in PRINT_CASES:
+        kwargs = dict(raw_kwargs)
         floor_ids = kwargs.pop("floor_ids")
         locale = kwargs.pop("locale", "zh-CN")
         html = _build(floor_ids=floor_ids, locale=locale, **kwargs)
