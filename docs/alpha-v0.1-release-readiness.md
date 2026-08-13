@@ -13,10 +13,30 @@
 8.2       Pareto                         ✅ Engineering / Experimental
 8.3       CP-SAT                         ✅ Engineering / Experimental
 8.4       Irregular Geometry Foundation  ✅（非端到端）
-8.4.1     Irregular Site Pipeline        ☐
+8.4.1     Irregular Site Pipeline        ☐（Post-v0.1 backlog）
 
-Alpha v0.1 Release Qualification         ← CURRENT
+Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结）
 ```
+
+### 核心语义冻结（Release Gate 期间）
+
+**只允许**：bugfix · security · packaging · validation correctness · release regression。
+
+**禁止继续扩面**（进入 Post-v0.1 backlog）：
+
+- 新 parser policy / Unknown 策略变更（须重跑 Blind qualification）
+- 新 constraint 语义 / solver 特性
+- 8.4.1 irregular site · Phase 9
+
+**Release Gate 前已修正的语义回归**（`d6628a2` 及同批）：
+
+| 项 | 修正 |
+|----|------|
+| SeparationConstraint | 同层平面分离；跨层 `not applicable` |
+| AccessConstraint `requires_stair_reach` | 移除 `has_stair` 启发式；上层可达统一走 RealizedAccessGraph |
+| LLM `llm_inference` | 不进 canonical assumptions/unknowns；记入 `parser_audit.discarded_inferences` |
+
+自动化回归：`powershell -File scripts/alpha_release_gate_automated.ps1`（不含 WebView2 Print / 安装包手测）。
 
 | 概念 | 含义 |
 |------|------|
@@ -62,7 +82,7 @@ Alpha v0.1 Release Qualification         ← CURRENT
 
 ### 2. Regression（同 seed + 同 profile → 同结果）
 
-自动化（本轮已跑绿，含 profile pin / axis Top-K / quality / locks / mutation / report·export API / `.planseed` 单元）：
+自动化（含 profile pin / axis Top-K / quality / locks / mutation / report·export API / `.planseed` 单元）：
 
 - [x] generation regression（默认 Guillotine + axis）
 - [x] locks regression
@@ -70,6 +90,7 @@ Alpha v0.1 Release Qualification         ← CURRENT
 - [x] report regression
 - [x] save/load · `.planseed` 单元往返（完整手测仍见 §5）
 - [x] export regression（SVG/PNG/JSON API）
+- [x] **语义修正后重跑**（`d6628a2`：Separation / Access / parser audit）— `scripts/alpha_release_gate_automated.ps1`
 
 仍须产品手测勾选：Print / 安装包 / 完整 `.planseed` 场景（§3–5）。
 

@@ -58,6 +58,27 @@ def _ok(cond: bool, msg: str) -> None:
     print(f"OK: {msg}")
 
 
+def _program_from_summary(summary: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(summary, dict):
+        return None
+    rooms = summary.get("rooms") or []
+    return {
+        "project_id": summary.get("project_id"),
+        "site_width": summary.get("site_width"),
+        "site_depth": summary.get("site_depth"),
+        "rooms": [
+            {
+                "id": r.get("id"),
+                "name": r.get("name"),
+                "category": r.get("category"),
+                "target_area": r.get("target_area"),
+            }
+            for r in rooms
+            if isinstance(r, dict)
+        ],
+    }
+
+
 def main() -> int:
     print(f"== Alpha release engine smoke @ {_base()} ==")
 
@@ -85,10 +106,27 @@ def main() -> int:
     )
     _ok(prov.get("geometry_backend") in (None, "rect"), "geometry rect/default")
 
+    if len(cands) >= 2 and c0.get("design_score") and cands[1].get("design_score"):
+        status, _, raw = _req(
+            "POST",
+            "/api/compare",
+            body={
+                "evaluation_a": c0["design_score"],
+                "evaluation_b": cands[1]["design_score"],
+                "label_a": c0.get("label", "A"),
+                "label_b": cands[1].get("label", "B"),
+            },
+        )
+        _ok(status == 200, f"compare HTTP 200 (got {status})")
+        cmp = json.loads(raw)
+        _ok(len(cmp.get("rows") or []) >= 8, "compare rows")
+
     # 落库以便走 Final Export gate
+    program_summary = gen.get("program_summary")
     payload = {
         "form": {"width": 11, "depth": 13},
-        "program": gen.get("program"),
+        "requirement_spec": gen.get("requirement_spec"),
+        "program": _program_from_summary(program_summary),
         "candidates": [
             {
                 **{k: c0[k] for k in c0 if k != "placements"},
@@ -174,6 +212,27 @@ def main() -> int:
     )
     _ok(status == 200, f"svg export (got {status})")
     _ok(b"<svg" in raw[:200].lower() or b"<?xml" in raw[:80], "svg body")
+
+    status, _, raw = _req(
+        "POST",
+        "/api/reports/build",
+        body={
+            "mode": "final",
+            "project_id": pid,
+            "project_name": "alpha-smoke",
+            "candidate_id": cid,
+            "revision_id": rid,
+            "include_html": True,
+        },
+    )
+    _ok(status == 200, f"report build final (got {status}: {raw[:200]!r})")
+    report = json.loads(raw)
+    html = report.get("html") or ""
+    _ok(isinstance(html, str) and len(html) > 100, "report html body")
+    _ok(
+        (report.get("report") or {}).get("provenance", {}).get("export_mode") == "final",
+        "report export_mode=final",
+    )
 
     status, _, pkg = _req("GET", f"/api/projects/{pid}/package")
     _ok(status == 200, "export .planseed")

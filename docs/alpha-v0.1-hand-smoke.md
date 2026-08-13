@@ -34,8 +34,9 @@ pwsh scripts/build_backend_sidecar.ps1
 pnpm --dir desktop tauri:build
 # 安装 NSIS setup → 启动 PlanSeed
 pwsh scripts/windows_alpha_smoke.ps1
-# 引擎已就绪时：
 uv run python scripts/alpha_release_engine_smoke.py
+# 或本地开发引擎已启动时一键跑自动化子集：
+powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 ```
 
 | # | 动作 | Pass |
