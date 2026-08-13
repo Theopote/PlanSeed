@@ -23,8 +23,9 @@ powershell -File scripts/open_print_smoke.ps1
 
 | 步骤 | 操作 | Pass |
 |------|------|------|
-| 1 | 双击 `PlanSeed_0.1.0_x64-setup.exe` 完成安装 | ☐ |
-| 2 | 从开始菜单启动 **PlanSeed** | ☐ |
+| 1 | 双击 `PlanSeed_0.1.0_x64-setup.exe` 完成安装（或半自动见下） | ☐ |
+| 1b | 半自动：`powershell -File scripts/desktop_shell_smoke.ps1`（静默安装 → `app.exe` → health @8796） | ☐ |
+| 2 | 从开始菜单启动 **PlanSeed**（或 `desktop_b1_watch.ps1` 已启动则跳过） | ☐ |
 | 3 | 左栏引擎状态：**已就绪**（非「启动中→异常→已就绪」闪跳） | ☐ |
 | 4 | 若异常：点 **重试引擎** 应恢复已就绪 | ☐ |
 

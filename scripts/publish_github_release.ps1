@@ -53,6 +53,8 @@ $Notes = @"
 - Natural-language parsing needs a local [Ollama](https://ollama.com) install (optional)
 - This is an **Alpha** build for early testing — not a final product release
 
+See full known limitations: ``docs/alpha-v0.1-release-notes.md``
+
 ### Smoke (optional, after install)
 With the app running:
 ``````

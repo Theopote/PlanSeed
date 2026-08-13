@@ -44,7 +44,7 @@ powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 | # | 层 | 动作 | Pass |
 |---|-----|------|------|
 | B-E | Engine | `installer_release_smoke.ps1`：NSIS → 装包 backend → PNG/SVG/report/.planseed | ☑（脚本；发布前 rebuild 重跑） |
-| B1 | Desktop | 安装包启动 → 左栏引擎 **已就绪** | ☐ |
+| B1 | Desktop | 安装包启动 → 左栏引擎 **已就绪**（`desktop_b1_watch.ps1` 可辅助） | ☐ |
 | B2 | Desktop | **重试引擎** 可恢复 READY | ☐ |
 | B3 | Desktop | **打开…** → `PrintHand-P02` / `P06` 可加载（`--seed-desktop`） | ☐ |
 | B4 |（可选）| Ollama 解析一条短需求 | ☐ |

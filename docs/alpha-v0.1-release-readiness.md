@@ -122,7 +122,7 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 
 - [ ] NSIS GUI 安装最新 `PlanSeed_0.1.0_x64-setup.exe`
 - [ ] 从开始菜单启动 PlanSeed → 窗口正常
-- [ ] Tauri 自启 sidecar → 左栏引擎 **已就绪**
+- [ ] Tauri 自启 sidecar → 左栏引擎 **已就绪**（半自动：`desktop_shell_smoke.ps1` / `desktop_b1_watch.ps1` 可探测 health；UI READY / 重试仍须手勾）
 - [ ] **重试引擎** 可恢复 READY
 - [ ]（可选）Ollama 解析一条短需求
 
