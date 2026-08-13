@@ -16,6 +16,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. "$PSScriptRoot\_release_path.ps1"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
@@ -88,6 +89,6 @@ Write-Host ""
 Write-Host "== automated gate passed =="
 Write-Host "Remaining manual Release Gate:"
 Write-Host "  A) Desktop WebView2 Print (debug/print-smoke + Microsoft Print to PDF)"
-Write-Host "  B) NSIS installer smoke (pnpm --dir desktop tauri:build + install setup.exe)"
+Write-Host "  B) NSIS installer smoke (installer_release_smoke.ps1 or install setup.exe + windows_alpha_smoke.ps1)"
 Write-Host "  C) Desktop .planseed roundtrip (export -> delete -> import -> report/export)"
 Write-Host "  (Sidecar PyInstaller smoke is automated when planseed-backend.exe exists)"

@@ -37,7 +37,11 @@ pwsh scripts/build_installer.ps1
 pwsh scripts/windows_alpha_smoke.ps1
 uv run python scripts/alpha_release_engine_smoke.py
 # 装包引擎（PyInstaller onedir，无需 NSIS）：
-pwsh scripts/sidecar_release_smoke.ps1
+powershell -File scripts/sidecar_release_smoke.ps1
+# NSIS 静默安装 + 装包 sidecar smoke（Gate B3 半自动）：
+powershell -File scripts/installer_release_smoke.ps1
+# 预检工具链与产物：
+powershell -File scripts/preflight_release_gate.ps1
 # 或本地开发引擎已启动时一键跑自动化子集：
 powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 ```
@@ -46,7 +50,7 @@ powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 |---|------|------|
 | B1 | 安装包启动 → 引擎 **已就绪**（非仅开发 `uv run`） | ☐ |
 | B2 | `windows_alpha_smoke.ps1`：health + generate + compare | ☐ |
-| B3 | `alpha_release_engine_smoke.py` 或 `sidecar_release_smoke.ps1`：Alpha Stable provenance + **PNG**（resvg）+ SVG + report + `.planseed` | ☐ |
+| B3 | `sidecar_release_smoke.ps1` / `installer_release_smoke.ps1`：Alpha Stable + PNG + SVG + report + `.planseed` | ☐（脚本可自动化；装包须 rebuild 后勾） |
 | B4 |（可选）Ollama 解析一条短需求；失败只记备注，不挡 Gate 除非宣称 LLM 必过 | ☐ |
 
 ---

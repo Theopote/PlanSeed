@@ -103,8 +103,10 @@ Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结�
 
 尤其 `resvg-py` / Pillow 进入正式依赖后：
 
-- [ ] PyInstaller sidecar 能启动（`sidecar_release_smoke.ps1` ✅ 可自动化）
-- [ ] Windows release bundle 安装可运行（`build_installer.ps1` → NSIS setup.exe）
+- [x] PyInstaller sidecar 能启动（`sidecar_release_smoke.ps1` ✅）
+- [x] NSIS 装包 sidecar 路径（`installer_release_smoke.ps1` 静默安装 ✅；**发布前须 rebuild**）
+- [ ] Windows Desktop 窗口自启引擎（B1 手测）
+- [ ] Windows release bundle 安装可运行（`build_installer.ps1` → 最新 setup.exe）
 - [ ] PNG export / SVG export / report 在**安装包**环境验证（`scripts/alpha_release_engine_smoke.py`）
 - [ ]（可选）Ollama
 

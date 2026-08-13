@@ -12,7 +12,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Secrets / local env
+# Local build logs
+build-tools-install.log
+tauri-build.log
+
 .env
 .env.*
 !.env.example
