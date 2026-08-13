@@ -630,6 +630,9 @@ class DefaultConstraintChecker:
                     source=constraint.source.value,
                 )
             )
+        # SeparationConstraint = 同层平面分离；跨层不适用
+        if pa.floor_id != pb.floor_id:
+            return ConstraintEvaluationResult.empty()
         dist = distance_between(from_placement(pa.rect), from_placement(pb.rect))
         if dist + 1e-6 < constraint.min_distance:
             return ConstraintEvaluationResult.from_optional(
@@ -695,24 +698,7 @@ class DefaultConstraintChecker:
                 )
             )
         violations: list[Violation] = []
-        if constraint.requires_stair_reach:
-            ground = program.floors[0].id if program.floors else "F1"
-            if p.floor_id != ground:
-                has_stair = any(
-                    pl.room_id.startswith("stair-")
-                    for fl in candidate.floors
-                    for pl in fl.placements
-                )
-                if not has_stair:
-                    violations.append(
-                        Violation(
-                            constraint_id=constraint.id,
-                            room_ids=[constraint.room_id],
-                            message="上层房间要求楼梯可达，但方案无楼梯",
-                            hard=constraint.hard,
-                            source=constraint.source.value,
-                        )
-                    )
+        # requires_stair_reach：不单独 checker；由 _check_access_reachability（RealizedAccessGraph）统一处理
         if constraint.requires_exterior:
             coords = SiteCoordinateSystem.from_site(program.site)
             faces = exterior_world_orientations(

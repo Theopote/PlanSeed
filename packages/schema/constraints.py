@@ -51,6 +51,8 @@ class AdjacencyConstraint(ConstraintBase):
 
 
 class SeparationConstraint(ConstraintBase):
+    """同层平面空间分离约束；跨层房间不适用（竖向关系用 Alignment / 未来 Vertical*）。"""
+
     kind: Literal[ConstraintKind.SEPARATION] = ConstraintKind.SEPARATION
     room_a_id: str
     room_b_id: str
@@ -97,6 +99,12 @@ class WidthConstraint(ConstraintBase):
 
 
 class AccessConstraint(ConstraintBase):
+    """通行约束（≠ 几何邻接）。
+
+    requires_exterior: 对外通行（EXTERIOR_ENTRY 实化边），非单纯贴外墙/采光。
+    requires_stair_reach: 字段保留；上层可达性由 RealizedAccessGraph（access.unreachable_room）统一校验。
+    """
+
     kind: Literal[ConstraintKind.ACCESS] = ConstraintKind.ACCESS
     room_id: str
     requires_exterior: bool = False

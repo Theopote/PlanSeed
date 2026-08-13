@@ -13,6 +13,7 @@ from packages.schema.requirements import Assumption, UnknownRequirement
 class EnrichResult:
     draft: LLMRequirementDraft
     notes: tuple[str, ...] = ()
+    discarded_inferences: tuple[Assumption, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,6 @@ class EnrichmentContext:
     notes: list[str] = field(default_factory=list)
     provenance: list[StageProvenance] = field(default_factory=list)
     incoming_unknowns: set[str] = field(default_factory=set)
-    dropped_inference_keys: set[str] = field(default_factory=set)
     sparse: bool = False
 
     def record(

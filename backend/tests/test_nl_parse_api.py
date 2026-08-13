@@ -25,7 +25,7 @@ def _ok_draft():
                 }
             ],
         },
-        # 无 source 的 assumption 默认为 llm_inference → enrich 转 unknown
+        # 无 source 的 assumption 默认为 llm_inference → enrich 丢弃并记入 parser audit
         "assumptions": [
             {"key": "bathrooms", "value": 2, "reason": "住宅常见默认"}
         ],
@@ -52,10 +52,14 @@ def test_parse_nl_happy(monkeypatch):
         assert body["requirement_spec"]["raw_text"]
         assert body["attempts"] == 1
         assert body["provider"] == "mock"
-        # enrich：llm_inference 不进 assumptions；known 已有 bathrooms 时不重复 unknown
+        # enrich：llm_inference 不进 assumptions/unknowns；known 已有 bathrooms
         assert body["requirement_spec"]["assumptions"] == []
         unk_keys = {u["key"] for u in body["requirement_spec"]["unknowns"]}
+        assert "household.bathrooms" not in unk_keys
         assert "site.entrance_edge" not in unk_keys
+        audit = body.get("parser_audit") or {}
+        discarded = audit.get("discarded_inferences") or []
+        assert any(d.get("key") == "household.bathrooms" for d in discarded)
     finally:
         nl_parse.set_nl_provider_factory(None)
 

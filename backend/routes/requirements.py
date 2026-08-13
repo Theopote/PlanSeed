@@ -10,7 +10,7 @@ from packages.llm.health import LlmHealthState, probe_llm_health
 from packages.llm.ollama import OllamaConnectionError, OllamaHTTPError, OllamaProvider
 from packages.llm.privacy import OllamaRemoteBlockedError
 from packages.schema.limits import API_LIMITS
-from packages.schema.requirements import RequirementSpec
+from packages.schema.requirements import Assumption, RequirementSpec
 from pydantic import BaseModel, Field, field_validator
 
 from backend.services.nl_parse import get_nl_provider, parse_nl_requirement
@@ -53,12 +53,19 @@ class ParseNLRequest(BaseModel):
 
 
 
+class ParserAudit(BaseModel):
+    """解析审计（非 canonical RequirementSpec；供调试 / benchmark / inspector）。"""
+
+    discarded_inferences: list[Assumption] = Field(default_factory=list)
+
+
 class ParseNLResponse(BaseModel):
     requirement_spec: RequirementSpec
     attempts: int
     repair_notes: list[str] = Field(default_factory=list)
     provider: str
     raw: dict[str, Any] = Field(default_factory=dict)
+    parser_audit: ParserAudit = Field(default_factory=ParserAudit)
 
 
 @router.post("/api/requirements/parse", response_model=ParseNLResponse)
@@ -89,4 +96,7 @@ def parse_requirements_nl(body: ParseNLRequest) -> ParseNLResponse:
         repair_notes=list(out.repair_notes),
         provider=out.provider,
         raw=out.raw,
+        parser_audit=ParserAudit(
+            discarded_inferences=list(out.discarded_inferences),
+        ),
     )

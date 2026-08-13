@@ -7,7 +7,7 @@
 - 只恢复原文**显式**出现的事实；不确定则留空
 - 禁止制造设计意图（假阳性关系比漏报更贵）
 - 规则须是一般语言规律，禁止为单条 benchmark 句式硬编码
-- Assumption：仅 user_authorized / planseed_default；llm_inference 转 unknown
+- Assumption：仅 user_authorized / planseed_default；llm_inference 丢弃并记入 parser audit
 - **不要无限扩 regex**：新模板须能用一句话说明一般规律；Blind 失败不得逐案补丁
 """
 
@@ -35,7 +35,7 @@ from packages.llm.enrich.scalar import ScalarStage
 from packages.llm.enrich.spaces import SpacesStage, extract_space_names
 from packages.llm.enrich.unknowns import UnknownsStage
 from packages.schema.llm_contract import LLMRequirementDraft
-from packages.schema.requirements import UnknownRequirement
+from packages.schema.requirements import Assumption
 
 __all__ = [
     "EnrichResult",
@@ -63,7 +63,9 @@ _ENRICHMENT_STAGES: tuple[EnrichmentStage, ...] = (
 )
 
 
-def _create_enrichment_context(draft: LLMRequirementDraft) -> EnrichmentContext:
+def _create_enrichment_context(
+    draft: LLMRequirementDraft,
+) -> tuple[EnrichmentContext, tuple[Assumption, ...]]:
     assumptions, dropped_inferences = filter_llm_inference_assumptions(
         list(draft.assumptions)
     )
@@ -73,15 +75,7 @@ def _create_enrichment_context(draft: LLMRequirementDraft) -> EnrichmentContext:
         )
         for u in draft.unknowns
     }
-    for item in dropped_inferences:
-        if item.key in unknown_by_key:
-            continue
-        unknown_by_key[item.key] = UnknownRequirement(
-            key=item.key,
-            description=item.reason or f"模型推断未采用：{item.key}={item.value}",
-            priority="optional",
-        )
-    return EnrichmentContext(
+    context = EnrichmentContext(
         original=draft,
         known=draft.known.model_copy(deep=True),
         assumptions=assumptions,
@@ -89,12 +83,12 @@ def _create_enrichment_context(draft: LLMRequirementDraft) -> EnrichmentContext:
         text=(draft.raw_text or "").strip(),
         notes=[],
         incoming_unknowns={normalize_assumption_key(u.key) for u in draft.unknowns},
-        dropped_inference_keys={item.key for item in dropped_inferences},
     )
+    return context, tuple(dropped_inferences)
 
 
 def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
-    context = _create_enrichment_context(draft)
+    context, discarded_inferences = _create_enrichment_context(draft)
     for stage in _ENRICHMENT_STAGES:
         context = stage.apply(context)
     new_draft = draft.model_copy(
@@ -104,4 +98,8 @@ def enrich_requirement_draft(draft: LLMRequirementDraft) -> EnrichResult:
             "unknowns": list(context.unknown_by_key.values()),
         }
     )
-    return EnrichResult(draft=new_draft, notes=tuple(context.notes))
+    return EnrichResult(
+        draft=new_draft,
+        notes=tuple(context.notes),
+        discarded_inferences=discarded_inferences,
+    )

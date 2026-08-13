@@ -17,7 +17,7 @@ from packages.llm.semantic import (
     SemanticValidationResult,
 )
 from packages.schema.llm_contract import LLMRequirementDraft
-from packages.schema.requirements import RequirementSpec
+from packages.schema.requirements import Assumption, RequirementSpec
 
 
 class LLMIngestError(ValueError):
@@ -39,6 +39,7 @@ class IngestResult:
     spec: RequirementSpec
     semantic: SemanticValidationResult
     enrich_notes: tuple[str, ...] = ()
+    discarded_inferences: tuple[Assumption, ...] = ()
 
 
 def ingest_llm_requirement(
@@ -106,10 +107,12 @@ def ingest_llm_requirement(
         draft = draft.model_copy(update={"raw_text": raw_text})
 
     enrich_notes: tuple[str, ...] = ()
+    discarded_inferences: tuple[Assumption, ...] = ()
     if enrich:
         enriched = enrich_requirement_draft(draft)
         draft = enriched.draft
         enrich_notes = enriched.notes
+        discarded_inferences = enriched.discarded_inferences
 
     sem = (validator or RequirementSemanticValidator()).validate_draft(draft)
     if not sem.ok:
@@ -121,4 +124,5 @@ def ingest_llm_requirement(
         spec=draft.to_requirement_spec(),
         semantic=sem,
         enrich_notes=enrich_notes,
+        discarded_inferences=discarded_inferences,
     )

@@ -16,7 +16,7 @@ from packages.llm import (
 )
 from packages.llm.provider import LLMProvider
 from packages.llm.runtime import get_shared_requirement_provider
-from packages.schema.requirements import RequirementSpec
+from packages.schema.requirements import Assumption, RequirementSpec
 
 ProviderFactory = Callable[[], LLMProvider]
 
@@ -48,6 +48,7 @@ class NLParseOutcome:
     repair_notes: tuple[str, ...]
     provider: str
     raw: dict
+    discarded_inferences: tuple[Assumption, ...] = ()
 
 
 def parse_nl_requirement(
@@ -92,4 +93,5 @@ def parse_nl_requirement(
         repair_notes=result.repair_notes,
         provider=kind,
         raw=result.raw,
+        discarded_inferences=result.ingest.discarded_inferences,
     )

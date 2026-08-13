@@ -215,8 +215,8 @@ def test_enrich_rejects_global_near_cue_false_positive():
     )
 
 
-def test_enrich_llm_inference_becomes_unknown():
-    """ADR-003：llm_inference 不得无声消失，须转为 unknown。"""
+def test_enrich_discards_llm_inference_to_parser_audit():
+    """llm_inference 不进 canonical assumptions/unknowns；记入 enrich audit。"""
     draft = LLMRequirementDraft(
         raw_text="两层三卧",
         known={"floor_count": 2},  # type: ignore[arg-type]
@@ -232,7 +232,9 @@ def test_enrich_llm_inference_becomes_unknown():
     out = enrich_requirement_draft(draft)
     assert out.draft.assumptions == []
     unk_keys = {u.key for u in out.draft.unknowns}
-    assert "household.bathrooms" in unk_keys
+    assert "household.bathrooms" not in unk_keys
+    assert len(out.discarded_inferences) == 1
+    assert out.discarded_inferences[0].key == "household.bathrooms"
 
 
 def test_ingest_enrich_recovers_intent_case():

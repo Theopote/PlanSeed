@@ -423,19 +423,33 @@ class TestSeparationFloorAccess:
         assert not validation.valid
         assert any(v.constraint_id == "floor-k-f1" for v in validation.hard_violations)
 
-    def test_access_stair_reach_without_stair(self):
-        from packages.schema.constraints import AccessConstraint, ConstraintSource
+    def test_separation_different_floor_not_violation(self):
+        """跨层房间：SeparationConstraint 不适用，不得因平面投影距离误报。"""
+        from packages.schema.constraints import ConstraintSource, SeparationConstraint
 
         program = self._kitchen_dining_program()
         program.constraints.append(
-            AccessConstraint(
-                id="acc-bed-stair",
-                room_id="dining",
-                requires_stair_reach=True,
+            SeparationConstraint(
+                id="sep-cross",
+                room_a_id="kitchen",
+                room_b_id="dining",
+                min_distance=3.0,
                 hard=True,
                 source=ConstraintSource.USER,
             )
         )
+        candidate = _candidate_with_two_rooms(
+            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
+            b_rect=PlacementRect(x=0, y=0, width=3, depth=3),
+            same_floor=False,
+        )
+        validation = DefaultConstraintChecker().check(program, candidate)
+        all_violations = validation.hard_violations + validation.soft_violations
+        assert not any(v.constraint_id == "sep-cross" for v in all_violations)
+
+    def test_upper_floor_unreachable_without_stair(self):
+        """上层房间无楼梯时由 RealizedAccessGraph 统一校验，非 has_stair 启发式。"""
+        program = self._kitchen_dining_program()
         candidate = _candidate_with_two_rooms(
             a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
             b_rect=PlacementRect(x=3, y=0, width=3, depth=3),
@@ -443,4 +457,7 @@ class TestSeparationFloorAccess:
         )
         validation = DefaultConstraintChecker().check(program, candidate)
         assert not validation.valid
-        assert any(v.constraint_id == "acc-bed-stair" for v in validation.hard_violations)
+        assert any(
+            v.constraint_id == "access.unreachable_room" and "dining" in v.room_ids
+            for v in validation.hard_violations
+        )

@@ -21,7 +21,7 @@ RelationStrength = Literal["required", "preferred"]
 AssumptionSource = Literal[
     "user_authorized",  # 用户明确授权假设
     "planseed_default",  # 产品确认的默认
-    "llm_inference",  # 模型推断（不进 assumptions；转 unknown）
+    "llm_inference",  # 模型推断（不进 canonical assumptions/unknowns；记入 parser audit）
 ]
 
 UnknownPriority = Literal[

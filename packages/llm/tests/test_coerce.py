@@ -99,8 +99,10 @@ def test_ingest_accepts_coerced_messy_draft():
     )
     assert result.spec.floor_count == 2
     assert result.draft.known.household.bedrooms == 3
-    # ADR-003：llm_inference 转 unknown（spec 层可见）
-    assert "household.has_garage" in {u.key for u in result.spec.unknowns}
+    # llm_inference 不进 canonical；记入 parser audit
+    assert "household.has_garage" not in {u.key for u in result.spec.unknowns}
+    assert len(result.discarded_inferences) == 1
+    assert result.discarded_inferences[0].key == "household.has_garage"
     assert any(
         {r.a, r.b} == {"厨房", "餐厅"} and r.kind == "near"
         for r in result.draft.known.relation_intents

@@ -84,10 +84,12 @@ def test_ingest_happy_path_to_requirement_spec():
     assert result.spec.floor_count == 2
     assert result.spec.household.bedrooms == 3
     assert result.spec.raw_text == "两层三卧，厨房靠近餐厅，客厅朝南"
-    # ADR-003：llm_inference 转 unknown，不进 assumptions
+    # llm_inference 不进 assumptions/unknowns；记入 parser audit
     assert result.spec.assumptions == []
     unk = {u.key for u in result.spec.unknowns}
-    assert "household.bathrooms" in unk
+    assert "household.bathrooms" not in unk
+    assert len(result.discarded_inferences) == 1
+    assert result.discarded_inferences[0].key == "household.bathrooms"
     assert "site.entrance_edge" not in unk
     # 无尺寸 → site 为 blocking unknown
     assert "site.width" in unk

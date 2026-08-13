@@ -53,7 +53,7 @@ def filter_llm_inference_assumptions(
 ) -> tuple[list[Assumption], list[Assumption]]:
     """Keep user/default assumptions; return dropped llm_inference separately.
 
-    Dropped items must surface as unknowns (ADR-003)；不得无声消失。
+    Dropped items 不进 canonical assumptions/unknowns；由 ingest 记入 parser audit。
     """
     kept: list[Assumption] = []
     dropped: list[Assumption] = []
