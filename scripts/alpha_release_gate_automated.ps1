@@ -10,6 +10,8 @@ param(
     [switch]$SkipPytest,
     [switch]$SkipEngine,
     [switch]$SkipPrintHtml,
+    [switch]$SkipSidecar,
+    [switch]$RebuildSidecar,
     [switch]$StartBackend
 )
 
@@ -63,6 +65,13 @@ try {
         & "$PSScriptRoot/windows_alpha_smoke.ps1"
     }
 
+    if (-not $SkipSidecar) {
+        Write-Host "-- sidecar release smoke (PyInstaller onedir) --"
+        $sidecarArgs = @()
+        if ($RebuildSidecar) { $sidecarArgs += "-RebuildSidecar" }
+        & "$PSScriptRoot/sidecar_release_smoke.ps1" @sidecarArgs
+    }
+
     if (-not $SkipPrintHtml) {
         Write-Host "-- print smoke HTML fixtures (hand-test input only) --"
         uv run python scripts/generate_print_smoke_reports.py
@@ -79,5 +88,6 @@ Write-Host ""
 Write-Host "== automated gate passed =="
 Write-Host "Remaining manual Release Gate:"
 Write-Host "  A) Desktop WebView2 Print (debug/print-smoke + Microsoft Print to PDF)"
-Write-Host "  B) NSIS installer smoke (build_backend_sidecar + tauri:build)"
+Write-Host "  B) NSIS installer smoke (pnpm --dir desktop tauri:build + install setup.exe)"
 Write-Host "  C) Desktop .planseed roundtrip (export -> delete -> import -> report/export)"
+Write-Host "  (Sidecar PyInstaller smoke is automated when planseed-backend.exe exists)"
