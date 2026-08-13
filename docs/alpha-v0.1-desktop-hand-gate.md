@@ -7,8 +7,7 @@
 
 ```powershell
 powershell -File scripts/preflight_release_gate.ps1
-powershell -File scripts/prepare_desktop_hand_gate.ps1
-powershell -File scripts/open_print_smoke.ps1
+powershell -File scripts/start_desktop_hand_session.ps1
 ```
 
 | 产物 | 路径 |

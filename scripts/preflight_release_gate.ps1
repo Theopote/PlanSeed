@@ -59,7 +59,7 @@ Write-Host "  Automated:  powershell -File scripts/alpha_release_gate_automated.
 Write-Host "  Sidecar:    powershell -File scripts/sidecar_release_smoke.ps1"
 Write-Host "  Print prep: powershell -File scripts/open_print_smoke.ps1"
 Write-Host "  Desktop:    powershell -File scripts/desktop_shell_smoke.ps1"
-Write-Host "  Hand prep:  powershell -File scripts/prepare_desktop_hand_gate.ps1"
+Write-Host "  Hand UI:    powershell -File scripts/start_desktop_hand_session.ps1"
 if (-not $hasSetup -and $toolsOk) {
     Write-Host "  Build:      powershell -File scripts/build_installer.ps1"
 }

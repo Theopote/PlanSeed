@@ -36,7 +36,9 @@ Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结�
 | AccessConstraint `requires_stair_reach` | 移除 `has_stair` 启发式；上层可达统一走 RealizedAccessGraph |
 | LLM `llm_inference` | 不进 canonical assumptions/unknowns；记入 `parser_audit.discarded_inferences` |
 
-自动化回归：`powershell -File scripts/alpha_release_gate_automated.ps1`（不含 WebView2 Print / 安装包手测）。
+自动化回归：`powershell -File scripts/alpha_release_gate_automated.ps1 -SkipEngine`（pytest + sidecar + installer + fixture 校验）。
+
+Desktop UI 手测一键准备：`powershell -File scripts/start_desktop_hand_session.ps1`
 
 | 概念 | 含义 |
 |------|------|

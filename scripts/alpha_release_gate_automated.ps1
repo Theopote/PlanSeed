@@ -11,6 +11,8 @@ param(
     [switch]$SkipEngine,
     [switch]$SkipPrintHtml,
     [switch]$SkipSidecar,
+    [switch]$SkipInstaller,
+    [switch]$IncludeDesktopShell,
     [switch]$RebuildSidecar,
     [switch]$StartBackend
 )
@@ -73,6 +75,24 @@ try {
         & "$PSScriptRoot/sidecar_release_smoke.ps1" @sidecarArgs
     }
 
+    if (-not $SkipInstaller) {
+        Write-Host "-- installer release smoke (NSIS silent -> backend) --"
+        & "$PSScriptRoot/installer_release_smoke.ps1"
+    }
+
+    if ($IncludeDesktopShell) {
+        Write-Host "-- desktop shell smoke (NSIS -> app.exe -> health) --"
+        & "$PSScriptRoot/desktop_shell_smoke.ps1"
+    }
+
+    if (Test-Path (Join-Path $Root "debug\desktop-hand-gate\alpha-v0.1-hand-gate.planseed")) {
+        Write-Host "-- validate hand-gate .planseed fixture --"
+        uv run python scripts/validate_hand_gate_fixture.py
+        Assert-Exit $LASTEXITCODE "validate_hand_gate_fixture.py"
+    } else {
+        Write-Host "SKIP: hand-gate fixture (run prepare_desktop_hand_gate.py once)"
+    }
+
     if (-not $SkipPrintHtml) {
         Write-Host "-- print smoke HTML fixtures (hand-test input only) --"
         uv run python scripts/generate_print_smoke_reports.py
@@ -87,8 +107,7 @@ finally {
 
 Write-Host ""
 Write-Host "== automated gate passed =="
-Write-Host "Remaining manual Release Gate:"
-Write-Host "  A) Desktop WebView2 Print (debug/print-smoke + Microsoft Print to PDF)"
-Write-Host "  B) NSIS installer smoke (installer_release_smoke.ps1 or install setup.exe + windows_alpha_smoke.ps1)"
-Write-Host "  C) Desktop .planseed roundtrip (export -> delete -> import -> report/export)"
-Write-Host "  (Sidecar PyInstaller smoke is automated when planseed-backend.exe exists)"
+Write-Host "Remaining manual Release Gate (UI only):"
+Write-Host "  powershell -File scripts/start_desktop_hand_session.ps1"
+Write-Host "  Or: docs/alpha-v0.1-desktop-hand-gate.md"
+Write-Host "  A) WebView2 Print   B1) READY + Retry   C) .planseed import/export UI"
