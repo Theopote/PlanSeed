@@ -2,7 +2,7 @@
 
 > **不是新功能。** 只验证现有能力能否交给用户。  
 > Gate 总览：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)  
-> 详细 Print 矩阵：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 装包基线：[windows-alpha-smoke.md](windows-alpha-smoke.md)
+> 详细 Print 矩阵：[phase-7.1-print-smoke.md](phase-7.1-print-smoke.md) · 装包基线：[windows-alpha-smoke.md](windows-alpha-smoke.md) · **Desktop 逐步**：[alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md)
 
 默认产品路径须为 **Alpha Stable**：Guillotine · axis · heuristic · rect · residential-alpha-v1。
 
@@ -57,7 +57,11 @@ powershell -File scripts/alpha_release_gate_automated.ps1 -SkipPrintHtml
 
 ## C. `.planseed` 完整往返（必过）
 
-自动化已有 API 保真单测；本表是 **Desktop 场景**：
+自动化已有 API 保真单测；本表是 **Desktop 场景**（逐步见 [alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md)）：
+
+```powershell
+powershell -File scripts/prepare_desktop_hand_gate.ps1
+```
 
 | # | 动作 | Pass |
 |---|------|------|

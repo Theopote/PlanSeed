@@ -58,7 +58,7 @@ Write-Host "-- Suggested commands --"
 Write-Host "  Automated:  powershell -File scripts/alpha_release_gate_automated.ps1"
 Write-Host "  Sidecar:    powershell -File scripts/sidecar_release_smoke.ps1"
 Write-Host "  Print prep: powershell -File scripts/open_print_smoke.ps1"
-Write-Host "  Installer:  powershell -File scripts/installer_release_smoke.ps1"
+Write-Host "  Desktop:    powershell -File scripts/prepare_desktop_hand_gate.ps1"
 if (-not $hasSetup -and $toolsOk) {
     Write-Host "  Build:      powershell -File scripts/build_installer.ps1"
 }

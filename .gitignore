@@ -22,6 +22,7 @@ tauri-build.log
 
 debug/*.svg
 debug/print-smoke/
+debug/desktop-hand-gate/
 !debug/.gitkeep
 node_modules/
 desktop/node_modules/

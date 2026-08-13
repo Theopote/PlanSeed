@@ -114,9 +114,9 @@ Alpha v0.1 Release Qualification         ← CURRENT（核心语义已再冻结�
 
 ### 5. `.planseed` 完整往返
 
-- [x] API 保真单测：`test_planseed_full_fidelity_roundtrip`（RequirementSpec / Program / Candidates / revision / locks / mutations / provenance）
-- [ ] Desktop 场景手测（导出 → 删本地 → 导入 → 报告 / SVG·PNG）  
-  最短步骤：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) §C
+- [x] API 保真单测：`test_planseed_full_fidelity_roundtrip`
+- [x] 手测样本生成：`scripts/prepare_desktop_hand_gate.py`
+- [ ] Desktop 场景手测（[alpha-v0.1-desktop-hand-gate.md](alpha-v0.1-desktop-hand-gate.md)）  
 - [ ] **不**在本 Gate 扩格式
 
 ### 6. 明确不做（本 Gate）
