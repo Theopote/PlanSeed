@@ -27,14 +27,15 @@ class TestGuillotineGenerator:
     def test_generates_stair_as_circulation(self):
         program = benchmark_program()
         candidate = GuillotineGenerator().generate(program, seed=0)
-        stairs = [
+        generated = [
             p
             for fl in candidate.floors
             for p in fl.placements
             if p.source == PlacementSource.GENERATED
         ]
+        stairs = [p for p in generated if p.room_id.startswith("stair-")]
         assert len(stairs) == 2
-        assert all(p.category == "circulation" for p in stairs)
+        assert all(p.category == "circulation" for p in generated)
 
     def test_no_room_overlap_on_valid_candidate(self):
         program = benchmark_program()

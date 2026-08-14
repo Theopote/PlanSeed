@@ -78,8 +78,8 @@ class TestRoomSpec:
 
     def test_default_area_bounds_from_target(self):
         room = RoomSpec(id="r1", name="客厅", category=RoomCategory.PUBLIC, target_area=24)
-        assert room.resolved_min_area() == pytest.approx(20.4)
-        assert room.resolved_max_area() == pytest.approx(30.0)
+        assert room.resolved_min_area() == pytest.approx(14.4)
+        assert room.resolved_max_area() == pytest.approx(84.0)
 
     def test_rejects_inconsistent_area_bounds(self):
         with pytest.raises(ValidationError, match="min_area"):

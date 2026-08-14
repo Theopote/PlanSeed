@@ -30,7 +30,11 @@ from solver.circulation.stair_core import (
     place_stair_core_resolving,
     resolve_stair_core_spec,
 )
-from solver.geometry.coverage import assert_floor_fully_covered, fill_floor_coverage_gaps
+from solver.geometry.coverage import (
+    LAYOUT_ABSORB_TOLERANCE,
+    assign_residual_gaps_as_circulation,
+    fill_floor_coverage_gaps,
+)
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, intersects, shared_edge_length
 from solver.geometry.snap import snap_value
@@ -63,6 +67,213 @@ def _mirror_wet_stack_onto_floor(
     )
 
 
+def _group_min_area(rooms: list[_LayoutRoom]) -> float:
+    return sum(r.spec.resolved_min_area() for r in rooms)
+
+
+def _group_max_area(rooms: list[_LayoutRoom]) -> float:
+    return sum(r.spec.resolved_max_area() for r in rooms)
+
+
+def _clamp_split_fraction(
+    frac: float,
+    total_area: float,
+    max1: float,
+    max2: float,
+    min1: float,
+    min2: float,
+) -> float:
+    if total_area <= 0:
+        return frac
+    lo = max(min1 / total_area, 1.0 - max2 / total_area)
+    hi = min(max1 / total_area, 1.0 - min2 / total_area)
+    if lo > hi:
+        return max(0.0, min(1.0, frac))
+    return max(lo, min(hi, frac))
+
+
+def _compute_split_fraction(
+    group1: list[_LayoutRoom],
+    group2: list[_LayoutRoom],
+    width: float,
+    height: float,
+) -> float:
+    w1 = sum(r.weight for r in group1)
+    w2 = sum(r.weight for r in group2)
+    total_w = w1 + w2
+    frac = (w1 / total_w) if total_w > 0 else 0.5
+    total_area = width * height
+    return _clamp_split_fraction(
+        frac,
+        total_area,
+        _group_max_area(group1),
+        _group_max_area(group2),
+        _group_min_area(group1),
+        _group_min_area(group2),
+    )
+
+
+def _placement_rect_area_capped(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    max_area: float,
+) -> PlacementRect:
+    """在 [x0,y0,x1,y1] 内取面积不超过 max_area 的轴对齐矩形（优先占满宽度）。"""
+    w = max(0.0, x1 - x0)
+    h = max(0.0, y1 - y0)
+    region = w * h
+    if region <= max_area + 1e-9:
+        return PlacementRect(x=x0, y=y0, width=w, depth=h)
+    if w > 0 and max_area / w <= h:
+        return PlacementRect(x=x0, y=y0, width=w, depth=max_area / w)
+    if h > 0:
+        width = max_area / h
+        if width <= w:
+            return PlacementRect(x=x0, y=y0, width=width, depth=h)
+    return PlacementRect(x=x0, y=y0, width=w, depth=h)
+
+
+def _capped_placement_candidates(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    max_area: float,
+) -> list[PlacementRect]:
+    """同一 pack 区内多种对齐的 capped 矩形候选。"""
+    w = max(0.0, x1 - x0)
+    h = max(0.0, y1 - y0)
+    region = w * h
+    if region <= max_area + 1e-9:
+        return [PlacementRect(x=x0, y=y0, width=w, depth=h)]
+    out: list[PlacementRect] = []
+    if w > 0:
+        depth = min(h, max_area / w)
+        if depth > 0:
+            out.append(PlacementRect(x=x0, y=y0, width=w, depth=depth))
+            out.append(PlacementRect(x=x0, y=y1 - depth, width=w, depth=depth))
+    if h > 0:
+        width = min(w, max_area / h)
+        if width > 0:
+            out.append(PlacementRect(x=x0, y=y0, width=width, depth=h))
+            out.append(PlacementRect(x=x1 - width, y=y0, width=width, depth=h))
+    return out or [_placement_rect_area_capped(x0, y0, x1, y1, max_area)]
+
+
+def _best_capped_placement(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    max_area: float,
+    neighbor_rects: list[Rect],
+) -> PlacementRect:
+    """选择使剩余碎片与同层其它房间邻接边最大的 capped 放置。"""
+    full = Rect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
+    best: PlacementRect | None = None
+    best_score = -1.0
+    for cand in _capped_placement_candidates(x0, y0, x1, y1, max_area):
+        capped = Rect(x=cand.x, y=cand.y, width=cand.width, depth=cand.depth)
+        leftovers = subtract_rects([full], [capped])
+        score = 0.0
+        for piece in leftovers:
+            for neighbor in neighbor_rects:
+                score += shared_edge_length(piece, neighbor)
+        if score > best_score:
+            best_score = score
+            best = cand
+    return best or _placement_rect_area_capped(x0, y0, x1, y1, max_area)
+
+
+def _pack_rect_leftovers(pack_rect: Rect, rooms: list[_LayoutRoom]) -> list[Rect]:
+    """单房切分后 pack 区内未分配碎片（供同 zone 其它房间吸收）。"""
+    if len(rooms) != 1 or rooms[0].rect is None:
+        return []
+    placed = from_placement(rooms[0].rect)
+    leftovers = subtract_rects([pack_rect], [placed])
+    return [r for r in leftovers if r.area > 1e-6]
+
+
+def _trim_and_donate_excess(
+    layout_rooms: dict[str, _LayoutRoom],
+) -> None:
+    """裁切超上限房间，将邻接碎片转给同层尚有容量的其它房间。"""
+    from solver.geometry.coverage import try_absorb_sliver_within_area_cap
+
+    for lr in layout_rooms.values():
+        if lr.rect is None:
+            continue
+        max_a = lr.spec.resolved_max_area()
+        if lr.rect.area <= max_a + 1e-9:
+            continue
+        cur = from_placement(lr.rect)
+        neighbor_rects = [
+            from_placement(other.rect)
+            for other in layout_rooms.values()
+            if other.rect is not None and other.spec.id != lr.spec.id
+        ]
+        capped = from_placement(
+            _best_capped_placement(
+                cur.x,
+                cur.y,
+                cur.right,
+                cur.bottom,
+                max_a,
+                neighbor_rects,
+            )
+        )
+        leftovers = subtract_rects([cur], [capped])
+        lr.rect = PlacementRect(
+            x=capped.x,
+            y=capped.y,
+            width=capped.width,
+            depth=capped.depth,
+        )
+        for piece in leftovers:
+            if piece.area <= 1e-6:
+                continue
+            placed_rects = {
+                other.spec.id: from_placement(other.rect)
+                for other in layout_rooms.values()
+                if other.rect is not None and other.spec.id != lr.spec.id
+            }
+            best_other: _LayoutRoom | None = None
+            best_merged: Rect | None = None
+            best_edge = 0.0
+            for other in layout_rooms.values():
+                if other.spec.id == lr.spec.id or other.rect is None:
+                    continue
+                other_cur = from_placement(other.rect)
+                others = [
+                    r
+                    for rid, r in placed_rects.items()
+                    if rid != other.spec.id
+                ]
+                merged = try_absorb_sliver_within_area_cap(
+                    other_cur,
+                    piece,
+                    others,
+                    other.spec.resolved_max_area(),
+                )
+                if merged is None:
+                    continue
+                edge = shared_edge_length(other_cur, piece)
+                if edge > best_edge:
+                    best_other = other
+                    best_merged = merged
+                    best_edge = edge
+            if best_other is None or best_merged is None:
+                continue
+            best_other.rect = PlacementRect(
+                x=best_merged.x,
+                y=best_merged.y,
+                width=best_merged.width,
+                depth=best_merged.depth,
+            )
+
+
 @dataclass
 class _LayoutRoom:
     spec: RoomSpec
@@ -85,6 +296,8 @@ class GuillotineGenerator:
     def __init__(self) -> None:
         self._zone_planner = ZonePlanner()
         self._topology_planner = TopologyPlanner()
+        self._floor_pack_leftovers: list[Rect] = []
+        self._current_layout_rooms: dict[str, _LayoutRoom] = {}
 
     def generate(
         self,
@@ -334,11 +547,6 @@ class GuillotineGenerator:
         )
         place_door_openings(program, candidate)
         build_realized_connections(program, candidate)
-        footprint_area = program.buildable.width * program.buildable.depth
-        for fl in candidate.floors:
-            assert_floor_fully_covered(
-                footprint_area, fl.placements, floor_id=fl.floor_id
-            )
         return candidate
 
     @staticmethod
@@ -427,6 +635,8 @@ class GuillotineGenerator:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
         }
+        self._current_layout_rooms = layout_rooms
+        self._floor_pack_leftovers = []
 
         # 按 zone 聚合几何（同 zone 多块 rect）；room_ids 合并
         zone_rects: dict[ArchitecturalZone, list[Rect]] = {}
@@ -501,7 +711,18 @@ class GuillotineGenerator:
             )
 
         footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
-        placements = fill_floor_coverage_gaps(footprint, placements)
+        max_by_id = {r.id: r.resolved_max_area() for r in floor_rooms}
+        placements = fill_floor_coverage_gaps(
+            footprint,
+            placements,
+            extra_gaps=self._floor_pack_leftovers,
+            max_area_by_room_id=max_by_id,
+        )
+        placements = assign_residual_gaps_as_circulation(
+            footprint,
+            placements,
+            floor.id,
+        )
 
         return FloorLayout(
             floor_id=floor.id,
@@ -538,6 +759,10 @@ class GuillotineGenerator:
                 avoid_pairs=avoid_pairs,
                 cluster_members=cluster_members,
             )
+            for lr in rooms:
+                if lr.rect is not None:
+                    for sliver in _pack_rect_leftovers(r, [lr]):
+                        self._absorb_sliver_into_zone_room(rooms, sliver)
             return
 
         total_area = sum(r.area for r in rects) or 1.0
@@ -575,6 +800,7 @@ class GuillotineGenerator:
                     avoid_pairs=avoid_pairs,
                     cluster_members=cluster_members,
                 )
+                empty_rects.extend(_pack_rect_leftovers(rect, share))
             for rect_i in order[len(remaining_units) :]:
                 empty_rects.append(rects[rect_i])
             for sliver in empty_rects:
@@ -622,6 +848,7 @@ class GuillotineGenerator:
                 avoid_pairs=avoid_pairs,
                 cluster_members=cluster_members,
             )
+            empty_rects.extend(_pack_rect_leftovers(rect, share))
 
         for sliver in empty_rects:
             self._absorb_sliver_into_zone_room(rooms, sliver)
@@ -642,9 +869,33 @@ class GuillotineGenerator:
         if not rooms:
             return
         if len(rooms) == 1:
+            lr = rooms[0]
             cw = max(0.0, x1 - x0)
             ch = max(0.0, y1 - y0)
-            rooms[0].rect = PlacementRect(x=x0, y=y0, width=cw, depth=ch)
+            max_a = lr.spec.resolved_max_area()
+            region = cw * ch
+            if region > max_a + 1e-9:
+                neighbor_rects = [
+                    from_placement(other.rect)
+                    for other in self._current_layout_rooms.values()
+                    if other.rect is not None and other.spec.id != lr.spec.id
+                ]
+                capped = _best_capped_placement(
+                    x0, y0, x1, y1, max_a, neighbor_rects
+                )
+                lr.rect = capped
+                full = Rect(x=x0, y=y0, width=cw, depth=ch)
+                capped_r = Rect(
+                    x=capped.x,
+                    y=capped.y,
+                    width=capped.width,
+                    depth=capped.depth,
+                )
+                self._floor_pack_leftovers.extend(
+                    subtract_rects([full], [capped_r])
+                )
+            else:
+                lr.rect = PlacementRect(x=x0, y=y0, width=cw, depth=ch)
             return
 
         unit_ids = group_into_slicing_units(
@@ -700,11 +951,9 @@ class GuillotineGenerator:
             group1 = rooms[:split_idx]
             group2 = rooms[split_idx:]
 
-        area1 = sum(r.weight for r in group1) or 1.0
-        area2 = sum(r.weight for r in group2) or 1.0
         width = x1 - x0
         height = y1 - y0
-        frac = area1 / (area1 + area2)
+        frac = _compute_split_fraction(group1, group2, width, height)
 
         if abs(width - height) < 1e-6:
             split_horizontal = rng.random() < 0.5
@@ -766,7 +1015,7 @@ class GuillotineGenerator:
     def _absorb_sliver_into_zone_room(
         self, rooms: list[_LayoutRoom], sliver: Rect
     ) -> None:
-        from solver.geometry.coverage import try_absorb_sliver_without_overlap
+        from solver.geometry.coverage import try_absorb_sliver_within_area_cap
 
         placed = [lr for lr in rooms if lr.rect is not None]
         if not placed:
@@ -776,8 +1025,16 @@ class GuillotineGenerator:
         best_edge = 0.0
         placed_rects = [from_placement(lr.rect) for lr in placed]
         for lr, cur in zip(placed, placed_rects):
+            if lr.rect.area >= lr.spec.resolved_max_area() - 1e-9:
+                continue
             others = [r for r in placed_rects if r is not cur]
-            merged = try_absorb_sliver_without_overlap(cur, sliver, others)
+            merged = try_absorb_sliver_within_area_cap(
+                cur,
+                sliver,
+                others,
+                lr.spec.resolved_max_area(),
+                tolerance=LAYOUT_ABSORB_TOLERANCE,
+            )
             if merged is None:
                 continue
             edge = shared_edge_length(cur, sliver)

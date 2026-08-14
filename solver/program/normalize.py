@@ -42,19 +42,20 @@ def _merge_implicit_constraints(spec: ProjectSpec, existing: list) -> list:
     merged = list(existing)
 
     for room in spec.rooms:
-        if room.min_area is not None:
-            key = (ConstraintKind.AREA, room.id, None)
-            if key not in by_kind_room:
-                merged.append(
-                    AreaConstraint(
-                        id=f"area-min-{room.id}",
-                        room_id=room.id,
-                        min_area=room.min_area,
-                        hard=True,
-                        source=ConstraintSource.NORMALIZER,
-                        source_key=f"rooms.{room.id}.min_area",
-                    )
+        key = (ConstraintKind.AREA, room.id, None)
+        if key not in by_kind_room:
+            merged.append(
+                AreaConstraint(
+                    id=f"area-bound-{room.id}",
+                    room_id=room.id,
+                    min_area=room.resolved_min_area(),
+                    max_area=room.resolved_max_area(),
+                    target_area=room.target_area,
+                    hard=True,
+                    source=ConstraintSource.NORMALIZER,
+                    source_key=f"rooms.{room.id}.area_bounds",
                 )
+            )
         if room.min_width is not None:
             key = (ConstraintKind.WIDTH, room.id, None)
             if key not in by_kind_room:

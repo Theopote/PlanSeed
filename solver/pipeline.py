@@ -123,6 +123,7 @@ def run_pipeline(
             seed = cfg.base_seed + i + gi * max(cfg.candidate_count, 1) * 1000
             candidate = gen.generate(program, seed, locks=locks)
             validation = checker.check(program, candidate)
+            # 房间面积上下限：normalize 注入 area-bound-* 硬约束，由 checker 统一校验并剔除 invalid 候选
             if has_locks:
                 inv = check_lock_invariants(candidate, locks)
                 candidate.metrics["lock_invariant_ok"] = not bool(inv.hard_violations)

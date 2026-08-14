@@ -30,7 +30,7 @@ def test_pipeline_top_candidates_fully_cover_footprint() -> None:
 
     result = run_pipeline(program)
     assert result.top_candidates, "expected Top-K candidates"
-    assert result.valid < result.generated, "coverage gate should reject some candidates"
+    assert result.valid < result.generated, "area/coverage gate should reject some candidates"
 
     for candidate in result.top_candidates:
         for floor in candidate.floors:

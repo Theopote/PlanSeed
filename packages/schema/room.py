@@ -49,6 +49,12 @@ class SemanticRole(StrEnum):
     HALL = "hall"
 
 
+# 未显式 min_area / max_area 时，由 target_area 推导的默认系数。
+# max 取 3.5：拦住 10× 级面积失控，同时为 11×13 满铺留出切分余量（后续可按户型调）。
+DEFAULT_MIN_AREA_FACTOR = 0.6
+DEFAULT_MAX_AREA_FACTOR = 3.5
+
+
 class RoomSpec(BaseModel):
     """
     单个房间的设计需求。
@@ -102,10 +108,14 @@ class RoomSpec(BaseModel):
         return self
 
     def resolved_min_area(self) -> float:
-        return self.min_area if self.min_area is not None else self.target_area * 0.85
+        if self.min_area is not None:
+            return self.min_area
+        return self.target_area * DEFAULT_MIN_AREA_FACTOR
 
     def resolved_max_area(self) -> float:
-        return self.max_area if self.max_area is not None else self.target_area * 1.25
+        if self.max_area is not None:
+            return self.max_area
+        return self.target_area * DEFAULT_MAX_AREA_FACTOR
 
 
 class FloorSpec(BaseModel):

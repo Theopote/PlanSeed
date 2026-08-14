@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from packages.schema.layout import RoomPlacement, Violation
+from packages.schema.layout import PlacementRect, RoomPlacement, Violation
 from packages.schema.program import DesignProgram
 from solver.geometry.rect import Rect, from_placement, intersection, intersects, shared_edge_length, touches
 
 COVERAGE_TOLERANCE = 1e-6
+LAYOUT_ABSORB_TOLERANCE = 0.5
 
 
 def floor_placed_area(placements: list[RoomPlacement]) -> float:
@@ -173,12 +174,363 @@ def try_absorb_sliver_without_overlap(
     return merged
 
 
+def try_absorb_sliver_within_area_cap(
+    placed: Rect,
+    sliver: Rect,
+    others: list[Rect],
+    max_area: float,
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> Rect | None:
+    """在不超过 max_area 的前提下，尽量将 sliver 并入 placed。"""
+    spare = max_area - placed.area
+    if spare <= tolerance:
+        return None
+
+    full = try_absorb_sliver_without_overlap(
+        placed, sliver, others, tolerance=tolerance
+    )
+    if full is not None and full.area <= max_area + tolerance:
+        return full
+
+    def _valid(merged: Rect) -> Rect | None:
+        if merged.area > max_area + tolerance:
+            return None
+        for other in others:
+            inter = intersection(merged, other)
+            if inter is not None and inter.area > tolerance:
+                return None
+        return merged
+
+    overlap_top = max(placed.top, sliver.top)
+    overlap_bottom = min(placed.bottom, sliver.bottom)
+    overlap_height = overlap_bottom - overlap_top
+
+    # sliver 在 placed 右侧
+    if abs(sliver.left - placed.right) <= tolerance and overlap_height > tolerance:
+        max_w = spare / placed.depth if placed.depth > tolerance else 0.0
+        width = min(sliver.width, max_w, sliver.right - placed.right)
+        if width > tolerance:
+            merged = Rect(
+                x=placed.x,
+                y=placed.y,
+                width=placed.width + width,
+                depth=placed.depth,
+            )
+            return _valid(merged)
+
+    # sliver 在 placed 左侧
+    if abs(sliver.right - placed.left) <= tolerance and overlap_height > tolerance:
+        max_w = spare / placed.depth if placed.depth > tolerance else 0.0
+        width = min(sliver.width, max_w, placed.left - sliver.left)
+        if width > tolerance:
+            merged = Rect(
+                x=placed.x - width,
+                y=placed.y,
+                width=placed.width + width,
+                depth=placed.depth,
+            )
+            return _valid(merged)
+
+    overlap_left = max(placed.left, sliver.left)
+    overlap_right = min(placed.right, sliver.right)
+    overlap_width = overlap_right - overlap_left
+
+    # sliver 在 placed 下方
+    if abs(sliver.top - placed.bottom) <= tolerance and overlap_width > tolerance:
+        max_d = spare / placed.width if placed.width > tolerance else 0.0
+        depth = min(sliver.depth, max_d, sliver.bottom - placed.bottom)
+        if depth > tolerance:
+            merged = Rect(
+                x=placed.x,
+                y=placed.y,
+                width=placed.width,
+                depth=placed.depth + depth,
+            )
+            return _valid(merged)
+
+    # sliver 在 placed 上方
+    if abs(sliver.bottom - placed.top) <= tolerance and overlap_width > tolerance:
+        max_d = spare / placed.width if placed.width > tolerance else 0.0
+        depth = min(sliver.depth, max_d, placed.top - sliver.top)
+        if depth > tolerance:
+            merged = Rect(
+                x=placed.x,
+                y=placed.y - depth,
+                width=placed.width,
+                depth=placed.depth + depth,
+            )
+            return _valid(merged)
+
+    return None
+
+
+def shrink_placement_to_max_area(
+    placement: RoomPlacement,
+    max_area: float,
+    neighbor_rects: list[Rect],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> RoomPlacement:
+    if placement.room_id.startswith("stair-") or placement.rect.area <= max_area + tolerance:
+        return placement
+    cur = from_placement(placement.rect)
+    capped = _best_capped_rect(cur.x, cur.y, cur.right, cur.bottom, max_area, neighbor_rects)
+    return placement.model_copy(
+        update={
+            "rect": PlacementRect(
+                x=capped.x,
+                y=capped.y,
+                width=capped.width,
+                depth=capped.depth,
+            )
+        }
+    )
+
+
+def _best_capped_rect(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    max_area: float,
+    neighbor_rects: list[Rect],
+) -> Rect:
+    from solver.geometry.free_rects import subtract_rects
+
+    full = Rect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
+    best: Rect | None = None
+    best_score = -1.0
+    w = max(0.0, x1 - x0)
+    h = max(0.0, y1 - y0)
+    candidates: list[PlacementRect] = []
+    if w * h <= max_area + COVERAGE_TOLERANCE:
+        return full
+    if w > 0:
+        depth = min(h, max_area / w)
+        if depth > 0:
+            candidates.append(PlacementRect(x=x0, y=y0, width=w, depth=depth))
+            candidates.append(PlacementRect(x=x0, y=y1 - depth, width=w, depth=depth))
+    if h > 0:
+        width = min(w, max_area / h)
+        if width > 0:
+            candidates.append(PlacementRect(x=x0, y=y0, width=width, depth=h))
+            candidates.append(PlacementRect(x=x1 - width, y=y0, width=width, depth=h))
+    for cand in candidates or [PlacementRect(x=x0, y=y0, width=w, depth=h)]:
+        capped = Rect(x=cand.x, y=cand.y, width=cand.width, depth=cand.depth)
+        if capped.area > max_area + COVERAGE_TOLERANCE:
+            continue
+        leftovers = subtract_rects([full], [capped])
+        score = sum(
+            shared_edge_length(piece, neighbor)
+            for piece in leftovers
+            for neighbor in neighbor_rects
+        )
+        if score > best_score:
+            best_score = score
+            best = capped
+    return best or Rect(x=x0, y=y0, width=w, depth=min(h, max_area / max(w, 1e-9)))
+
+
+def rebalance_placements_to_area_bounds(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    max_area_by_room_id: dict[str, float],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """满铺后按上限裁切超大房间，并立即将碎片转给同层尚有容量的邻接房间。"""
+    from solver.geometry.free_rects import subtract_rects
+
+    absorb_tol = max(tolerance, LAYOUT_ABSORB_TOLERANCE)
+    updated = [p.model_copy(deep=True) for p in placements]
+    order = sorted(
+        range(len(updated)),
+        key=lambda i: updated[i].rect.area
+        - max_area_by_room_id.get(updated[i].room_id, float("inf")),
+        reverse=True,
+    )
+    for i in order:
+        p = updated[i]
+        cap = max_area_by_room_id.get(p.room_id)
+        if (
+            cap is None
+            or p.room_id.startswith("stair-")
+            or p.rect.area <= cap + tolerance
+        ):
+            continue
+        cur = from_placement(p.rect)
+        neighbors = [
+            from_placement(other.rect)
+            for j, other in enumerate(updated)
+            if j != i
+        ]
+        capped = _best_capped_rect(
+            cur.x, cur.y, cur.right, cur.bottom, cap, neighbors
+        )
+        leftovers = subtract_rects([cur], [capped])
+        updated[i] = p.model_copy(
+            update={
+                "rect": PlacementRect(
+                    x=capped.x,
+                    y=capped.y,
+                    width=capped.width,
+                    depth=capped.depth,
+                )
+            }
+        )
+        for piece in leftovers:
+            if piece.area <= tolerance:
+                continue
+            best_j: int | None = None
+            best_rect: Rect | None = None
+            best_edge = 0.0
+            for j, other in enumerate(updated):
+                if i == j or other.room_id.startswith("stair-"):
+                    continue
+                other_cap = max_area_by_room_id.get(other.room_id)
+                if other_cap is None:
+                    continue
+                other_cur = from_placement(other.rect)
+                others = [
+                    from_placement(o.rect)
+                    for k, o in enumerate(updated)
+                    if k not in (i, j)
+                ]
+                merged = try_absorb_sliver_within_area_cap(
+                    other_cur,
+                    piece,
+                    others,
+                    other_cap,
+                    tolerance=absorb_tol,
+                )
+                if merged is None:
+                    continue
+                edge = shared_edge_length(other_cur, piece)
+                if edge > best_edge:
+                    best_j = j
+                    best_rect = merged
+                    best_edge = edge
+            if best_j is None or best_rect is None:
+                continue
+            other = updated[best_j]
+            updated[best_j] = other.model_copy(
+                update={
+                    "rect": PlacementRect(
+                        x=best_rect.x,
+                        y=best_rect.y,
+                        width=best_rect.width,
+                        depth=best_rect.depth,
+                    )
+                }
+            )
+    return fill_floor_coverage_gaps(
+        footprint,
+        updated,
+        tolerance=absorb_tol,
+        max_area_by_room_id=max_area_by_room_id,
+    )
+
+
+def finalize_area_bounds(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    max_area_by_room_id: dict[str, float],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """满铺后裁切超上限房间，再在剩余容量内二次填缝。"""
+    return rebalance_placements_to_area_bounds(
+        footprint,
+        placements,
+        max_area_by_room_id,
+        tolerance=tolerance,
+    )
+
+
+def clip_placement_to_max_area(
+    placement: RoomPlacement,
+    max_area: float,
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> RoomPlacement:
+    if placement.rect.area <= max_area + tolerance:
+        return placement
+    rect = placement.rect
+    if rect.width > 0:
+        depth = min(rect.depth, max_area / rect.width)
+        if depth * rect.width <= max_area + tolerance:
+            return placement.model_copy(
+                update={"rect": rect.model_copy(update={"depth": depth})}
+            )
+    if rect.depth > 0:
+        width = min(rect.width, max_area / rect.depth)
+        return placement.model_copy(
+            update={"rect": rect.model_copy(update={"width": width})}
+        )
+    return placement
+
+
+def enforce_area_bounds_with_refill(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    max_area_by_room_id: dict[str, float],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """先满铺，再裁切超上限房间，最后在剩余容量内二次填缝。"""
+    filled = fill_floor_coverage_gaps(footprint, placements, tolerance=tolerance)
+    clipped = [
+        clip_placement_to_max_area(
+            p,
+            max_area_by_room_id[p.room_id],
+            tolerance=tolerance,
+        )
+        if p.room_id in max_area_by_room_id and not p.room_id.startswith("stair-")
+        else p
+        for p in filled
+    ]
+    return fill_floor_coverage_gaps(
+        footprint,
+        clipped,
+        tolerance=tolerance,
+        max_area_by_room_id=max_area_by_room_id,
+    )
+
+
+def clip_small_area_overruns(
+    placements: list[RoomPlacement],
+    max_area_by_room_id: dict[str, float],
+    *,
+    tolerance: float = 1.0,
+) -> list[RoomPlacement]:
+    """裁切轻微超出上限的浮点误差（不用于大幅缩房）。"""
+    clipped: list[RoomPlacement] = []
+    for p in placements:
+        cap = max_area_by_room_id.get(p.room_id)
+        if (
+            cap is None
+            or p.room_id.startswith("stair-")
+            or p.rect.area <= cap + COVERAGE_TOLERANCE
+        ):
+            clipped.append(p)
+            continue
+        overrun = p.rect.area - cap
+        if overrun > tolerance:
+            clipped.append(p)
+            continue
+        clipped.append(clip_placement_to_max_area(p, cap))
+    return clipped
+
+
 def fill_floor_coverage_gaps(
     footprint: Rect,
     placements: list[RoomPlacement],
     *,
     tolerance: float = COVERAGE_TOLERANCE,
     max_iterations: int | None = None,
+    max_area_by_room_id: dict[str, float] | None = None,
+    extra_gaps: list[Rect] | None = None,
 ) -> list[RoomPlacement]:
     """把 footprint 内未被 placements 覆盖的碎片并入邻接房间（含楼梯）。"""
     from solver.geometry.free_rects import subtract_rects
@@ -187,57 +539,158 @@ def fill_floor_coverage_gaps(
         max_iterations = len(placements) * 8 + 8
 
     updated = [p.model_copy(deep=True) for p in placements]
+    pending_extra = list(extra_gaps) if extra_gaps else []
     for _ in range(max_iterations):
         gaps = subtract_rects(
             [footprint],
             [from_placement(p.rect) for p in updated],
         )
+        if pending_extra:
+            gaps.extend(pending_extra)
+            pending_extra.clear()
         gaps = [g for g in gaps if g.area > tolerance]
         if not gaps:
             return updated
 
-        gap = gaps[0]
+        gaps.sort(key=lambda g: g.area, reverse=True)
         stair_indices = [
             i for i, p in enumerate(updated) if p.room_id.startswith("stair-")
         ]
-        candidate_indices = stair_indices + [
+        program_indices = [
             i for i in range(len(updated)) if i not in stair_indices
         ]
-        best_idx: int | None = None
-        best_rect: Rect | None = None
-        best_edge = 0.0
-        for i in candidate_indices:
-            p = updated[i]
-            cur = from_placement(p.rect)
-            others = [
-                from_placement(other.rect)
-                for j, other in enumerate(updated)
-                if j != i
-            ]
-            merged = try_absorb_sliver_without_overlap(
-                cur, gap, others, tolerance=tolerance
-            )
-            if merged is None:
-                continue
-            edge = shared_edge_length(cur, gap)
-            if edge > best_edge:
-                best_idx = i
-                best_rect = merged
-                best_edge = edge
-        if best_idx is None or best_rect is None:
-            return updated
-        p = updated[best_idx]
-        updated[best_idx] = p.model_copy(
-            update={
-                "rect": p.rect.model_copy(
-                    update={
-                        "x": best_rect.x,
-                        "y": best_rect.y,
-                        "width": best_rect.width,
-                        "depth": best_rect.depth,
-                    }
+
+        def remaining_capacity(i: int) -> float:
+            if max_area_by_room_id is None:
+                return float("inf")
+            cap = max_area_by_room_id.get(updated[i].room_id)
+            if cap is None:
+                return float("inf")
+            return max(0.0, cap - updated[i].rect.area)
+
+        # 楼梯核尺寸固定，不参与碎片吸收扩张
+        candidate_indices = sorted(
+            program_indices,
+            key=remaining_capacity,
+            reverse=True,
+        )
+
+        progress = False
+        for gap in gaps:
+            best_idx: int | None = None
+            best_rect: Rect | None = None
+            best_edge = 0.0
+            for i in candidate_indices:
+                p = updated[i]
+                if remaining_capacity(i) <= tolerance:
+                    continue
+                cur = from_placement(p.rect)
+                others = [
+                    from_placement(other.rect)
+                    for j, other in enumerate(updated)
+                    if j != i
+                ]
+                cap = (
+                    max_area_by_room_id.get(p.room_id)
+                    if max_area_by_room_id is not None
+                    else None
                 )
-            }
+                if cap is not None:
+                    merged = try_absorb_sliver_within_area_cap(
+                        cur,
+                        gap,
+                        others,
+                        cap,
+                        tolerance=max(tolerance, LAYOUT_ABSORB_TOLERANCE),
+                    )
+                else:
+                    merged = try_absorb_sliver_without_overlap(
+                        cur, gap, others, tolerance=tolerance
+                    )
+                if merged is None:
+                    if cap is not None and cap - cur.area > tolerance:
+                        merged_rect = merge_adjacent_rects(cur, gap)
+                        if merged_rect is not None and merged_rect.area <= cap + tolerance:
+                            overlap = False
+                            for other in others:
+                                inter = intersection(merged_rect, other)
+                                if inter is not None and inter.area > tolerance:
+                                    overlap = True
+                                    break
+                            if not overlap:
+                                merged = merged_rect
+                if merged is None:
+                    continue
+                edge = shared_edge_length(cur, gap)
+                if edge > best_edge:
+                    best_idx = i
+                    best_rect = merged
+                    best_edge = edge
+            if best_idx is None or best_rect is None:
+                continue
+            p = updated[best_idx]
+            updated[best_idx] = p.model_copy(
+                update={
+                    "rect": p.rect.model_copy(
+                        update={
+                            "x": best_rect.x,
+                            "y": best_rect.y,
+                            "width": best_rect.width,
+                            "depth": best_rect.depth,
+                        }
+                    )
+                }
+            )
+            progress = True
+            break
+
+        if not progress:
+            return updated
+    return updated
+
+
+def assign_residual_gaps_as_circulation(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    floor_id: str,
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """
+    将 program 房间无法吸收的剩余碎片标为 generated circulation。
+
+    典型场景：楼梯核邻接区无法在不重叠的前提下扩入 program 房间。
+  """
+    from solver.geometry.free_rects import subtract_rects
+    from packages.schema.layout import PlacementSource
+
+    updated = [p.model_copy(deep=True) for p in placements]
+    gaps = subtract_rects(
+        [footprint],
+        [from_placement(p.rect) for p in updated],
+    )
+    gaps = [g for g in gaps if g.area > tolerance]
+    if not gaps:
+        return updated
+
+    residual_count = sum(
+        1 for p in updated if p.room_id.startswith(f"circ-{floor_id}-")
+    )
+    for i, gap in enumerate(gaps):
+        updated.append(
+            RoomPlacement(
+                room_id=f"circ-{floor_id}-{residual_count + i}",
+                floor_id=floor_id,
+                rect=PlacementRect(
+                    x=gap.x,
+                    y=gap.y,
+                    width=gap.width,
+                    depth=gap.depth,
+                ),
+                source=PlacementSource.GENERATED,
+                name="走廊",
+                category="circulation",
+            )
         )
     return updated
 
