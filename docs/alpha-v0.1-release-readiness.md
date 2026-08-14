@@ -1,8 +1,7 @@
 # Alpha v0.1 Release Readiness
 
-> **这是 Release Gate，不是 Phase 9。**  
-> 目标一句话：**在稳定默认配置下，证明现有能力可以交给用户。**  
-> 总览：[roadmap.md](roadmap.md) · **最短手测**：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) · 稳定化：[phases/phase-8.5-alpha-stabilization.md](phases/phase-8.5-alpha-stabilization.md)
+> **历史验收记录** — PlanSeed Alpha v0.1.0 已于 2026-08-14 发布（tag [`v0.1.0-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) → `436ac81`）。  
+> 本页不再承担当前 roadmap；见 [roadmap.md](roadmap.md) · 发布说明：[alpha-v0.1-release-notes.md](alpha-v0.1-release-notes.md)
 
 ## 当前状态判断
 
@@ -15,7 +14,7 @@
 8.4       Irregular Geometry Foundation  ✅（非端到端）
 8.4.1     Irregular Site Pipeline        ☐（Post-v0.1 backlog）
 
-Alpha v0.1 Release Qualification         ✅ Release Ready（2026-08-14 手测关门）
+Alpha v0.1.0                             ✅ Released as v0.1.0-alpha（2026-08-14）
 ```
 
 ### 核心语义冻结（Release Gate 期间）
@@ -151,9 +150,9 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 
 ## 通过标准
 
-全部 **Gate 清单 1–5** 已勾完（含 **B-Desktop Shell** §4）；Alpha Stable 下无已知 P0 → **Alpha v0.1 Release Ready ✅**（2026-08-14）。
+全部 **Gate 清单 1–5** 已勾完（含 **B-Desktop Shell** §4）；Alpha Stable 下无已知 P0 → **Released as `v0.1.0-alpha` ✅**（2026-08-14）。
 
-**下一步**：打 tag 并发布 `v0.1.0`（`scripts/publish_github_release.ps1`），而非开 Phase 9。
+**发布：** [GitHub Release](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) · `PlanSeed_0.1.0_x64-setup.exe` · Pre-release。
 
 ### 手测记录（2026-08-14）
 
@@ -172,4 +171,4 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 - 本地 Ollama 可选；非云端 LLM
 - 非规范合规 · 非施工图交付
 
-勾选前不得把 roadmap 主线标成 Phase 9。
+勾选前不得把 roadmap 主线标成 Phase 9。Post-v0.1 见 [roadmap.md](roadmap.md)。

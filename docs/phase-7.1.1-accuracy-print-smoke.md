@@ -19,9 +19,9 @@
 `fixtures/requirement_spec_full.json` + pytest + `pnpm check:fidelity`。  
 含 `priority` / `source` / `north_angle` / `relation_intents`；禁止瘦 map。
 
-### 7.1.1-C — Windows WebView2 打印 smoke ☐
+### 7.1.1-C — Windows WebView2 打印 smoke ✅
 
-P01–P08 · Desktop · Microsoft Print to PDF · 人手填表。  
+P02/P06 · Desktop · Microsoft Print to PDF · 2026-08-14。  
 见 [phase-7.1-print-smoke.md](phase-7.1-print-smoke.md)。
 
 ### 7.1.1-D — 文档同步 ✅
@@ -43,8 +43,7 @@ Phase 7 文档 Key Intent 示例改为当前 **zh-CN** 真实输出：
 
 - [x] 北向真实绑定项目坐标  
 - [x] RequirementSpec TS fidelity audit 完成  
-- [ ] Windows WebView2 打印 smoke 完成  
+- [x] Windows WebView2 打印 smoke 完成（P02/P06 · 2026-08-14）  
 - [x] 文档同步  
 
-四条齐 → **关闭 7.1** → **Phase 7.2 Export Formats**。  
-（当前只差打印 smoke 人手勾选。）
+四条齐 → **7.1.1 ✅ 关闭**（随 Alpha v0.1.0 发布）。

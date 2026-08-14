@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Theopote/PlanSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/Theopote/PlanSeed/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Theopote/PlanSeed?include_prereleases&label=Alpha)](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha)
 
 Local-first、本地运行的独栋住宅生成式设计工具。
 
@@ -12,6 +13,17 @@ Local-first、本地运行的独栋住宅生成式设计工具。
 
 **技术栈**：Python 3.12（uv）· FastAPI · Tauri v2 + React + TypeScript · Pydantic · SVG · SQLite  
 **约束**：纯本地运行；禁止云端 LLM API / Electron / Three.js 平面图库。
+
+## 当前版本
+
+| 项 | 值 |
+|----|-----|
+| **Release** | **PlanSeed Alpha v0.1.0**（[`v0.1.0-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha)） |
+| **Platform** | Windows 10/11 x64 |
+| **Status** | **Released**（2026-08-14） |
+| **Next** | Post-v0.1 planning · issue-driven `v0.1.x` maintenance |
+
+下载安装包：[GitHub Releases](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) · 发布说明：[docs/alpha-v0.1-release-notes.md](docs/alpha-v0.1-release-notes.md) · 验收记录：[docs/alpha-v0.1-release-readiness.md](docs/alpha-v0.1-release-readiness.md)
 
 ## 快速开始
 
@@ -41,8 +53,7 @@ uv run python scripts/export_openapi.py
 pnpm --dir desktop generate:api
 ```
 
-当前主线 Phase 8：[docs/phases/phase-8-solver-2.0.md](docs/phases/phase-8-solver-2.0.md) · ADR：[docs/adr/](docs/adr/) · C4：[docs/c4.md](docs/c4.md)。
-7.5 硬化：[docs/phase-7.5-alpha-hardening.md](docs/phase-7.5-alpha-hardening.md)。
+架构与历史 Phase：[docs/roadmap.md](docs/roadmap.md) · ADR：[docs/adr/](docs/adr/) · C4：[docs/c4.md](docs/c4.md)。
 
 ```bash
 # 运行 solver demo
@@ -87,12 +98,6 @@ RequirementSpec  →  normalize  →  DesignProgram  →  generate  →  LayoutC
 - **LayoutCandidate**：Solver 生成的几何方案
 
 LLM 不直接输出 DesignProgram 或坐标。详见 [docs/hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)。
-
-## 当前阶段
-
-**Phase 7.1.1 Accuracy + Print Smoke**（极短收口）→ **7.2 Export Formats**（SVG 三分 · PNG 核心 · DesignReport JSON · Print polish；无 DXF / 无 PDF 引擎）。  
-详案：[docs/phase-7-deliverables.md](docs/phase-7-deliverables.md) · [docs/phase-7.1.1-accuracy-print-smoke.md](docs/phase-7.1.1-accuracy-print-smoke.md)
-Phase 6 Frozen · 7.0 / 7.0.1 ✅。见 [docs/roadmap.md](docs/roadmap.md)。
 
 ## 文档
 

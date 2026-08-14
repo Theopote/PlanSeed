@@ -1,11 +1,13 @@
 # Phase 文档索引
 
-当前与历史 Phase 说明。
+历史 Phase 说明。当前开发焦点见 [roadmap.md](../roadmap.md)（**Post-v0.1 Planning**）。
 
 | 位置 | 说明 |
 |------|------|
-| [`../alpha-v0.1-release-readiness.md`](../alpha-v0.1-release-readiness.md) | **← 当前** Alpha v0.1 Release Gate（非 Phase） |
-| [`../alpha-v0.1-hand-smoke.md`](../alpha-v0.1-hand-smoke.md) | Print / 安装包 / `.planseed` 最短手测 |
+| [`../roadmap.md`](../roadmap.md) | **← 当前** Post-v0.1 · issue-driven 维护 |
+| [`../alpha-v0.1-release-readiness.md`](../alpha-v0.1-release-readiness.md) | v0.1.0 发布验收记录（已关门） |
+| [`../alpha-v0.1-release-notes.md`](../alpha-v0.1-release-notes.md) | v0.1.0 发布说明 |
+| [`../alpha-v0.1-hand-smoke.md`](../alpha-v0.1-hand-smoke.md) | Print / 安装包 / `.planseed` 手测记录 |
 | [`phase-8.5-alpha-stabilization.md`](phase-8.5-alpha-stabilization.md) | 语义回稳（P0 ✅）→ 指向 Release Gate |
 | [`phase-8-solver-2.0.md`](phase-8-solver-2.0.md) | Solver 2.0（8.4=Foundation；8.4.1 ☐；MaxRect 未验收） |
 | [`../phase-7.5-alpha-hardening.md`](../phase-7.5-alpha-hardening.md) | 7.5 ✅ |

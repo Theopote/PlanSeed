@@ -71,6 +71,5 @@ powershell -File scripts/prepare_desktop_hand_gate.ps1
 
 ## 勾完后
 
-**Alpha v0.1 Release Ready ✅**（2026-08-14 · A/B1/C 已勾）。  
-下一步：打 tag 并 GitHub Release（`scripts/publish_github_release.ps1`）。  
-在此之前 **禁止** 开 Phase 9 / Advanced AI / BIM / Code 扩面。
+**Alpha v0.1.0 Released ✅**（2026-08-14 · tag `v0.1.0-alpha`）。  
+本页为手测记录；当前主线见 [roadmap.md](roadmap.md)（Post-v0.1 Planning）。
