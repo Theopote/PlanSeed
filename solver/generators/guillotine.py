@@ -34,9 +34,10 @@ from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
     assign_residual_gaps_as_circulation,
     fill_floor_coverage_gaps,
+    grow_rooms_to_min_area,
 )
 from solver.geometry.free_rects import subtract_rects
-from solver.geometry.rect import Rect, from_placement, intersects, shared_edge_length
+from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
 from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
@@ -90,6 +91,36 @@ def _clamp_split_fraction(
     if lo > hi:
         return max(0.0, min(1.0, frac))
     return max(lo, min(hi, frac))
+
+
+def _clamped_axis_cut(
+    start: float,
+    end: float,
+    frac: float,
+    module: float,
+    min_area_1: float,
+    min_area_2: float,
+    cross_span: float,
+) -> float:
+    """主轴切分：面积下限优先于 min_span，避免对侧被挤成退化条带。"""
+    span = end - start
+    raw = snap_value(start + span * frac, module)
+    if span <= 1e-9 or cross_span <= 1e-9:
+        return raw
+    area_lo = start + min_area_1 / cross_span
+    area_hi = end - min_area_2 / cross_span
+    min_span = module * 2
+    lo, hi = area_lo, area_hi
+    if span + 1e-9 >= 2 * min_span:
+        lo = max(lo, start + min_span)
+        hi = min(hi, end - min_span)
+    if lo > hi + 1e-9:
+        lo, hi = area_lo, area_hi
+        if lo > hi + 1e-9:
+            return max(start, min(end, raw))
+    cut = max(lo, min(hi, raw))
+    eps = min(module, span / 4) if span > 0 else 0.0
+    return max(start + eps, min(end - eps, cut))
 
 
 def _compute_split_fraction(
@@ -711,12 +742,20 @@ class GuillotineGenerator:
             )
 
         footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
+        min_by_id = {r.id: r.resolved_min_area() for r in floor_rooms}
         max_by_id = {r.id: r.resolved_max_area() for r in floor_rooms}
         placements = fill_floor_coverage_gaps(
             footprint,
             placements,
             extra_gaps=self._floor_pack_leftovers,
             max_area_by_room_id=max_by_id,
+            min_area_by_room_id=min_by_id,
+        )
+        placements = grow_rooms_to_min_area(
+            footprint,
+            placements,
+            min_by_id,
+            max_by_id,
         )
         placements = assign_residual_gaps_as_circulation(
             footprint,
@@ -960,10 +999,16 @@ class GuillotineGenerator:
         else:
             split_horizontal = width >= height
 
-        min_span = module * 2
         if split_horizontal:
-            cut_x = snap_value(x0 + width * frac, module)
-            cut_x = max(x0 + min_span, min(x1 - min_span, cut_x))
+            cut_x = _clamped_axis_cut(
+                x0,
+                x1,
+                frac,
+                module,
+                _group_min_area(group1),
+                _group_min_area(group2),
+                height,
+            )
             self._layout_rooms(
                 group1,
                 x0,
@@ -987,8 +1032,15 @@ class GuillotineGenerator:
                 cluster_members=cluster_members,
             )
         else:
-            cut_y = snap_value(y0 + height * frac, module)
-            cut_y = max(y0 + min_span, min(y1 - min_span, cut_y))
+            cut_y = _clamped_axis_cut(
+                y0,
+                y1,
+                frac,
+                module,
+                _group_min_area(group1),
+                _group_min_area(group2),
+                width,
+            )
             self._layout_rooms(
                 group1,
                 x0,
@@ -1020,32 +1072,49 @@ class GuillotineGenerator:
         placed = [lr for lr in rooms if lr.rect is not None]
         if not placed:
             return
-        best_lr: _LayoutRoom | None = None
-        best_rect: Rect | None = None
-        best_edge = 0.0
         placed_rects = [from_placement(lr.rect) for lr in placed]
-        for lr, cur in zip(placed, placed_rects):
-            if lr.rect.area >= lr.spec.resolved_max_area() - 1e-9:
-                continue
-            others = [r for r in placed_rects if r is not cur]
-            merged = try_absorb_sliver_within_area_cap(
-                cur,
-                sliver,
-                others,
-                lr.spec.resolved_max_area(),
-                tolerance=LAYOUT_ABSORB_TOLERANCE,
-            )
-            if merged is None:
-                continue
-            edge = shared_edge_length(cur, sliver)
-            if edge > best_edge:
-                best_lr = lr
-                best_rect = merged
-                best_edge = edge
-        if best_lr is not None and best_rect is not None:
-            best_lr.rect = PlacementRect(
-                x=best_rect.x,
-                y=best_rect.y,
-                width=best_rect.width,
-                depth=best_rect.depth,
-            )
+        pairs = list(zip(placed, placed_rects, strict=True))
+        undersized = [
+            (lr, cur)
+            for lr, cur in pairs
+            if lr.rect.area + 1e-9 < lr.spec.resolved_min_area()
+        ]
+
+        def _pick(candidates: list[tuple[_LayoutRoom, Rect]]) -> tuple[_LayoutRoom, Rect] | None:
+            best_lr: _LayoutRoom | None = None
+            best_rect: Rect | None = None
+            best_edge = 0.0
+            for lr, cur in candidates:
+                if lr.rect.area >= lr.spec.resolved_max_area() - 1e-9:
+                    continue
+                others = [r for r in placed_rects if r is not cur]
+                merged = try_absorb_sliver_within_area_cap(
+                    cur,
+                    sliver,
+                    others,
+                    lr.spec.resolved_max_area(),
+                    tolerance=LAYOUT_ABSORB_TOLERANCE,
+                )
+                if merged is None:
+                    continue
+                edge = shared_edge_length(cur, sliver)
+                if edge > best_edge:
+                    best_lr = lr
+                    best_rect = merged
+                    best_edge = edge
+            if best_lr is None or best_rect is None:
+                return None
+            return best_lr, best_rect
+
+        picked = _pick(undersized) if undersized else None
+        if picked is None:
+            picked = _pick(pairs)
+        if picked is None:
+            return
+        best_lr, best_rect = picked
+        best_lr.rect = PlacementRect(
+            x=best_rect.x,
+            y=best_rect.y,
+            width=best_rect.width,
+            depth=best_rect.depth,
+        )

@@ -7,12 +7,13 @@ Quality regression 阈值 — Phase 1.5 起开始记录。
 - 收紧阈值前先更新 MEASURED_BASELINE 注释
 
 基准案例：11×13m 两层旧手册户型，candidate_count=32, base_seed=42
-实测（2026-08，StairCore + diversity 后）：
-  valid_ratio ≈ 0.875 (28/32)
+实测（2026-08-15，面积上下限硬约束后）：
+  valid_ratio ≈ 0.812 (26/32)
   distinct_layouts = 32
-  distinct_valid = 28
-  top area_accuracy ≈ 0.8635
+  distinct_valid = 26
+  top area_accuracy ≈ 0.84
   top hard_violations = 0
+  部分种子书房被楼梯南侧条带卡住，低于 min_area 被剔除。
 """
 
 from __future__ import annotations
@@ -39,11 +40,11 @@ DEFAULT_QUALITY = QualityThresholds()
 
 # 记录实测基线（非断言，供人工对照 / 未来收紧）
 MEASURED_BASELINE = {
-    "date": "2026-08-08",
+    "date": "2026-08-15",
     "case": "benchmark_11x13_2floors",
-    "valid_ratio": 1.0,
+    "valid_ratio": 0.8125,
     "distinct_layouts": 32,
-    "distinct_valid": 32,
-    "top_area_accuracy": 0.63,
-    "notes": "TopologyPlan pack order; Top-K 含低 area 种子，门槛暂 0.60",
+    "distinct_valid": 26,
+    "top_area_accuracy": 0.84,
+    "notes": "面积上下限硬约束后部分种子因 min_area 被拒；Top-K area_accuracy 门槛仍 0.60",
 }

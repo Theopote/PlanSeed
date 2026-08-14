@@ -1190,6 +1190,7 @@ export interface components {
         ParseNLResponse: {
             /** Attempts */
             attempts: number;
+            parser_audit?: components["schemas"]["ParserAudit"];
             /** Provider */
             provider: string;
             /** Raw */
@@ -1199,6 +1200,14 @@ export interface components {
             /** Repair Notes */
             repair_notes?: string[];
             requirement_spec: components["schemas"]["RequirementSpec"];
+        };
+        /**
+         * ParserAudit
+         * @description 解析审计（非 canonical RequirementSpec；供调试 / benchmark / inspector）。
+         */
+        ParserAudit: {
+            /** Discarded Inferences */
+            discarded_inferences?: components["schemas"]["Assumption"][];
         };
         /** PlacementRect */
         PlacementRect: {

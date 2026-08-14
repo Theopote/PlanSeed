@@ -79,6 +79,7 @@ export type RejectedCandidatePayload = Omit<
 };
 
 export type ParseNLResponse = Schemas["ParseNLResponse"];
+export type ParserAudit = Schemas["ParserAudit"];
 export type RelationIntentPayload = Schemas["RelationIntent"];
 export type SetbackPayload = Schemas["SetbackSpec"];
 export type SpaceRequirementPayload = Schemas["SpaceRequirement"];

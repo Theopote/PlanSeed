@@ -1952,6 +1952,9 @@
             "title": "Attempts",
             "type": "integer"
           },
+          "parser_audit": {
+            "$ref": "#/components/schemas/ParserAudit"
+          },
           "provider": {
             "title": "Provider",
             "type": "string"
@@ -1978,6 +1981,20 @@
           "provider"
         ],
         "title": "ParseNLResponse",
+        "type": "object"
+      },
+      "ParserAudit": {
+        "description": "解析审计（非 canonical RequirementSpec；供调试 / benchmark / inspector）。",
+        "properties": {
+          "discarded_inferences": {
+            "items": {
+              "$ref": "#/components/schemas/Assumption"
+            },
+            "title": "Discarded Inferences",
+            "type": "array"
+          }
+        },
+        "title": "ParserAudit",
         "type": "object"
       },
       "PlacementRect": {

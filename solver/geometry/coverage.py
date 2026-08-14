@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from packages.schema.layout import PlacementRect, RoomPlacement, Violation
 from packages.schema.program import DesignProgram
-from solver.geometry.rect import Rect, from_placement, intersection, intersects, shared_edge_length, touches
+from solver.geometry.rect import (
+    Rect,
+    from_placement,
+    intersection,
+    intersects,
+    shared_edge_length,
+    touches,
+)
 
 COVERAGE_TOLERANCE = 1e-6
 LAYOUT_ABSORB_TOLERANCE = 0.5
@@ -523,6 +530,163 @@ def clip_small_area_overruns(
     return clipped
 
 
+def _donor_relation(
+    receiver: Rect, donor: Rect, *, tolerance: float = 1e-6
+) -> tuple[str, float] | None:
+    """donor 相对 receiver 的邻接方向，及共享边长度。"""
+    x_overlap = min(receiver.right, donor.right) - max(receiver.left, donor.left)
+    y_overlap = min(receiver.bottom, donor.bottom) - max(receiver.top, donor.top)
+    if abs(donor.bottom - receiver.top) <= tolerance and x_overlap > tolerance:
+        return ("north", x_overlap)
+    if abs(donor.top - receiver.bottom) <= tolerance and x_overlap > tolerance:
+        return ("south", x_overlap)
+    if abs(donor.right - receiver.left) <= tolerance and y_overlap > tolerance:
+        return ("west", y_overlap)
+    if abs(donor.left - receiver.right) <= tolerance and y_overlap > tolerance:
+        return ("east", y_overlap)
+    return None
+
+
+def _cede_along_shared_edge(
+    receiver: RoomPlacement,
+    donor: RoomPlacement,
+    direction: str,
+    delta: float,
+) -> tuple[RoomPlacement, RoomPlacement]:
+    ru, du = receiver.rect, donor.rect
+    if direction == "north":
+        new_r = ru.model_copy(update={"y": ru.y - delta, "depth": ru.depth + delta})
+        new_d = du.model_copy(update={"depth": du.depth - delta})
+    elif direction == "south":
+        new_r = ru.model_copy(update={"depth": ru.depth + delta})
+        new_d = du.model_copy(update={"y": du.y + delta, "depth": du.depth - delta})
+    elif direction == "west":
+        new_r = ru.model_copy(update={"x": ru.x - delta, "width": ru.width + delta})
+        new_d = du.model_copy(update={"width": du.width - delta})
+    else:
+        new_r = ru.model_copy(update={"width": ru.width + delta})
+        new_d = du.model_copy(update={"x": du.x + delta, "width": du.width - delta})
+    return (
+        receiver.model_copy(update={"rect": new_r}),
+        donor.model_copy(update={"rect": new_d}),
+    )
+
+
+def grow_rooms_to_min_area(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    min_area_by_room_id: dict[str, float],
+    max_area_by_room_id: dict[str, float],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """从已超下限的邻接房间（或走廊）匀面积给低于 min_area 的 program 房间。"""
+    min_dim = 0.05
+    updated = [p.model_copy(deep=True) for p in placements]
+    for _ in range(max(4, len(updated) * 4)):
+        progress = False
+        for i, recv in enumerate(updated):
+            if recv.room_id.startswith("stair-") or recv.room_id.startswith("circ-"):
+                continue
+            lo = min_area_by_room_id.get(recv.room_id)
+            if lo is None:
+                continue
+            deficit = lo - recv.rect.area
+            if deficit <= tolerance:
+                continue
+            hi = max_area_by_room_id.get(recv.room_id, float("inf"))
+            headroom = hi - recv.rect.area
+            if headroom <= tolerance:
+                continue
+            recv_rect = from_placement(recv.rect)
+            best: tuple[float, int, str, float] | None = None
+            for j, donor in enumerate(updated):
+                if i == j or donor.room_id.startswith("stair-"):
+                    continue
+                donor_min = min_area_by_room_id.get(donor.room_id, 0.0)
+                spare = donor.rect.area - donor_min
+                if spare <= tolerance:
+                    continue
+                donor_r = from_placement(donor.rect)
+                rel = _donor_relation(recv_rect, donor_r, tolerance=tolerance)
+                if rel is None:
+                    continue
+                direction, overlap = rel
+                donor_edge = (
+                    donor_r.width if direction in ("north", "south") else donor_r.depth
+                )
+                if overlap <= tolerance or donor_edge <= tolerance:
+                    continue
+                # 扩出的条带必须落在 donor 范围内，否则会切进楼梯或其他房间
+                if direction in ("north", "south"):
+                    if (
+                        recv_rect.left < donor_r.left - tolerance
+                        or recv_rect.right > donor_r.right + tolerance
+                    ):
+                        continue
+                elif (
+                    recv_rect.top < donor_r.top - tolerance
+                    or recv_rect.bottom > donor_r.bottom + tolerance
+                ):
+                    continue
+                size_limit = (
+                    donor_r.depth - min_dim
+                    if direction in ("north", "south")
+                    else donor_r.width - min_dim
+                )
+                delta = min(
+                    spare / donor_edge,
+                    size_limit,
+                    deficit / overlap,
+                    headroom / overlap,
+                )
+                if delta <= tolerance:
+                    continue
+                if best is None or spare > best[0]:
+                    best = (spare, j, direction, delta)
+            if best is None:
+                continue
+            _, j, direction, delta = best
+            new_recv, new_donor = _cede_along_shared_edge(
+                updated[i], updated[j], direction, delta
+            )
+            if min(new_recv.rect.width, new_recv.rect.depth) <= tolerance:
+                continue
+            if min(new_donor.rect.width, new_donor.rect.depth) <= tolerance:
+                continue
+            new_recv_r = from_placement(new_recv.rect)
+            new_donor_r = from_placement(new_donor.rect)
+            overlaps = False
+            for k, other in enumerate(updated):
+                if k in (i, j):
+                    continue
+                other_r = from_placement(other.rect)
+                if intersects(new_recv_r, other_r) or intersects(new_donor_r, other_r):
+                    overlaps = True
+                    break
+            if overlaps:
+                continue
+            updated[i] = new_recv
+            updated[j] = new_donor
+            progress = True
+            break
+        if not progress:
+            break
+        updated = [
+            p
+            for p in updated
+            if not (p.room_id.startswith("circ-") and p.rect.area <= tolerance)
+        ]
+        updated = fill_floor_coverage_gaps(
+            footprint,
+            updated,
+            tolerance=tolerance,
+            max_area_by_room_id=max_area_by_room_id,
+            min_area_by_room_id=min_area_by_room_id,
+        )
+    return updated
+
+
 def fill_floor_coverage_gaps(
     footprint: Rect,
     placements: list[RoomPlacement],
@@ -530,6 +694,7 @@ def fill_floor_coverage_gaps(
     tolerance: float = COVERAGE_TOLERANCE,
     max_iterations: int | None = None,
     max_area_by_room_id: dict[str, float] | None = None,
+    min_area_by_room_id: dict[str, float] | None = None,
     extra_gaps: list[Rect] | None = None,
 ) -> list[RoomPlacement]:
     """把 footprint 内未被 placements 覆盖的碎片并入邻接房间（含楼梯）。"""
@@ -568,19 +733,26 @@ def fill_floor_coverage_gaps(
                 return float("inf")
             return max(0.0, cap - updated[i].rect.area)
 
-        # 楼梯核尺寸固定，不参与碎片吸收扩张
-        candidate_indices = sorted(
-            program_indices,
-            key=remaining_capacity,
-            reverse=True,
-        )
+        def min_deficit(i: int) -> float:
+            if min_area_by_room_id is None:
+                return 0.0
+            lo = min_area_by_room_id.get(updated[i].room_id)
+            if lo is None:
+                return 0.0
+            return max(0.0, lo - updated[i].rect.area)
 
-        progress = False
-        for gap in gaps:
+        def try_absorb_into(
+            indices: list[int], gap: Rect
+        ) -> tuple[int, Rect] | None:
             best_idx: int | None = None
             best_rect: Rect | None = None
             best_edge = 0.0
-            for i in candidate_indices:
+            ordered = sorted(
+                indices,
+                key=lambda idx: (min_deficit(idx), remaining_capacity(idx)),
+                reverse=True,
+            )
+            for i in ordered:
                 p = updated[i]
                 if remaining_capacity(i) <= tolerance:
                     continue
@@ -610,7 +782,10 @@ def fill_floor_coverage_gaps(
                 if merged is None:
                     if cap is not None and cap - cur.area > tolerance:
                         merged_rect = merge_adjacent_rects(cur, gap)
-                        if merged_rect is not None and merged_rect.area <= cap + tolerance:
+                        if (
+                            merged_rect is not None
+                            and merged_rect.area <= cap + tolerance
+                        ):
                             overlap = False
                             for other in others:
                                 inter = intersection(merged_rect, other)
@@ -627,7 +802,19 @@ def fill_floor_coverage_gaps(
                     best_rect = merged
                     best_edge = edge
             if best_idx is None or best_rect is None:
+                return None
+            return best_idx, best_rect
+
+        # 楼梯核尺寸固定；低于 min_area 的房间优先吸收碎片
+        undersized = [i for i in program_indices if min_deficit(i) > tolerance]
+        progress = False
+        for gap in gaps:
+            found = try_absorb_into(undersized, gap) if undersized else None
+            if found is None:
+                found = try_absorb_into(program_indices, gap)
+            if found is None:
                 continue
+            best_idx, best_rect = found
             p = updated[best_idx]
             updated[best_idx] = p.model_copy(
                 update={
@@ -661,8 +848,8 @@ def assign_residual_gaps_as_circulation(
 
     典型场景：楼梯核邻接区无法在不重叠的前提下扩入 program 房间。
   """
-    from solver.geometry.free_rects import subtract_rects
     from packages.schema.layout import PlacementSource
+    from solver.geometry.free_rects import subtract_rects
 
     updated = [p.model_copy(deep=True) for p in placements]
     gaps = subtract_rects(

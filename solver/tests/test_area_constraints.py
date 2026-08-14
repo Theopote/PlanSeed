@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from packages.schema.room import (
     DEFAULT_MAX_AREA_FACTOR,
     DEFAULT_MIN_AREA_FACTOR,
@@ -88,3 +87,36 @@ class TestPipelineAreaBounds:
                     f"seed={seed} {candidate.id} {room_id}: "
                     f"area={area:.2f} not in [{lo:.2f}, {hi:.2f}]"
                 )
+
+
+class TestGrowRoomsToMinArea:
+    def test_undersized_room_takes_area_from_oversized_neighbor(self) -> None:
+        from packages.schema.layout import PlacementRect, PlacementSource, RoomPlacement
+        from solver.geometry.coverage import grow_rooms_to_min_area
+        from solver.geometry.rect import Rect
+
+        kitchen = RoomPlacement(
+            room_id="r2",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=0, width=11, depth=4.5),
+            source=PlacementSource.PROGRAM,
+            name="厨房",
+        )
+        garage = RoomPlacement(
+            room_id="r4",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=4.5, width=3.3, depth=1.9),
+            source=PlacementSource.PROGRAM,
+            name="车库",
+        )
+        footprint = Rect(x=0, y=0, width=11, depth=6.4)
+        out = grow_rooms_to_min_area(
+            footprint,
+            [kitchen, garage],
+            {"r2": 9.6, "r4": 9.0},
+            {"r2": 56.0, "r4": 52.5},
+        )
+        by_id = {p.room_id: p for p in out}
+        assert by_id["r4"].rect.area >= 9.0 - 1e-6
+        assert by_id["r2"].rect.area >= 9.6 - 1e-6
+        assert by_id["r2"].rect.area + by_id["r4"].rect.area <= 11 * 6.4 + 1e-6
