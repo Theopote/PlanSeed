@@ -30,8 +30,9 @@ from solver.circulation.stair_core import (
     place_stair_core_resolving,
     resolve_stair_core_spec,
 )
+from solver.geometry.coverage import assert_floor_fully_covered, fill_floor_coverage_gaps
 from solver.geometry.free_rects import subtract_rects
-from solver.geometry.rect import Rect
+from solver.geometry.rect import Rect, from_placement, intersects, shared_edge_length
 from solver.geometry.snap import snap_value
 from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
@@ -227,6 +228,8 @@ class GuillotineGenerator:
                 zone_plan=zone_plan,
                 core=core,
                 floor_index=idx,
+                floor_width=w,
+                floor_depth=d,
                 module=module,
                 rng=rng,
                 topology=topology,
@@ -331,6 +334,11 @@ class GuillotineGenerator:
         )
         place_door_openings(program, candidate)
         build_realized_connections(program, candidate)
+        footprint_area = program.buildable.width * program.buildable.depth
+        for fl in candidate.floors:
+            assert_floor_fully_covered(
+                footprint_area, fl.placements, floor_id=fl.floor_id
+            )
         return candidate
 
     @staticmethod
@@ -409,6 +417,8 @@ class GuillotineGenerator:
         zone_plan: FloorZonePlan,
         core: CorePlacementResult,
         floor_index: int,
+        floor_width: float,
+        floor_depth: float,
         module: float,
         rng: random.Random,
         topology: TopologyPlan,
@@ -490,6 +500,9 @@ class GuillotineGenerator:
                 )
             )
 
+        footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
+        placements = fill_floor_coverage_gaps(footprint, placements)
+
         return FloorLayout(
             floor_id=floor.id,
             placements=placements,
@@ -537,17 +550,47 @@ class GuillotineGenerator:
             [id_to[rid] for rid in u if rid in id_to] for u in unit_ids
         ]
         remaining_units = [u for u in remaining_units if u]
+        empty_rects: list[Rect] = []
+
+        if (
+            len(remaining_units) == 1
+            and len(remaining_units[0]) > 1
+            and len(rects) > 1
+        ):
+            remaining_units = [[lr] for lr in remaining_units[0]]
+
+        if len(remaining_units) <= len(rects):
+            order = sorted(range(len(rects)), key=lambda i: rects[i].area, reverse=True)
+            for ui, rect_i in enumerate(order[: len(remaining_units)]):
+                share = [lr for lr in remaining_units[ui]]
+                rect = rects[rect_i]
+                self._layout_rooms(
+                    share,
+                    rect.x,
+                    rect.y,
+                    rect.right,
+                    rect.bottom,
+                    module,
+                    rng,
+                    avoid_pairs=avoid_pairs,
+                    cluster_members=cluster_members,
+                )
+            for rect_i in order[len(remaining_units) :]:
+                empty_rects.append(rects[rect_i])
+            for sliver in empty_rects:
+                self._absorb_sliver_into_zone_room(rooms, sliver)
+            return
 
         for i, rect in enumerate(rects):
-            if not remaining_units:
-                break
             if i == len(rects) - 1:
                 share_units = remaining_units
                 remaining_units = []
+            elif not remaining_units:
+                empty_rects.append(rect)
+                continue
             else:
                 target_w = total_weight * (rect.area / total_area)
                 leave = len(rects) - i - 1
-                # 尽量留给后续 rect 至少一个 unit；不够则整簇不拆
                 max_take = (
                     len(remaining_units)
                     if len(remaining_units) <= leave
@@ -565,6 +608,9 @@ class GuillotineGenerator:
                 share_units = remaining_units[:split]
                 remaining_units = remaining_units[split:]
             share = [lr for u in share_units for lr in u]
+            if not share:
+                empty_rects.append(rect)
+                continue
             self._layout_rooms(
                 share,
                 rect.x,
@@ -576,6 +622,9 @@ class GuillotineGenerator:
                 avoid_pairs=avoid_pairs,
                 cluster_members=cluster_members,
             )
+
+        for sliver in empty_rects:
+            self._absorb_sliver_into_zone_room(rooms, sliver)
 
     def _layout_rooms(
         self,
@@ -593,9 +642,9 @@ class GuillotineGenerator:
         if not rooms:
             return
         if len(rooms) == 1:
-            rooms[0].rect = PlacementRect(
-                x=x0, y=y0, width=max(module, x1 - x0), depth=max(module, y1 - y0)
-            )
+            cw = max(0.0, x1 - x0)
+            ch = max(0.0, y1 - y0)
+            rooms[0].rect = PlacementRect(x=x0, y=y0, width=cw, depth=ch)
             return
 
         unit_ids = group_into_slicing_units(
@@ -712,4 +761,34 @@ class GuillotineGenerator:
                 rng,
                 avoid_pairs=None,
                 cluster_members=cluster_members,
+            )
+
+    def _absorb_sliver_into_zone_room(
+        self, rooms: list[_LayoutRoom], sliver: Rect
+    ) -> None:
+        from solver.geometry.coverage import try_absorb_sliver_without_overlap
+
+        placed = [lr for lr in rooms if lr.rect is not None]
+        if not placed:
+            return
+        best_lr: _LayoutRoom | None = None
+        best_rect: Rect | None = None
+        best_edge = 0.0
+        placed_rects = [from_placement(lr.rect) for lr in placed]
+        for lr, cur in zip(placed, placed_rects):
+            others = [r for r in placed_rects if r is not cur]
+            merged = try_absorb_sliver_without_overlap(cur, sliver, others)
+            if merged is None:
+                continue
+            edge = shared_edge_length(cur, sliver)
+            if edge > best_edge:
+                best_lr = lr
+                best_rect = merged
+                best_edge = edge
+        if best_lr is not None and best_rect is not None:
+            best_lr.rect = PlacementRect(
+                x=best_rect.x,
+                y=best_rect.y,
+                width=best_rect.width,
+                depth=best_rect.depth,
             )

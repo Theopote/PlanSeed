@@ -386,35 +386,34 @@ class ZonePlanner:
         free_rects: list[Rect],
         groups: list[ZoneRoomGroup],
     ) -> list[ZoneGeometry]:
+        """把 stair 切分后的多块 free rect 按目标面积缺口分给各功能区。"""
         geometries: list[ZoneGeometry] = []
-        rects = list(free_rects)
-        for i, group in enumerate(groups):
-            if not rects:
-                break
-            if i == len(groups) - 1:
-                for r in rects:
-                    geometries.append(
-                        ZoneGeometry(
-                            zone=group.zone,
-                            floor_id=floor_id,
-                            rect=PlacementRect(x=r.x, y=r.y, width=r.width, depth=r.depth),
-                            room_ids=list(group.room_ids) if r is rects[0] else [],
-                        )
-                    )
-                if len(rects) > 1:
-                    geometries[-len(rects)].room_ids = list(group.room_ids)
-                    for g in geometries[-len(rects) + 1 :]:
-                        g.room_ids = []
-                break
-            r = rects.pop(0)
-            geometries.append(
-                ZoneGeometry(
-                    zone=group.zone,
-                    floor_id=floor_id,
-                    rect=PlacementRect(x=r.x, y=r.y, width=r.width, depth=r.depth),
-                    room_ids=list(group.room_ids),
-                )
+        if not groups or not free_rects:
+            return geometries
+
+        rects = sorted(free_rects, key=lambda r: r.area, reverse=True)
+        remaining_need = {g.zone: g.target_area for g in groups}
+        buckets: dict[ArchitecturalZone, list[Rect]] = {g.zone: [] for g in groups}
+
+        for rect in rects:
+            best = max(groups, key=lambda g: remaining_need.get(g.zone, 0.0))
+            buckets[best.zone].append(rect)
+            remaining_need[best.zone] = max(
+                0.0, remaining_need[best.zone] - rect.area
             )
+
+        for group in groups:
+            for rect in buckets[group.zone]:
+                geometries.append(
+                    ZoneGeometry(
+                        zone=group.zone,
+                        floor_id=floor_id,
+                        rect=PlacementRect(
+                            x=rect.x, y=rect.y, width=rect.width, depth=rect.depth
+                        ),
+                        room_ids=list(group.room_ids),
+                    )
+                )
         return geometries
 
 

@@ -22,6 +22,7 @@ from packages.schema.layout import (
 from packages.schema.program import DesignProgram
 from solver.constraints.checker import ConstraintEvaluationResult
 from solver.evaluation.orientation import exterior_world_orientations
+from solver.geometry.coverage import layout_coverage_violations
 from solver.geometry.rect import (
     Rect,
     contains,
@@ -47,6 +48,7 @@ class DefaultConstraintChecker:
 
         result.extend(self._check_overlaps(candidate))
         result.extend(self._check_boundary(candidate, buildable))
+        result.extend(self._check_layout_coverage(program, candidate))
         result.extend(self._check_stair_core(program, candidate))
         result.extend(self._check_program_placements(program, candidate))
         result.extend(self._check_area_and_width(program, candidate))
@@ -139,6 +141,20 @@ class DefaultConstraintChecker:
                             source="system",
                         )
                     )
+        return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_layout_coverage(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        violations: list[Violation] = []
+        if candidate.metrics.get("core_unfit"):
+            return ConstraintEvaluationResult.from_violations(violations)
+        for floor in candidate.floors:
+            violations.extend(
+                layout_coverage_violations(
+                    program, floor_id=floor.floor_id, placements=floor.placements
+                )
+            )
         return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_stair_core(

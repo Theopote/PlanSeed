@@ -43,6 +43,71 @@ def _candidate_with_two_rooms(
     return LayoutCandidate(id="adj-test", seed=0, floors=floors)
 
 
+def _generated_circulation(
+    room_id: str,
+    rect: PlacementRect,
+) -> RoomPlacement:
+    return RoomPlacement(
+        room_id=room_id,
+        floor_id="F1",
+        rect=rect,
+        source=PlacementSource.GENERATED,
+        name="走廊",
+        category="circulation",
+    )
+
+
+def _kitchen_dining_f1_soft_adjacency_placements() -> list[RoomPlacement]:
+    """铺满 11×13 footprint；厨房与餐厅不相邻，楼梯核 1.8×4.2。"""
+    return [
+        _generated_circulation("stair-F1", PlacementRect(x=3.0, y=0.0, width=1.8, depth=4.2)),
+        _generated_circulation("corr-mid-bottom", PlacementRect(x=4.8, y=0.0, width=3.2, depth=4.2)),
+        _generated_circulation("corr-mid-top", PlacementRect(x=3.0, y=4.2, width=5.0, depth=8.8)),
+        RoomPlacement(
+            room_id="kitchen",
+            floor_id="F1",
+            rect=PlacementRect(x=0.0, y=0.0, width=3.0, depth=13.0),
+            source=PlacementSource.PROGRAM,
+            name="厨房",
+            category="wet",
+        ),
+        RoomPlacement(
+            room_id="dining",
+            floor_id="F1",
+            rect=PlacementRect(x=8.0, y=0.0, width=3.0, depth=13.0),
+            source=PlacementSource.PROGRAM,
+            name="餐厅",
+            category="public",
+        ),
+    ]
+
+
+def _kitchen_dining_f1_soft_separation_placements() -> list[RoomPlacement]:
+    """铺满 11×13 footprint；厨房与餐厅间距 <3m，楼梯核 1.8×4.2。"""
+    return [
+        _generated_circulation("stair-F1", PlacementRect(x=3.0, y=0.0, width=1.8, depth=4.2)),
+        _generated_circulation("corr-gap-sliver", PlacementRect(x=4.8, y=0.0, width=0.2, depth=4.2)),
+        _generated_circulation("corr-gap-top", PlacementRect(x=3.0, y=4.2, width=2.0, depth=8.8)),
+        _generated_circulation("corr-east", PlacementRect(x=8.0, y=0.0, width=3.0, depth=13.0)),
+        RoomPlacement(
+            room_id="kitchen",
+            floor_id="F1",
+            rect=PlacementRect(x=0.0, y=0.0, width=3.0, depth=13.0),
+            source=PlacementSource.PROGRAM,
+            name="厨房",
+            category="wet",
+        ),
+        RoomPlacement(
+            room_id="dining",
+            floor_id="F1",
+            rect=PlacementRect(x=5.0, y=0.0, width=3.0, depth=13.0),
+            source=PlacementSource.PROGRAM,
+            name="餐厅",
+            category="public",
+        ),
+    ]
+
+
 class TestConstraintChecker:
     def test_valid_benchmark_passes(self):
         program = benchmark_program()
@@ -154,21 +219,15 @@ class TestHardAdjacency:
             ],
             solver_config=SolverConfig(candidate_count=1),
         )
-        candidate = _candidate_with_two_rooms(
-            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
-            b_rect=PlacementRect(x=5, y=0, width=3, depth=3),
-        )
-        # 合成候选补楼梯核，避免 geometry.core_missing 干扰 soft adj 断言
-        candidate.floors[0].placements.insert(
-            0,
-            RoomPlacement(
-                room_id="stair-F1",
-                floor_id="F1",
-                rect=PlacementRect(x=9.0, y=0.0, width=1.8, depth=4.2),
-                source=PlacementSource.GENERATED,
-                name="楼梯",
-                category="circulation",
-            ),
+        candidate = LayoutCandidate(
+            id="adj-soft",
+            seed=0,
+            floors=[
+                FloorLayout(
+                    floor_id="F1",
+                    placements=_kitchen_dining_f1_soft_adjacency_placements(),
+                )
+            ],
         )
         validation = DefaultConstraintChecker().check(program, candidate)
         assert validation.valid
@@ -381,21 +440,15 @@ class TestSeparationFloorAccess:
                 source=ConstraintSource.USER,
             )
         )
-        candidate = _candidate_with_two_rooms(
-            a_rect=PlacementRect(x=0, y=0, width=3, depth=3),
-            b_rect=PlacementRect(x=5, y=0, width=3, depth=3),
-        )
-        # 合成候选补楼梯核，避免 geometry.core_missing 干扰 soft sep 断言
-        candidate.floors[0].placements.insert(
-            0,
-            RoomPlacement(
-                room_id="stair-F1",
-                floor_id="F1",
-                rect=PlacementRect(x=9.0, y=0.0, width=1.8, depth=4.2),
-                source=PlacementSource.GENERATED,
-                name="楼梯",
-                category="circulation",
-            ),
+        candidate = LayoutCandidate(
+            id="sep-soft",
+            seed=0,
+            floors=[
+                FloorLayout(
+                    floor_id="F1",
+                    placements=_kitchen_dining_f1_soft_separation_placements(),
+                )
+            ],
         )
         validation = DefaultConstraintChecker().check(program, candidate)
         assert validation.valid
