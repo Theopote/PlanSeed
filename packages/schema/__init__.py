@@ -135,6 +135,16 @@ from packages.schema.topology import (
     SpaceConnectionType,
     TopologyPlan,
 )
+from packages.schema.vertical_void import (
+    DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE,
+    VerticalVoidPlacement,
+    VerticalVoidSpec,
+    VerticalVoidType,
+    default_stair_void,
+    floor_ids_in_span,
+    validate_vertical_voids_for_floors,
+    void_covers_floor,
+)
 
 __all__ = [
     "API_LIMITS",
@@ -251,6 +261,14 @@ __all__ = [
     "TopologyPlan",
     "UnknownRequirement",
     "Violation",
+    "VerticalVoidPlacement",
+    "VerticalVoidSpec",
+    "VerticalVoidType",
+    "DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE",
+    "default_stair_void",
+    "floor_ids_in_span",
+    "validate_vertical_voids_for_floors",
+    "void_covers_floor",
     "WetStack",
     "WidthConstraint",
     "ZonePlacement",

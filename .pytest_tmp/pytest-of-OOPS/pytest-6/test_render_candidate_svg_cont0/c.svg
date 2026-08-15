@@ -4,7 +4,7 @@
 <text x="0" y="-1.850" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">hard=0  soft=0  id=candidate-0</text>
 <text x="0" y="-1.450" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">north_angle=0°</text>
 <text x="0" y="-1.050" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">entry=south  on_road=False  @(5.5,13.0)</text>
-<text x="0" y="-0.650" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">doors=7</text>
+<text x="0" y="-0.650" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">doors=8</text>
 <g transform="translate(12.400,0.900)"><line x1="0" y1="0.25" x2="0" y2="-0.45" stroke="#1A1A1A" stroke-width="0.05"/><polygon points="0,-0.550 -0.18,-0.28 0.18,-0.28" fill="#1A1A1A"/><text x="0.28" y="-0.35" font-size="0.28" fill="#1A1A1A" font-family="Consolas, monospace">N</text><text x="-0.1" y="0.55" font-size="0.22" fill="#5A5A5A" font-family="Consolas, monospace">∠0°</text></g>
 <text x="0.1" y="0.350" font-size="0.36" fill="#1A1A1A" font-family="Segoe UI, sans-serif" font-weight="700">F1 · core=west</text>
 <rect x="0" y="0.000" width="11.000" height="13.000" fill="#fff" stroke="#1A1A1A" stroke-width="0.08"/>
@@ -15,16 +15,16 @@
 <text x="0.900" y="6.880" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">7.6㎡</text>
 </g>
 <g class="room-node" data-room-id="r1">
-<rect class="room-shape" data-room-id="r1" x="1.800" y="0.000" width="9.200" height="8.700" fill="#E8D5B5" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
-<text x="6.400" y="4.070" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">客厅</text>
-<text x="6.400" y="4.350" font-size="0.22" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">r1</text>
-<text x="6.400" y="4.630" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">80.0㎡</text>
+<rect class="room-shape" data-room-id="r1" x="0.000" y="0.000" width="11.000" height="4.500" fill="#E8D5B5" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="5.500" y="1.970" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">客厅</text>
+<text x="5.500" y="2.250" font-size="0.22" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">r1</text>
+<text x="5.500" y="2.530" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">49.5㎡</text>
 </g>
 <g class="room-node" data-room-id="r2">
-<rect class="room-shape" data-room-id="r2" x="3.800" y="0.000" width="7.200" height="4.500" fill="#9EC5C0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
-<text x="7.400" y="1.970" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">餐厅+厨房</text>
-<text x="7.400" y="2.250" font-size="0.22" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">r2</text>
-<text x="7.400" y="2.530" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">32.4㎡</text>
+<rect class="room-shape" data-room-id="r2" x="1.800" y="4.500" width="9.200" height="4.200" fill="#9EC5C0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="6.400" y="6.320" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">餐厅+厨房</text>
+<text x="6.400" y="6.600" font-size="0.22" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">r2</text>
+<text x="6.400" y="6.880" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">38.6㎡</text>
 </g>
 <g class="room-node" data-room-id="r3">
 <rect class="room-shape" data-room-id="r3" x="0.000" y="8.700" width="2.400" height="4.300" fill="#9EC5C0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
@@ -38,20 +38,15 @@
 <text x="6.700" y="10.850" font-size="0.22" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">r4</text>
 <text x="6.700" y="11.130" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">37.0㎡</text>
 </g>
-<g class="room-node" data-room-id="circ-F1-0">
-<rect class="room-shape" data-room-id="circ-F1-0" x="0.000" y="0.000" width="1.800" height="4.500" fill="#E0E0E0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
-<text x="0.900" y="1.970" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">走廊</text>
-<text x="0.900" y="2.250" font-size="0.22" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">circ-F1-0</text>
-<text x="0.900" y="2.530" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">8.1㎡</text>
-</g>
 <rect x="3.800" y="0.000" width="7.200" height="4.500" fill="none" stroke="#2A7A72" stroke-width="0.05" stroke-dasharray="0.2 0.12"/><text x="3.900" y="0.350" font-size="0.22" fill="#2A7A72" font-family="Consolas, monospace">WS</text>
 <circle cx="5.500" cy="13.000" r="0.22" fill="#C45C26" stroke="#1A1A1A" stroke-width="0.03"/>
 <text x="5.800" y="13.080" font-size="0.24" fill="#C45C26" font-family="Consolas, monospace">ENTRY</text>
-<g class="derived-overlay" data-kind="doors"><line x1="6.250" y1="8.700" x2="7.150" y2="8.700" stroke="#8B4513" stroke-width="0.12"/>
-<line x1="7.150" y1="8.700" x2="7.150" y2="7.800" stroke="#8B4513" stroke-width="0.06"/>
-<path d="M 6.250 8.700 A 0.900 0.900 0 0 1 7.150 7.800" fill="none" stroke="#8B4513" stroke-width="0.04" stroke-dasharray="0.08 0.06" opacity="0.75"/>
-<circle cx="7.150" cy="8.700" r="0.06" fill="#8B4513"/>
-<line x1="2.400" y1="9.775" x2="2.400" y2="11.925" stroke="#8B4513" stroke-width="0.12"/></g>
+<g class="derived-overlay" data-kind="doors"><line x1="5.950" y1="4.500" x2="6.850" y2="4.500" stroke="#8B4513" stroke-width="0.12"/>
+<line x1="6.850" y1="4.500" x2="6.850" y2="5.400" stroke="#8B4513" stroke-width="0.06"/>
+<path d="M 5.950 4.500 A 0.900 0.900 0 0 1 6.850 5.400" fill="none" stroke="#8B4513" stroke-width="0.04" stroke-dasharray="0.08 0.06" opacity="0.75"/>
+<circle cx="6.850" cy="4.500" r="0.06" fill="#8B4513"/>
+<line x1="2.400" y1="9.775" x2="2.400" y2="11.925" stroke="#8B4513" stroke-width="0.12"/>
+<line x1="4.550" y1="8.700" x2="8.850" y2="8.700" stroke="#8B4513" stroke-width="0.12"/></g>
 <text x="0.1" y="14.350" font-size="0.36" fill="#1A1A1A" font-family="Segoe UI, sans-serif" font-weight="700">F2 · core=west</text>
 <rect x="0" y="14.000" width="11.000" height="13.000" fill="#fff" stroke="#1A1A1A" stroke-width="0.08"/>
 <g class="room-node" data-room-id="stair-F2">

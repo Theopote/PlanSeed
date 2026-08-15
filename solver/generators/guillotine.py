@@ -16,6 +16,7 @@ from packages.schema.layout import (
     WetStack,
     ZonePlacement,
 )
+from packages.schema.vertical_void import VerticalVoidPlacement
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.provenance import build_solver_provenance, provenance_to_metrics
@@ -23,13 +24,7 @@ from packages.schema.room import RoomSpec
 from packages.schema.topology import TopologyPlan
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometry
 
-from solver.circulation.stair_core import (
-    CorePlacementFailure,
-    choose_core_placement,
-    core_from_locked_rect,
-    place_stair_core_resolving,
-    resolve_stair_core_spec,
-)
+from solver.circulation.stair_core import CorePlacementFailure
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
     assign_residual_gaps_as_circulation,
@@ -49,6 +44,7 @@ from solver.topology.plan import (
     split_avoid_groups,
 )
 from solver.topology.zoning import ZonePlanner, zone_for_room
+from solver.vertical.prededuction import build_prededuction_plan
 from solver.generators.wet_anchor import (
     anchor_floor_id,
     collect_wet_anchor_rects,
@@ -355,60 +351,50 @@ class GuillotineGenerator:
         if topology is None:
             topology = self._topology_planner.plan(program)
 
-        if locks.stair is not None:
-            core = core_from_locked_rect(
-                x=locks.stair.x,
-                y=locks.stair.y,
-                width=locks.stair.width,
-                depth=locks.stair.depth,
-                core_placement=locks.stair.core_placement,
+        try:
+            prededuction = build_prededuction_plan(
+                program,
+                floor_width=w,
+                floor_depth=d,
+                snap_module=module,
+                rng=rng,
+                locks=locks,
             )
-        else:
-            core_spec = resolve_stair_core_spec(
-                stair_width=program.site.stair_width,
-                stair_depth=getattr(program.site, "stair_depth", 4.2),
+        except CorePlacementFailure as err:
+            unfit_prov = build_solver_provenance(
+                generator_strategy=self.strategy_id,
+                generator_version=self.generator_version,
+                program=program,
             )
-            placement = choose_core_placement(
-                rng,
-                preferred=core_spec.preferred_placement,
-                entrance_edge=program.site.entrance_edge,
+            return LayoutCandidate(
+                id=f"candidate-{seed}",
+                seed=seed,
+                floors=[
+                    FloorLayout(floor_id=fl.id, placements=[])
+                    for fl in program.floors
+                ],
+                provenance=unfit_prov,
+                metrics={
+                    "core_unfit": True,
+                    "core_unfit_reason": str(err),
+                    **provenance_to_metrics(unfit_prov),
+                },
             )
-            try:
-                core = place_stair_core_resolving(
-                    floor_width=w,
-                    floor_depth=d,
-                    spec=core_spec,
-                    primary_placement=placement,
-                    snap_module=module,
-                    rng=rng,
-                )
-            except CorePlacementFailure as err:
-                unfit_prov = build_solver_provenance(
-                    generator_strategy=self.strategy_id,
-                    generator_version=self.generator_version,
-                    program=program,
-                )
-                return LayoutCandidate(
-                    id=f"candidate-{seed}",
-                    seed=seed,
-                    floors=[
-                        FloorLayout(floor_id=fl.id, placements=[])
-                        for fl in program.floors
-                    ],
-                    provenance=unfit_prov,
-                    metrics={
-                        "core_unfit": True,
-                        "core_unfit_reason": str(err),
-                        **provenance_to_metrics(unfit_prov),
-                    },
-                )
 
+        core = prededuction.stair_core
+        atrium_voids_by_floor = {
+            floor.id: prededuction.atrium_placements_on_floor(floor.id)
+            for floor in program.floors
+        }
         floor_rect = Rect(x=0, y=0, width=w, depth=d)
-        core_rect = Rect(
-            x=core.rect.x, y=core.rect.y, width=core.rect.width, depth=core.rect.depth
+        stair_rect = Rect(
+            x=core.rect.x,
+            y=core.rect.y,
+            width=core.rect.width,
+            depth=core.rect.depth,
         )
-        # 跨层共享 free：只扣 StairCore（房间/分区锁不得投影到其它层）
-        shared_free = subtract_rects([floor_rect], [core_rect])
+        # WetStack 跨层锚：仅扣楼梯（ATRIUM 按层在 free_rects_by_floor 扣除）
+        shared_free = subtract_rects([floor_rect], [stair_rect])
 
         def _holes_on_floor(floor_id: str) -> list[Rect]:
             room_holes = [
@@ -422,10 +408,11 @@ class GuillotineGenerator:
             return [*room_holes, *zone_holes]
 
         def _free_on_floor(floor_id: str) -> list[Rect]:
+            prededuction_holes = prededuction.holes_by_floor.get(floor_id, [])
             holes = _holes_on_floor(floor_id)
             if not holes:
-                return list(shared_free)
-            return subtract_rects([floor_rect], [core_rect, *holes])
+                return subtract_rects([floor_rect], prededuction_holes)
+            return subtract_rects([floor_rect], [*prededuction_holes, *holes])
 
         def _unlocked_for_planning(
             floor_id: str, rooms: list[RoomSpec]
@@ -490,6 +477,7 @@ class GuillotineGenerator:
                 topology=topology,
                 access_graph=program.access_graph,
                 wet_anchors=wet_anchors,
+                atrium_voids=atrium_voids_by_floor.get(floor.id, []),
             )
             # 合并锁定房间放置
             locked_on_floor = locks.rooms_on_floor(floor.id)
@@ -571,6 +559,7 @@ class GuillotineGenerator:
             seed=seed,
             floors=floor_layouts,
             wet_stacks=list(building_zones.wet_stacks),
+            vertical_void_placements=list(prededuction.void_placements),
             zone_placements=zone_placements,
             provenance=prov,
             metrics=metrics,
@@ -681,6 +670,7 @@ class GuillotineGenerator:
         topology: TopologyPlan,
         access_graph=None,
         wet_anchors: dict[str, Rect] | None = None,
+        atrium_voids: list[VerticalVoidPlacement] | None = None,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
@@ -779,6 +769,17 @@ class GuillotineGenerator:
         )
 
         placements: list[RoomPlacement] = [stair_placement]
+        for vp in atrium_voids or []:
+            placements.append(
+                RoomPlacement(
+                    room_id=f"void-{vp.void_id}",
+                    floor_id=floor.id,
+                    rect=vp.rect.model_copy(),
+                    source=PlacementSource.GENERATED,
+                    name="天井",
+                    category="circulation",
+                )
+            )
         for lr in layout_rooms.values():
             if lr.rect is None:
                 continue

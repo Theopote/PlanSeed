@@ -15,6 +15,7 @@ from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import Rect2D, SiteSpec
 from packages.schema.topology import AccessGraph, RoomGraph, TopologyPlan
+from packages.schema.vertical_void import VerticalVoidSpec, validate_vertical_voids_for_floors
 
 RankMode = Literal["score", "axis", "pareto"]
 GeneratorStrategyName = Literal["guillotine", "maxrect"]
@@ -117,6 +118,16 @@ class DesignProgram(BaseModel):
         description="用户未提供且未推断的信息",
     )
     solver_config: SolverConfig = Field(default_factory=SolverConfig)
+    vertical_voids: list[VerticalVoidSpec] = Field(
+        default_factory=list,
+        description="竖向空洞 / 对齐规格（ADR-010）",
+    )
+
+    @model_validator(mode="after")
+    def _validate_vertical_voids(self) -> DesignProgram:
+        if self.vertical_voids:
+            validate_vertical_voids_for_floors(self.vertical_voids, self.floors)
+        return self
 
     @model_validator(mode="after")
     def _unique_room_ids(self) -> DesignProgram:
@@ -164,5 +175,6 @@ class DesignProgram(BaseModel):
             floors=spec.floors,
             rooms=spec.rooms,
             constraints=spec.constraints,
+            vertical_voids=list(spec.vertical_voids),
             solver_config=config or SolverConfig(),
         )

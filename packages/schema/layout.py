@@ -193,8 +193,9 @@ class RepairRecord(BaseModel):
     reason: str = ""
 
 
-# scoring 依赖 Violation；此处延迟导入避免循环。
+# scoring / vertical_void 延迟导入避免循环。
 from packages.schema.scoring import DesignEvaluation  # noqa: E402
+from packages.schema.vertical_void import VerticalVoidPlacement  # noqa: E402
 
 
 class LayoutCandidate(BaseModel):
@@ -204,6 +205,10 @@ class LayoutCandidate(BaseModel):
     wet_stacks: list[WetStack] = Field(
         default_factory=list,
         description="技术湿区叠组；MVP 通常 0～1 个",
+    )
+    vertical_void_placements: list[VerticalVoidPlacement] = Field(
+        default_factory=list,
+        description="STAIR / ATRIUM 预扣除几何快照（ADR-010）",
     )
     zone_placements: list[ZonePlacement] = Field(
         default_factory=list,

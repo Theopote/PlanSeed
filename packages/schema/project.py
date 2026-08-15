@@ -8,6 +8,7 @@ from packages.schema.constraints import Constraint
 from packages.schema.limits import SOLVER_LIMITS
 from packages.schema.room import FloorSpec, RoomSpec
 from packages.schema.site import SiteSpec
+from packages.schema.vertical_void import VerticalVoidSpec, validate_vertical_voids_for_floors
 
 
 class HouseholdSpec(BaseModel):
@@ -48,6 +49,16 @@ class ProjectSpec(BaseModel):
     rooms: list[RoomSpec] = Field(min_length=1, max_length=SOLVER_LIMITS.max_rooms)
     constraints: list[Constraint] = Field(default_factory=list)
     preferences: PreferencesSpec = Field(default_factory=PreferencesSpec)
+    vertical_voids: list[VerticalVoidSpec] = Field(
+        default_factory=list,
+        description="竖向空洞 / 对齐规格（ADR-010）；空则 solver 沿用隐式楼梯核",
+    )
+
+    @model_validator(mode="after")
+    def _validate_vertical_voids(self) -> ProjectSpec:
+        if self.vertical_voids:
+            validate_vertical_voids_for_floors(self.vertical_voids, self.floors)
+        return self
 
     @model_validator(mode="after")
     def _unique_room_ids(self) -> ProjectSpec:

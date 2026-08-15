@@ -166,7 +166,7 @@ class DefaultConstraintChecker:
         允许 ns（width×depth）或 ew（depth×width）两种朝向。
         """
         from packages.schema.layout import PlacementSource
-        from solver.circulation.stair_core import resolve_stair_core_spec
+        from solver.vertical.prededuction import resolve_stair_core_spec_for_program
 
         violations: list[Violation] = []
         if candidate.metrics.get("core_unfit"):
@@ -181,10 +181,7 @@ class DefaultConstraintChecker:
             )
             return ConstraintEvaluationResult.from_violations(violations)
 
-        spec = resolve_stair_core_spec(
-            stair_width=program.site.stair_width,
-            stair_depth=getattr(program.site, "stair_depth", 4.2),
-        )
+        spec = resolve_stair_core_spec_for_program(program)
         expected = {
             (round(spec.width, 3), round(spec.depth, 3)),
             (round(spec.depth, 3), round(spec.width, 3)),
