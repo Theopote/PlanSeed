@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from solver.evaluation.vertical import rect_iou
 from solver.fixtures.benchmark import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator

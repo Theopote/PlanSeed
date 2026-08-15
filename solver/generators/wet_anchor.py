@@ -5,6 +5,7 @@ from __future__ import annotations
 from packages.schema.layout import FloorLayout, PlacementRect
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomSpec
+
 from solver.evaluation.vertical import rect_iou, wet_stack_pairing_key
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, intersection, intersects

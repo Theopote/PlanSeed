@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from packages.schema.layout import (
     FloorLayout,
     LayoutCandidate,
@@ -17,7 +16,6 @@ from packages.schema.vertical_void import (
     VerticalVoidType,
     min_iou_for_wet_riser_tolerance,
 )
-from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.vertical import (
     DEFAULT_WET_STACK_MIN_IOU,
     min_iou_for_floor_pair,

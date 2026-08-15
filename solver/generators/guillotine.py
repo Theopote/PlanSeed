@@ -16,15 +16,21 @@ from packages.schema.layout import (
     WetStack,
     ZonePlacement,
 )
-from packages.schema.vertical_void import VerticalVoidPlacement
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.provenance import build_solver_provenance, provenance_to_metrics
 from packages.schema.room import RoomSpec
 from packages.schema.topology import TopologyPlan
+from packages.schema.vertical_void import VerticalVoidPlacement
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometry
 
 from solver.circulation.stair_core import CorePlacementFailure
+from solver.evaluation.weights import DEFAULT_WEIGHTS
+from solver.generators.wet_anchor import (
+    anchor_floor_id,
+    collect_wet_anchor_rects,
+    preplace_wet_anchored_rooms,
+)
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
     assign_residual_gaps_as_circulation,
@@ -49,12 +55,6 @@ from solver.topology.plan import (
 )
 from solver.topology.zoning import ZonePlanner, zone_for_room
 from solver.vertical.prededuction import build_prededuction_plan
-from solver.generators.wet_anchor import (
-    anchor_floor_id,
-    collect_wet_anchor_rects,
-    preplace_wet_anchored_rooms,
-)
-from solver.evaluation.weights import DEFAULT_WEIGHTS
 
 _ASPECT_THRESHOLD = DEFAULT_WEIGHTS.aspect_ratio_threshold
 
@@ -527,7 +527,7 @@ class GuillotineGenerator:
             program.floors,
             key=lambda f: (0 if f.id == anchor_fid else 1, program.floors.index(f)),
         )
-        for idx, floor in enumerate(floor_order):
+        for floor in floor_order:
             floor_rooms = [
                 r for r in program.rooms_on_floor(floor.id) if r.id not in locked_ids
             ]

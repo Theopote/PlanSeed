@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from solver.optimization.rank import layout_similarity
 from solver.pipeline import run_pipeline
 from solver.program.requirements_normalize import normalize_requirements_to_program

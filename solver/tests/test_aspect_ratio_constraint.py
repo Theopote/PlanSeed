@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from packages.schema.core import CorePlacement
 from packages.schema.layout import PlacementRect, RoomPlacement
-from packages.schema.vertical_void import VerticalVoidSpec, VerticalVoidType
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.geometry import (
     is_aspect_ratio_exempt_placement,

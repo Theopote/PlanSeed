@@ -104,7 +104,6 @@ def place_window_openings(
     """
     buildable = program_local_buildable(program)
     findings: list[DesignFinding] = []
-    room_by_id = {r.id: r for r in program.rooms}
 
     for fl in candidate.floors:
         fl.window_openings = []

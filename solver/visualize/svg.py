@@ -12,7 +12,13 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Literal
 
-from packages.schema.layout import DoorOpening, FloorLayout, LayoutCandidate, RoomPlacement, WindowOpening
+from packages.schema.layout import (
+    DoorOpening,
+    FloorLayout,
+    LayoutCandidate,
+    RoomPlacement,
+    WindowOpening,
+)
 from packages.schema.site import CardinalEdge, SiteSpec
 from packages.schema.topology import AccessGraph, SpaceConnectionType
 from packages.schema.vertical_void import VerticalVoidType

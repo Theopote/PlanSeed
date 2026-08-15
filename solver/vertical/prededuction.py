@@ -7,14 +7,15 @@ from dataclasses import dataclass, field
 
 from packages.schema.core import CorePlacement, CorePlacementResult, StairCoreSpec
 from packages.schema.layout import PlacementRect
-from packages.schema.vertical_void import VerticalVoidPlacement
 from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.vertical_void import (
+    VerticalVoidPlacement,
     VerticalVoidSpec,
     VerticalVoidType,
     void_covers_floor,
 )
+
 from solver.circulation.stair_core import (
     CorePlacementFailure,
     choose_core_placement,
