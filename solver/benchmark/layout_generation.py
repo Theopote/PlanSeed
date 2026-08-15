@@ -66,7 +66,7 @@ class LayoutGenerationBenchmarkReport:
     case: str
     case_title: str = ""
     base_seed: int = 42
-    candidate_count: int = 32
+    candidate_count: int = 64
     measured_at: str = ""
     has_locks: bool = False
     strategies: list[StrategyMetrics] = field(default_factory=list)
@@ -91,7 +91,7 @@ class LayoutGenerationBenchmarkReport:
 class LayoutSuiteBenchmarkReport:
     suite_id: str = SUITE_ID
     suite_version: str = SUITE_VERSION
-    candidate_count: int = 32
+    candidate_count: int = 64
     measured_at: str = ""
     cases: list[LayoutGenerationBenchmarkReport] = field(default_factory=list)
     aggregate: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -264,7 +264,7 @@ _DEFAULT_NOTES = [
 def run_layout_generation_benchmark(
     *,
     program: DesignProgram | None = None,
-    candidate_count: int = 32,
+    candidate_count: int = 64,
     generators: list[LayoutGenerator] | None = None,
     case: str = "benchmark_11x13_2floors",
     case_title: str = "",
@@ -302,7 +302,7 @@ def run_layout_generation_benchmark(
 def run_suite_case_benchmark(
     suite_case: LayoutSuiteCase,
     *,
-    candidate_count: int = 32,
+    candidate_count: int = 64,
     generators: list[LayoutGenerator] | None = None,
 ) -> LayoutGenerationBenchmarkReport:
     return run_layout_generation_benchmark(
@@ -349,7 +349,7 @@ def _aggregate_strategies(
 
 def run_layout_suite_benchmark(
     *,
-    candidate_count: int = 32,
+    candidate_count: int = 64,
     case_ids: list[str] | None = None,
     generators: list[LayoutGenerator] | None = None,
 ) -> LayoutSuiteBenchmarkReport:
@@ -495,8 +495,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--count",
         type=int,
-        default=32,
-        help="candidate_count per strategy (default 32; use 64 for qualification)",
+        default=64,
+        help="candidate_count per strategy (default 64)",
     )
     parser.add_argument(
         "--json",

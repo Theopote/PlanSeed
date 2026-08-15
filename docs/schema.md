@@ -164,7 +164,7 @@ DesignProgram
 └── solver_config: SolverConfig
 ```
 
-`SolverConfig`：`candidate_count=32`, `return_top_k=5`, `base_seed=42`, `snap_module=0.3`
+`SolverConfig`：`candidate_count=64`, `return_top_k=5`, `base_seed=42`, `snap_module=0.3`
 
 ## RoomGraph / TopologyPlan / AccessGraph
 

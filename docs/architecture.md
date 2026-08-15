@@ -179,7 +179,7 @@ ProjectSpec
 
 默认参数：
 
-- `candidate_count = 32`
+- `candidate_count = 64`
 - `return_top_k = 5`
 
 ## 7. 确定性与 Seed

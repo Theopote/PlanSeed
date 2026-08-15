@@ -9,10 +9,11 @@ from solver.tests.test_guillotine import benchmark_program
 
 
 class TestPipeline:
-    def test_runs_32_candidates(self):
+    def test_runs_default_candidate_count(self):
         program = benchmark_program()
         result = run_pipeline(program)
-        assert result.generated == 32
+        assert result.generated == program.solver_config.candidate_count
+        assert result.generated == 64
         assert len(result.top_candidates) <= 5
 
     def test_valid_candidates_scored(self):

@@ -6,14 +6,15 @@ Quality regression 阈值 — Phase 1.5 起开始记录。
 - 但远高于「valid>=1 / distinct>1」这种几乎无意义的门槛
 - 收紧阈值前先更新 MEASURED_BASELINE 注释
 
-基准案例：11×13m 两层旧手册户型，candidate_count=32, base_seed=42
-实测（2026-08-15，面积上下限 + 湿区 Step A/B 后）：
+基准案例：11×13m 两层旧手册户型，candidate_count=64, base_seed=42
+实测（2026-08-15，面积上下限 + 湿区 Step A/B 后，n=32 历史记录）：
   valid_ratio ≈ 0.812 (26/32)
   distinct_layouts = 32
   distinct_valid = 26
   top area_accuracy ≈ 0.84
   top hard_violations = 0
   Step B 锚层先行 + 上层湿区预放置恢复 valid 率。
+  默认 candidate_count 已提至 64（ADR-010 Step A 后提高候选池）。
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from dataclasses import dataclass
 class QualityThresholds:
     """可配置质量门槛；测试与 CI 共用。"""
 
-    candidate_count: int = 32
+    candidate_count: int = 64
     min_valid_ratio: float = 0.70
     min_distinct_layouts: int = 8
     min_distinct_valid: int = 8

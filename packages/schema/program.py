@@ -22,7 +22,7 @@ GeneratorStrategyName = Literal["guillotine", "maxrect"]
 
 
 class SolverConfig(BaseModel):
-    candidate_count: int = Field(default=32, ge=1, le=SOLVER_LIMITS.max_candidates)
+    candidate_count: int = Field(default=64, ge=1, le=SOLVER_LIMITS.max_candidates)
     return_top_k: int = Field(default=5, ge=1, le=SOLVER_LIMITS.max_return_top_k)
     base_seed: int = Field(default=42)
     snap_module: float = Field(default=0.3, gt=0)
