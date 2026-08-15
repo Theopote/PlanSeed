@@ -720,6 +720,11 @@ export interface components {
             evaluation?: components["schemas"]["EvaluationSummary"];
             /** Findings */
             findings?: components["schemas"]["DesignFinding"][];
+            /**
+             * Findings Disclaimer
+             * @description findings 非空时的启发式免责声明；null 表示无需展示
+             */
+            findings_disclaimer?: string | null;
             /** Floor Plans */
             floor_plans?: components["schemas"]["FloorPlanBlock"][];
             project?: components["schemas"]["ProjectMetadata"];

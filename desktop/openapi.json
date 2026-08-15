@@ -857,6 +857,18 @@
             "title": "Findings",
             "type": "array"
           },
+          "findings_disclaimer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "findings 非空时的启发式免责声明；null 表示无需展示",
+            "title": "Findings Disclaimer"
+          },
           "floor_plans": {
             "items": {
               "$ref": "#/components/schemas/FloorPlanBlock"
