@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from solver.fixtures.benchmark import benchmark_program
 from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.coverage import COVERAGE_TOLERANCE, floor_coverage_gap

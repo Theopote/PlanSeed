@@ -364,7 +364,7 @@ def desktop_project_payload(case_id: str) -> dict:
     kwargs = dict(raw)
     floor_ids = kwargs.pop("floor_ids")
     locale = kwargs.pop("locale", "zh-CN")
-    project_name = kwargs.pop("project_name", case_id)
+    kwargs.pop("project_name", None)  # 手测项目名用 PrintHand-*，与 docs/手测脚本一致
     locale_en = locale.lower().startswith("en")
     cand = _candidate(
         floor_ids=floor_ids,
