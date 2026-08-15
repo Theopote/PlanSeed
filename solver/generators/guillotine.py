@@ -760,9 +760,9 @@ class GuillotineGenerator:
             occupied=fixed_obstacles,
             wet_anchors=wet_anchors or {},
         )
-        for rid, rect in preplaced.items():
+        for rid, placed_rect in preplaced.items():
             if rid in layout_rooms:
-                layout_rooms[rid].rect = rect
+                layout_rooms[rid].rect = placed_rect
         preplaced_obstacles = [
             from_placement(lr.rect)
             for lr in layout_rooms.values()
@@ -785,8 +785,8 @@ class GuillotineGenerator:
         if clip_obstacles:
             for zone, rects in list(zone_rects.items()):
                 clipped: list[Rect] = []
-                for rect in rects:
-                    clipped.extend(subtract_rects([rect], clip_obstacles))
+                for zone_rect in rects:
+                    clipped.extend(subtract_rects([zone_rect], clip_obstacles))
                 zone_rects[zone] = [r for r in clipped if r.area > 1e-6]
 
         pack_order = topology.pack_order_hint.get(floor.id, [])
