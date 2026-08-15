@@ -1,0 +1,21 @@
+benchmark_program + daylight_required on r1,r5,r7,r8,r10
+buildable: 11.0 x 13.0 m
+
+seed=0 (5 windows)
+  F1 客厅 r1: center=(4.95,0.00) width=3.00m axis=x  [北外墙]
+  F2 主卧 r5: center=(2.58,0.00) width=2.23m axis=x  [北外墙]
+  F2 次卧1 r7: center=(11.00,2.36) width=2.05m axis=y  [东外墙]
+  F2 次卧2 r8: center=(4.80,13.00) width=2.10m axis=x  [南外墙]
+  F2 书房 r10: center=(11.00,8.86) width=2.64m axis=y  [东外墙]
+
+seed=45 pipeline Top-1 (5 windows)
+  F1 客厅 r1: center=(4.95,0.00) width=3.00m axis=x
+  F2 主卧 r5: center=(0.00,4.35) width=3.00m axis=y  [西外墙]
+  F2 次卧1 r7: center=(11.00,2.25) width=1.96m axis=y
+  F2 次卧2 r8: center=(4.80,13.00) width=2.10m axis=x
+  F2 书房 r10: center=(11.00,10.85) width=1.37m axis=y
+
+说明：
+- 窗宽 = 贴外墙段长度 × 30%～50%（按 room_id 确定性），夹在 0.9～3.0 m
+- 选最长外墙边落窗；无外墙 → DesignFinding（environment.daylight_no_exterior_wall.*）
+- 默认 benchmark 未设 daylight_required，需显式开启才有窗户

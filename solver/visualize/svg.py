@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Literal
 
-from packages.schema.layout import DoorOpening, FloorLayout, LayoutCandidate, RoomPlacement
+from packages.schema.layout import DoorOpening, FloorLayout, LayoutCandidate, RoomPlacement, WindowOpening
 from packages.schema.site import CardinalEdge, SiteSpec
 from packages.schema.topology import AccessGraph, SpaceConnectionType
 from packages.schema.vertical_void import VerticalVoidType
@@ -33,6 +33,7 @@ _ROAD = "#4A6FA5"
 _STAIR = "#333333"
 _ACCESS = "#6B4C9A"
 _DOOR = "#8B4513"
+_WINDOW = "#1D6FA5"
 _BG = "#F7F5F0"
 _ATRIUM_FILL = "#D4EAF2"
 _ATRIUM_STROKE = "#2E6B8A"
@@ -413,6 +414,66 @@ def _door_overlays(floor: FloorLayout, oy: float, openings: list[DoorOpening]) -
     return "\n".join(parts)
 
 
+def _window_overlays(
+    floor: FloorLayout,
+    oy: float,
+    openings: list[WindowOpening],
+) -> str:
+    """外窗符号：墙线上的开口端点 + 平行玻璃线（区别于门扇弧线）。"""
+    parts: list[str] = []
+    for w in openings:
+        if w.floor_id != floor.floor_id:
+            continue
+        half = w.width / 2
+        if w.axis == "x":
+            x0, x1 = w.x - half, w.x + half
+            y = oy + w.y
+            parts.append(
+                f'<line x1="{x0:.3f}" y1="{y:.3f}" x2="{x1:.3f}" y2="{y:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.10"/>'
+            )
+            parts.append(
+                f'<line x1="{x0:.3f}" y1="{y - 0.07:.3f}" x2="{x0:.3f}" y2="{y + 0.07:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.05"/>'
+            )
+            parts.append(
+                f'<line x1="{x1:.3f}" y1="{y - 0.07:.3f}" x2="{x1:.3f}" y2="{y + 0.07:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.05"/>'
+            )
+            parts.append(
+                f'<line x1="{x0:.3f}" y1="{y - 0.03:.3f}" x2="{x1:.3f}" y2="{y - 0.03:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.035"/>'
+            )
+            parts.append(
+                f'<line x1="{x0:.3f}" y1="{y + 0.03:.3f}" x2="{x1:.3f}" y2="{y + 0.03:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.035"/>'
+            )
+        else:
+            y0, y1 = oy + w.y - half, oy + w.y + half
+            x = w.x
+            parts.append(
+                f'<line x1="{x:.3f}" y1="{y0:.3f}" x2="{x:.3f}" y2="{y1:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.10"/>'
+            )
+            parts.append(
+                f'<line x1="{x - 0.07:.3f}" y1="{y0:.3f}" x2="{x + 0.07:.3f}" y2="{y0:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.05"/>'
+            )
+            parts.append(
+                f'<line x1="{x - 0.07:.3f}" y1="{y1:.3f}" x2="{x + 0.07:.3f}" y2="{y1:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.05"/>'
+            )
+            parts.append(
+                f'<line x1="{x - 0.03:.3f}" y1="{y0:.3f}" x2="{x - 0.03:.3f}" y2="{y1:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.035"/>'
+            )
+            parts.append(
+                f'<line x1="{x + 0.03:.3f}" y1="{y0:.3f}" x2="{x + 0.03:.3f}" y2="{y1:.3f}" '
+                f'stroke="{_WINDOW}" stroke-width="0.035"/>'
+            )
+    return "\n".join(parts)
+
+
 def _north_arrow(
     *,
     x: float,
@@ -751,6 +812,9 @@ def _render_floor_geometry(
     doors = _door_overlays(floor, oy, candidate.door_openings)
     if doors.strip():
         parts.append(f'<g class="derived-overlay" data-kind="doors">{doors}</g>')
+    windows = _window_overlays(floor, oy, floor.window_openings)
+    if windows.strip():
+        parts.append(f'<g class="derived-overlay" data-kind="windows">{windows}</g>')
     return parts
 
 

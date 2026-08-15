@@ -130,3 +130,18 @@ def test_render_atrium_skylight_overlay_customer() -> None:
     assert "ATRIUM" not in svg
     assert "天窗" in svg
     assert 'class="skylight-marker"' in svg
+
+
+def test_svg_draws_window_openings() -> None:
+    program = benchmark_program()
+    for r in program.rooms:
+        if r.id == "r1":
+            r.daylight_required = True
+    candidate = GuillotineGenerator().generate(program, seed=0)
+    svg = render_candidate_svg(
+        candidate,
+        floor_width=program.buildable.width,
+        floor_depth=program.buildable.depth,
+    )
+    assert 'data-kind="windows"' in svg
+    assert candidate.floors[0].window_openings

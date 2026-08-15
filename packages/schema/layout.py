@@ -109,6 +109,10 @@ class FloorLayout(BaseModel):
         default=None,
         description="楼梯核区位 north/south/east/west/center",
     )
+    window_openings: list[WindowOpening] = Field(
+        default_factory=list,
+        description="外窗标注；单侧连接房间与室外",
+    )
 
 
 class WetStack(BaseModel):
@@ -178,6 +182,20 @@ class DoorOpening(BaseModel):
     )
     hinge_x: float | None = Field(default=None, description="铰链点 x")
     hinge_y: float | None = Field(default=None, description="铰链点 y")
+
+
+class WindowOpening(BaseModel):
+    """外窗标注 — 房间单侧连接室外（无 room_b ）。"""
+
+    id: str
+    room_id: str
+    floor_id: str
+    x: float = Field(description="窗洞中心 x（模型坐标）")
+    y: float = Field(description="窗洞中心 y（模型坐标）")
+    width: float = Field(gt=0, description="窗洞沿墙宽度（米）")
+    axis: Literal["x", "y"] = Field(
+        description="墙走向：x=水平墙（南北向外墙），y=竖向墙（东西向外墙）"
+    )
 
 
 class RepairRecord(BaseModel):

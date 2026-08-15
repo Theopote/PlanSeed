@@ -36,6 +36,7 @@ from packages.schema.layout import (
     RoomPlacement,
     Violation,
     WetStack,
+    WindowOpening,
     ZonePlacement,
 )
 from packages.schema.limits import (
@@ -171,6 +172,7 @@ __all__ = [
     "DesignProgram",
     "DesignScore",
     "DoorOpening",
+    "WindowOpening",
     "EVALUATION_VERSION",
     "SELECTION_VERSION",
     "selection_strategy_for",

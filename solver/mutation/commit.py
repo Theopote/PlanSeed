@@ -166,6 +166,9 @@ def revalidate_candidate(
     )
 
     resolve_exterior_entry(program, candidate)
+    from solver.topology.windows import place_window_openings
+
+    place_window_openings(program, candidate)
 
     checker = DefaultConstraintChecker()
     validation = checker.check(program, candidate)

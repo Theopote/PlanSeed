@@ -57,6 +57,7 @@ from solver.evaluation.site import compute_site_metrics
 from solver.evaluation.site import site_score as compute_site_score
 from solver.evaluation.vertical import compute_vertical_metrics, vertical_score
 from solver.evaluation.weights import DEFAULT_WEIGHTS, ScoreWeights
+from solver.topology.windows import collect_daylight_findings
 
 
 def _blend(a: float, b: float, share_a: float) -> float:
@@ -126,6 +127,7 @@ class CompositeEvaluator:
             program_fit_findings(program, candidate, fit_m, eff_m, geo_m)
         )
         findings.extend(layout_stability_findings(circ_m, candidate))
+        findings.extend(collect_daylight_findings(program, candidate))
 
         if float(adj_m.get("required_adjacency_satisfaction", 1.0)) < 1.0:
             findings.append(

@@ -613,6 +613,7 @@ class GuillotineGenerator:
         from solver.topology.access import build_realized_connections
         from solver.topology.connection_resolve import resolve_required_connections
         from solver.topology.doors import place_door_openings
+        from solver.topology.windows import place_window_openings
 
         prov = build_solver_provenance(
             generator_strategy=self.strategy_id,
@@ -655,6 +656,7 @@ class GuillotineGenerator:
             zone_envelopes=zone_envelopes,
         )
         place_door_openings(program, candidate)
+        place_window_openings(program, candidate)
         build_realized_connections(program, candidate)
         return candidate
 
