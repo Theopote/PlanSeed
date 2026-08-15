@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from packages.schema.layout import PlacementRect, RoomPlacement, Violation
 from packages.schema.program import DesignProgram
+from solver.evaluation.weights import DEFAULT_WEIGHTS
 from solver.geometry.rect import (
     Rect,
     from_placement,
@@ -20,6 +21,158 @@ LAYOUT_ABSORB_TOLERANCE = 0.5
 def is_fixed_void_placement(room_id: str) -> bool:
     """预扣除竖向空洞（楼梯 / 天井）— 不可被 grow/fill 侵入或作为 donor。"""
     return room_id.startswith("stair-") or room_id.startswith("void-")
+
+
+def _rect_aspect_ratio(rect: Rect) -> float:
+    short = min(rect.width, rect.depth)
+    long = max(rect.width, rect.depth)
+    return long / max(short, 0.01)
+
+
+def _fill_aspect_cap_exempt(room_id: str) -> bool:
+    """gap 吸收时长宽比豁免（楼梯 / 天井 / 系统交通）。"""
+    if is_fixed_void_placement(room_id):
+        return True
+    return room_id.startswith("circ-")
+
+
+def _merged_respects_aspect_cap(room_id: str, merged: Rect) -> bool:
+    if _fill_aspect_cap_exempt(room_id):
+        return True
+    return _rect_aspect_ratio(merged) <= DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
+
+
+def largest_aspect_ok_placement_rect(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    threshold: float | None = None,
+) -> PlacementRect:
+    """在边界内取面积尽量大且满足长宽比的矩形（贴原点对齐）。"""
+    thr = (
+        threshold
+        if threshold is not None
+        else DEFAULT_WEIGHTS.aspect_ratio_threshold
+    )
+    w = max(0.0, x1 - x0)
+    h = max(0.0, y1 - y0)
+    if w <= 1e-9 or h <= 1e-9:
+        return PlacementRect(x=x0, y=y0, width=max(w, 0.01), depth=max(h, 0.01))
+    if _rect_aspect_ratio(Rect(x=0, y=0, width=w, depth=h)) <= thr + 1e-6:
+        return PlacementRect(x=x0, y=y0, width=w, depth=h)
+    if w >= h:
+        return PlacementRect(x=x0, y=y0, width=h * thr, depth=h)
+    return PlacementRect(x=x0, y=y0, width=w, depth=w * thr)
+
+
+def clamp_program_room_aspect_ratios(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    floor_id: str,
+    *,
+    threshold: float | None = None,
+    min_area_by_room_id: dict[str, float] | None = None,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """裁切超细长 program 房间，余量交回 fill（不裁到低于 min_area）。"""
+    from packages.schema.layout import PlacementSource
+
+    thr = (
+        threshold
+        if threshold is not None
+        else DEFAULT_WEIGHTS.aspect_ratio_threshold
+    )
+    updated = [p.model_copy(deep=True) for p in placements]
+    changed = False
+    for i, p in enumerate(updated):
+        if p.source != PlacementSource.PROGRAM:
+            continue
+        if is_fixed_void_placement(p.room_id):
+            continue
+        r = p.rect
+        if _rect_aspect_ratio(from_placement(r)) <= thr + 1e-6:
+            continue
+        clamped = largest_aspect_ok_placement_rect(
+            r.x, r.y, r.right, r.bottom, thr
+        )
+        lo = (
+            min_area_by_room_id.get(p.room_id)
+            if min_area_by_room_id is not None
+            else None
+        )
+        if lo is not None and clamped.area + tolerance < lo:
+            continue
+        updated[i] = p.model_copy(update={"rect": clamped})
+        changed = True
+    if not changed:
+        return updated
+    return fill_floor_coverage_gaps(
+        footprint,
+        updated,
+        min_area_by_room_id=min_area_by_room_id,
+        tolerance=tolerance,
+    )
+
+
+def _overlap_clip_priority(p: RoomPlacement) -> int:
+    """数值越小越不应被裁切（楼梯 / 天井 > 走廊 > 其他 generated > program）。"""
+    from packages.schema.layout import PlacementSource
+
+    if is_fixed_void_placement(p.room_id):
+        return 0
+    if p.room_id.startswith("circ-"):
+        return 1
+    if p.source == PlacementSource.GENERATED:
+        return 2
+    return 3
+
+
+def resolve_placement_overlaps(
+    placements: list[RoomPlacement],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """消除轴对齐矩形重叠；固定区优先保留，退让方取最大残余片段。"""
+    updated = [p.model_copy(deep=True) for p in placements]
+    max_iter = len(updated) ** 2 + 4
+    for _ in range(max_iter):
+        best_pair: tuple[int, int] | None = None
+        best_area = tolerance
+        for i in range(len(updated)):
+            for j in range(i + 1, len(updated)):
+                inter = intersection(
+                    from_placement(updated[i].rect),
+                    from_placement(updated[j].rect),
+                )
+                if inter is not None and inter.area > best_area:
+                    best_area = inter.area
+                    best_pair = (i, j)
+        if best_pair is None:
+            break
+        i, j = best_pair
+        a, b = updated[i], updated[j]
+        pa, pb = _overlap_clip_priority(a), _overlap_clip_priority(b)
+        if pa > pb:
+            clip_idx, keep_idx = i, j
+        elif pb > pa:
+            clip_idx, keep_idx = j, i
+        elif a.rect.area >= b.rect.area:
+            clip_idx, keep_idx = i, j
+        else:
+            clip_idx, keep_idx = j, i
+        clip_p = updated[clip_idx]
+        keep_p = updated[keep_idx]
+        clipped = clip_placement_away_from_obstacles(
+            clip_p.rect,
+            [from_placement(keep_p.rect)],
+            tolerance=tolerance,
+        )
+        if clipped is None:
+            updated.pop(clip_idx)
+        else:
+            updated[clip_idx] = clip_p.model_copy(update={"rect": clipped})
+    return updated
 
 
 def placement_overlap_violations(
@@ -710,6 +863,14 @@ def grow_rooms_to_min_area(
                 continue
             if min(new_donor.rect.width, new_donor.rect.depth) <= tolerance:
                 continue
+            if not _merged_respects_aspect_cap(
+                new_recv.room_id, from_placement(new_recv.rect)
+            ):
+                continue
+            if not _merged_respects_aspect_cap(
+                new_donor.room_id, from_placement(new_donor.rect)
+            ):
+                continue
             new_recv_r = from_placement(new_recv.rect)
             new_donor_r = from_placement(new_donor.rect)
             overlaps = False
@@ -851,6 +1012,8 @@ def fill_floor_coverage_gaps(
                             if not overlap:
                                 merged = merged_rect
                 if merged is None:
+                    continue
+                if not _merged_respects_aspect_cap(p.room_id, merged):
                     continue
                 edge = shared_edge_length(cur, gap)
                 if edge > best_edge:

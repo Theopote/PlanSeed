@@ -52,6 +52,7 @@ class DefaultConstraintChecker:
         result.extend(self._check_stair_core(program, candidate))
         result.extend(self._check_program_placements(program, candidate))
         result.extend(self._check_area_and_width(program, candidate))
+        result.extend(self._check_room_aspect_ratio(candidate))
         result.extend(self._check_stair_alignment(candidate))
 
         for constraint in program.constraints:
@@ -367,6 +368,16 @@ class DefaultConstraintChecker:
                     )
 
         return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_room_aspect_ratio(
+        self, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """功能房间长宽比硬约束（阈值同 ``ScoreWeights.aspect_ratio_threshold``）。"""
+        from solver.evaluation.geometry import room_aspect_ratio_violations
+
+        return ConstraintEvaluationResult.from_violations(
+            room_aspect_ratio_violations(candidate)
+        )
 
     def _check_stair_alignment(self, candidate: LayoutCandidate) -> ConstraintEvaluationResult:
         if len(candidate.floors) < 2:

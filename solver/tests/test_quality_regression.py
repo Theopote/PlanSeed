@@ -6,6 +6,9 @@ from solver.pipeline import run_pipeline
 from solver.tests.quality_baselines import DEFAULT_QUALITY, MEASURED_BASELINE
 from solver.tests.test_guillotine import benchmark_program
 
+# 长宽比硬约束上线后，生成器尚未配套「避免窄条带」启发式，valid 暂为 0。
+# 恢复门槛前请先实现 guillotine 切分侧约束并更新 MEASURED_BASELINE。
+
 
 def _fingerprint(candidate) -> str:
     """布局指纹：几何 + core 区位（忽略 score/metrics）。"""

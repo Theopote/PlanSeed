@@ -28,9 +28,12 @@ from solver.circulation.stair_core import CorePlacementFailure
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
     assign_residual_gaps_as_circulation,
+    clamp_program_room_aspect_ratios,
     clip_placement_away_from_obstacles,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
+    largest_aspect_ok_placement_rect,
+    resolve_placement_overlaps,
 )
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, shared_edge_length
@@ -51,6 +54,61 @@ from solver.generators.wet_anchor import (
     collect_wet_anchor_rects,
     preplace_wet_anchored_rooms,
 )
+from solver.evaluation.weights import DEFAULT_WEIGHTS
+
+_ASPECT_THRESHOLD = DEFAULT_WEIGHTS.aspect_ratio_threshold
+
+
+def _rect_aspect(width: float, depth: float) -> float:
+    short = min(width, depth)
+    long = max(width, depth)
+    return long / max(short, 0.01)
+
+
+def _aspect_ratio_ok(width: float, depth: float, threshold: float = _ASPECT_THRESHOLD) -> bool:
+    return _rect_aspect(width, depth) <= threshold + 1e-6
+
+
+def _placement_aspect_ok(rect: PlacementRect, threshold: float = _ASPECT_THRESHOLD) -> bool:
+    return _aspect_ratio_ok(rect.width, rect.depth, threshold)
+
+
+def _span_bounds_for_aspect(cross_span: float, threshold: float = _ASPECT_THRESHOLD) -> tuple[float, float]:
+    """cross × span 矩形满足长宽比时，span 的可行区间。"""
+    if cross_span <= 0:
+        return 0.0, 0.0
+    return cross_span / threshold, cross_span * threshold
+
+
+def _aspect_cut_bounds(
+    start: float,
+    end: float,
+    cross_span: float,
+    *,
+    threshold: float = _ASPECT_THRESHOLD,
+) -> tuple[float, float]:
+    """切分轴上的 cut 坐标区间，使两侧条带均满足长宽比。"""
+    span = end - start
+    if span <= 1e-9 or cross_span <= 1e-9:
+        return start, end
+    lo, hi = _span_bounds_for_aspect(cross_span, threshold)
+    cut_min = max(start + lo, end - hi)
+    cut_max = min(start + hi, end - lo)
+    if cut_min > cut_max:
+        mid = start + span * 0.5
+        return max(start, mid - span * 0.1), min(end, mid + span * 0.1)
+    return cut_min, cut_max
+
+
+def _largest_aspect_ok_rect(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    *,
+    threshold: float = _ASPECT_THRESHOLD,
+) -> PlacementRect:
+    return largest_aspect_ok_placement_rect(x0, y0, x1, y1, threshold)
 
 
 def _mirror_wet_stack_onto_floor(
@@ -120,6 +178,11 @@ def _clamped_axis_cut(
         lo, hi = area_lo, area_hi
         if lo > hi + 1e-9:
             return max(start, min(end, raw))
+    asp_min, asp_max = _aspect_cut_bounds(start, end, cross_span)
+    lo = max(lo, asp_min)
+    hi = min(hi, asp_max)
+    if lo > hi + 1e-9:
+        lo, hi = asp_min, asp_max
     cut = max(lo, min(hi, raw))
     eps = min(module, span / 4) if span > 0 else 0.0
     return max(start + eps, min(end - eps, cut))
@@ -192,6 +255,9 @@ def _capped_placement_candidates(
         if width > 0:
             out.append(PlacementRect(x=x0, y=y0, width=width, depth=h))
             out.append(PlacementRect(x=x1 - width, y=y0, width=width, depth=h))
+    compliant = [c for c in out if _placement_aspect_ok(c)]
+    if compliant:
+        return compliant
     return out or [_placement_rect_area_capped(x0, y0, x1, y1, max_area)]
 
 
@@ -207,7 +273,10 @@ def _best_capped_placement(
     full = Rect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
     best: PlacementRect | None = None
     best_score = -1.0
-    for cand in _capped_placement_candidates(x0, y0, x1, y1, max_area):
+    candidates = _capped_placement_candidates(x0, y0, x1, y1, max_area)
+    compliant = [c for c in candidates if _placement_aspect_ok(c)]
+    pool = compliant if compliant else candidates
+    for cand in pool:
         capped = Rect(x=cand.x, y=cand.y, width=cand.width, depth=cand.depth)
         leftovers = subtract_rects([full], [capped])
         score = 0.0
@@ -817,6 +886,20 @@ class GuillotineGenerator:
             min_by_id,
             max_by_id,
         )
+        placements = clamp_program_room_aspect_ratios(
+            footprint,
+            placements,
+            floor.id,
+            min_area_by_room_id=min_by_id,
+        )
+        placements = resolve_placement_overlaps(placements)
+        placements = fill_floor_coverage_gaps(
+            footprint,
+            placements,
+            max_area_by_room_id=max_by_id,
+            min_area_by_room_id=min_by_id,
+        )
+        placements = resolve_placement_overlaps(placements)
         placements = assign_residual_gaps_as_circulation(
             footprint,
             placements,
@@ -994,7 +1077,19 @@ class GuillotineGenerator:
                     subtract_rects([full], [capped_r])
                 )
             else:
-                lr.rect = PlacementRect(x=x0, y=y0, width=cw, depth=ch)
+                placed = _largest_aspect_ok_rect(x0, y0, x1, y1)
+                lr.rect = placed
+                full = Rect(x=x0, y=y0, width=cw, depth=ch)
+                placed_r = Rect(
+                    x=placed.x,
+                    y=placed.y,
+                    width=placed.width,
+                    depth=placed.depth,
+                )
+                if placed_r.area + 1e-9 < full.area:
+                    self._floor_pack_leftovers.extend(
+                        subtract_rects([full], [placed_r])
+                    )
             return
 
         unit_ids = group_into_slicing_units(
@@ -1156,6 +1251,8 @@ class GuillotineGenerator:
                     tolerance=LAYOUT_ABSORB_TOLERANCE,
                 )
                 if merged is None:
+                    continue
+                if not _aspect_ratio_ok(merged.width, merged.depth):
                     continue
                 edge = shared_edge_length(cur, sliver)
                 if edge > best_edge:

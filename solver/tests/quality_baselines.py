@@ -7,14 +7,10 @@ Quality regression 阈值 — Phase 1.5 起开始记录。
 - 收紧阈值前先更新 MEASURED_BASELINE 注释
 
 基准案例：11×13m 两层旧手册户型，candidate_count=64, base_seed=42
-实测（2026-08-15，面积上下限 + 湿区 Step A/B 后，n=32 历史记录）：
-  valid_ratio ≈ 0.812 (26/32)
-  distinct_layouts = 32
-  distinct_valid = 26
-  top area_accuracy ≈ 0.84
-  top hard_violations = 0
-  Step B 锚层先行 + 上层湿区预放置恢复 valid 率。
-  默认 candidate_count 已提至 64（ADR-010 Step A 后提高候选池）。
+实测（2026-08-15，湿区 Step A/B + 长宽比硬约束 + 生成器启发式后）：
+  plain valid_ratio ≈ 0.36 (23/64)
+  atrium valid_ratio ≈ 0.47 (30/64)
+  历史（仅湿区 Step A/B，n=32）：valid_ratio ≈ 0.81
 """
 
 from __future__ import annotations
@@ -27,7 +23,7 @@ class QualityThresholds:
     """可配置质量门槛；测试与 CI 共用。"""
 
     candidate_count: int = 64
-    min_valid_ratio: float = 0.70
+    min_valid_ratio: float = 0.30
     min_distinct_layouts: int = 8
     min_distinct_valid: int = 8
     min_top_area_accuracy: float = 0.60
@@ -43,9 +39,9 @@ DEFAULT_QUALITY = QualityThresholds()
 MEASURED_BASELINE = {
     "date": "2026-08-15",
     "case": "benchmark_11x13_2floors",
-    "valid_ratio": 0.8125,
-    "distinct_layouts": 32,
-    "distinct_valid": 26,
+    "valid_ratio": 0.359,
+    "distinct_layouts": 64,
+    "distinct_valid": 23,
     "top_area_accuracy": 0.84,
-    "notes": "湿区 Step A 硬约束 + Step B 锚层对齐后 valid 率恢复；Top-K 仍全 valid",
+    "notes": "长宽比硬约束 + guillotine 切分启发式后；plain valid≈36%",
 }

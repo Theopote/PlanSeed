@@ -4,10 +4,71 @@ from __future__ import annotations
 
 import math
 
-from packages.schema.layout import LayoutCandidate, PlacementSource, RoomPlacement
+from packages.schema.layout import LayoutCandidate, PlacementSource, RoomPlacement, Violation
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory
+from solver.evaluation.vertical import _is_stair_placement
 from solver.evaluation.weights import DEFAULT_WEIGHTS, ScoreWeights
+
+
+def is_aspect_ratio_exempt_placement(placement: RoomPlacement) -> bool:
+    """
+    长宽比硬约束豁免：楼梯核、天井、走廊及系统生成交通空间。
+
+    与 ``_is_program_room`` 互补——仅对需满足比例的功能房间做硬拒绝。
+    """
+    if placement.source == PlacementSource.GENERATED:
+        return True
+    if _is_stair_placement(placement.room_id, placement.category, placement.name):
+        return True
+    if placement.room_id.startswith("void-"):
+        return True
+    cat = (placement.category or "").lower()
+    name = placement.name or ""
+    if cat == RoomCategory.CIRCULATION.value or cat == "circulation":
+        return True
+    if "走廊" in name:
+        return True
+    return False
+
+
+def room_aspect_ratio_violations(
+    candidate: LayoutCandidate,
+    *,
+    threshold: float | None = None,
+    tolerance: float = 1e-6,
+) -> list[Violation]:
+    """功能房间长宽比不得超过 ``threshold``（默认 ``ScoreWeights.aspect_ratio_threshold``）。"""
+    limit = (
+        threshold
+        if threshold is not None
+        else DEFAULT_WEIGHTS.aspect_ratio_threshold
+    )
+    violations: list[Violation] = []
+    for floor in candidate.floors:
+        for placement in floor.placements:
+            if is_aspect_ratio_exempt_placement(placement):
+                continue
+            ratio = placement.aspect_ratio
+            if ratio <= limit + tolerance:
+                continue
+            label = placement.name or placement.room_id
+            violations.append(
+                Violation(
+                    constraint_id="geometry.room_aspect_ratio",
+                    room_ids=[placement.room_id],
+                    message=(
+                        f"房间长宽比过大：{placement.room_id}（{label}）"
+                        f" ratio={ratio:.2f} > {limit:.2f}"
+                        f"（{floor.floor_id}）"
+                    ),
+                    measured_value=ratio,
+                    required_value=limit,
+                    hard=True,
+                    source="system",
+                )
+            )
+    return violations
 
 
 def _is_program_room(placement: RoomPlacement) -> bool:

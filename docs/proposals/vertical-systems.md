@@ -207,6 +207,8 @@ class VerticalVoidPlacement(BaseModel):
 | `alignment_tolerance` → IoU 联动 | ✅ | `min_iou_for_wet_riser_tolerance()` |
 | SVG 天井 / 天窗标注 | ✅ | `solver/visualize/svg.py` |
 | 默认 `candidate_count=64` | ✅ | `packages/schema/program.py` |
+| 房间长宽比硬约束（`geometry.room_aspect_ratio`） | ✅ | `geometry.py`, `checker_impl.py`；阈值 2.2 |
+| 生成器长宽比启发式 + 重叠消解 | ✅ | `guillotine.py`, `coverage.py`（`clamp` / `resolve_placement_overlaps`） |
 | 回归测试 | ✅ | 见 §9 |
 | `WET_RISER` 写入 normalizer / LLM | ☐ | 需从 `wet_stack_preference` 等推导 |
 | `daylight_required` → 自动 ATRIUM | ☐ | 仅评分轴；须用户确认 |
@@ -272,6 +274,7 @@ benchmark 未挂此 void 时，湿区对齐仍由 implicit WetStack + Step A/B �
 | `solver/tests/test_wet_stack_alignment.py` | Step A 硬约束 + WET_RISER 容差 + pipeline 批量 seed |
 | `solver/tests/test_wet_anchor.py` | Step B r3↔r9 对齐 |
 | `solver/tests/test_layout_coverage.py` | 满铺仍成立 |
+| `solver/tests/test_aspect_ratio_constraint.py` | 长宽比硬约束 + fill/clamp 不引入重叠 |
 | `solver/tests/test_visualize.py` | ATRIUM / skylight SVG 叠加 |
 
 批量门槛见 `solver/tests/quality_baselines.py`（`candidate_count=64`）。
