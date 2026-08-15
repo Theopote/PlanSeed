@@ -137,11 +137,13 @@ from packages.schema.topology import (
 )
 from packages.schema.vertical_void import (
     DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE,
+    DEFAULT_WET_STACK_MIN_IOU,
     VerticalVoidPlacement,
     VerticalVoidSpec,
     VerticalVoidType,
     default_stair_void,
     floor_ids_in_span,
+    min_iou_for_wet_riser_tolerance,
     validate_vertical_voids_for_floors,
     void_covers_floor,
 )
@@ -265,8 +267,10 @@ __all__ = [
     "VerticalVoidSpec",
     "VerticalVoidType",
     "DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE",
+    "DEFAULT_WET_STACK_MIN_IOU",
     "default_stair_void",
     "floor_ids_in_span",
+    "min_iou_for_wet_riser_tolerance",
     "validate_vertical_voids_for_floors",
     "void_covers_floor",
     "WetStack",

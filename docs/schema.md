@@ -78,6 +78,8 @@ VerticalVoidSpec
 
 **校验**（`validate_vertical_voids_for_floors`）：void `id` 唯一；至多一个 `stair`；`floor_span` 端点须存在于 `floors`。
 
+**WET_RISER IoU 映射**（`min_iou_for_wet_riser_tolerance`）：`min_iou = clamp(0.6 × 0.3 / alignment_tolerance)`；无覆盖楼对的 WET_RISER 时 checker 仍用默认 0.6。
+
 ## 约束模型 Constraint
 
 Discriminated union，按 `kind` 区分：

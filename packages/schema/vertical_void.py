@@ -13,8 +13,27 @@ from packages.schema.layout import PlacementRect
 if TYPE_CHECKING:
     from packages.schema.room import FloorSpec
 
-# WET_RISER：footprint 偏移容差（米）；与 evaluation IoU 阈值独立。
+# WET_RISER：footprint 偏移容差（米）；经 min_iou_for_wet_riser_tolerance 映射 IoU 下限。
 DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE = 0.3
+# 与 solver.evaluation.vertical.DEFAULT_WET_STACK_MIN_IOU 保持同步。
+DEFAULT_WET_STACK_MIN_IOU = 0.6
+
+
+def min_iou_for_wet_riser_tolerance(
+    alignment_tolerance: float,
+    *,
+    ref_tolerance: float = DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE,
+    ref_min_iou: float = DEFAULT_WET_STACK_MIN_IOU,
+) -> float:
+    """
+    将 WET_RISER ``alignment_tolerance``（米）映射为湿区配对 IoU 下限。
+
+    反比：默认 0.3 m → 0.6 IoU；容差越大，要求 IoU 越低。
+    """
+    if alignment_tolerance <= 0:
+        return 1.0
+    iou = ref_min_iou * ref_tolerance / alignment_tolerance
+    return max(0.0, min(1.0, iou))
 
 
 class VerticalVoidType(StrEnum):

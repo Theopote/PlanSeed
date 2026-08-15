@@ -78,7 +78,7 @@ class VerticalVoidSpec(BaseModel):
     depth: float | None = None
     preferred_placement: CorePlacement | None = None
     skylight_required: bool = False      # 仅 ATRIUM
-    alignment_tolerance: float = 0.3       # 仅 WET_RISER（米）；**尚未**接入 IoU 阈值
+    alignment_tolerance: float = 0.3       # 仅 WET_RISER（米）；映射 IoU 下限见 min_iou_for_wet_riser_tolerance()
 ```
 
 校验：`validate_vertical_voids_for_floors()` — STAIR 全覆盖、ATRIUM/WET_RISER ≥2 层、id 唯一。
@@ -131,7 +131,7 @@ class VerticalVoidPlacement(BaseModel):
 
 - 相邻楼层湿区按 `wet_stack_pairing_key()`（`semantic_role` / `tags`）配对
 - 仅当**两层均有同 key 湿区**时检查（单层独有厨房/主卫不强制）
-- 逐对 IoU ≥ `DEFAULT_WET_STACK_MIN_IOU`（**0.6**），否则 `vertical.wet_stack_alignment` **hard**
+- 逐对 IoU ≥ 阈值（默认 **0.6**；有 `WET_RISER` 时按 `alignment_tolerance` 映射），否则 `vertical.wet_stack_alignment` **hard**
 
 **Checker**：`solver/constraints/checker_impl.py::_check_wet_stack_alignment`
 
@@ -180,9 +180,9 @@ class VerticalVoidPlacement(BaseModel):
 | `VerticalVoidPlacement` 输出 | ✅ | `layout.py` / `vertical_void.py` |
 | 回归测试 | ✅ | `test_vertical_void*.py`, `test_wet_stack_alignment.py`, `test_wet_anchor.py` |
 | `WET_RISER` 写入 normalizer / LLM | ☐ | 需从 `wet_stack_preference` 等推导 |
-| `alignment_tolerance` → IoU 联动 | ☐ | schema 有字段，checker 仍用固定 0.6 |
+| `alignment_tolerance` → IoU 联动 | ✅ | `min_iou_for_wet_riser_tolerance()`；checker 按楼对读取 WET_RISER |
 | `daylight_required` → 自动 ATRIUM | ☐ | 仅评分轴 |
-| SVG / DesignReport 天井标注 | ☐ | `skylight_required` 未渲染 |
+| SVG / DesignReport 天井标注 | ✅ | `svg.py` ATRIUM 叠加 + 顶层天窗符号 |
 | DesignFinding 免责声明 | ☐ | 「heuristic-only，非规范符合性」 |
 | ADR-010 Accept | ☐ | 待 v0.1.x 观察窗口 |
 
@@ -253,8 +253,8 @@ VerticalVoidSpec(
 ## 9. 后续工作（建议优先级）
 
 1. **Normalizer**：`preferences.wet_stack_preference` / 多层湿区 → 注入 `WET_RISER` void；`daylight_required` + 多层 → 可选 `ATRIUM` 草案（须用户确认，非自动法规结论）
-2. **`alignment_tolerance`**：与 `DEFAULT_WET_STACK_MIN_IOU` 建立可文档化映射（或拆成独立 IoU 字段）
-3. **SVG 叠加层**：`void-*` / `skylight_required` 标注（参考现有 `WetStack` / `StairCore` debug 叠加）
+2. **`alignment_tolerance`**：✅ `min_iou_for_wet_riser_tolerance()`（反比：0.3 m → 0.6 IoU）
+3. **SVG 叠加层**：✅ `void-*` / `skylight_required` 标注（`solver/visualize/svg.py`）
 4. **DesignFinding**：湿区对齐 / 天井仅「几何可能性」声明，非给排水施工图深度
 5. **ADR-010 Accept**：Alpha 观察窗结束后，结合桌面 smoke 与 blind 案例复评
 

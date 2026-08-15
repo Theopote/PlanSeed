@@ -7,6 +7,7 @@ from pathlib import Path
 from pytest import raises
 from solver.generators.guillotine import GuillotineGenerator
 from solver.tests.test_guillotine import benchmark_program
+from solver.tests.test_vertical_void_prededuction import _program_with_atrium
 from solver.visualize.svg import (
     render_candidate_svg,
     render_floor_svg,
@@ -62,3 +63,21 @@ def test_render_floor_svg_is_single_floor():
             floor_width=program.buildable.width,
             floor_depth=program.buildable.depth,
         )
+
+
+def test_render_atrium_skylight_overlay() -> None:
+    program = _program_with_atrium()
+    candidate = GuillotineGenerator().generate(program, seed=0)
+    svg = render_candidate_svg(
+        candidate,
+        floor_width=program.buildable.width,
+        floor_depth=program.buildable.depth,
+        floor_labels={fl.id: fl.label or fl.id for fl in program.floors},
+    )
+    assert "atrium_voids=" in svg
+    assert "skylight=True" in svg
+    assert 'data-kind="atrium"' in svg
+    assert "ATRIUM" in svg
+    assert "天窗" in svg
+    assert 'class="skylight-marker"' in svg
+    assert 'data-void-id="atrium-1"' in svg

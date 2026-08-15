@@ -12,9 +12,15 @@ from packages.schema.layout import (
     RoomPlacement,
 )
 from packages.schema.room import RoomCategory, RoomSpec, SemanticRole
+from packages.schema.vertical_void import (
+    VerticalVoidSpec,
+    VerticalVoidType,
+    min_iou_for_wet_riser_tolerance,
+)
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.vertical import (
     DEFAULT_WET_STACK_MIN_IOU,
+    min_iou_for_floor_pair,
     rect_iou,
     wet_stack_alignment_violations,
     wet_stack_pairing_key,
@@ -110,6 +116,78 @@ class TestWetStackAlignmentViolations:
     def test_rect_iou_identical(self) -> None:
         r = Rect(x=1, y=2, width=3, depth=4)
         assert rect_iou(r, r) == pytest.approx(1.0)
+
+
+class TestWetRiserToleranceMapping:
+    def test_default_tolerance_maps_to_default_iou(self) -> None:
+        assert min_iou_for_wet_riser_tolerance(0.3) == pytest.approx(0.6)
+        assert min_iou_for_wet_riser_tolerance(0.6) == pytest.approx(0.3)
+
+    def test_looser_tolerance_allows_partial_overlap(self) -> None:
+        program = benchmark_program()
+        program.vertical_voids = [
+            VerticalVoidSpec(
+                id="wet-riser-1",
+                void_type=VerticalVoidType.WET_RISER,
+                floor_span=("F1", "F2"),
+                alignment_tolerance=0.6,
+            )
+        ]
+        candidate = LayoutCandidate(
+            id="partial",
+            seed=0,
+            floors=[
+                FloorLayout(
+                    floor_id="F1",
+                    placements=[_placement("r3", "F1", 2, 2, 4, 3)],
+                ),
+                FloorLayout(
+                    floor_id="F2",
+                    placements=[_placement("r9", "F2", 3.5, 2, 4, 3)],
+                ),
+            ],
+        )
+        iou = rect_iou(
+            from_placement(candidate.floors[0].placements[0].rect),
+            from_placement(candidate.floors[1].placements[0].rect),
+        )
+        assert iou < DEFAULT_WET_STACK_MIN_IOU
+        assert iou >= min_iou_for_wet_riser_tolerance(0.6)
+        assert not wet_stack_alignment_violations(candidate, program)
+
+    def test_stricter_tolerance_rejects_same_pair(self) -> None:
+        program = benchmark_program()
+        program.vertical_voids = [
+            VerticalVoidSpec(
+                id="wet-riser-1",
+                void_type=VerticalVoidType.WET_RISER,
+                floor_span=("F1", "F2"),
+                alignment_tolerance=0.15,
+            )
+        ]
+        candidate = LayoutCandidate(
+            id="partial-strict",
+            seed=0,
+            floors=[
+                FloorLayout(
+                    floor_id="F1",
+                    placements=[_placement("r3", "F1", 2, 2, 4, 3)],
+                ),
+                FloorLayout(
+                    floor_id="F2",
+                    placements=[_placement("r9", "F2", 3.5, 2, 4, 3)],
+                ),
+            ],
+        )
+        violations = wet_stack_alignment_violations(candidate, program)
+        assert len(violations) == 1
+        assert violations[0].required_value == pytest.approx(1.0)
+
+    def test_floor_pair_without_wet_riser_uses_default(self) -> None:
+        program = benchmark_program()
+        assert min_iou_for_floor_pair(program, "F1", "F2") == pytest.approx(
+            DEFAULT_WET_STACK_MIN_IOU
+        )
 
 
 class TestPipelineWetStackAlignment:

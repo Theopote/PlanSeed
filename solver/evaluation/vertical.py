@@ -7,10 +7,14 @@ from collections import defaultdict
 from packages.schema.layout import FloorLayout, LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory, RoomSpec, SemanticRole
+from packages.schema.vertical_void import (
+    DEFAULT_WET_STACK_MIN_IOU,
+    VerticalVoidSpec,
+    VerticalVoidType,
+    floor_ids_in_span,
+    min_iou_for_wet_riser_tolerance,
+)
 from solver.geometry.rect import Rect, from_placement, intersection
-
-# ADR-010 Step A：相邻楼层湿区配对 IoU 下限（heuristic，非规范符合性）
-DEFAULT_WET_STACK_MIN_IOU = 0.6
 
 _MASTER_BATH_TAGS = frozenset({"master_bath", "master_bathroom", "ensuite"})
 _KITCHEN_TAGS = frozenset({"kitchen"})
@@ -129,15 +133,54 @@ def _greedy_pair_wet_rooms(
     return pairs
 
 
+def _wet_riser_specs_for_adjacent_pair(
+    program: DesignProgram,
+    low_floor_id: str,
+    high_floor_id: str,
+) -> list[VerticalVoidSpec]:
+    floor_ids = [f.id for f in program.floors]
+    matched: list[VerticalVoidSpec] = []
+    for spec in program.vertical_voids:
+        if spec.void_type != VerticalVoidType.WET_RISER:
+            continue
+        span_ids = floor_ids_in_span(floor_ids, spec.floor_span)
+        if low_floor_id in span_ids and high_floor_id in span_ids:
+            matched.append(spec)
+    return matched
+
+
+def min_iou_for_floor_pair(
+    program: DesignProgram,
+    low_floor_id: str,
+    high_floor_id: str,
+    *,
+    default_min_iou: float = DEFAULT_WET_STACK_MIN_IOU,
+) -> float:
+    """
+    相邻楼层湿区 IoU 下限。
+
+    无覆盖该楼对的 WET_RISER → default_min_iou；有则取各 void 映射后最严（最高）阈值。
+    """
+    risers = _wet_riser_specs_for_adjacent_pair(program, low_floor_id, high_floor_id)
+    if not risers:
+        return default_min_iou
+    return max(
+        min_iou_for_wet_riser_tolerance(spec.alignment_tolerance) for spec in risers
+    )
+
+
 def wet_stack_alignment_violations(
     candidate: LayoutCandidate,
     program: DesignProgram | None,
     *,
-    min_iou: float = DEFAULT_WET_STACK_MIN_IOU,
+    min_iou: float | None = None,
     tolerance: float = 1e-6,
 ) -> list[Violation]:
     """
-    相邻楼层湿区按 pairing key 配对，逐对 IoU 须 ≥ min_iou。
+    相邻楼层湿区按 pairing key 配对，逐对 IoU 须 ≥ 阈值。
+
+    阈值：显式 ``min_iou`` 覆盖全部楼对；否则按 WET_RISER ``alignment_tolerance`` 映射，
+    未覆盖楼对使用 ``DEFAULT_WET_STACK_MIN_IOU``。
 
     仅在两层均存在同 key 湿区时检查；单层独有的湿区（如仅 F1 厨房）不强制跨层配对。
     """
@@ -154,6 +197,16 @@ def wet_stack_alignment_violations(
     for i in range(len(candidate.floors) - 1):
         low_floor = candidate.floors[i]
         high_floor = candidate.floors[i + 1]
+        pair_min_iou = (
+            min_iou
+            if min_iou is not None
+            else min_iou_for_floor_pair(
+                program, low_floor.floor_id, high_floor.floor_id
+            )
+        )
+        risers = _wet_riser_specs_for_adjacent_pair(
+            program, low_floor.floor_id, high_floor.floor_id
+        )
         low_by_key = _wet_placements_by_key(
             low_floor, wet_ids=wet_ids, room_by_id=room_by_id
         )
@@ -165,19 +218,25 @@ def wet_stack_alignment_violations(
             pairs = _greedy_pair_wet_rooms(low_by_key[key], high_by_key[key])
             for (rid_a, rect_a), (rid_b, rect_b) in pairs:
                 iou = rect_iou(rect_a, rect_b)
-                if iou + tolerance >= min_iou:
+                if iou + tolerance >= pair_min_iou:
                     continue
+                tol_hint = ""
+                if risers:
+                    tol_hint = (
+                        f"；WET_RISER tolerance="
+                        f"{risers[0].alignment_tolerance:.2f}m"
+                    )
                 violations.append(
                     Violation(
                         constraint_id="vertical.wet_stack_alignment",
                         room_ids=sorted({rid_a, rid_b}),
                         message=(
                             f"湿区跨层对齐不足：{rid_a}↔{rid_b}（{key}）"
-                            f"IoU={iou:.3f} < {min_iou:.3f}"
-                            f"（{low_floor.floor_id}↔{high_floor.floor_id}）"
+                            f"IoU={iou:.3f} < {pair_min_iou:.3f}"
+                            f"（{low_floor.floor_id}↔{high_floor.floor_id}{tol_hint}）"
                         ),
                         measured_value=iou,
-                        required_value=min_iou,
+                        required_value=pair_min_iou,
                         hard=True,
                         source="system",
                     )

@@ -12,6 +12,7 @@ from packages.schema.vertical_void import (
     VerticalVoidType,
     default_stair_void,
     floor_ids_in_span,
+    min_iou_for_wet_riser_tolerance,
     validate_vertical_voids_for_floors,
     void_covers_floor,
 )
@@ -86,6 +87,10 @@ class TestVerticalVoidHelpers:
     def test_default_stair_void_spans_all_floors(self) -> None:
         spec = default_stair_void(["F1", "F2"])
         validate_vertical_voids_for_floors([spec], _two_floor_ids())
+
+    def test_min_iou_for_wet_riser_tolerance(self) -> None:
+        assert min_iou_for_wet_riser_tolerance(0.3) == pytest.approx(0.6)
+        assert min_iou_for_wet_riser_tolerance(0.6) == pytest.approx(0.3)
 
 
 class TestValidateVerticalVoidsForFloors:

@@ -2,17 +2,19 @@
 将 LayoutCandidate 渲染为 SVG（米坐标 = SVG 用户单位）。
 
 y=0 为 model north（图上方），与 solver 几何一致。
-Debug 叠加：north_angle、入口、临路、StairCore、WetStack。
+Debug 叠加：north_angle、入口、临路、StairCore、WetStack、Atrium/Skylight。
 """
 
 from __future__ import annotations
 
 import html
+from collections import defaultdict
 from pathlib import Path
 
 from packages.schema.layout import DoorOpening, FloorLayout, LayoutCandidate, RoomPlacement
 from packages.schema.site import CardinalEdge, SiteSpec
 from packages.schema.topology import AccessGraph, SpaceConnectionType
+from packages.schema.vertical_void import VerticalVoidType
 
 _CATEGORY_FILL: dict[str, str] = {
     "public": "#E8D5B5",
@@ -31,6 +33,9 @@ _STAIR = "#333333"
 _ACCESS = "#6B4C9A"
 _DOOR = "#8B4513"
 _BG = "#F7F5F0"
+_ATRIUM_FILL = "#D4EAF2"
+_ATRIUM_STROKE = "#2E6B8A"
+_SKYLIGHT = "#D4940A"
 
 
 def _esc(text: str) -> str:
@@ -38,6 +43,8 @@ def _esc(text: str) -> str:
 
 
 def _fill_for(placement: RoomPlacement) -> str:
+    if placement.room_id.startswith("void-"):
+        return _ATRIUM_FILL
     cat = (placement.category or "other").lower()
     return _CATEGORY_FILL.get(cat, _CATEGORY_FILL["other"])
 
@@ -50,11 +57,25 @@ def _render_room(
 ) -> str:
     r = placement.rect
     fill = _fill_for(placement)
+    is_void = placement.room_id.startswith("void-")
     is_stair = placement.room_id.startswith("stair-") or (
         (placement.category or "") == "circulation" and "楼梯" in (placement.name or "")
     )
-    stroke = _STAIR if is_stair else _INK
-    sw = 0.08 if is_stair else 0.04
+    if is_void:
+        stroke = _ATRIUM_STROKE
+        sw = 0.06
+        dash = ' stroke-dasharray="0.18 0.10"'
+        fill_opacity = "0.55"
+    elif is_stair:
+        stroke = _STAIR
+        sw = 0.08
+        dash = ""
+        fill_opacity = "0.9"
+    else:
+        stroke = _INK
+        sw = 0.04
+        dash = ""
+        fill_opacity = "0.9"
     cx = r.x + r.width / 2
     cy = oy + r.y + r.depth / 2
     name = _esc(placement.name or placement.room_id)
@@ -67,8 +88,8 @@ def _render_room(
     lines = [
         f'<g class="room-node" data-room-id="{rid}">',
         f'<rect class="room-shape" data-room-id="{rid}" x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
-        f'height="{r.depth:.3f}" fill="{fill}" fill-opacity="0.9" '
-        f'stroke="{stroke}" stroke-width="{sw:.3f}"/>',
+        f'height="{r.depth:.3f}" fill="{fill}" fill-opacity="{fill_opacity}" '
+        f'stroke="{stroke}" stroke-width="{sw:.3f}"{dash}/>',
         f'<text x="{cx:.3f}" y="{cy - (0.28 if show_detail else 0):.3f}" '
         f'font-size="0.30" fill="{_INK}" text-anchor="middle" '
         f'font-family="Segoe UI, sans-serif">{name}</text>',
@@ -116,6 +137,86 @@ def _wet_overlay(
         f'<text x="{x0 + 0.1:.3f}" y="{oy + y0 + 0.35:.3f}" font-size="0.22" '
         f'fill="{_WET_GUIDE}" font-family="Consolas, monospace">WS</text>'
     )
+
+
+def _skylight_void_ids_on_floor(
+    candidate: LayoutCandidate,
+    floor_id: str,
+) -> set[str]:
+    """顶层天窗标注：同一 atrium void 仅在 span 最高层显示。"""
+    by_void: dict[str, list] = defaultdict(list)
+    for vp in candidate.vertical_void_placements:
+        if vp.void_type != VerticalVoidType.ATRIUM or not vp.skylight_required:
+            continue
+        by_void[vp.void_id].append(vp)
+    if not by_void:
+        return set()
+    floor_order = {f.floor_id: i for i, f in enumerate(candidate.floors)}
+    on_floor: set[str] = set()
+    for void_id, placements in by_void.items():
+        top = max(placements, key=lambda vp: floor_order.get(vp.floor_id, -1))
+        if top.floor_id == floor_id:
+            on_floor.add(void_id)
+    return on_floor
+
+
+def _skylight_marker(x: float, y: float, *, size: float = 0.28) -> str:
+    """简易天窗符号：圆 + 射线。"""
+    r = size * 0.45
+    rays = []
+    for i in range(8):
+        ang = i * 45
+        rays.append(
+            f'<line x1="{x:.3f}" y1="{y:.3f}" '
+            f'x2="{x + size * 0.9:.3f}" y2="{y:.3f}" '
+            f'stroke="{_SKYLIGHT}" stroke-width="0.03" '
+            f'transform="rotate({ang} {x:.3f} {y:.3f})"/>'
+        )
+    return (
+        f'<g class="skylight-marker" data-kind="skylight">'
+        f'<circle cx="{x:.3f}" cy="{y:.3f}" r="{r:.3f}" '
+        f'fill="{_SKYLIGHT}" fill-opacity="0.85" stroke="{_INK}" stroke-width="0.02"/>'
+        + "".join(rays)
+        + f'<text x="{x:.3f}" y="{y + size * 1.1:.3f}" font-size="0.20" '
+        f'fill="{_SKYLIGHT}" text-anchor="middle" '
+        f'font-family="Consolas, monospace">天窗</text>'
+        f"</g>"
+    )
+
+
+def _atrium_void_overlay(
+    candidate: LayoutCandidate,
+    floor: FloorLayout,
+    oy: float,
+) -> str:
+    """天井 debug 叠加：边框 + 标签；顶层带 skylight_required 时加天窗符号。"""
+    voids = [
+        vp
+        for vp in candidate.vertical_void_placements
+        if vp.floor_id == floor.floor_id and vp.void_type == VerticalVoidType.ATRIUM
+    ]
+    if not voids:
+        return ""
+    skylight_ids = _skylight_void_ids_on_floor(candidate, floor.floor_id)
+    parts: list[str] = []
+    for vp in voids:
+        r = vp.rect
+        parts.append(
+            f'<rect x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
+            f'height="{r.depth:.3f}" fill="none" stroke="{_ATRIUM_STROKE}" '
+            f'stroke-width="0.07" stroke-dasharray="0.22 0.12" '
+            f'data-void-id="{_esc(vp.void_id)}"/>'
+        )
+        parts.append(
+            f'<text x="{r.x + 0.12:.3f}" y="{oy + r.y + 0.38:.3f}" '
+            f'font-size="0.22" fill="{_ATRIUM_STROKE}" '
+            f'font-family="Consolas, monospace">ATRIUM</text>'
+        )
+        if vp.void_id in skylight_ids:
+            cx = r.x + r.width / 2
+            cy = oy + r.y + r.depth / 2
+            parts.append(_skylight_marker(cx, cy))
+    return "\n".join(parts)
 
 
 def _edge_segment(
@@ -397,6 +498,18 @@ def render_candidate_svg(
         )
     if candidate.door_openings:
         header_lines.append(f"doors={len(candidate.door_openings)}")
+    if candidate.vertical_void_placements:
+        atrium_n = sum(
+            1
+            for vp in candidate.vertical_void_placements
+            if vp.void_type == VerticalVoidType.ATRIUM
+        )
+        skylight_n = sum(
+            1
+            for vp in candidate.vertical_void_placements
+            if vp.void_type == VerticalVoidType.ATRIUM and vp.skylight_required
+        )
+        header_lines.append(f"atrium_voids={atrium_n}  skylight={skylight_n > 0}")
     if candidate.metrics:
         bits = []
         for key in (
@@ -590,6 +703,11 @@ def _render_floor_geometry(
     for p in floor.placements:
         parts.append(_render_room(p, oy, target_area=targets.get(p.room_id)))
     parts.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
+    atrium = _atrium_void_overlay(candidate, floor, oy)
+    if atrium.strip():
+        parts.append(
+            f'<g class="derived-overlay" data-kind="atrium">{atrium}</g>'
+        )
     parts.append(
         _site_overlays(
             candidate,
