@@ -145,3 +145,18 @@ def test_svg_draws_window_openings() -> None:
     )
     assert 'data-kind="windows"' in svg
     assert candidate.floors[0].window_openings
+
+
+def test_svg_draws_outline_dimension_lines() -> None:
+    program = benchmark_program()
+    candidate = GuillotineGenerator().generate(program, seed=0)
+    svg = render_floor_svg(
+        candidate,
+        candidate.floors[0].floor_id,
+        floor_width=program.buildable.width,
+        floor_depth=program.buildable.depth,
+    )
+    assert 'data-kind="dimensions"' in svg
+    assert f"{program.buildable.width:.1f} m" in svg
+    assert f"{program.buildable.depth:.1f} m" in svg
+    assert 'class="floor-dimensions"' in svg

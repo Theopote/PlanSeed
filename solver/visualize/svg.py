@@ -41,6 +41,11 @@ _SKYLIGHT = "#D4940A"
 
 RenderMode = Literal["debug", "customer"]
 
+_DIM_TICK = 0.18
+_DIM_STROKE = 0.04
+_DIM_OFFSET_TOP = 0.38
+_DIM_OFFSET_LEFT = 0.62
+
 
 def _esc(text: str) -> str:
     return html.escape(text, quote=True)
@@ -474,6 +479,62 @@ def _window_overlays(
     return "\n".join(parts)
 
 
+def _dim_line_h(x0: float, x1: float, y: float, label: str) -> str:
+    """水平尺寸线：两端垂直短刻度，中点上方标注。"""
+    half = _DIM_TICK / 2
+    mid_x = (x0 + x1) / 2
+    label_esc = _esc(label)
+    return "\n".join(
+        [
+            f'<line x1="{x0:.3f}" y1="{y:.3f}" x2="{x1:.3f}" y2="{y:.3f}" '
+            f'stroke="{_MUTED}" stroke-width="{_DIM_STROKE:.3f}"/>',
+            f'<line x1="{x0:.3f}" y1="{y - half:.3f}" x2="{x0:.3f}" y2="{y + half:.3f}" '
+            f'stroke="{_MUTED}" stroke-width="{_DIM_STROKE:.3f}"/>',
+            f'<line x1="{x1:.3f}" y1="{y - half:.3f}" x2="{x1:.3f}" y2="{y + half:.3f}" '
+            f'stroke="{_MUTED}" stroke-width="{_DIM_STROKE:.3f}"/>',
+            f'<text x="{mid_x:.3f}" y="{y - 0.16:.3f}" font-size="0.26" fill="{_MUTED}" '
+            f'text-anchor="middle" font-family="Segoe UI, sans-serif">{label_esc}</text>',
+        ]
+    )
+
+
+def _dim_line_v(y0: float, y1: float, x: float, label: str) -> str:
+    """垂直尺寸线：两端水平短刻度，中点左侧旋转标注。"""
+    half = _DIM_TICK / 2
+    mid_y = (y0 + y1) / 2
+    label_esc = _esc(label)
+    text_x = x - 0.16
+    return "\n".join(
+        [
+            f'<line x1="{x:.3f}" y1="{y0:.3f}" x2="{x:.3f}" y2="{y1:.3f}" '
+            f'stroke="{_MUTED}" stroke-width="{_DIM_STROKE:.3f}"/>',
+            f'<line x1="{x - half:.3f}" y1="{y0:.3f}" x2="{x + half:.3f}" y2="{y0:.3f}" '
+            f'stroke="{_MUTED}" stroke-width="{_DIM_STROKE:.3f}"/>',
+            f'<line x1="{x - half:.3f}" y1="{y1:.3f}" x2="{x + half:.3f}" y2="{y1:.3f}" '
+            f'stroke="{_MUTED}" stroke-width="{_DIM_STROKE:.3f}"/>',
+            f'<text x="{text_x:.3f}" y="{mid_y:.3f}" font-size="0.26" fill="{_MUTED}" '
+            f'text-anchor="middle" font-family="Segoe UI, sans-serif" '
+            f'transform="rotate(-90 {text_x:.3f} {mid_y:.3f})">{label_esc}</text>',
+        ]
+    )
+
+
+def _floor_outline_dimensions(
+    oy: float,
+    floor_width: float,
+    floor_depth: float,
+) -> str:
+    """建筑外轮廓总面宽（顶）与总进深（左）尺寸标注。"""
+    w_label = f"{floor_width:.1f} m"
+    d_label = f"{floor_depth:.1f} m"
+    return (
+        f'<g class="floor-dimensions" data-kind="dimensions">'
+        f'{_dim_line_h(0.0, floor_width, oy - _DIM_OFFSET_TOP, w_label)}'
+        f'{_dim_line_v(oy, oy + floor_depth, -_DIM_OFFSET_LEFT, d_label)}'
+        f"</g>"
+    )
+
+
 def _north_arrow(
     *,
     x: float,
@@ -815,6 +876,7 @@ def _render_floor_geometry(
     windows = _window_overlays(floor, oy, floor.window_openings)
     if windows.strip():
         parts.append(f'<g class="derived-overlay" data-kind="windows">{windows}</g>')
+    parts.append(_floor_outline_dimensions(oy, floor_width, floor_depth))
     return parts
 
 
