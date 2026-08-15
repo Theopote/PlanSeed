@@ -28,6 +28,7 @@ from solver.circulation.stair_core import CorePlacementFailure
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
     assign_residual_gaps_as_circulation,
+    clip_placement_away_from_obstacles,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
 )
@@ -478,6 +479,7 @@ class GuillotineGenerator:
                 access_graph=program.access_graph,
                 wet_anchors=wet_anchors,
                 atrium_voids=atrium_voids_by_floor.get(floor.id, []),
+                prededuction_obstacles=prededuction.holes_by_floor.get(floor.id, []),
             )
             # 合并锁定房间放置
             locked_on_floor = locks.rooms_on_floor(floor.id)
@@ -671,6 +673,7 @@ class GuillotineGenerator:
         access_graph=None,
         wet_anchors: dict[str, Rect] | None = None,
         atrium_voids: list[VerticalVoidPlacement] | None = None,
+        prededuction_obstacles: list[Rect] | None = None,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
@@ -679,16 +682,11 @@ class GuillotineGenerator:
         self._floor_pack_leftovers = []
 
         footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
-        core_rect = Rect(
-            x=core.rect.x,
-            y=core.rect.y,
-            width=core.rect.width,
-            depth=core.rect.depth,
-        )
+        fixed_obstacles = list(prededuction_obstacles or [])
         preplaced = preplace_wet_anchored_rooms(
             floor_rooms,
             footprint=footprint,
-            occupied=[core_rect],
+            occupied=fixed_obstacles,
             wet_anchors=wet_anchors or {},
         )
         for rid, rect in preplaced.items():
@@ -699,6 +697,7 @@ class GuillotineGenerator:
             for lr in layout_rooms.values()
             if lr.rect is not None
         ]
+        clip_obstacles = fixed_obstacles + preplaced_obstacles
 
         # 按 zone 聚合几何（同 zone 多块 rect）；room_ids 合并
         zone_rects: dict[ArchitecturalZone, list[Rect]] = {}
@@ -712,11 +711,11 @@ class GuillotineGenerator:
                 if rid not in bucket:
                     bucket.append(rid)
 
-        if preplaced_obstacles:
+        if clip_obstacles:
             for zone, rects in list(zone_rects.items()):
                 clipped: list[Rect] = []
                 for rect in rects:
-                    clipped.extend(subtract_rects([rect], preplaced_obstacles))
+                    clipped.extend(subtract_rects([rect], clip_obstacles))
                 zone_rects[zone] = [r for r in clipped if r.area > 1e-6]
 
         pack_order = topology.pack_order_hint.get(floor.id, [])
@@ -757,6 +756,14 @@ class GuillotineGenerator:
                 avoid_pairs=topology.avoid_pairs,
                 cluster_members=clusters,
             )
+
+        if fixed_obstacles:
+            for lr in layout_rooms.values():
+                if lr.rect is None:
+                    continue
+                clipped = clip_placement_away_from_obstacles(lr.rect, fixed_obstacles)
+                if clipped is not None:
+                    lr.rect = clipped
 
         stair_name = "楼梯"
         stair_placement = RoomPlacement(

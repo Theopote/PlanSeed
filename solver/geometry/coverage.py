@@ -17,6 +17,62 @@ COVERAGE_TOLERANCE = 1e-6
 LAYOUT_ABSORB_TOLERANCE = 0.5
 
 
+def is_fixed_void_placement(room_id: str) -> bool:
+    """预扣除竖向空洞（楼梯 / 天井）— 不可被 grow/fill 侵入或作为 donor。"""
+    return room_id.startswith("stair-") or room_id.startswith("void-")
+
+
+def placement_overlap_violations(
+    *,
+    floor_id: str,
+    placements: list[RoomPlacement],
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[Violation]:
+    """检测同层房间面积重叠（含 program 侵入 stair/void）。"""
+    violations: list[Violation] = []
+    rects = [from_placement(p.rect) for p in placements]
+    for i, a in enumerate(placements):
+        for j in range(i + 1, len(placements)):
+            inter = intersection(rects[i], rects[j])
+            if inter is None or inter.area <= tolerance:
+                continue
+            violations.append(
+                Violation(
+                    constraint_id="geometry.placement_overlap",
+                    room_ids=sorted({a.room_id, placements[j].room_id}),
+                    message=(
+                        f"楼层 {floor_id} 房间重叠：{a.room_id}↔{placements[j].room_id} "
+                        f"（{inter.area:.4f} m²）"
+                    ),
+                    measured_value=inter.area,
+                    hard=True,
+                    source="system",
+                )
+            )
+    return violations
+
+
+def clip_placement_away_from_obstacles(
+    rect: PlacementRect,
+    obstacles: list[Rect],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> PlacementRect | None:
+    """从 placement 中裁掉与固定障碍重叠部分，取最大残余片段。"""
+    from solver.geometry.free_rects import subtract_rects
+
+    cur = from_placement(rect)
+    for obs in obstacles:
+        if not intersects(cur, obs):
+            continue
+        parts = subtract_rects([cur], [obs])
+        parts = [p for p in parts if p.area > tolerance]
+        if not parts:
+            return None
+        cur = max(parts, key=lambda p: p.area)
+    return PlacementRect(x=cur.x, y=cur.y, width=cur.width, depth=cur.depth)
+
+
 def floor_placed_area(placements: list[RoomPlacement]) -> float:
     return sum(p.rect.area for p in placements)
 
@@ -586,7 +642,7 @@ def grow_rooms_to_min_area(
     for _ in range(max(4, len(updated) * 4)):
         progress = False
         for i, recv in enumerate(updated):
-            if recv.room_id.startswith("stair-") or recv.room_id.startswith("circ-"):
+            if is_fixed_void_placement(recv.room_id) or recv.room_id.startswith("circ-"):
                 continue
             lo = min_area_by_room_id.get(recv.room_id)
             if lo is None:
@@ -601,7 +657,7 @@ def grow_rooms_to_min_area(
             recv_rect = from_placement(recv.rect)
             best: tuple[float, int, str, float] | None = None
             for j, donor in enumerate(updated):
-                if i == j or donor.room_id.startswith("stair-"):
+                if i == j or is_fixed_void_placement(donor.room_id):
                     continue
                 donor_min = min_area_by_room_id.get(donor.room_id, 0.0)
                 spare = donor.rect.area - donor_min
@@ -718,11 +774,11 @@ def fill_floor_coverage_gaps(
             return updated
 
         gaps.sort(key=lambda g: g.area, reverse=True)
-        stair_indices = [
-            i for i, p in enumerate(updated) if p.room_id.startswith("stair-")
+        fixed_indices = [
+            i for i, p in enumerate(updated) if is_fixed_void_placement(p.room_id)
         ]
         program_indices = [
-            i for i in range(len(updated)) if i not in stair_indices
+            i for i in range(len(updated)) if i not in fixed_indices
         ]
 
         def remaining_capacity(i: int) -> float:

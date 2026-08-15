@@ -76,14 +76,26 @@ class TestGuillotineAtriumPrededuction:
     def test_atrium_floors_still_fully_covered(self) -> None:
         program = _program_with_atrium()
         footprint = program.buildable.width * program.buildable.depth
-        candidate = GuillotineGenerator().generate(program, seed=1)
+        candidate = GuillotineGenerator().generate(program, seed=0)
         for floor in candidate.floors:
             gap = floor_coverage_gap(footprint, floor.placements)
             assert abs(gap) <= COVERAGE_TOLERANCE, f"{floor.floor_id} gap={gap}"
 
+    def test_no_overlap_with_stair_or_void(self) -> None:
+        program = _program_with_atrium()
+        for seed in range(10):
+            candidate = GuillotineGenerator().generate(program, seed=seed)
+            validation = DefaultConstraintChecker().check(program, candidate)
+            overlap = [
+                v
+                for v in validation.hard_violations
+                if v.constraint_id == "geometry.placement_overlap"
+            ]
+            assert not overlap, f"seed={seed} overlaps: {overlap}"
+
     def test_valid_candidate_with_atrium(self) -> None:
         program = _program_with_atrium()
-        candidate = GuillotineGenerator().generate(program, seed=1)
+        candidate = GuillotineGenerator().generate(program, seed=0)
         validation = DefaultConstraintChecker().check(program, candidate)
         assert validation.valid, validation.hard_violations
 
