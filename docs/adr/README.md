@@ -12,5 +12,6 @@
 | [006](006-designreport-canonical-deliverable.md) | DesignReport canonical deliverable |
 | [008](008-cpsat-assignment-not-geometry.md) | CP-SAT scopes assignment, not geometry |
 | [009](009-rect-default-shapely-irregular.md) | Rect default; Shapely = irregular **foundation**（非端到端） |
+| [010](010-vertical-voids.md) | Vertical Voids: Stair / Atrium / Wet Riser **（Proposed）** |
 
 格式：Context → Decision → Consequences。
