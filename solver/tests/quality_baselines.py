@@ -7,13 +7,13 @@ Quality regression 阈值 — Phase 1.5 起开始记录。
 - 收紧阈值前先更新 MEASURED_BASELINE 注释
 
 基准案例：11×13m 两层旧手册户型，candidate_count=32, base_seed=42
-实测（2026-08-15，面积上下限硬约束后）：
+实测（2026-08-15，面积上下限 + 湿区 Step A/B 后）：
   valid_ratio ≈ 0.812 (26/32)
   distinct_layouts = 32
   distinct_valid = 26
   top area_accuracy ≈ 0.84
   top hard_violations = 0
-  部分种子书房被楼梯南侧条带卡住，低于 min_area 被剔除。
+  Step B 锚层先行 + 上层湿区预放置恢复 valid 率。
 """
 
 from __future__ import annotations
@@ -46,5 +46,5 @@ MEASURED_BASELINE = {
     "distinct_layouts": 32,
     "distinct_valid": 26,
     "top_area_accuracy": 0.84,
-    "notes": "面积上下限硬约束后部分种子因 min_area 被拒；Top-K area_accuracy 门槛仍 0.60",
+    "notes": "湿区 Step A 硬约束 + Step B 锚层对齐后 valid 率恢复；Top-K 仍全 valid",
 }

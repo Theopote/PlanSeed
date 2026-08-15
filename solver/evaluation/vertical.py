@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
-from packages.schema.layout import FloorLayout, LayoutCandidate
+from collections import defaultdict
+
+from packages.schema.layout import FloorLayout, LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
+from packages.schema.room import RoomCategory, RoomSpec, SemanticRole
 from solver.geometry.rect import Rect, from_placement, intersection
+
+# ADR-010 Step A：相邻楼层湿区配对 IoU 下限（heuristic，非规范符合性）
+DEFAULT_WET_STACK_MIN_IOU = 0.6
+
+_MASTER_BATH_TAGS = frozenset({"master_bath", "master_bathroom", "ensuite"})
+_KITCHEN_TAGS = frozenset({"kitchen"})
+_BATH_TAGS = frozenset({"bath", "bathroom"})
 
 
 def _is_stair_placement(room_id: str, category: str | None, name: str | None) -> bool:
@@ -50,6 +60,129 @@ def wet_room_ids_for(
             if (p.category or "").lower() == "wet":
                 ids.add(p.room_id)
     return ids
+
+
+def wet_stack_pairing_key(room: RoomSpec) -> str:
+    """跨层湿区配对键：semantic_role 优先，其次 tags，最后泛化 bathroom。"""
+    if room.semantic_role is not None:
+        return room.semantic_role.value
+    tags = {str(t).lower() for t in (room.tags or [])}
+    if tags & _KITCHEN_TAGS:
+        return SemanticRole.KITCHEN.value
+    if tags & _MASTER_BATH_TAGS:
+        return SemanticRole.MASTER_BATHROOM.value
+    if tags & _BATH_TAGS:
+        return SemanticRole.BATHROOM.value
+    if room.category == RoomCategory.WET:
+        return SemanticRole.BATHROOM.value
+    return f"wet:{room.id}"
+
+
+def rect_iou(a: Rect, b: Rect) -> float:
+    inter = intersection(a, b)
+    if inter is None or inter.area <= 0:
+        return 0.0
+    union = a.area + b.area - inter.area
+    return inter.area / union if union > 0 else 0.0
+
+
+def _wet_placements_by_key(
+    floor: FloorLayout,
+    *,
+    wet_ids: set[str],
+    room_by_id: dict[str, RoomSpec],
+) -> dict[str, list[tuple[str, Rect]]]:
+    grouped: dict[str, list[tuple[str, Rect]]] = defaultdict(list)
+    for p in floor.placements:
+        if p.room_id not in wet_ids:
+            continue
+        room = room_by_id.get(p.room_id)
+        if room is None:
+            continue
+        key = wet_stack_pairing_key(room)
+        grouped[key].append((p.room_id, from_placement(p.rect)))
+    return grouped
+
+
+def _greedy_pair_wet_rooms(
+    low: list[tuple[str, Rect]],
+    high: list[tuple[str, Rect]],
+) -> list[tuple[tuple[str, Rect], tuple[str, Rect]]]:
+    if not low or not high:
+        return []
+    pairs: list[tuple[tuple[str, Rect], tuple[str, Rect]]] = []
+    used_high: set[int] = set()
+    for low_item in low:
+        best_j: int | None = None
+        best_iou = -1.0
+        for j, high_item in enumerate(high):
+            if j in used_high:
+                continue
+            iou = rect_iou(low_item[1], high_item[1])
+            if iou > best_iou:
+                best_iou = iou
+                best_j = j
+        if best_j is None:
+            continue
+        used_high.add(best_j)
+        pairs.append((low_item, high[best_j]))
+    return pairs
+
+
+def wet_stack_alignment_violations(
+    candidate: LayoutCandidate,
+    program: DesignProgram | None,
+    *,
+    min_iou: float = DEFAULT_WET_STACK_MIN_IOU,
+    tolerance: float = 1e-6,
+) -> list[Violation]:
+    """
+    相邻楼层湿区按 pairing key 配对，逐对 IoU 须 ≥ min_iou。
+
+    仅在两层均存在同 key 湿区时检查；单层独有的湿区（如仅 F1 厨房）不强制跨层配对。
+    """
+    if program is None or len(candidate.floors) < 2:
+        return []
+
+    wet_ids = wet_room_ids_for(candidate, program)
+    if not wet_ids:
+        return []
+
+    room_by_id = {r.id: r for r in program.rooms}
+    violations: list[Violation] = []
+
+    for i in range(len(candidate.floors) - 1):
+        low_floor = candidate.floors[i]
+        high_floor = candidate.floors[i + 1]
+        low_by_key = _wet_placements_by_key(
+            low_floor, wet_ids=wet_ids, room_by_id=room_by_id
+        )
+        high_by_key = _wet_placements_by_key(
+            high_floor, wet_ids=wet_ids, room_by_id=room_by_id
+        )
+        shared_keys = set(low_by_key) & set(high_by_key)
+        for key in sorted(shared_keys):
+            pairs = _greedy_pair_wet_rooms(low_by_key[key], high_by_key[key])
+            for (rid_a, rect_a), (rid_b, rect_b) in pairs:
+                iou = rect_iou(rect_a, rect_b)
+                if iou + tolerance >= min_iou:
+                    continue
+                violations.append(
+                    Violation(
+                        constraint_id="vertical.wet_stack_alignment",
+                        room_ids=sorted({rid_a, rid_b}),
+                        message=(
+                            f"湿区跨层对齐不足：{rid_a}↔{rid_b}（{key}）"
+                            f"IoU={iou:.3f} < {min_iou:.3f}"
+                            f"（{low_floor.floor_id}↔{high_floor.floor_id}）"
+                        ),
+                        measured_value=iou,
+                        required_value=min_iou,
+                        hard=True,
+                        source="system",
+                    )
+                )
+    return violations
 
 
 def _aabb(rects: list[Rect]) -> Rect:

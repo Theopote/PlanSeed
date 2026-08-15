@@ -68,7 +68,7 @@ def test_pipeline_pareto_tags_top_candidates():
 def test_pipeline_multi_generator_pool_research_opt_in():
     """Research：显式 multi-gen 池才可混 MaxRect；非 Alpha 默认。"""
     program = benchmark_program()
-    program.solver_config.candidate_count = 4
+    program.solver_config.candidate_count = 8
     program.solver_config.return_top_k = 3
     program.solver_config.rank_mode = "pareto"
     program.solver_config.experimental = True
@@ -76,9 +76,9 @@ def test_pipeline_multi_generator_pool_research_opt_in():
         program,
         generators=[GuillotineGenerator(), MaxRectGenerator()],
     )
-    assert result.generated == 8  # 4 per strategy
+    assert result.generated == 16  # 8 per strategy
     ids = {c.id for c in result.all_candidates}
-    assert len(ids) == 8
+    assert len(ids) == 16
     assert len(result.top_candidates) == 3
     # provenance 应覆盖两种 generator（池内至少出现过）
     versions = {

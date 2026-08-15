@@ -403,34 +403,20 @@ class DefaultConstraintChecker:
         self,
         candidate: LayoutCandidate,
         program: DesignProgram | None = None,
+        *,
+        hard: bool = True,
     ) -> ConstraintEvaluationResult:
-        """Wet rooms must share plan overlap across floors; metadata is not a pass."""
-        from solver.evaluation.vertical import wet_alignment_from_geometry, wet_room_ids_for
+        """相邻楼层湿区按 semantic_role/tags 配对，IoU 不足则拒绝候选。"""
+        from solver.evaluation.vertical import wet_stack_alignment_violations
 
-        if len(candidate.floors) < 2:
+        violations = wet_stack_alignment_violations(candidate, program)
+        if not violations:
             return ConstraintEvaluationResult.empty()
-        score = wet_alignment_from_geometry(candidate, program)
-        if score > 1e-6:
-            return ConstraintEvaluationResult.empty()
-        wet_ids = wet_room_ids_for(candidate, program)
-        floors_with_wet = sum(
-            1
-            for fl in candidate.floors
-            if any(p.room_id in wet_ids for p in fl.placements)
-        )
-        if floors_with_wet < 2:
-            return ConstraintEvaluationResult.empty()
-        return ConstraintEvaluationResult.from_violations(
-            [
-                Violation(
-                    constraint_id="vertical.wet_stack_alignment",
-                    room_ids=sorted(wet_ids),
-                    message="湿区房间跨层无重叠（未形成竖向叠组）",
-                    hard=False,
-                    source="system",
-                )
-            ]
-        )
+        if not hard:
+            return ConstraintEvaluationResult.from_violations(
+                [v.model_copy(update={"hard": False}) for v in violations]
+            )
+        return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_access_reachability(
         self, program: DesignProgram, candidate: LayoutCandidate
@@ -590,20 +576,18 @@ class DefaultConstraintChecker:
         program: DesignProgram | None = None,
     ) -> ConstraintEvaluationResult:
         if constraint.alignment_group in ("wet_stack", "wet_zone"):
-            result = self._check_wet_stack_alignment(candidate, program)
-            # 尊重 constraint.hard：默认湿区检查产出 soft，若声明为 hard 则提升
-            if constraint.hard and result.soft_violations:
-                promoted = [
-                    v.model_copy(update={"hard": True, "constraint_id": constraint.id})
-                    for v in result.soft_violations
-                ]
-                return ConstraintEvaluationResult(hard_violations=promoted)
-            if result.soft_violations:
+            result = self._check_wet_stack_alignment(
+                candidate, program, hard=constraint.hard
+            )
+            if result.hard_violations or result.soft_violations:
+                relabeled = []
+                for v in result.hard_violations + result.soft_violations:
+                    relabeled.append(v.model_copy(update={"constraint_id": constraint.id}))
+                hard = [v for v in relabeled if v.hard]
+                soft = [v for v in relabeled if not v.hard]
                 return ConstraintEvaluationResult(
-                    soft_violations=[
-                        v.model_copy(update={"constraint_id": constraint.id})
-                        for v in result.soft_violations
-                    ]
+                    hard_violations=hard,
+                    soft_violations=soft,
                 )
             return result
         if constraint.alignment_group == "stair":

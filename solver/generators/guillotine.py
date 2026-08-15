@@ -49,6 +49,11 @@ from solver.topology.plan import (
     split_avoid_groups,
 )
 from solver.topology.zoning import ZonePlanner, zone_for_room
+from solver.generators.wet_anchor import (
+    anchor_floor_id,
+    collect_wet_anchor_rects,
+    preplace_wet_anchored_rooms,
+)
 
 
 def _mirror_wet_stack_onto_floor(
@@ -456,10 +461,16 @@ class GuillotineGenerator:
         if locks.zones:
             self._inject_locked_zones(program, locks, building_zones)
         primary_stack = building_zones.wet_stacks[0] if building_zones.wet_stacks else None
+        anchor_fid = anchor_floor_id(program)
 
-        floor_layouts: list[FloorLayout] = []
+        floor_layouts_by_id: dict[str, FloorLayout] = {}
         zone_placements: list[ZonePlacement] = []
-        for idx, floor in enumerate(program.floors):
+        wet_anchors: dict[str, Rect] = {}
+        floor_order = sorted(
+            program.floors,
+            key=lambda f: (0 if f.id == anchor_fid else 1, program.floors.index(f)),
+        )
+        for idx, floor in enumerate(floor_order):
             floor_rooms = [
                 r for r in program.rooms_on_floor(floor.id) if r.id not in locked_ids
             ]
@@ -471,13 +482,14 @@ class GuillotineGenerator:
                 floor_rooms=floor_rooms,
                 zone_plan=zone_plan,
                 core=core,
-                floor_index=idx,
+                floor_index=program.floors.index(floor),
                 floor_width=w,
                 floor_depth=d,
                 module=module,
                 rng=rng,
                 topology=topology,
                 access_graph=program.access_graph,
+                wet_anchors=wet_anchors,
             )
             # 合并锁定房间放置
             locked_on_floor = locks.rooms_on_floor(floor.id)
@@ -508,7 +520,11 @@ class GuillotineGenerator:
                 layout = layout.model_copy(
                     update={"placements": list(layout.placements) + extra}
                 )
-            floor_layouts.append(_mirror_wet_stack_onto_floor(layout, primary_stack))
+            floor_layouts_by_id[floor.id] = _mirror_wet_stack_onto_floor(
+                layout, primary_stack
+            )
+            if floor.id == anchor_fid:
+                wet_anchors = collect_wet_anchor_rects(layout, program)
             kind_counts: dict[str, int] = {}
             for zg in zone_plan.zones:
                 kind = (
@@ -531,6 +547,8 @@ class GuillotineGenerator:
                         room_ids=list(zg.room_ids),
                     )
                 )
+
+        floor_layouts = [floor_layouts_by_id[f.id] for f in program.floors]
 
         from solver.circulation.exterior_entry import resolve_exterior_entry
         from solver.topology.access import build_realized_connections
@@ -662,12 +680,35 @@ class GuillotineGenerator:
         rng: random.Random,
         topology: TopologyPlan,
         access_graph=None,
+        wet_anchors: dict[str, Rect] | None = None,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
         }
         self._current_layout_rooms = layout_rooms
         self._floor_pack_leftovers = []
+
+        footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
+        core_rect = Rect(
+            x=core.rect.x,
+            y=core.rect.y,
+            width=core.rect.width,
+            depth=core.rect.depth,
+        )
+        preplaced = preplace_wet_anchored_rooms(
+            floor_rooms,
+            footprint=footprint,
+            occupied=[core_rect],
+            wet_anchors=wet_anchors or {},
+        )
+        for rid, rect in preplaced.items():
+            if rid in layout_rooms:
+                layout_rooms[rid].rect = rect
+        preplaced_obstacles = [
+            from_placement(lr.rect)
+            for lr in layout_rooms.values()
+            if lr.rect is not None
+        ]
 
         # 按 zone 聚合几何（同 zone 多块 rect）；room_ids 合并
         zone_rects: dict[ArchitecturalZone, list[Rect]] = {}
@@ -680,6 +721,13 @@ class GuillotineGenerator:
             for rid in zg.room_ids:
                 if rid not in bucket:
                     bucket.append(rid)
+
+        if preplaced_obstacles:
+            for zone, rects in list(zone_rects.items()):
+                clipped: list[Rect] = []
+                for rect in rects:
+                    clipped.extend(subtract_rects([rect], preplaced_obstacles))
+                zone_rects[zone] = [r for r in clipped if r.area > 1e-6]
 
         pack_order = topology.pack_order_hint.get(floor.id, [])
         clusters = [
@@ -705,8 +753,12 @@ class GuillotineGenerator:
                 cluster_members=clusters,
             )
             rooms = [
-                layout_rooms[rid] for rid in ordered_ids if rid in layout_rooms
+                layout_rooms[rid]
+                for rid in ordered_ids
+                if rid in layout_rooms and layout_rooms[rid].rect is None
             ]
+            if not rooms:
+                continue
             self._pack_into_rects(
                 rooms,
                 rects,

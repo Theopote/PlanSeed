@@ -14,6 +14,7 @@ from solver.program.floor_assignment import (
     DuplicateRoomAssignmentError,
     FloorAssignmentSolver,
 )
+from solver.tests.quality_baselines import DEFAULT_QUALITY
 from solver.tests.test_guillotine import benchmark_program
 from solver.topology.zoning import (
     ZonePlanner,
@@ -164,4 +165,5 @@ class TestZonePlanner:
     def test_quality_still_holds_with_zones(self):
         program = benchmark_program()
         result = run_pipeline(program)
-        assert result.valid / result.generated >= 0.70
+        ratio = result.valid / result.generated
+        assert ratio >= DEFAULT_QUALITY.min_valid_ratio

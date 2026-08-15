@@ -29,7 +29,7 @@ class TestPipeline:
     def test_evaluation_deterministic_same_seed(self):
         """同 program + seed → 同 evaluation（契约：单一事实源可复现）。"""
         program = benchmark_program()
-        program.solver_config.candidate_count = 4
+        program.solver_config.candidate_count = 32
         program.solver_config.return_top_k = 2
         program.solver_config.base_seed = 7
         a = run_pipeline(program)
