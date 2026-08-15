@@ -42,6 +42,33 @@ def _merged_respects_aspect_cap(room_id: str, merged: Rect) -> bool:
     return _rect_aspect_ratio(merged) <= DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
 
 
+def _cede_shrinks_donor_short_side(direction: str, donor: Rect) -> bool:
+    """匀面积是否沿 donor 短边收缩（宽扁房削深 / 高窄房削宽会拉高长宽比）。"""
+    if direction in ("north", "south"):
+        return donor.width >= donor.depth
+    return donor.depth >= donor.width
+
+
+def _donor_cede_respects_aspect_cap(
+    room_id: str,
+    merged: Rect,
+    prior_aspect_ratio: float,
+    *,
+    cede_direction: str,
+    donor_before: Rect,
+) -> bool:
+    """grow 匀面积 donor：已超标时优先「不恶化」；短边匀出时放行 grow。"""
+    if _fill_aspect_cap_exempt(room_id):
+        return True
+    thr = DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
+    new_ratio = _rect_aspect_ratio(merged)
+    if prior_aspect_ratio <= thr:
+        return new_ratio <= thr
+    if new_ratio <= prior_aspect_ratio + 1e-6:
+        return True
+    return _cede_shrinks_donor_short_side(cede_direction, donor_before)
+
+
 def largest_aspect_ok_placement_rect(
     x0: float,
     y0: float,
@@ -808,7 +835,7 @@ def grow_rooms_to_min_area(
             if headroom <= tolerance:
                 continue
             recv_rect = from_placement(recv.rect)
-            best: tuple[float, int, str, float] | None = None
+            best: tuple[float, int, str, float, float] | None = None
             for j, donor in enumerate(updated):
                 if i == j or is_fixed_void_placement(donor.room_id):
                     continue
@@ -817,6 +844,7 @@ def grow_rooms_to_min_area(
                 if spare <= tolerance:
                     continue
                 donor_r = from_placement(donor.rect)
+                donor_prior_ar = _rect_aspect_ratio(donor_r)
                 rel = _donor_relation(recv_rect, donor_r, tolerance=tolerance)
                 if rel is None:
                     continue
@@ -852,10 +880,11 @@ def grow_rooms_to_min_area(
                 if delta <= tolerance:
                     continue
                 if best is None or spare > best[0]:
-                    best = (spare, j, direction, delta)
+                    best = (spare, j, direction, delta, donor_prior_ar)
             if best is None:
                 continue
-            _, j, direction, delta = best
+            _, j, direction, delta, donor_prior_ar = best
+            donor_before = from_placement(updated[j].rect)
             new_recv, new_donor = _cede_along_shared_edge(
                 updated[i], updated[j], direction, delta
             )
@@ -867,8 +896,12 @@ def grow_rooms_to_min_area(
                 new_recv.room_id, from_placement(new_recv.rect)
             ):
                 continue
-            if not _merged_respects_aspect_cap(
-                new_donor.room_id, from_placement(new_donor.rect)
+            if not _donor_cede_respects_aspect_cap(
+                new_donor.room_id,
+                from_placement(new_donor.rect),
+                donor_prior_ar,
+                cede_direction=direction,
+                donor_before=donor_before,
             ):
                 continue
             new_recv_r = from_placement(new_recv.rect)
