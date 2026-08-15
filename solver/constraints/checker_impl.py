@@ -96,6 +96,7 @@ class DefaultConstraintChecker:
         result.extend(self._check_access_reachability(program, candidate))
         result.extend(self._check_wet_room_private_fanout(program, candidate))
         result.extend(self._check_forced_private_adjacency(program, candidate))
+        result.extend(self._check_forced_wet_private_fanout(program, candidate))
         result.extend(self._check_required_connection_boundaries(program, candidate))
         result.extend(self._check_preferred_connections(program, candidate))
         result.extend(self._check_door_clear_width(candidate))
@@ -483,6 +484,8 @@ class DefaultConstraintChecker:
         """Hard：wet 房间不得直接连通超过一间 private（专属主卫 / 公卫语义）。"""
         wet_private: dict[str, set[str]] = {}
         for op in candidate.door_openings:
+            if op.forced_wet_private_fanout:
+                continue
             cat_a = self._placement_category(op.room_a_id, candidate, program)
             cat_b = self._placement_category(op.room_b_id, candidate, program)
             if cat_a == "wet" and cat_b == "private":
@@ -506,6 +509,48 @@ class DefaultConstraintChecker:
                     measured_value=float(len(private_ids)),
                     required_value=1.0,
                     hard=True,
+                    source="system",
+                )
+            )
+        return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_forced_wet_private_fanout(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """Soft：被迫保留的湿区第二间卧室直连（无替代路径时的妥协开口）。"""
+        violations: list[Violation] = []
+        for op in candidate.door_openings:
+            if not op.forced_wet_private_fanout:
+                continue
+            cat_a = self._placement_category(op.room_a_id, candidate, program)
+            cat_b = self._placement_category(op.room_b_id, candidate, program)
+            wet_id = (
+                op.room_a_id
+                if cat_a == "wet"
+                else op.room_b_id
+                if cat_b == "wet"
+                else None
+            )
+            private_id = (
+                op.room_b_id
+                if cat_a == "wet"
+                else op.room_a_id
+                if cat_b == "wet"
+                else None
+            )
+            if wet_id is None or private_id is None:
+                continue
+            violations.append(
+                Violation(
+                    constraint_id="privacy.forced_wet_private_fanout",
+                    room_ids=[wet_id, private_id],
+                    message=(
+                        f"湿区 {wet_id}—卧室 {private_id} 无替代路径，"
+                        "被迫保留第二间卧室直连"
+                    ),
+                    measured_value=1.0,
+                    required_value=0.0,
+                    hard=False,
                     source="system",
                 )
             )

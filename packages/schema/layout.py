@@ -186,6 +186,10 @@ class DoorOpening(BaseModel):
         default=False,
         description="私密-私密直连为维持连通性的被迫妥协（非理想合规）",
     )
+    forced_wet_private_fanout: bool = Field(
+        default=False,
+        description="湿区直连第二间卧室为维持连通性的被迫妥协（非理想合规）",
+    )
 
 
 class WindowOpening(BaseModel):

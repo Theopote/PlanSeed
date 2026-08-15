@@ -103,6 +103,52 @@ class TestGuillotineAtriumPrededuction:
                 return
         pytest.fail("no valid atrium candidate in 64 seeds")
 
+    def test_joint_privacy_rules_restore_wet_edge_seed1(self) -> None:
+        """
+        规则1/2 联合删边回归：seed=1 F2 上 r5 只与 r6/r7/r8 共墙。
+
+        单独删 r5-r7/r5-r8 或单独挡 r6-r7 均可绕行；同时删则 {r5,r6} 孤岛。
+        应优先恢复 r6-r7（forced_wet），而非主卧直连次卧的 private-private 门。
+        """
+        program = _program_with_atrium()
+        candidate = GuillotineGenerator().generate(program, seed=1)
+        validation = DefaultConstraintChecker().check(program, candidate)
+        assert validation.valid, validation.hard_violations
+
+        f2_doors = [op for op in candidate.door_openings if op.floor_id == "F2"]
+        pp_pairs = {
+            frozenset({op.room_a_id, op.room_b_id})
+            for op in f2_doors
+            if not op.forced_private_adjacency
+            and {op.room_a_id, op.room_b_id}
+            <= {"r5", "r6", "r7", "r8"}
+            and frozenset({op.room_a_id, op.room_b_id})
+            in {frozenset({"r5", "r7"}), frozenset({"r5", "r8"})}
+        }
+        assert not pp_pairs, f"unexpected private-private hub doors: {pp_pairs}"
+
+        forced_wet = [
+            op
+            for op in f2_doors
+            if op.forced_wet_private_fanout
+            and frozenset({op.room_a_id, op.room_b_id}) == frozenset({"r6", "r7"})
+        ]
+        assert len(forced_wet) == 1, f"expected forced r6-r7 wet edge, got {f2_doors}"
+        assert any(
+            v.constraint_id == "privacy.forced_wet_private_fanout"
+            for v in validation.soft_violations
+        )
+
+        from solver.topology.access import (
+            build_realized_connections,
+            unreachable_occupied_rooms,
+        )
+
+        build_realized_connections(program, candidate)
+        unreachable = unreachable_occupied_rooms(program, candidate)
+        assert "r5" not in unreachable
+        assert "r6" not in unreachable
+
     def test_benchmark_without_voids_unchanged(self) -> None:
         program = benchmark_program()
         candidate = GuillotineGenerator().generate(program, seed=0)

@@ -105,6 +105,30 @@ def _reachable_from_nodes(
     return False
 
 
+def _is_wet_private_pair(pa: RoomPlacement, pb: RoomPlacement) -> bool:
+    return (_is_wet_category(pa.category) and _is_private_category(pb.category)) or (
+        _is_wet_category(pb.category) and _is_private_category(pa.category)
+    )
+
+
+def _spanning_wet_edge_allowed(
+    pa: RoomPlacement,
+    pb: RoomPlacement,
+    key: tuple[str, str],
+    wet_work: dict[str, set[str]],
+    *,
+    forced_wet_keys: set[tuple[str, str]],
+    blocked_wet_keys: set[tuple[str, str]],
+) -> bool:
+    if not _is_wet_private_pair(pa, pb):
+        return True
+    if key in forced_wet_keys:
+        return True
+    if key in blocked_wet_keys:
+        return False
+    return not _would_exceed_wet_private_fanout(pa, pb, wet_work)
+
+
 def _spanning_visit_set(
     adj: dict[str, list[str]],
     by_id: dict[str, RoomPlacement],
@@ -114,10 +138,14 @@ def _spanning_visit_set(
     *,
     excluded_edges: set[tuple[str, str]],
     seen_pairs: set[tuple[str, str]],
+    forced_wet_keys: set[tuple[str, str]] | None = None,
+    blocked_wet_keys: set[tuple[str, str]] | None = None,
 ) -> set[str]:
     """spanning BFS 可达房间（含 seen_pairs 与可新增的 OPEN 边）。"""
     from collections import deque
 
+    forced_wet = forced_wet_keys or set()
+    blocked_wet = blocked_wet_keys or set()
     node_set = set(ids)
     visited: set[str] = set()
     wet_work = {k: set(v) for k, v in wet_private.items()}
@@ -140,7 +168,14 @@ def _spanning_visit_set(
                     q.append(nb)
                     continue
                 pa, pb = by_id[cur], by_id[nb]
-                if _would_exceed_wet_private_fanout(pa, pb, wet_work):
+                if not _spanning_wet_edge_allowed(
+                    pa,
+                    pb,
+                    key,
+                    wet_work,
+                    forced_wet_keys=forced_wet,
+                    blocked_wet_keys=blocked_wet,
+                ):
                     continue
                 visited.add(nb)
                 q.append(nb)
@@ -152,16 +187,32 @@ def _planned_access_covers_floor(
     ctx: _FloorGraphContext,
     prior_openings: list[DoorOpening],
     seen_pairs: set[tuple[str, str]],
+    *,
+    omit_pp_keys: set[tuple[str, str]] | None = None,
+    blocked_wet_keys: set[tuple[str, str]] | None = None,
+    forced_wet_keys: set[tuple[str, str]] | None = None,
 ) -> bool:
-    """intent + spanning OPEN 能否覆盖本层全部房间（尊重 wet 扇出）。"""
-    wet_private = _wet_private_neighbor_map(prior_openings, ctx.by_id)
+    """intent + spanning OPEN 能否覆盖本层全部房间（联合隐私规则）。"""
+    omit_pp = omit_pp_keys or set()
+    blocked_wet = blocked_wet_keys or set()
+    forced_wet = forced_wet_keys or set()
+    kept_openings = [
+        op
+        for op in prior_openings
+        if _pair_key(op.room_a_id, op.room_b_id) not in omit_pp
+    ]
+    kept_seen = {k for k in seen_pairs if k not in omit_pp}
+    wet_private = _wet_private_neighbor_map(kept_openings, ctx.by_id)
     tree_keys, _ = _plan_private_private_span_edges(
         ctx.adj,
         ctx.by_id,
         ctx.anchors,
         ctx.ids,
         wet_private,
-        seen_pairs=seen_pairs,
+        seen_pairs=kept_seen,
+        omit_pp_keys=omit_pp,
+        blocked_wet_keys=blocked_wet,
+        forced_wet_keys=forced_wet,
     )
     visited = _spanning_visit_set(
         ctx.adj,
@@ -169,8 +220,10 @@ def _planned_access_covers_floor(
         ctx.anchors,
         ctx.ids,
         wet_private,
-        excluded_edges=set(),
-        seen_pairs=seen_pairs | set(tree_keys),
+        excluded_edges=omit_pp,
+        seen_pairs=kept_seen | set(tree_keys),
+        forced_wet_keys=forced_wet,
+        blocked_wet_keys=blocked_wet,
     )
     return visited == set(ctx.ids)
 
@@ -188,6 +241,152 @@ def _record_wet_private_pair(
 
 def _private_private_pair(pa: RoomPlacement, pb: RoomPlacement) -> bool:
     return _is_private_category(pa.category) and _is_private_category(pb.category)
+
+
+@dataclass(frozen=True)
+class _JointPrivacyPlan:
+    """规则1/2 联合删边计划：omit=不落门/spanning 排除；forced=被迫保留并打标。"""
+
+    omit_pp_keys: set[tuple[str, str]]
+    forced_pp_keys: set[tuple[str, str]]
+    blocked_wet_keys: set[tuple[str, str]]
+    forced_wet_keys: set[tuple[str, str]]
+
+
+def _collect_rule1_pp_candidates(
+    openings: list[DoorOpening],
+    ctx: _FloorGraphContext,
+    required_pp: set[tuple[str, str]],
+) -> set[tuple[str, str]]:
+    """规则1：可移除的非 required 私密-私密 intent 门。"""
+    candidates: set[tuple[str, str]] = set()
+    for op in openings:
+        key = _pair_key(op.room_a_id, op.room_b_id)
+        if key in required_pp:
+            continue
+        pa = ctx.by_id.get(op.room_a_id)
+        pb = ctx.by_id.get(op.room_b_id)
+        if pa is None or pb is None or not _private_private_pair(pa, pb):
+            continue
+        candidates.add(key)
+    return candidates
+
+
+def _collect_rule2_wet_fanout_candidates(
+    ctx: _FloorGraphContext,
+    wet_private: dict[str, set[str]],
+) -> set[tuple[str, str]]:
+    """规则2：湿区已有一间 private 后，其余 wet-private 共墙边为候选排除。"""
+    candidates: set[tuple[str, str]] = set()
+    for key in ctx.edge_bound:
+        pa = ctx.by_id[key[0]]
+        pb = ctx.by_id[key[1]]
+        if not _is_wet_private_pair(pa, pb):
+            continue
+        if _would_exceed_wet_private_fanout(pa, pb, wet_private):
+            candidates.add(key)
+    return candidates
+
+
+def _plan_joint_privacy_edges(
+    ctx: _FloorGraphContext,
+    openings: list[DoorOpening],
+    intents: list[SpaceConnection],
+    seen_pairs: set[tuple[str, str]],
+) -> _JointPrivacyPlan:
+    """
+    规则1/2 联合校验：先合并候选删边，再一次性做连通分析；
+    不可达时按规则2优先、规则1次之恢复被迫边。
+    """
+    required_pp: set[tuple[str, str]] = set()
+    for conn in intents:
+        if conn.required:
+            required_pp.add(_pair_key(conn.a, conn.b))
+
+    rule1 = _collect_rule1_pp_candidates(openings, ctx, required_pp)
+    wet_private = _wet_private_neighbor_map(openings, ctx.by_id)
+    rule2 = _collect_rule2_wet_fanout_candidates(ctx, wet_private)
+    removal = rule1 | rule2
+
+    if _planned_access_covers_floor(
+        ctx,
+        openings,
+        seen_pairs,
+        omit_pp_keys=removal & rule1,
+        blocked_wet_keys=removal & rule2,
+    ):
+        return _JointPrivacyPlan(
+            omit_pp_keys=removal & rule1,
+            forced_pp_keys=set(),
+            blocked_wet_keys=removal & rule2,
+            forced_wet_keys=set(),
+        )
+
+    forced_pp: set[tuple[str, str]] = set()
+    forced_wet: set[tuple[str, str]] = set()
+    remaining = set(removal)
+
+    while remaining and not _planned_access_covers_floor(
+        ctx,
+        openings,
+        seen_pairs,
+        omit_pp_keys=(remaining & rule1) - forced_pp,
+        blocked_wet_keys=(remaining & rule2) - forced_wet,
+        forced_wet_keys=forced_wet,
+    ):
+        restored: tuple[str, str] | None = None
+        for key in sorted(remaining):
+            if key not in rule2:
+                continue
+            trial_remaining = remaining - {key}
+            if _planned_access_covers_floor(
+                ctx,
+                openings,
+                seen_pairs,
+                omit_pp_keys=(trial_remaining & rule1) - forced_pp,
+                blocked_wet_keys=(trial_remaining & rule2) - forced_wet,
+                forced_wet_keys=forced_wet | {key},
+            ):
+                restored = key
+                forced_wet.add(key)
+                remaining = trial_remaining
+                break
+        if restored is not None:
+            continue
+
+        for key in sorted(remaining):
+            if key not in rule1:
+                continue
+            trial_remaining = remaining - {key}
+            if _planned_access_covers_floor(
+                ctx,
+                openings,
+                seen_pairs,
+                omit_pp_keys=(trial_remaining & rule1) - forced_pp,
+                blocked_wet_keys=(trial_remaining & rule2) - forced_wet,
+                forced_wet_keys=forced_wet,
+            ):
+                restored = key
+                forced_pp.add(key)
+                remaining = trial_remaining
+                break
+        if restored is not None:
+            continue
+
+        # 单条恢复不足：贪心先恢复规则2，再规则1
+        key = min(remaining, key=lambda k: (0 if k in rule2 else 1, k))
+        if key in rule2:
+            forced_wet.add(key)
+        else:
+            forced_pp.add(key)
+        remaining.remove(key)
+
+    return _JointPrivacyPlan(
+        omit_pp_keys=(remaining & rule1) - forced_pp,
+        forced_pp_keys=forced_pp,
+        blocked_wet_keys=(remaining & rule2) - forced_wet,
+        forced_wet_keys=forced_wet,
+    )
 
 
 @dataclass(frozen=True)
@@ -544,12 +743,12 @@ def place_door_openings(
         openings.append(opening)
         seen_pairs.add(_pair_key(pa.room_id, pb.room_id))
 
-    openings = _prune_removable_private_private_openings(
-        openings,
-        floor_ctx,
-        opening_connections(program),
-        seen_pairs=seen_pairs,
-    )
+    intents = opening_connections(program)
+    privacy_plans = {
+        floor_id: _plan_joint_privacy_edges(ctx, openings, intents, seen_pairs)
+        for floor_id, ctx in floor_ctx.items()
+    }
+    openings = _apply_joint_privacy_plans(openings, floor_ctx, privacy_plans)
     seen_pairs = {_pair_key(op.room_a_id, op.room_b_id) for op in openings}
 
     openings.extend(
@@ -559,6 +758,7 @@ def place_door_openings(
             seen_pairs=seen_pairs,
             min_length=min_length,
             prior_openings=openings,
+            privacy_plans=privacy_plans,
         )
     )
     candidate.door_openings = openings
@@ -633,6 +833,41 @@ def _build_floor_graph_context(
         ids=ids,
         edge_bound=edge_bound,
     )
+
+
+def _apply_joint_privacy_plans(
+    openings: list[DoorOpening],
+    floor_ctx: dict[str, _FloorGraphContext],
+    privacy_plans: dict[str, _JointPrivacyPlan],
+) -> list[DoorOpening]:
+    """按联合隐私计划裁剪 intent 门并打 forced 标记。"""
+    kept: list[DoorOpening] = []
+    for op in openings:
+        key = _pair_key(op.room_a_id, op.room_b_id)
+        plan = privacy_plans.get(op.floor_id)
+        ctx = floor_ctx.get(op.floor_id)
+        if plan is None or ctx is None:
+            kept.append(op)
+            continue
+        pa = ctx.by_id.get(op.room_a_id)
+        pb = ctx.by_id.get(op.room_b_id)
+        if (
+            pa is not None
+            and pb is not None
+            and _private_private_pair(pa, pb)
+            and key in plan.omit_pp_keys
+        ):
+            continue
+        updates: dict[str, bool] = {}
+        if key in plan.forced_pp_keys:
+            updates["forced_private_adjacency"] = True
+        if key in plan.forced_wet_keys:
+            updates["forced_wet_private_fanout"] = True
+        if updates:
+            kept.append(op.model_copy(update=updates))
+        else:
+            kept.append(op)
+    return kept
 
 
 def _prune_removable_private_private_openings(
@@ -740,12 +975,16 @@ def _compute_spanning_tree_edge_keys(
     ids: list[str],
     wet_private: dict[str, set[str]],
     *,
-    excluded_edges: set[tuple[str, str]],
+    omit_pp_keys: set[tuple[str, str]],
     seen_pairs: set[tuple[str, str]],
+    blocked_wet_keys: set[tuple[str, str]] | None = None,
+    forced_wet_keys: set[tuple[str, str]] | None = None,
 ) -> list[tuple[str, str]]:
-    """BFS 生成树边（pair_key），跳过 excluded 与 wet 扇出超限。"""
+    """BFS 生成树边（pair_key），跳过 omit_pp 与 wet 扇出超限。"""
     from collections import deque
 
+    blocked_wet = blocked_wet_keys or set()
+    forced_wet = forced_wet_keys or set()
     node_set = set(ids)
     visited: set[str] = set()
     tree_keys: list[tuple[str, str]] = []
@@ -762,14 +1001,21 @@ def _compute_spanning_tree_edge_keys(
                 if nb in visited or nb not in node_set:
                     continue
                 key = _pair_key(cur, nb)
-                if key in excluded_edges:
+                if key in omit_pp_keys:
                     continue
                 if key in seen_pairs:
                     visited.add(nb)
                     q.append(nb)
                     continue
                 pa, pb = by_id[cur], by_id[nb]
-                if _would_exceed_wet_private_fanout(pa, pb, wet_work):
+                if not _spanning_wet_edge_allowed(
+                    pa,
+                    pb,
+                    key,
+                    wet_work,
+                    forced_wet_keys=forced_wet,
+                    blocked_wet_keys=blocked_wet,
+                ):
                     continue
                 visited.add(nb)
                 q.append(nb)
@@ -786,12 +1032,18 @@ def _plan_private_private_span_edges(
     wet_private_base: dict[str, set[str]],
     *,
     seen_pairs: set[tuple[str, str]],
+    omit_pp_keys: set[tuple[str, str]] | None = None,
+    blocked_wet_keys: set[tuple[str, str]] | None = None,
+    forced_wet_keys: set[tuple[str, str]] | None = None,
 ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
     """
     迭代排除可绕开的私密-私密生成树边；返回 (最终树边 keys, forced 边 keys)。
     """
     node_set = set(ids)
-    excluded_pp: set[tuple[str, str]] = set()
+    omit_pp = set(omit_pp_keys or ())
+    blocked_wet = blocked_wet_keys or set()
+    forced_wet = forced_wet_keys or set()
+    excluded_pp: set[tuple[str, str]] = set(omit_pp)
 
     def _wet_work() -> dict[str, set[str]]:
         return {k: set(v) for k, v in wet_private_base.items()}
@@ -803,8 +1055,10 @@ def _plan_private_private_span_edges(
             anchors,
             ids,
             _wet_work(),
-            excluded_edges=excluded_pp,
+            omit_pp_keys=excluded_pp,
             seen_pairs=seen_pairs,
+            blocked_wet_keys=blocked_wet,
+            forced_wet_keys=forced_wet,
         )
         removable: set[tuple[str, str]] = set()
         for key in tree_keys:
@@ -819,8 +1073,10 @@ def _plan_private_private_span_edges(
                 anchors,
                 ids,
                 _wet_work(),
-                excluded_edges=trial_excluded,
+                omit_pp_keys=trial_excluded,
                 seen_pairs=seen_pairs,
+                blocked_wet_keys=blocked_wet,
+                forced_wet_keys=forced_wet,
             )
             trial_visited = _spanning_visit_set(
                 adj,
@@ -830,6 +1086,8 @@ def _plan_private_private_span_edges(
                 wet_private_base,
                 excluded_edges=trial_excluded,
                 seen_pairs=seen_pairs | set(trial_tree),
+                forced_wet_keys=forced_wet,
+                blocked_wet_keys=blocked_wet,
             )
             if trial_visited == node_set:
                 removable.add(key)
@@ -843,8 +1101,10 @@ def _plan_private_private_span_edges(
         anchors,
         ids,
         _wet_work(),
-        excluded_edges=excluded_pp,
+        omit_pp_keys=excluded_pp,
         seen_pairs=seen_pairs,
+        blocked_wet_keys=blocked_wet,
+        forced_wet_keys=forced_wet,
     )
     forced_keys: set[tuple[str, str]] = set()
     for key in final_keys:
@@ -862,6 +1122,7 @@ def _spanning_tree_open_openings(
     seen_pairs: set[tuple[str, str]],
     min_length: float,
     prior_openings: list[DoorOpening],
+    privacy_plans: dict[str, _JointPrivacyPlan] | None = None,
 ) -> list[DoorOpening]:
     """
     同层 program 房间共墙图 → 从入口/楼梯锚点 BFS 生成树 → OPEN 开口。
@@ -891,14 +1152,18 @@ def _spanning_tree_open_openings(
         ids = ctx.ids
         anchors = ctx.anchors
         wet_private = _wet_private_neighbor_map(prior_openings, by_id)
+        plan = (privacy_plans or {}).get(fl.floor_id, _JointPrivacyPlan(set(), set(), set(), set()))
 
-        tree_keys, forced_keys = _plan_private_private_span_edges(
+        tree_keys, forced_pp_keys = _plan_private_private_span_edges(
             adj,
             by_id,
             anchors,
             ids,
             wet_private,
             seen_pairs=seen_pairs,
+            omit_pp_keys=plan.omit_pp_keys,
+            blocked_wet_keys=plan.blocked_wet_keys,
+            forced_wet_keys=plan.forced_wet_keys,
         )
 
         for key in sorted(tree_keys):
@@ -908,7 +1173,8 @@ def _spanning_tree_open_openings(
             if bound is None:
                 continue
             seen_pairs.add(key)
-            forced = key in forced_keys
+            forced_pp = key in forced_pp_keys
+            forced_wet = key in plan.forced_wet_keys
             width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
             out.append(
                 DoorOpening(
@@ -927,7 +1193,8 @@ def _spanning_tree_open_openings(
                     hinge_side=None,
                     hinge_x=None,
                     hinge_y=None,
-                    forced_private_adjacency=forced,
+                    forced_private_adjacency=forced_pp,
+                    forced_wet_private_fanout=forced_wet,
                 )
             )
     return out

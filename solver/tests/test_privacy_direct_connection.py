@@ -81,8 +81,11 @@ def _wet_private_fanout(
     openings: list[DoorOpening],
     categories: dict[str, str],
 ) -> dict[str, set[str]]:
+    """统计湿区直连卧室（不含被迫妥协的 forced_wet_private_fanout）。"""
     wet_private: dict[str, set[str]] = {}
     for op in openings:
+        if op.forced_wet_private_fanout:
+            continue
         ca = categories.get(op.room_a_id, "")
         cb = categories.get(op.room_b_id, "")
         if ca == "wet" and cb == "private":
