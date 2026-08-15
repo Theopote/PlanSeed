@@ -10,6 +10,11 @@ def test_serialize_candidate_includes_floor_svgs():
     cand = GuillotineGenerator().generate(program, seed=0)
     payload = serialize_candidate(program, cand, 0)
     assert payload.svg
+    assert ">ENTRY</text>" not in payload.svg
+    assert ">WS</text>" not in payload.svg
+    assert "入口" in payload.svg
     assert set(payload.floor_svgs) == {f.floor_id for f in cand.floors}
     for fid, svg in payload.floor_svgs.items():
         assert f'data-floor-id="{fid}"' in svg
+        assert ">ENTRY</text>" not in svg
+        assert ">WS</text>" not in svg

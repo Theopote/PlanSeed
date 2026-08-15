@@ -52,6 +52,7 @@ def main(argv: list[str] | None = None) -> int:
             target_areas=targets,
             site=program.site,
             access_graph=program.access_graph,
+            render_mode="debug",
         )
         written.append(path)
 

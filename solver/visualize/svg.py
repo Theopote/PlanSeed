@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 from collections import defaultdict
 from pathlib import Path
+from typing import Literal
 
 from packages.schema.layout import DoorOpening, FloorLayout, LayoutCandidate, RoomPlacement
 from packages.schema.site import CardinalEdge, SiteSpec
@@ -37,6 +38,8 @@ _ATRIUM_FILL = "#D4EAF2"
 _ATRIUM_STROKE = "#2E6B8A"
 _SKYLIGHT = "#D4940A"
 
+RenderMode = Literal["debug", "customer"]
+
 
 def _esc(text: str) -> str:
     return html.escape(text, quote=True)
@@ -54,6 +57,7 @@ def _render_room(
     oy: float,
     *,
     target_area: float | None = None,
+    render_mode: RenderMode = "customer",
 ) -> str:
     r = placement.rect
     fill = _fill_for(placement)
@@ -95,11 +99,12 @@ def _render_room(
         f'font-family="Segoe UI, sans-serif">{name}</text>',
     ]
     if show_detail:
-        lines.append(
-            f'<text x="{cx:.3f}" y="{cy:.3f}" font-size="0.22" '
-            f'fill="{_MUTED}" text-anchor="middle" '
-            f'font-family="Consolas, monospace">{rid}</text>'
-        )
+        if render_mode == "debug":
+            lines.append(
+                f'<text x="{cx:.3f}" y="{cy:.3f}" font-size="0.22" '
+                f'fill="{_MUTED}" text-anchor="middle" '
+                f'font-family="Consolas, monospace">{rid}</text>'
+            )
         lines.append(
             f'<text x="{cx:.3f}" y="{cy + 0.28:.3f}" font-size="0.24" '
             f'fill="{_MUTED}" text-anchor="middle" '
@@ -188,8 +193,10 @@ def _atrium_void_overlay(
     candidate: LayoutCandidate,
     floor: FloorLayout,
     oy: float,
+    *,
+    render_mode: RenderMode = "customer",
 ) -> str:
-    """天井 debug 叠加：边框 + 标签；顶层带 skylight_required 时加天窗符号。"""
+    """天井叠加：debug 画虚线框 + ATRIUM 标签；customer 仅保留天窗符号。"""
     voids = [
         vp
         for vp in candidate.vertical_void_placements
@@ -201,17 +208,18 @@ def _atrium_void_overlay(
     parts: list[str] = []
     for vp in voids:
         r = vp.rect
-        parts.append(
-            f'<rect x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
-            f'height="{r.depth:.3f}" fill="none" stroke="{_ATRIUM_STROKE}" '
-            f'stroke-width="0.07" stroke-dasharray="0.22 0.12" '
-            f'data-void-id="{_esc(vp.void_id)}"/>'
-        )
-        parts.append(
-            f'<text x="{r.x + 0.12:.3f}" y="{oy + r.y + 0.38:.3f}" '
-            f'font-size="0.22" fill="{_ATRIUM_STROKE}" '
-            f'font-family="Consolas, monospace">ATRIUM</text>'
-        )
+        if render_mode == "debug":
+            parts.append(
+                f'<rect x="{r.x:.3f}" y="{oy + r.y:.3f}" width="{r.width:.3f}" '
+                f'height="{r.depth:.3f}" fill="none" stroke="{_ATRIUM_STROKE}" '
+                f'stroke-width="0.07" stroke-dasharray="0.22 0.12" '
+                f'data-void-id="{_esc(vp.void_id)}"/>'
+            )
+            parts.append(
+                f'<text x="{r.x + 0.12:.3f}" y="{oy + r.y + 0.38:.3f}" '
+                f'font-size="0.22" fill="{_ATRIUM_STROKE}" '
+                f'font-family="Consolas, monospace">ATRIUM</text>'
+            )
         if vp.void_id in skylight_ids:
             cx = r.x + r.width / 2
             cy = oy + r.y + r.depth / 2
@@ -246,6 +254,7 @@ def _site_overlays(
     oy: float,
     site: SiteSpec | None,
     floor_index: int,
+    render_mode: RenderMode = "customer",
 ) -> str:
     parts: list[str] = []
     if site is not None:
@@ -275,6 +284,7 @@ def _site_overlays(
 
     entry = candidate.exterior_entry
     if entry is not None and floor_index == 0:
+        entry_label = "ENTRY" if render_mode == "debug" else "入口"
         parts.append(
             f'<circle cx="{entry.x:.3f}" cy="{oy + entry.y:.3f}" r="0.22" '
             f'fill="{_ENTRY}" stroke="{_INK}" stroke-width="0.03"/>'
@@ -282,7 +292,8 @@ def _site_overlays(
         parts.append(
             f'<text x="{entry.x + 0.3:.3f}" y="{oy + entry.y + 0.08:.3f}" '
             f'font-size="0.24" fill="{_ENTRY}" '
-            f'font-family="Consolas, monospace">ENTRY</text>'
+            f'font-family="{"Consolas, monospace" if render_mode == "debug" else "Segoe UI, sans-serif"}">'
+            f'{entry_label}</text>'
         )
     return "\n".join(parts)
 
@@ -460,8 +471,9 @@ def render_candidate_svg(
     target_areas: dict[str, float] | None = None,
     site: SiteSpec | None = None,
     access_graph: AccessGraph | None = None,
+    render_mode: RenderMode = "customer",
 ) -> str:
-    """渲染单个候选：各层纵向堆叠 + 场地/入口/通行 debug 叠加。"""
+    """渲染单个候选：各层纵向堆叠；customer 为交付视图，debug 含工程师核查叠加。"""
     labels = floor_labels or {}
     targets = target_areas or {}
     gap = 1.0
@@ -573,6 +585,7 @@ def render_candidate_svg(
                 targets=targets,
                 site=site,
                 access_graph=access_graph,
+                render_mode=render_mode,
             )
         )
 
@@ -603,6 +616,7 @@ def render_floor_svg(
     target_areas: dict[str, float] | None = None,
     site: SiteSpec | None = None,
     access_graph: AccessGraph | None = None,
+    render_mode: RenderMode = "customer",
 ) -> str:
     """渲染单层平面 SVG（报告 / 分层消费）；不做 DOM 裁剪整图。"""
     labels = floor_labels or {}
@@ -646,6 +660,7 @@ def render_floor_svg(
             targets=targets,
             site=site,
             access_graph=access_graph,
+            render_mode=render_mode,
         )
     )
     body.append(_legend(floor_width + 0.4, 1.6))
@@ -694,6 +709,7 @@ def _render_floor_geometry(
     targets: dict[str, float],
     site: SiteSpec | None,
     access_graph: AccessGraph | None,
+    render_mode: RenderMode = "customer",
 ) -> list[str]:
     parts: list[str] = [
         f'<rect x="0" y="{oy:.3f}" width="{floor_width:.3f}" '
@@ -701,9 +717,19 @@ def _render_floor_geometry(
         f'stroke-width="0.08"/>'
     ]
     for p in floor.placements:
-        parts.append(_render_room(p, oy, target_area=targets.get(p.room_id)))
-    parts.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
-    atrium = _atrium_void_overlay(candidate, floor, oy)
+        parts.append(
+            _render_room(
+                p,
+                oy,
+                target_area=targets.get(p.room_id),
+                render_mode=render_mode,
+            )
+        )
+    if render_mode == "debug":
+        parts.append(_wet_overlay(floor, oy, stacks=candidate.wet_stacks))
+    atrium = _atrium_void_overlay(
+        candidate, floor, oy, render_mode=render_mode
+    )
     if atrium.strip():
         parts.append(
             f'<g class="derived-overlay" data-kind="atrium">{atrium}</g>'
@@ -716,6 +742,7 @@ def _render_floor_geometry(
             oy=oy,
             site=site,
             floor_index=floor_index,
+            render_mode=render_mode,
         )
     )
     access = _access_overlays(floor, oy, access_graph)
@@ -737,6 +764,7 @@ def write_candidate_svg(
     target_areas: dict[str, float] | None = None,
     site: SiteSpec | None = None,
     access_graph: AccessGraph | None = None,
+    render_mode: RenderMode = "customer",
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -748,6 +776,7 @@ def write_candidate_svg(
         target_areas=target_areas,
         site=site,
         access_graph=access_graph,
+        render_mode=render_mode,
     )
     path.write_text(svg, encoding="utf-8")
     return path

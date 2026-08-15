@@ -137,6 +137,7 @@ class TestSvgDebugOverlays:
             floor_width=program.buildable.width,
             floor_depth=program.buildable.depth,
             site=program.site,
+            render_mode="debug",
         )
         assert "north_angle=" in svg
         assert ">N<" in svg or ">N</text>" in svg
