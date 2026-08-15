@@ -34,6 +34,63 @@ MIN_CLEAR_WIDTH = PREFERRED_CLEAR_WIDTH  # 兼容旧名
 MIN_WALL_REVEAL = 0.05
 
 
+def _is_private_category(category: str | None) -> bool:
+    return (category or "").lower() == "private"
+
+
+def _is_wet_category(category: str | None) -> bool:
+    return (category or "").lower() == "wet"
+
+
+def _wet_private_neighbor_map(
+    openings: list[DoorOpening],
+    by_id: dict[str, RoomPlacement],
+) -> dict[str, set[str]]:
+    """统计 wet 房间已直接连通的 private 邻居（用于 spanning tree 扇出控制）。"""
+    from collections import defaultdict
+
+    wet_private: dict[str, set[str]] = defaultdict(set)
+    for op in openings:
+        pa = by_id.get(op.room_a_id)
+        pb = by_id.get(op.room_b_id)
+        if pa is None or pb is None:
+            continue
+        if _is_wet_category(pa.category) and _is_private_category(pb.category):
+            wet_private[pa.room_id].add(pb.room_id)
+        elif _is_wet_category(pb.category) and _is_private_category(pa.category):
+            wet_private[pb.room_id].add(pa.room_id)
+    return wet_private
+
+
+def _would_exceed_wet_private_fanout(
+    pa: RoomPlacement,
+    pb: RoomPlacement,
+    wet_private: dict[str, set[str]],
+) -> bool:
+    if _is_wet_category(pa.category) and _is_private_category(pb.category):
+        existing = wet_private.get(pa.room_id, set())
+        return len(existing) >= 1 and pb.room_id not in existing
+    if _is_wet_category(pb.category) and _is_private_category(pa.category):
+        existing = wet_private.get(pb.room_id, set())
+        return len(existing) >= 1 and pa.room_id not in existing
+    return False
+
+
+def _record_wet_private_pair(
+    pa: RoomPlacement,
+    pb: RoomPlacement,
+    wet_private: dict[str, set[str]],
+) -> None:
+    if _is_wet_category(pa.category) and _is_private_category(pb.category):
+        wet_private.setdefault(pa.room_id, set()).add(pb.room_id)
+    elif _is_wet_category(pb.category) and _is_private_category(pa.category):
+        wet_private.setdefault(pb.room_id, set()).add(pa.room_id)
+
+
+def _private_private_pair(pa: RoomPlacement, pb: RoomPlacement) -> bool:
+    return _is_private_category(pa.category) and _is_private_category(pb.category)
+
+
 @dataclass(frozen=True)
 class SharedBoundary:
     floor_id: str
@@ -369,6 +426,8 @@ def place_door_openings(
         if paired is None:
             continue
         pa, pb, boundary = paired
+        if _private_private_pair(pa, pb):
+            continue
         openings.append(
             build_door_opening(conn, pa, pb, boundary, door_width=door_width)
         )
@@ -380,6 +439,7 @@ def place_door_openings(
             candidate,
             seen_pairs=seen_pairs,
             min_length=min_length,
+            prior_openings=openings,
         )
     )
     candidate.door_openings = openings
@@ -392,6 +452,7 @@ def _spanning_tree_open_openings(
     *,
     seen_pairs: set[tuple[str, str]],
     min_length: float,
+    prior_openings: list[DoorOpening],
 ) -> list[DoorOpening]:
     """
     同层 program 房间共墙图 → 从入口/楼梯锚点 BFS 生成树 → OPEN 开口。
@@ -415,6 +476,7 @@ def _spanning_tree_open_openings(
         if len(rooms) < 2:
             continue
         by_id = {p.room_id: p for p in rooms}
+        wet_private = _wet_private_neighbor_map(prior_openings, by_id)
         adj: dict[str, list[str]] = defaultdict(list)
         edge_bound: dict[tuple[str, str], SharedBoundary] = {}
         ids = sorted(by_id)
@@ -424,6 +486,8 @@ def _spanning_tree_open_openings(
                     by_id[a], by_id[b], min_length=min_length
                 )
                 if bound is None:
+                    continue
+                if _private_private_pair(by_id[a], by_id[b]):
                     continue
                 adj[a].append(b)
                 adj[b].append(a)
@@ -459,6 +523,10 @@ def _spanning_tree_open_openings(
                 for nb in sorted(adj.get(cur, ())):
                     if nb in visited:
                         continue
+                    pa_nb = by_id[cur]
+                    pb_nb = by_id[nb]
+                    if _would_exceed_wet_private_fanout(pa_nb, pb_nb, wet_private):
+                        continue
                     visited.add(nb)
                     q.append(nb)
                     key = (cur, nb) if cur <= nb else (nb, cur)
@@ -468,6 +536,7 @@ def _spanning_tree_open_openings(
                     if bound is None:
                         continue
                     seen_pairs.add(key)
+                    _record_wet_private_pair(pa_nb, pb_nb, wet_private)
                     width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
                     out.append(
                         DoorOpening(

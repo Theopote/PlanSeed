@@ -94,6 +94,7 @@ class DefaultConstraintChecker:
             result.extend(self._check_wet_stack_alignment(candidate, program))
 
         result.extend(self._check_access_reachability(program, candidate))
+        result.extend(self._check_wet_room_private_fanout(program, candidate))
         result.extend(self._check_required_connection_boundaries(program, candidate))
         result.extend(self._check_preferred_connections(program, candidate))
         result.extend(self._check_door_clear_width(candidate))
@@ -459,6 +460,55 @@ class DefaultConstraintChecker:
                 )
             ]
         )
+
+    def _placement_category(
+        self,
+        room_id: str,
+        candidate: LayoutCandidate,
+        program: DesignProgram,
+    ) -> str:
+        for fl in candidate.floors:
+            for p in fl.placements:
+                if p.room_id == room_id and p.category:
+                    return p.category.lower()
+        for room in program.rooms:
+            if room.id == room_id:
+                return room.category.value
+        return ""
+
+    def _check_wet_room_private_fanout(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """Hard：wet 房间不得直接连通超过一间 private（专属主卫 / 公卫语义）。"""
+        wet_private: dict[str, set[str]] = {}
+        for op in candidate.door_openings:
+            cat_a = self._placement_category(op.room_a_id, candidate, program)
+            cat_b = self._placement_category(op.room_b_id, candidate, program)
+            if cat_a == "wet" and cat_b == "private":
+                wet_private.setdefault(op.room_a_id, set()).add(op.room_b_id)
+            elif cat_b == "wet" and cat_a == "private":
+                wet_private.setdefault(op.room_b_id, set()).add(op.room_a_id)
+
+        violations: list[Violation] = []
+        for wet_id, private_ids in sorted(wet_private.items()):
+            if len(private_ids) <= 1:
+                continue
+            priv_list = ", ".join(sorted(private_ids))
+            violations.append(
+                Violation(
+                    constraint_id="privacy.wet_private_fanout",
+                    room_ids=[wet_id, *sorted(private_ids)],
+                    message=(
+                        f"湿区 {wet_id} 直接连通多间卧室（{priv_list}），"
+                        "违反专属/公共卫生间语义"
+                    ),
+                    measured_value=float(len(private_ids)),
+                    required_value=1.0,
+                    hard=True,
+                    source="system",
+                )
+            )
+        return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_required_connection_boundaries(
         self, program: DesignProgram, candidate: LayoutCandidate
