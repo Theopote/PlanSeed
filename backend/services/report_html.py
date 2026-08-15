@@ -196,6 +196,13 @@ def render_report_html(report: DesignReport) -> str:
     cid = html.escape(r.candidate.candidate_id)
     lang = html.escape(locale.value)
 
+    findings_disclaimer_html = ""
+    if r.findings_disclaimer:
+        findings_disclaimer_html = (
+            f"<p class='findings-disclaimer muted'>"
+            f"{html.escape(r.findings_disclaimer)}</p>"
+        )
+
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
@@ -267,6 +274,7 @@ def render_report_html(report: DesignReport) -> str:
     <section class="chapter" id="findings">
       <h2>{html.escape(tr(locale, "section.findings"))}</h2>
       <ul>{findings_block}</ul>
+      {findings_disclaimer_html}
     </section>
 
     <section class="chapter appendix" id="assumptions">
@@ -366,6 +374,10 @@ _REPORT_CSS = """
   .chapter.appendix h2, .chapter.appendix h3 { color: var(--muted); }
   ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
   li { margin: 0.28rem 0; }
+  .findings-disclaimer {
+    margin: 0.75rem 0 0; font-size: 0.85rem;
+    font-family: "Segoe UI", "PingFang SC", sans-serif;
+  }
   .muted { color: var(--muted); }
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.35rem;
     font-family: "Segoe UI", "PingFang SC", sans-serif; }

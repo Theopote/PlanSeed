@@ -17,6 +17,17 @@ class ReportLocale(StrEnum):
 
 DEFAULT_REPORT_LOCALE = ReportLocale.ZH_CN
 
+# 与 desktop Inspector findings 免责声明一致（Alpha 仅 zh-CN 措辞）
+FINDINGS_DISCLAIMER_TEXT = "以上为设计启发式，不构成规范合规或法规审查结论。"
+
+
+def findings_disclaimer_for_locale(
+    locale: ReportLocale | str | None = None,
+) -> str:
+    """findings 非空时展示的启发式免责声明（Alpha：各 locale 同文）。"""
+    normalize_report_locale(locale)  # 预留 locale 分支
+    return FINDINGS_DISCLAIMER_TEXT
+
 # GeometryOrigin.value → 文案 key
 _ORIGIN_KEYS: dict[str, str] = {
     "solver_generated": "geometry.solver_generated",

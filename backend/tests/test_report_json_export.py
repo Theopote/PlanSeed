@@ -150,6 +150,8 @@ def test_report_json_not_project_snapshot(client: TestClient):
     assert "report_schema_version" in data
     assert "room_schedule" in data
     assert "findings" in data
+    assert "findings_disclaimer" in data
+    assert data["findings_disclaimer"] is None
     assert "assumptions" in data
     assert "unknowns" in data
     # include_svg=false → 平面元数据在，svg 空
@@ -220,3 +222,44 @@ def test_report_schema_version_on_model():
     assert report.report_schema_version == REPORT_SCHEMA_VERSION
     dumped = report.model_dump(mode="json")
     assert dumped["report_schema_version"] == REPORT_SCHEMA_VERSION
+
+
+def test_report_json_findings_disclaimer_when_findings_present(
+    client: TestClient,
+) -> None:
+    from packages.schema.report_i18n import FINDINGS_DISCLAIMER_TEXT
+    from packages.schema.scoring import DesignFinding, FindingSeverity
+
+    score = DesignScore(
+        program_score=80,
+        spatial_score=78,
+        circulation_score=75,
+        privacy_score=80,
+        environment_score=70,
+        technical_score=76,
+        robustness_score=74,
+        total_score=76.0,
+        findings=[
+            DesignFinding(
+                id="spatial.ok",
+                category="spatial",
+                severity=FindingSeverity.POSITIVE,
+                title="比例尚可",
+                message="主要房间比例在可接受范围",
+            )
+        ],
+    )
+    cand = _candidate(design_score=score.model_dump(mode="json"))
+    pid = _save(client, _payload(cand))
+    r = client.post(
+        "/api/exports/report-json",
+        json={
+            "project_id": pid,
+            "candidate_id": "c-a",
+            "revision_id": "c-a:gen:deadbeef",
+            "include_svg": False,
+        },
+    )
+    assert r.status_code == 200, r.text
+    data = json.loads(r.content.decode("utf-8"))
+    assert data["findings_disclaimer"] == FINDINGS_DISCLAIMER_TEXT

@@ -140,6 +140,7 @@ def test_build_design_report_uses_placement_area():
     assert "厨房靠近餐厅" in report.requirement.key_intents
     assert not any(" near " in x or x.endswith(" near") for x in report.requirement.key_intents)
     assert report.findings and report.findings[0].title == "比例尚可"
+    assert report.findings_disclaimer is not None
     assert any("确定性求解器" in line for line in report.provenance.boundary_lines)
     assert report.project.locale == ReportLocale.ZH_CN
 
@@ -360,6 +361,8 @@ def test_render_report_html_contains_boundary_and_schedule():
     assert "<svg" in doc
     assert "<script" not in doc.lower()
     assert "设计要点" in doc
+    assert "findings-disclaimer" in doc
+    assert report.findings_disclaimer in doc
 
 
 def test_render_report_html_sanitizes_malicious_svg():

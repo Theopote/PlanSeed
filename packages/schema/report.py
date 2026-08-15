@@ -225,6 +225,10 @@ class DesignReport(BaseModel):
     room_schedule: list[RoomScheduleRow] = Field(default_factory=list)
     evaluation: EvaluationSummary = Field(default_factory=EvaluationSummary)
     findings: list[DesignFinding] = Field(default_factory=list)
+    findings_disclaimer: str | None = Field(
+        default=None,
+        description="findings 非空时的启发式免责声明；null 表示无需展示",
+    )
     provenance: ReportProvenance = Field(default_factory=ReportProvenance)
 
 

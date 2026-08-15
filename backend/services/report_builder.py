@@ -26,6 +26,7 @@ from packages.schema.report import (
 from packages.schema.report_i18n import (
     ReportLocale,
     boundary_lines_for_locale,
+    findings_disclaimer_for_locale,
     format_key_intents,
     normalize_report_locale,
     present_floor_plan_label,
@@ -180,6 +181,9 @@ def build_design_report(
         candidate_id=cand_id,
     )
     findings = list(design_score.findings)
+    findings_disclaimer = (
+        findings_disclaimer_for_locale(report_locale) if findings else None
+    )
 
     name_by_id = _room_names(program, req)
     target_by_id = _room_target_areas(program)
@@ -279,6 +283,7 @@ def build_design_report(
             evaluation_fresh=evaluation_fresh,
         ),
         findings=findings,
+        findings_disclaimer=findings_disclaimer,
         provenance=provenance,
     )
 

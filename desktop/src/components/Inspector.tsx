@@ -8,6 +8,7 @@ import type {
   ZonePlacementPayload,
 } from "../api/client";
 import { AXIS_SCOPE } from "../lib/axisScope";
+import { FINDINGS_DISCLAIMER } from "../constants/findingsDisclaimer";
 import { ComparePanel } from "./ComparePanel";
 
 type ZoneGroupRow = {
@@ -575,7 +576,7 @@ export function Inspector({
               })}
               {findings.length > 0 && (
                 <p className="finding-disclaimer muted">
-                  以上为设计启发式，不构成规范合规或法规审查结论。
+                  {FINDINGS_DISCLAIMER}
                 </p>
               )}
             </>

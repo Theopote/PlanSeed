@@ -342,9 +342,40 @@ def test_findings_preserved():
     assert report.findings[0].message == "主要房间比例在可接受范围"
     assert report.findings[0].severity == FindingSeverity.POSITIVE
     assert report.findings[1].id == "circ.warn"
+    assert report.findings_disclaimer is not None
     doc = render_report_html(report)
     assert "比例尚可" in doc
     assert "流线偏长" in doc
+    assert report.findings_disclaimer in doc
+
+
+def test_findings_disclaimer_only_when_findings_present():
+    from packages.schema.report_i18n import FINDINGS_DISCLAIMER_TEXT
+
+    empty_score = _score().model_copy(update={"findings": []})
+    cand_empty = _candidate()
+    cand_empty["design_score"] = empty_score.model_dump(mode="json")
+    report_empty = build_design_report(
+        project_name="NoFind",
+        requirement_spec=_requirement_spec(),
+        program=_program(),
+        candidate=cand_empty,
+    )
+    assert report_empty.findings == []
+    assert report_empty.findings_disclaimer is None
+    doc_empty = render_report_html(report_empty)
+    assert FINDINGS_DISCLAIMER_TEXT not in doc_empty
+
+    report_with = build_design_report(
+        project_name="WithFind",
+        requirement_spec=_requirement_spec(),
+        program=_program(),
+        candidate=_candidate(),
+    )
+    assert report_with.findings
+    assert report_with.findings_disclaimer == FINDINGS_DISCLAIMER_TEXT
+    doc_with = render_report_html(report_with)
+    assert FINDINGS_DISCLAIMER_TEXT in doc_with
 
 
 def test_assumptions_preserved():
