@@ -95,6 +95,7 @@ class DefaultConstraintChecker:
 
         result.extend(self._check_access_reachability(program, candidate))
         result.extend(self._check_wet_room_private_fanout(program, candidate))
+        result.extend(self._check_forced_private_adjacency(program, candidate))
         result.extend(self._check_required_connection_boundaries(program, candidate))
         result.extend(self._check_preferred_connections(program, candidate))
         result.extend(self._check_door_clear_width(candidate))
@@ -505,6 +506,40 @@ class DefaultConstraintChecker:
                     measured_value=float(len(private_ids)),
                     required_value=1.0,
                     hard=True,
+                    source="system",
+                )
+            )
+        return ConstraintEvaluationResult.from_violations(violations)
+
+    def _check_forced_private_adjacency(
+        self, program: DesignProgram, candidate: LayoutCandidate
+    ) -> ConstraintEvaluationResult:
+        """Soft：被迫保留的私密-私密直连（无替代路径时的妥协开口）。"""
+        from solver.evaluation.privacy import _category_of, _transition_penalty
+
+        violations: list[Violation] = []
+        for op in candidate.door_openings:
+            if not op.forced_private_adjacency:
+                continue
+            cat_a = self._placement_category(op.room_a_id, candidate, program)
+            cat_b = self._placement_category(op.room_b_id, candidate, program)
+            if cat_a != "private" or cat_b != "private":
+                continue
+            penalty = _transition_penalty(
+                _category_of(program, op.room_a_id),
+                _category_of(program, op.room_b_id),
+            )
+            violations.append(
+                Violation(
+                    constraint_id="privacy.forced_private_adjacency",
+                    room_ids=[op.room_a_id, op.room_b_id],
+                    message=(
+                        f"卧室 {op.room_a_id}—{op.room_b_id} 无替代路径，"
+                        "被迫保留直接门连接（私密-私密妥协）"
+                    ),
+                    measured_value=penalty,
+                    required_value=0.0,
+                    hard=False,
                     source="system",
                 )
             )

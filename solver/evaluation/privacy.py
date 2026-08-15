@@ -118,6 +118,14 @@ def compute_privacy_metrics(
     through = 0
     bad = 0
     explained = 0
+    for op in candidate.door_openings:
+        if not op.forced_private_adjacency:
+            continue
+        cat_a = _category_of(program, op.room_a_id)
+        cat_b = _category_of(program, op.room_b_id)
+        if cat_a == "private" and cat_b == "private":
+            bad += 1
+
     for pid in private_ids:
         path = _path_to(parent, pid)
         if len(path) < 2:

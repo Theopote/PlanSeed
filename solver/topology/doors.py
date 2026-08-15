@@ -76,6 +76,105 @@ def _would_exceed_wet_private_fanout(
     return False
 
 
+def _reachable_from_nodes(
+    starts: set[str],
+    target: str,
+    adj: dict[str, list[str]],
+    node_set: set[str],
+    *,
+    excluded_edge: tuple[str, str] | None = None,
+) -> bool:
+    """从已访问节点集合能否不经过 excluded_edge 到达 target（仅走 adj）。"""
+    from collections import deque
+
+    if target in starts:
+        return True
+    seen = set(starts)
+    q: deque[str] = deque(starts)
+    while q:
+        cur = q.popleft()
+        for nb in adj.get(cur, []):
+            if nb not in node_set or nb in seen:
+                continue
+            if excluded_edge is not None and _pair_key(cur, nb) == excluded_edge:
+                continue
+            if nb == target:
+                return True
+            seen.add(nb)
+            q.append(nb)
+    return False
+
+
+def _spanning_visit_set(
+    adj: dict[str, list[str]],
+    by_id: dict[str, RoomPlacement],
+    anchors: list[str],
+    ids: list[str],
+    wet_private: dict[str, set[str]],
+    *,
+    excluded_edges: set[tuple[str, str]],
+    seen_pairs: set[tuple[str, str]],
+) -> set[str]:
+    """spanning BFS 可达房间（含 seen_pairs 与可新增的 OPEN 边）。"""
+    from collections import deque
+
+    node_set = set(ids)
+    visited: set[str] = set()
+    wet_work = {k: set(v) for k, v in wet_private.items()}
+
+    for start in anchors:
+        if start in visited or start not in by_id:
+            continue
+        q: deque[str] = deque([start])
+        visited.add(start)
+        while q:
+            cur = q.popleft()
+            for nb in sorted(adj.get(cur, [])):
+                if nb in visited or nb not in node_set:
+                    continue
+                key = _pair_key(cur, nb)
+                if key in excluded_edges:
+                    continue
+                if key in seen_pairs:
+                    visited.add(nb)
+                    q.append(nb)
+                    continue
+                pa, pb = by_id[cur], by_id[nb]
+                if _would_exceed_wet_private_fanout(pa, pb, wet_work):
+                    continue
+                visited.add(nb)
+                q.append(nb)
+                _record_wet_private_pair(pa, pb, wet_work)
+    return visited
+
+
+def _planned_access_covers_floor(
+    ctx: _FloorGraphContext,
+    prior_openings: list[DoorOpening],
+    seen_pairs: set[tuple[str, str]],
+) -> bool:
+    """intent + spanning OPEN 能否覆盖本层全部房间（尊重 wet 扇出）。"""
+    wet_private = _wet_private_neighbor_map(prior_openings, ctx.by_id)
+    tree_keys, _ = _plan_private_private_span_edges(
+        ctx.adj,
+        ctx.by_id,
+        ctx.anchors,
+        ctx.ids,
+        wet_private,
+        seen_pairs=seen_pairs,
+    )
+    visited = _spanning_visit_set(
+        ctx.adj,
+        ctx.by_id,
+        ctx.anchors,
+        ctx.ids,
+        wet_private,
+        excluded_edges=set(),
+        seen_pairs=seen_pairs | set(tree_keys),
+    )
+    return visited == set(ctx.ids)
+
+
 def _record_wet_private_pair(
     pa: RoomPlacement,
     pb: RoomPlacement,
@@ -410,6 +509,21 @@ def place_door_openings(
     ensure_access_graph(program)
     openings: list[DoorOpening] = []
     seen_pairs: set[tuple[str, str]] = set()
+    program_ids = {r.id for r in program.rooms}
+    entry = candidate.exterior_entry
+    entry_rooms = set(entry.connected_room_ids) if entry is not None else set()
+    floor_ctx: dict[str, _FloorGraphContext] = {}
+    for fl in candidate.floors:
+        ctx = _build_floor_graph_context(
+            program,
+            candidate,
+            fl,
+            program_ids=program_ids,
+            entry_rooms=entry_rooms,
+            min_length=min_length,
+        )
+        if ctx is not None:
+            floor_ctx[fl.floor_id] = ctx
 
     for conn in opening_connections(program):
         pas = find_placements(candidate, conn.a)
@@ -426,12 +540,17 @@ def place_door_openings(
         if paired is None:
             continue
         pa, pb, boundary = paired
-        if _private_private_pair(pa, pb):
-            continue
-        openings.append(
-            build_door_opening(conn, pa, pb, boundary, door_width=door_width)
-        )
+        opening = build_door_opening(conn, pa, pb, boundary, door_width=door_width)
+        openings.append(opening)
         seen_pairs.add(_pair_key(pa.room_id, pb.room_id))
+
+    openings = _prune_removable_private_private_openings(
+        openings,
+        floor_ctx,
+        opening_connections(program),
+        seen_pairs=seen_pairs,
+    )
+    seen_pairs = {_pair_key(op.room_a_id, op.room_b_id) for op in openings}
 
     openings.extend(
         _spanning_tree_open_openings(
@@ -444,6 +563,296 @@ def place_door_openings(
     )
     candidate.door_openings = openings
     return openings
+
+
+@dataclass(frozen=True)
+class _FloorGraphContext:
+    adj: dict[str, list[str]]
+    by_id: dict[str, RoomPlacement]
+    anchors: list[str]
+    ids: list[str]
+    edge_bound: dict[tuple[str, str], SharedBoundary]
+
+
+def _build_floor_graph_context(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+    floor,
+    *,
+    program_ids: set[str],
+    entry_rooms: set[str],
+    min_length: float,
+) -> _FloorGraphContext | None:
+    """同层 program 房间共墙全邻接图（含 private-private）。"""
+    from collections import defaultdict
+
+    rooms = [
+        p
+        for p in floor.placements
+        if p.room_id in program_ids and not p.room_id.startswith("stair-")
+    ]
+    if len(rooms) < 2:
+        return None
+    by_id = {p.room_id: p for p in rooms}
+    adj: dict[str, list[str]] = defaultdict(list)
+    edge_bound: dict[tuple[str, str], SharedBoundary] = {}
+    ids = sorted(by_id)
+    for i, a in enumerate(ids):
+        for b in ids[i + 1 :]:
+            bound = shared_boundary_between(
+                by_id[a], by_id[b], min_length=min_length
+            )
+            if bound is None:
+                continue
+            adj[a].append(b)
+            adj[b].append(a)
+            edge_bound[_pair_key(a, b)] = bound
+
+    anchors = [rid for rid in ids if rid in entry_rooms]
+    if not anchors:
+        stairs = [
+            p
+            for p in floor.placements
+            if p.room_id.startswith("stair-")
+            or (
+                (p.category or "") == "circulation"
+                and "楼梯" in (p.name or "")
+            )
+        ]
+        for s in stairs:
+            for rid in ids:
+                if shared_boundary_between(s, by_id[rid], min_length=min_length):
+                    anchors.append(rid)
+    if not anchors:
+        anchors = [ids[0]]
+
+    return _FloorGraphContext(
+        adj=dict(adj),
+        by_id=by_id,
+        anchors=anchors,
+        ids=ids,
+        edge_bound=edge_bound,
+    )
+
+
+def _prune_removable_private_private_openings(
+    openings: list[DoorOpening],
+    floor_ctx: dict[str, _FloorGraphContext],
+    intents: list[SpaceConnection],
+    *,
+    seen_pairs: set[tuple[str, str]],
+) -> list[DoorOpening]:
+    """移除有替代路径的私密-私密 intent 门；保留被迫桥接并打 forced 标记。"""
+    required_pp: set[tuple[str, str]] = set()
+    for conn in intents:
+        if conn.required:
+            required_pp.add(_pair_key(conn.a, conn.b))
+
+    pruned: list[DoorOpening] = []
+    for op in openings:
+        key = _pair_key(op.room_a_id, op.room_b_id)
+        if key in required_pp:
+            pruned.append(op)
+            continue
+        ctx = floor_ctx.get(op.floor_id)
+        if ctx is None:
+            pruned.append(op)
+            continue
+        pa = ctx.by_id.get(op.room_a_id)
+        pb = ctx.by_id.get(op.room_b_id)
+        if pa is None or pb is None or not _private_private_pair(pa, pb):
+            pruned.append(op)
+            continue
+        if _private_private_is_forced_bridge(pa, pb, ctx, openings, seen_pairs):
+            pruned.append(
+                op.model_copy(update={"forced_private_adjacency": True})
+            )
+            continue
+        # 可绕开：不落门，由 spanning tree 负责连通
+    return pruned
+
+
+def _private_private_is_forced_bridge(
+    pa: RoomPlacement,
+    pb: RoomPlacement,
+    ctx: _FloorGraphContext,
+    openings: list[DoorOpening],
+    seen_pairs: set[tuple[str, str]],
+) -> bool:
+    """移除该私密-私密 intent 后，spanning 无法覆盖全层 → 被迫保留。"""
+    key = _pair_key(pa.room_id, pb.room_id)
+    trial_seen = seen_pairs - {key}
+    trial_openings = [
+        op
+        for op in openings
+        if _pair_key(op.room_a_id, op.room_b_id) != key
+    ]
+    return not _planned_access_covers_floor(ctx, trial_openings, trial_seen)
+
+
+def _reachable_from_anchors(
+    adj: dict[str, list[str]],
+    node_set: set[str],
+    anchors: list[str],
+    *,
+    excluded_edges: set[tuple[str, str]] = frozenset(),
+) -> set[str]:
+    """从锚点集合在 node_set 内可达的房间（可排除指定边）。"""
+    from collections import deque
+
+    visited: set[str] = set()
+    for start in anchors:
+        if start not in node_set:
+            continue
+        q: deque[str] = deque([start])
+        visited.add(start)
+        while q:
+            cur = q.popleft()
+            for nb in adj.get(cur, []):
+                if nb not in node_set or nb in visited:
+                    continue
+                if _pair_key(cur, nb) in excluded_edges:
+                    continue
+                visited.add(nb)
+                q.append(nb)
+    return visited
+
+
+def _is_private_bridge_edge(
+    a: str,
+    b: str,
+    adj: dict[str, list[str]],
+    node_set: set[str],
+    anchors: list[str],
+) -> bool:
+    """移除该边后锚点无法覆盖全部房间 → 桥（被迫保留私密-私密开口）。"""
+    key = _pair_key(a, b)
+    without = _reachable_from_anchors(
+        adj, node_set, anchors, excluded_edges={key}
+    )
+    return without != node_set
+
+
+def _compute_spanning_tree_edge_keys(
+    adj: dict[str, list[str]],
+    by_id: dict[str, RoomPlacement],
+    anchors: list[str],
+    ids: list[str],
+    wet_private: dict[str, set[str]],
+    *,
+    excluded_edges: set[tuple[str, str]],
+    seen_pairs: set[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """BFS 生成树边（pair_key），跳过 excluded 与 wet 扇出超限。"""
+    from collections import deque
+
+    node_set = set(ids)
+    visited: set[str] = set()
+    tree_keys: list[tuple[str, str]] = []
+    wet_work = {k: set(v) for k, v in wet_private.items()}
+
+    for start in anchors:
+        if start in visited or start not in by_id:
+            continue
+        q: deque[str] = deque([start])
+        visited.add(start)
+        while q:
+            cur = q.popleft()
+            for nb in sorted(adj.get(cur, [])):
+                if nb in visited or nb not in node_set:
+                    continue
+                key = _pair_key(cur, nb)
+                if key in excluded_edges:
+                    continue
+                if key in seen_pairs:
+                    visited.add(nb)
+                    q.append(nb)
+                    continue
+                pa, pb = by_id[cur], by_id[nb]
+                if _would_exceed_wet_private_fanout(pa, pb, wet_work):
+                    continue
+                visited.add(nb)
+                q.append(nb)
+                tree_keys.append(key)
+                _record_wet_private_pair(pa, pb, wet_work)
+    return tree_keys
+
+
+def _plan_private_private_span_edges(
+    adj: dict[str, list[str]],
+    by_id: dict[str, RoomPlacement],
+    anchors: list[str],
+    ids: list[str],
+    wet_private_base: dict[str, set[str]],
+    *,
+    seen_pairs: set[tuple[str, str]],
+) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+    """
+    迭代排除可绕开的私密-私密生成树边；返回 (最终树边 keys, forced 边 keys)。
+    """
+    node_set = set(ids)
+    excluded_pp: set[tuple[str, str]] = set()
+
+    def _wet_work() -> dict[str, set[str]]:
+        return {k: set(v) for k, v in wet_private_base.items()}
+
+    while True:
+        tree_keys = _compute_spanning_tree_edge_keys(
+            adj,
+            by_id,
+            anchors,
+            ids,
+            _wet_work(),
+            excluded_edges=excluded_pp,
+            seen_pairs=seen_pairs,
+        )
+        removable: set[tuple[str, str]] = set()
+        for key in tree_keys:
+            pa = by_id[key[0]]
+            pb = by_id[key[1]]
+            if not _private_private_pair(pa, pb):
+                continue
+            trial_excluded = excluded_pp | {key}
+            trial_tree = _compute_spanning_tree_edge_keys(
+                adj,
+                by_id,
+                anchors,
+                ids,
+                _wet_work(),
+                excluded_edges=trial_excluded,
+                seen_pairs=seen_pairs,
+            )
+            trial_visited = _spanning_visit_set(
+                adj,
+                by_id,
+                anchors,
+                ids,
+                wet_private_base,
+                excluded_edges=trial_excluded,
+                seen_pairs=seen_pairs | set(trial_tree),
+            )
+            if trial_visited == node_set:
+                removable.add(key)
+        if not removable:
+            break
+        excluded_pp |= removable
+
+    final_keys = _compute_spanning_tree_edge_keys(
+        adj,
+        by_id,
+        anchors,
+        ids,
+        _wet_work(),
+        excluded_edges=excluded_pp,
+        seen_pairs=seen_pairs,
+    )
+    forced_keys: set[tuple[str, str]] = set()
+    for key in final_keys:
+        pa = by_id[key[0]]
+        pb = by_id[key[1]]
+        if _private_private_pair(pa, pb):
+            forced_keys.add(key)
+    return set(final_keys), forced_keys
 
 
 def _spanning_tree_open_openings(
@@ -459,8 +868,6 @@ def _spanning_tree_open_openings(
 
     共墙本身仍不可通行；这里显式生成开口，使连通分量可导航。
     """
-    from collections import defaultdict, deque
-
     program_ids = {r.id for r in program.rooms}
     out: list[DoorOpening] = []
 
@@ -468,95 +875,61 @@ def _spanning_tree_open_openings(
     entry_rooms = set(entry.connected_room_ids) if entry is not None else set()
 
     for fl in candidate.floors:
-        rooms = [
-            p
-            for p in fl.placements
-            if p.room_id in program_ids and not p.room_id.startswith("stair-")
-        ]
-        if len(rooms) < 2:
+        ctx = _build_floor_graph_context(
+            program,
+            candidate,
+            fl,
+            program_ids=program_ids,
+            entry_rooms=entry_rooms,
+            min_length=min_length,
+        )
+        if ctx is None:
             continue
-        by_id = {p.room_id: p for p in rooms}
+        by_id = ctx.by_id
+        adj = ctx.adj
+        edge_bound = ctx.edge_bound
+        ids = ctx.ids
+        anchors = ctx.anchors
         wet_private = _wet_private_neighbor_map(prior_openings, by_id)
-        adj: dict[str, list[str]] = defaultdict(list)
-        edge_bound: dict[tuple[str, str], SharedBoundary] = {}
-        ids = sorted(by_id)
-        for i, a in enumerate(ids):
-            for b in ids[i + 1 :]:
-                bound = shared_boundary_between(
-                    by_id[a], by_id[b], min_length=min_length
-                )
-                if bound is None:
-                    continue
-                if _private_private_pair(by_id[a], by_id[b]):
-                    continue
-                adj[a].append(b)
-                adj[b].append(a)
-                edge_bound[_pair_key(a, b)] = bound
 
-        # 锚点：入口贴边房间；上层则贴楼梯的房间
-        anchors = [rid for rid in ids if rid in entry_rooms]
-        if not anchors:
-            stairs = [
-                p
-                for p in fl.placements
-                if p.room_id.startswith("stair-")
-                or (
-                    (p.category or "") == "circulation"
-                    and "楼梯" in (p.name or "")
-                )
-            ]
-            for s in stairs:
-                for rid in ids:
-                    if shared_boundary_between(s, by_id[rid], min_length=min_length):
-                        anchors.append(rid)
-        if not anchors:
-            anchors = [ids[0]]
+        tree_keys, forced_keys = _plan_private_private_span_edges(
+            adj,
+            by_id,
+            anchors,
+            ids,
+            wet_private,
+            seen_pairs=seen_pairs,
+        )
 
-        visited: set[str] = set()
-        for start in anchors:
-            if start in visited or start not in by_id:
+        for key in sorted(tree_keys):
+            if key in seen_pairs:
                 continue
-            q: deque[str] = deque([start])
-            visited.add(start)
-            while q:
-                cur = q.popleft()
-                for nb in sorted(adj.get(cur, ())):
-                    if nb in visited:
-                        continue
-                    pa_nb = by_id[cur]
-                    pb_nb = by_id[nb]
-                    if _would_exceed_wet_private_fanout(pa_nb, pb_nb, wet_private):
-                        continue
-                    visited.add(nb)
-                    q.append(nb)
-                    key = (cur, nb) if cur <= nb else (nb, cur)
-                    if key in seen_pairs:
-                        continue
-                    bound = edge_bound.get(key)
-                    if bound is None:
-                        continue
-                    seen_pairs.add(key)
-                    _record_wet_private_pair(pa_nb, pb_nb, wet_private)
-                    width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
-                    out.append(
-                        DoorOpening(
-                            id=f"open-span-{key[0]}-{key[1]}",
-                            connection_id=f"span-{key[0]}-{key[1]}",
-                            room_a_id=key[0],
-                            room_b_id=key[1],
-                            floor_id=fl.floor_id,
-                            x=bound.mid_x,
-                            y=bound.mid_y,
-                            width=width,
-                            axis=bound.axis,  # type: ignore[arg-type]
-                            connection_type=SpaceConnectionType.OPEN.value,
-                            clear_width=width,
-                            swing_room_id=None,
-                            hinge_side=None,
-                            hinge_x=None,
-                            hinge_y=None,
-                        )
-                    )
+            bound = edge_bound.get(key)
+            if bound is None:
+                continue
+            seen_pairs.add(key)
+            forced = key in forced_keys
+            width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
+            out.append(
+                DoorOpening(
+                    id=f"open-span-{key[0]}-{key[1]}",
+                    connection_id=f"span-{key[0]}-{key[1]}",
+                    room_a_id=key[0],
+                    room_b_id=key[1],
+                    floor_id=fl.floor_id,
+                    x=bound.mid_x,
+                    y=bound.mid_y,
+                    width=width,
+                    axis=bound.axis,  # type: ignore[arg-type]
+                    connection_type=SpaceConnectionType.OPEN.value,
+                    clear_width=width,
+                    swing_room_id=None,
+                    hinge_side=None,
+                    hinge_x=None,
+                    hinge_y=None,
+                    forced_private_adjacency=forced,
+                )
+            )
     return out
 
 

@@ -182,6 +182,10 @@ class DoorOpening(BaseModel):
     )
     hinge_x: float | None = Field(default=None, description="铰链点 x")
     hinge_y: float | None = Field(default=None, description="铰链点 y")
+    forced_private_adjacency: bool = Field(
+        default=False,
+        description="私密-私密直连为维持连通性的被迫妥协（非理想合规）",
+    )
 
 
 class WindowOpening(BaseModel):
