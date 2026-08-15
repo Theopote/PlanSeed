@@ -17,7 +17,8 @@ ProjectSpec
 ├── floors: list[FloorSpec]      # 1–3 层
 ├── rooms: list[RoomSpec]
 ├── constraints: list[Constraint]
-└── preferences: PreferencesSpec
+├── preferences: PreferencesSpec
+└── vertical_voids: list[VerticalVoidSpec]   # 可选；空则隐式楼梯核
 ```
 
 ## SiteSpec
@@ -51,6 +52,31 @@ ProjectSpec
 | `tags` | **语义角色**（`kitchen`, `bedroom`, `master`, `elderly_accessible`…）；Solver 主判定依据。`name` 仅为 UI 文本 |
 
 `category` 枚举：`public | private | wet | service | circulation | other`
+
+## VerticalVoidSpec（ADR-010）
+
+竖向空洞 / 跨层对齐的统一输入。挂接于 `ProjectSpec.vertical_voids` 与 `DesignProgram.vertical_voids`（`normalize` 透传）。详见 [proposals/vertical-systems.md](proposals/vertical-systems.md)。
+
+```python
+VerticalVoidSpec
+├── id: str
+├── void_type: stair | atrium | wet_riser
+├── floor_span: (start_floor_id, end_floor_id)   # 按 floors 声明顺序的闭区间
+├── width, depth: float | None                   # ATRIUM 必填；STAIR 可空
+├── preferred_placement: CorePlacement | None    # north/south/east/west/center
+├── skylight_required: bool                      # 仅 ATRIUM
+└── alignment_tolerance: float                   # 仅 WET_RISER（米，默认 0.3）
+```
+
+| `void_type` | Solver 策略 | 说明 |
+|-------------|-------------|------|
+| `stair` | **预扣除** | `floor_span` 必须覆盖**全部**楼层；`width`/`depth` 缺省 → `SiteSpec.stair_width` + 默认 4.2 m 梯段深 |
+| `atrium` | **预扣除** | `floor_span` 须 ≥2 层连续区间；`width`/`depth` 必填；产出 `void-{id}` placement |
+| `wet_riser` | **不预扣除** | 禁止 `width`/`depth`/`preferred_placement`；湿区对齐由 checker + 生成器锚点完成 |
+
+**隐式默认**：`vertical_voids=[]` 时 solver 仍放置隐式 `StairCore`（行为与 ADR-010 前一致），不自动写入 void 列表。
+
+**校验**（`validate_vertical_voids_for_floors`）：void `id` 唯一；至多一个 `stair`；`floor_span` 端点须存在于 `floors`。
 
 ## 约束模型 Constraint
 
@@ -91,9 +117,17 @@ room_id, floor_id, x, y, width, depth
 ### LayoutCandidate
 
 ```python
-id, seed, floors[], wet_stacks[], door_openings[], exterior_entry,
-validation, score, metrics
+id, seed, floors[], wet_stacks[], vertical_void_placements[],
+door_openings[], exterior_entry, validation, score, metrics
 ```
+
+### VerticalVoidPlacement（solver 输出）
+
+```python
+void_id, void_type, floor_id, rect: PlacementRect, skylight_required
+```
+
+ATRIUM 预扣除结果的几何快照；同层另有 `void-{void_id}` 的 `RoomPlacement`（`source=generated`）参与满铺覆盖率。
 
 ### DoorOpening（2A + 2.2）
 
@@ -123,6 +157,7 @@ constraint_id, room_ids[], message, measured_value, required_value, hard
 DesignProgram
 ├── project_id, site, buildable
 ├── floors, rooms, constraints
+├── vertical_voids: list[VerticalVoidSpec]   # 从 ProjectSpec 透传
 ├── room_graph: RoomGraph
 └── solver_config: SolverConfig
 ```
@@ -186,6 +221,8 @@ packages/schema/
 ├── project.py      # ProjectSpec, HouseholdSpec, PreferencesSpec
 ├── site.py         # SiteSpec, SetbackSpec, Rect2D
 ├── room.py         # RoomSpec, FloorSpec
+├── core.py         # StairCoreSpec, CorePlacement, CorePlacementResult
+├── vertical_void.py # VerticalVoidSpec, VerticalVoidPlacement
 ├── constraints.py  # Constraint union
 ├── layout.py       # RoomPlacement, LayoutCandidate
 ├── scoring.py      # DesignScore（含 evaluation_version）；DesignEvaluation = temporary alias
