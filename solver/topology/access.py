@@ -21,7 +21,7 @@ from packages.schema.topology import (
     SpaceConnectionType,
 )
 from solver.geometry.rect import from_placement, shared_edge_length
-from solver.topology.constants import ENTRY_NODE_ID, MIN_ACCESS_WALL
+from solver.topology.constants import ENTRY_NODE_ID, MIN_ACCESS_WALL, MIN_MEANINGFUL_CORRIDOR_SHORT
 
 # 兼容旧 import 路径
 __all__ = [
@@ -120,6 +120,56 @@ def _add_stair_access_realized(
     return out
 
 
+def _add_circulation_corridor_passages(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+    *,
+    min_length: float = MIN_ACCESS_WALL,
+) -> list[RealizedConnection]:
+    """
+    generated 走廊碎片与贴邻 program 房间：基础设施开口（同楼梯贴邻 PASSAGE）。
+
+    使 ADR-011 几何修补切出的 circ-* 真正进入 RealizedAccessGraph，
+    卧室可经走廊到达，而非被迫穿其他卧室。
+    """
+    from solver.topology.doors import shared_boundary_between
+
+    program_ids = {r.id for r in program.rooms}
+    out: list[RealizedConnection] = []
+    seen: set[tuple[str, str]] = set()
+    for fl in candidate.floors:
+        corridors = [
+            p
+            for p in fl.placements
+            if p.room_id.startswith("circ-")
+            and (p.category or "") == "circulation"
+        ]
+        rooms = [p for p in fl.placements if p.room_id in program_ids]
+        for circ in corridors:
+            short = min(circ.rect.width, circ.rect.depth)
+            if short + 1e-9 < MIN_MEANINGFUL_CORRIDOR_SHORT:
+                continue
+            for room in rooms:
+                if shared_boundary_between(circ, room, min_length=min_length) is None:
+                    continue
+                pair = tuple(sorted((circ.room_id, room.room_id)))
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                out.append(
+                    RealizedConnection(
+                        connection_id=f"circ-passage-{pair[0]}-{pair[1]}",
+                        a=pair[0],
+                        b=pair[1],
+                        type=SpaceConnectionType.PASSAGE,
+                        floor_id=fl.floor_id,
+                        opening_id=None,
+                        source="circulation_passage",
+                    )
+                )
+    return out
+
+
 def build_realized_connections(
     program: DesignProgram,
     candidate: LayoutCandidate,
@@ -173,6 +223,7 @@ def build_realized_connections(
 
     realized.extend(_add_stair_realized(candidate))
     realized.extend(_add_stair_access_realized(candidate))
+    realized.extend(_add_circulation_corridor_passages(program, candidate))
     candidate.realized_connections = list(realized)
     return realized
 

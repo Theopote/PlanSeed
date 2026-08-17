@@ -190,3 +190,38 @@ class TestRealizedAccessSemantics:
             if v.constraint_id == "access.unreachable_room"
         ]
         assert unreachable == [], unreachable
+
+    def test_circulation_corridor_passage_links_program_room(self):
+        """generated circ-* 与 program 房间共墙 → realized PASSAGE（≠ 自动全屋通行）。"""
+        from solver.topology.access import build_realized_connections
+
+        program = _program_two_rooms()
+        living = _placement("living", x=0, y=0, w=6, d=5, cat="public")
+        bed = _placement("bed", x=6, y=0, w=4, d=5, cat="private")
+        hall = RoomPlacement(
+            room_id="circ-F1-0",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=5, width=10, depth=2),
+            source=PlacementSource.GENERATED,
+            name="走廊",
+            category="circulation",
+        )
+        candidate = LayoutCandidate(
+            id="circ-passage",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[living, bed, hall])],
+        )
+        realized = build_realized_connections(program, candidate)
+        pairs = {
+            tuple(sorted((rc.a, rc.b)))
+            for rc in realized
+            if rc.source == "circulation_passage"
+        }
+        assert ("bed", "circ-F1-0") in pairs
+        assert ("circ-F1-0", "living") in pairs
+        graph = build_realized_access_graph(program, candidate)
+        assert "bed" in {
+            c.b if c.a == "circ-F1-0" else c.a
+            for c in graph.connections
+            if "circ-F1-0" in (c.a, c.b)
+        }

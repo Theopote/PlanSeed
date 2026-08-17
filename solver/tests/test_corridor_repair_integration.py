@@ -37,6 +37,28 @@ class TestCorridorRepairIntegration:
             f"measured={MEASURED_BASELINE['valid_ratio']})"
         )
 
+    def test_top_candidates_avoid_private_through(self) -> None:
+        """benchmark Top-5 不应再普遍出现穿其他卧室到达主卧。"""
+        from solver.evaluation.privacy import compute_privacy_metrics
+
+        program = benchmark_program()
+        program.solver_config.candidate_count = 64
+        program.solver_config.return_top_k = 5
+        result = run_pipeline(program)
+        assert len(result.top_candidates) >= 5
+
+        through_hits = 0
+        for top in result.top_candidates:
+            metrics = compute_privacy_metrics(program, top)
+            if int(metrics.get("private_through_count", 0)) > 0:
+                through_hits += 1
+
+        rate = through_hits / len(result.top_candidates)
+        assert rate <= 0.5, (
+            f"private_through top rate {rate:.0%} ({through_hits}/"
+            f"{len(result.top_candidates)}) expected <= 50%"
+        )
+
     def test_valid_candidates_gain_corridor_strips(self) -> None:
         """在 valid 候选上，修补应实际生效（非空转）。"""
         import solver.generators.guillotine as gmod

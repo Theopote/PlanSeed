@@ -35,7 +35,11 @@ def _name(program: DesignProgram, room_id: str) -> str:
 
 
 def _category_of(program: DesignProgram, room_id: str) -> str:
-    if room_id == ENTRY_NODE_ID or room_id.startswith("stair-"):
+    if (
+        room_id == ENTRY_NODE_ID
+        or room_id.startswith("stair-")
+        or room_id.startswith("circ-")
+    ):
         return "circulation"
     room = program.room_by_id(room_id)
     if room is None:
