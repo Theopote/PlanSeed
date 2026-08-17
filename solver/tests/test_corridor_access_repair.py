@@ -124,3 +124,24 @@ class TestImprovePrivateRoomCorridorAccess:
         priv = next(p for p in out if p.room_id == "A")
         assert not _has_direct_circulation_neighbor(priv, out, frozenset())
         assert len([p for p in out if p.room_id.startswith("circ-F1-")]) == 1
+
+    def test_does_not_borrow_from_stair_core(self) -> None:
+        """楼梯核不得作为 donor，避免 resolve 挤压楼梯尺寸。"""
+        stair = _placement("stair-F1", x=0, y=0, w=1.8, d=4.2, cat="circulation")
+        stair = stair.model_copy(update={"source": PlacementSource.GENERATED})
+        wet = _placement("r6", x=1.8, y=0, w=4, d=4, cat="wet")
+        private = _placement("r5", x=1.8, y=4, w=4, d=2, cat="private")
+        placements = [stair, wet, private]
+        min_area = {"r6": 1.0}
+
+        out = improve_private_room_corridor_access(
+            _footprint(8, 8),
+            placements,
+            "F1",
+            min_area_by_room_id=min_area,
+        )
+
+        stair_out = next(p for p in out if p.room_id == "stair-F1")
+        assert stair_out.rect.depth == 4.2
+        priv = next(p for p in out if p.room_id == "r5")
+        assert _has_direct_circulation_neighbor(priv, out, frozenset())

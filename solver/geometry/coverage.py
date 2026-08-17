@@ -1162,23 +1162,62 @@ def _has_meaningful_circulation_neighbor(
     return False
 
 
-def _non_private_geometric_neighbors(
+def _is_corridor_repair_donor(placement: RoomPlacement) -> bool:
+    """可从其借边的 donor：program 湿区/其他/公共房间，不含楼梯核与走廊碎片。"""
+    if is_fixed_void_placement(placement.room_id):
+        return False
+    if placement.room_id.startswith("circ-"):
+        return False
+    cat = (placement.category or "").lower()
+    if cat in ("private", "circulation"):
+        return False
+    return cat in ("wet", "other", "public")
+
+
+def _corridor_repair_donor_neighbors(
     private: RoomPlacement,
     placements: list[RoomPlacement],
     *,
     min_length: float = 0.05,
 ) -> list[RoomPlacement]:
+    """待修补 private 的可借边邻居；湿区优先。"""
     from solver.topology.doors import shared_boundary_between
 
+    order = {"wet": 0, "other": 1, "public": 2}
     neighbors: list[RoomPlacement] = []
     for other in placements:
         if other.room_id == private.room_id:
             continue
-        if (other.category or "").lower() == "private":
+        if not _is_corridor_repair_donor(other):
             continue
-        if shared_boundary_between(private, other, min_length=min_length) is not None:
-            neighbors.append(other)
+        if shared_boundary_between(private, other, min_length=min_length) is None:
+            continue
+        neighbors.append(other)
+    neighbors.sort(
+        key=lambda p: (order.get((p.category or "").lower(), 99), p.room_id),
+    )
     return neighbors
+
+
+def _corridor_clear_of_fixed_voids(
+    corridor: RoomPlacement,
+    placements: list[RoomPlacement],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> bool:
+    """新走廊条不得侵入楼梯核 / 竖向空洞占位。"""
+    cr = from_placement(corridor.rect)
+    for other in placements:
+        if not is_fixed_void_placement(other.room_id):
+            continue
+        vr = from_placement(other.rect)
+        if not intersects(cr, vr):
+            continue
+        overlap_w = min(cr.right, vr.right) - max(cr.left, vr.left)
+        overlap_h = min(cr.bottom, vr.bottom) - max(cr.top, vr.top)
+        if overlap_w > tolerance and overlap_h > tolerance:
+            return False
+    return True
 
 
 def _corridor_touches_circulation_network(
@@ -1413,7 +1452,7 @@ def improve_private_room_corridor_access(
 
     for priv_id in needs_repair:
         priv = by_id[priv_id]
-        neighbors = _non_private_geometric_neighbors(priv, updated)
+        neighbors = _corridor_repair_donor_neighbors(priv, updated)
         repaired = False
         for neighbor in neighbors:
             boundary = shared_boundary_between(
@@ -1439,6 +1478,8 @@ def improve_private_room_corridor_access(
             ):
                 continue
             if shared_boundary_between(priv, corridor, min_length=0.05) is None:
+                continue
+            if not _corridor_clear_of_fixed_voids(corridor, updated, tolerance=tolerance):
                 continue
 
             trial_placements: list[RoomPlacement] = []
