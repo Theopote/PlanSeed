@@ -33,12 +33,12 @@ from solver.generators.wet_anchor import (
 )
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
+    apply_corridor_access_repair_if_safe,
     assign_residual_gaps_as_circulation,
     clamp_program_room_aspect_ratios,
     clip_placement_away_from_obstacles,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
-    improve_private_room_corridor_access,
     largest_aspect_ok_placement_rect,
     resolve_placement_overlaps,
 )
@@ -638,6 +638,15 @@ class GuillotineGenerator:
             metrics=metrics,
         )
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
+        entry_ids = frozenset(candidate.exterior_entry.connected_room_ids or [])
+        min_by_id = {r.id: r.resolved_min_area() for r in program.rooms}
+        candidate = apply_corridor_access_repair_if_safe(
+            program,
+            candidate,
+            Rect(x=0, y=0, width=w, depth=d),
+            min_area_by_room_id=min_by_id,
+            entry_room_ids=entry_ids,
+        )
         from solver.locks.envelopes import build_zone_member_envelopes
 
         protected = set(locks.locked_room_ids)
@@ -908,13 +917,6 @@ class GuillotineGenerator:
             placements,
             floor.id,
         )
-        placements = improve_private_room_corridor_access(
-            footprint,
-            placements,
-            floor.id,
-            min_area_by_room_id=min_by_id,
-        )
-        placements = resolve_placement_overlaps(placements)
 
         return FloorLayout(
             floor_id=floor.id,

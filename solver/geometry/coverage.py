@@ -1223,7 +1223,11 @@ def _corridor_links_private_to_circulation(
     while q:
         cur = q.popleft()
         p = by_id[cur]
-        if cur != start and _is_circulation_network_member(p, entry_room_ids):
+        if (
+            cur != start
+            and cur != corridor.room_id
+            and _is_circulation_network_member(p, entry_room_ids)
+        ):
             return True
         for other in nodes:
             if other.room_id in seen:
@@ -1345,21 +1349,8 @@ def _floor_repair_maintains_constraints(
     *,
     tolerance: float = COVERAGE_TOLERANCE,
 ) -> bool:
-    """修补后：无重叠、program 房间面积/长宽比、楼层覆盖率变化不恶化。"""
-    from packages.schema.layout import PlacementSource
-
-    thr = DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
-    for p in trial_placements:
-        if p.source != PlacementSource.PROGRAM:
-            continue
-        if is_fixed_void_placement(p.room_id):
-            continue
-        lo = min_area_by_room_id.get(p.room_id)
-        if lo is not None and p.rect.area + tolerance < lo:
-            return False
-        if not _fill_aspect_cap_exempt(p.room_id):
-            if _rect_aspect_ratio(from_placement(p.rect)) > thr:
-                return False
+    """修补后：无重叠、楼层覆盖率不恶化（donor 面积/长宽比在 _try 中已校验）。"""
+    _ = min_area_by_room_id
     if placement_overlap_violations(
         floor_id=floor_id, placements=trial_placements, tolerance=tolerance
     ):
@@ -1370,6 +1361,20 @@ def _floor_repair_maintains_constraints(
     if abs(gap_after - gap_before) > tolerance:
         return False
     return True
+
+
+def _floor_placements_geom_changed(
+    before: list[RoomPlacement],
+    after: list[RoomPlacement],
+) -> bool:
+    if len(before) != len(after):
+        return True
+    by_before = {p.room_id: p.rect for p in before}
+    for p in after:
+        prev = by_before.get(p.room_id)
+        if prev is None or prev != p.rect:
+            return True
+    return False
 
 
 def improve_private_room_corridor_access(
@@ -1466,10 +1471,55 @@ def improve_private_room_corridor_access(
             by_id[corridor.room_id] = corridor
             repaired = True
             break
-        if not repaired:
-            continue
+        if repaired:
+            break
 
     return updated
+
+
+def apply_corridor_access_repair_if_safe(
+    program: DesignProgram,
+    candidate: "LayoutCandidate",
+    footprint: Rect,
+    *,
+    min_area_by_room_id: dict[str, float] | None = None,
+    entry_room_ids: frozenset[str] | None = None,
+) -> "LayoutCandidate":
+    """
+    在完整候选上尝试走廊邻接修补；仅当修补后仍通过 checker 时才采纳。
+
+    避免在 per-floor 管线中盲目借边，把原本 valid 的候选打成 invalid。
+    """
+    from solver.constraints.checker_impl import DefaultConstraintChecker
+
+    checker = DefaultConstraintChecker()
+    if not checker.check(program, candidate.model_copy(deep=True)).valid:
+        return candidate
+
+    min_areas = min_area_by_room_id or {
+        r.id: r.resolved_min_area() for r in program.rooms
+    }
+    entry_ids = entry_room_ids or frozenset()
+    result = candidate
+
+    for floor_idx, floor in enumerate(candidate.floors):
+        improved = improve_private_room_corridor_access(
+            footprint,
+            list(floor.placements),
+            floor.floor_id,
+            min_area_by_room_id=min_areas,
+            entry_room_ids=entry_ids,
+        )
+        if not _floor_placements_geom_changed(floor.placements, improved):
+            continue
+        improved = resolve_placement_overlaps(improved)
+        new_floors = [fl.model_copy(deep=True) for fl in result.floors]
+        new_floors[floor_idx] = floor.model_copy(update={"placements": improved})
+        trial = result.model_copy(deep=True, update={"floors": new_floors})
+        if checker.check(program, trial).valid:
+            result = trial
+
+    return result
 
 
 def assign_residual_gaps_as_circulation(
