@@ -38,6 +38,7 @@ from solver.geometry.coverage import (
     clip_placement_away_from_obstacles,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
+    improve_private_room_corridor_access,
     largest_aspect_ok_placement_rect,
     resolve_placement_overlaps,
 )
@@ -907,6 +908,13 @@ class GuillotineGenerator:
             placements,
             floor.id,
         )
+        placements = improve_private_room_corridor_access(
+            footprint,
+            placements,
+            floor.id,
+            min_area_by_room_id=min_by_id,
+        )
+        placements = resolve_placement_overlaps(placements)
 
         return FloorLayout(
             floor_id=floor.id,

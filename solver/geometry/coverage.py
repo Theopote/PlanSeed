@@ -1088,6 +1088,390 @@ def fill_floor_coverage_gaps(
     return updated
 
 
+def _is_circulation_network_member(
+    placement: RoomPlacement,
+    entry_room_ids: frozenset[str],
+) -> bool:
+    """现有循环空间：走廊 / 楼梯 / 入口锚点房间。"""
+    if placement.room_id.startswith("stair-"):
+        return True
+    if (placement.category or "").lower() == "circulation":
+        return True
+    return placement.room_id in entry_room_ids
+
+
+def _has_direct_circulation_neighbor(
+    private: RoomPlacement,
+    placements: list[RoomPlacement],
+    entry_room_ids: frozenset[str],
+    *,
+    min_length: float = 0.05,
+) -> bool:
+    from solver.topology.doors import shared_boundary_between
+
+    for other in placements:
+        if other.room_id == private.room_id:
+            continue
+        if not _is_circulation_network_member(other, entry_room_ids):
+            continue
+        if shared_boundary_between(private, other, min_length=min_length) is not None:
+            return True
+    return False
+
+
+def _is_meaningful_circulation_placement(
+    placement: RoomPlacement,
+    *,
+    min_corridor_width: float,
+) -> bool:
+    """排除切分边角料级走廊碎片，避免误判为已有走廊邻接。"""
+    if placement.room_id.startswith("stair-"):
+        return True
+    if (placement.category or "").lower() != "circulation":
+        return False
+    short = min(placement.rect.width, placement.rect.depth)
+    return short + 1e-9 >= min_corridor_width * 1.5
+
+
+def _has_meaningful_circulation_neighbor(
+    private: RoomPlacement,
+    placements: list[RoomPlacement],
+    entry_room_ids: frozenset[str],
+    *,
+    min_corridor_width: float,
+) -> bool:
+    """
+    与足够宽的走廊条共边才算有走廊邻接。
+
+    仅贴楼梯/入口不算——楼梯核邻接仍可能被迫穿其他卧室到达。
+    """
+    from solver.topology.doors import shared_boundary_between
+
+    min_len = min_corridor_width * 1.5
+    for other in placements:
+        if other.room_id == private.room_id:
+            continue
+        if not other.room_id.startswith("circ-"):
+            continue
+        if not _is_meaningful_circulation_placement(
+            other, min_corridor_width=min_corridor_width
+        ):
+            continue
+        if shared_boundary_between(private, other, min_length=min_len) is not None:
+            return True
+    return False
+
+
+def _non_private_geometric_neighbors(
+    private: RoomPlacement,
+    placements: list[RoomPlacement],
+    *,
+    min_length: float = 0.05,
+) -> list[RoomPlacement]:
+    from solver.topology.doors import shared_boundary_between
+
+    neighbors: list[RoomPlacement] = []
+    for other in placements:
+        if other.room_id == private.room_id:
+            continue
+        if (other.category or "").lower() == "private":
+            continue
+        if shared_boundary_between(private, other, min_length=min_length) is not None:
+            neighbors.append(other)
+    return neighbors
+
+
+def _corridor_touches_circulation_network(
+    corridor: RoomPlacement,
+    placements: list[RoomPlacement],
+    entry_room_ids: frozenset[str],
+    *,
+    min_length: float = 0.05,
+) -> bool:
+    from solver.topology.doors import shared_boundary_between
+
+    for other in placements:
+        if not _is_circulation_network_member(other, entry_room_ids):
+            continue
+        if shared_boundary_between(corridor, other, min_length=min_length) is not None:
+            return True
+    return False
+
+
+def _corridor_links_private_to_circulation(
+    private: RoomPlacement,
+    corridor: RoomPlacement,
+    placements: list[RoomPlacement],
+    entry_room_ids: frozenset[str],
+    *,
+    min_length: float = 0.05,
+) -> bool:
+    """新走廊条直接贴循环空间，或 private 经共墙图（含新走廊）可达循环空间。"""
+    from collections import deque
+    from solver.topology.doors import shared_boundary_between
+
+    if _corridor_touches_circulation_network(
+        corridor, placements, entry_room_ids, min_length=min_length
+    ):
+        return True
+
+    nodes = list(placements) + [corridor]
+    by_id = {p.room_id: p for p in nodes}
+    start = private.room_id
+    seen: set[str] = {start}
+    q: deque[str] = deque([start])
+    while q:
+        cur = q.popleft()
+        p = by_id[cur]
+        if cur != start and _is_circulation_network_member(p, entry_room_ids):
+            return True
+        for other in nodes:
+            if other.room_id in seen:
+                continue
+            if shared_boundary_between(p, other, min_length=min_length) is None:
+                continue
+            seen.add(other.room_id)
+            q.append(other.room_id)
+    return False
+
+
+def _try_corridor_strip_from_neighbor(
+    private: RoomPlacement,
+    neighbor: RoomPlacement,
+    boundary: object,
+    *,
+    corridor_width: float,
+    min_area_by_room_id: dict[str, float],
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> tuple[RoomPlacement, RoomPlacement] | None:
+    """从 neighbor 沿与 private 的共边切出走廊条；失败返回 None。"""
+    from packages.schema.layout import PlacementSource
+    from solver.topology.doors import SharedBoundary
+
+    assert isinstance(boundary, SharedBoundary)
+    rn_rect = from_placement(neighbor.rect)
+    rn = neighbor.rect
+    thr = DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
+
+    if boundary.axis == "y":
+        y0, y1 = rn_rect.top, rn_rect.bottom
+        span = y1 - y0
+        if span + 1e-9 < corridor_width * 1.5:
+            return None
+        if abs(rn_rect.left - boundary.x0) <= 1e-6:
+            if rn.width < corridor_width + tolerance:
+                return None
+            corr = PlacementRect(x=rn.x, y=y0, width=corridor_width, depth=span)
+            new_r = PlacementRect(
+                x=rn.x + corridor_width,
+                y=rn.y,
+                width=rn.width - corridor_width,
+                depth=rn.depth,
+            )
+        elif abs(rn_rect.right - boundary.x0) <= 1e-6:
+            if rn.width < corridor_width + tolerance:
+                return None
+            corr = PlacementRect(
+                x=rn.x + rn.width - corridor_width,
+                y=y0,
+                width=corridor_width,
+                depth=span,
+            )
+            new_r = PlacementRect(
+                x=rn.x,
+                y=rn.y,
+                width=rn.width - corridor_width,
+                depth=rn.depth,
+            )
+        else:
+            return None
+    else:
+        x0, x1 = rn_rect.left, rn_rect.right
+        span = x1 - x0
+        if span + 1e-9 < corridor_width * 1.5:
+            return None
+        if abs(rn_rect.top - boundary.y0) <= 1e-6:
+            if rn.depth < corridor_width + tolerance:
+                return None
+            corr = PlacementRect(x=x0, y=rn.y, width=span, depth=corridor_width)
+            new_r = PlacementRect(
+                x=rn.x,
+                y=rn.y + corridor_width,
+                width=rn.width,
+                depth=rn.depth - corridor_width,
+            )
+        elif abs(rn_rect.bottom - boundary.y0) <= 1e-6:
+            if rn.depth < corridor_width + tolerance:
+                return None
+            corr = PlacementRect(
+                x=x0,
+                y=rn.y + rn.depth - corridor_width,
+                width=span,
+                depth=corridor_width,
+            )
+            new_r = PlacementRect(
+                x=rn.x,
+                y=rn.y,
+                width=rn.width,
+                depth=rn.depth - corridor_width,
+            )
+        else:
+            return None
+
+    if _rect_aspect_ratio(from_placement(new_r)) > thr:
+        return None
+    lo = min_area_by_room_id.get(neighbor.room_id)
+    if lo is not None and new_r.area + tolerance < lo:
+        return None
+
+    corridor = RoomPlacement(
+        room_id="circ-pending",
+        floor_id=neighbor.floor_id,
+        rect=corr,
+        source=PlacementSource.GENERATED,
+        name="走廊",
+        category="circulation",
+    )
+    shrunk = neighbor.model_copy(update={"rect": new_r})
+    return shrunk, corridor
+
+
+def _floor_repair_maintains_constraints(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    trial_placements: list[RoomPlacement],
+    floor_id: str,
+    min_area_by_room_id: dict[str, float],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> bool:
+    """修补后：无重叠、program 房间面积/长宽比、楼层覆盖率变化不恶化。"""
+    from packages.schema.layout import PlacementSource
+
+    thr = DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
+    for p in trial_placements:
+        if p.source != PlacementSource.PROGRAM:
+            continue
+        if is_fixed_void_placement(p.room_id):
+            continue
+        lo = min_area_by_room_id.get(p.room_id)
+        if lo is not None and p.rect.area + tolerance < lo:
+            return False
+        if not _fill_aspect_cap_exempt(p.room_id):
+            if _rect_aspect_ratio(from_placement(p.rect)) > thr:
+                return False
+    if placement_overlap_violations(
+        floor_id=floor_id, placements=trial_placements, tolerance=tolerance
+    ):
+        return False
+    footprint_area = footprint.width * footprint.depth
+    gap_before = floor_coverage_gap(footprint_area, placements)
+    gap_after = floor_coverage_gap(footprint_area, trial_placements)
+    if abs(gap_after - gap_before) > tolerance:
+        return False
+    return True
+
+
+def improve_private_room_corridor_access(
+    footprint: Rect,
+    placements: list[RoomPlacement],
+    floor_id: str,
+    *,
+    min_corridor_width: float = 0.9,
+    min_area_by_room_id: dict[str, float] | None = None,
+    entry_room_ids: frozenset[str] | None = None,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """
+    对无走廊邻接的 private 房间，尝试从非 private 邻居借边生成走廊条（尽力而为，单轮）。
+
+    见 ADR-011 / docs/proposals/corridor-access-repair.md。
+    """
+    _ = footprint  # 与管线其它步骤签名一致，本步不扩 footprint
+    from solver.topology.doors import shared_boundary_between
+
+    min_areas = min_area_by_room_id or {}
+    entry_ids = entry_room_ids or frozenset()
+    updated = [p.model_copy(deep=True) for p in placements]
+    by_id = {p.room_id: p for p in updated}
+
+    needs_repair = [
+        p.room_id
+        for p in updated
+        if (p.category or "").lower() == "private"
+        and not _has_meaningful_circulation_neighbor(
+            p, updated, entry_ids, min_corridor_width=min_corridor_width
+        )
+    ]
+
+    circ_seq = sum(1 for p in updated if p.room_id.startswith(f"circ-{floor_id}-"))
+
+    for priv_id in needs_repair:
+        priv = by_id[priv_id]
+        neighbors = _non_private_geometric_neighbors(priv, updated)
+        repaired = False
+        for neighbor in neighbors:
+            boundary = shared_boundary_between(
+                priv,
+                neighbor,
+                min_length=min_corridor_width * 1.5,
+            )
+            if boundary is None:
+                continue
+            trial = _try_corridor_strip_from_neighbor(
+                priv,
+                neighbor,
+                boundary,
+                corridor_width=min_corridor_width,
+                min_area_by_room_id=min_areas,
+                tolerance=tolerance,
+            )
+            if trial is None:
+                continue
+            shrunk_neighbor, corridor = trial
+            if not _corridor_links_private_to_circulation(
+                priv, corridor, updated, entry_ids
+            ):
+                continue
+            if shared_boundary_between(priv, corridor, min_length=0.05) is None:
+                continue
+
+            trial_placements: list[RoomPlacement] = []
+            for idx, p in enumerate(updated):
+                if p.room_id == neighbor.room_id:
+                    trial_placements.append(shrunk_neighbor)
+                else:
+                    trial_placements.append(p)
+            trial_placements.append(corridor)
+            if not _floor_repair_maintains_constraints(
+                footprint,
+                updated,
+                trial_placements,
+                floor_id,
+                min_areas,
+                tolerance=tolerance,
+            ):
+                continue
+
+            for idx, p in enumerate(updated):
+                if p.room_id == neighbor.room_id:
+                    updated[idx] = shrunk_neighbor
+                    break
+            corridor = corridor.model_copy(
+                update={"room_id": f"circ-{floor_id}-{circ_seq}"}
+            )
+            circ_seq += 1
+            updated.append(corridor)
+            by_id[shrunk_neighbor.room_id] = shrunk_neighbor
+            by_id[corridor.room_id] = corridor
+            repaired = True
+            break
+        if not repaired:
+            continue
+
+    return updated
+
+
 def assign_residual_gaps_as_circulation(
     footprint: Rect,
     placements: list[RoomPlacement],
