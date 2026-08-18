@@ -1245,10 +1245,12 @@ def _corridor_links_private_to_circulation(
     *,
     min_length: float = 0.05,
 ) -> bool:
-    """新走廊条直接贴循环空间，或 private 经共墙图（含新走廊）可达循环空间。"""
+    """新走廊条须直接贴循环空间，或不经其它卧室即可从走廊接入循环网络。"""
     from collections import deque
     from solver.topology.doors import shared_boundary_between
 
+    if shared_boundary_between(private, corridor, min_length=min_length) is None:
+        return False
     if _corridor_touches_circulation_network(
         corridor, placements, entry_room_ids, min_length=min_length
     ):
@@ -1256,7 +1258,7 @@ def _corridor_links_private_to_circulation(
 
     nodes = list(placements) + [corridor]
     by_id = {p.room_id: p for p in nodes}
-    start = private.room_id
+    start = corridor.room_id
     seen: set[str] = {start}
     q: deque[str] = deque([start])
     while q:
@@ -1264,7 +1266,6 @@ def _corridor_links_private_to_circulation(
         p = by_id[cur]
         if (
             cur != start
-            and cur != corridor.room_id
             and _is_circulation_network_member(p, entry_room_ids)
         ):
             return True
@@ -1272,6 +1273,8 @@ def _corridor_links_private_to_circulation(
             if other.room_id in seen:
                 continue
             if shared_boundary_between(p, other, min_length=min_length) is None:
+                continue
+            if (other.category or "").lower() == "private":
                 continue
             seen.add(other.room_id)
             q.append(other.room_id)

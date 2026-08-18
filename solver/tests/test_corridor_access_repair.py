@@ -145,3 +145,22 @@ class TestImprovePrivateRoomCorridorAccess:
         assert stair_out.rect.depth == 4.2
         priv = next(p for p in out if p.room_id == "r5")
         assert _has_direct_circulation_neighbor(priv, out, frozenset())
+
+    def test_skips_corridor_that_only_links_via_other_private(self) -> None:
+        """经另一间卧室绕到楼梯的走廊条不算接入循环网络。"""
+        stair = _placement("stair-F1", x=0, y=0, w=1.8, d=4.0, cat="circulation")
+        stair = stair.model_copy(update={"source": PlacementSource.GENERATED})
+        bridge = _placement("B", x=1.8, y=0, w=4, d=4, cat="private")
+        wet = _placement("r6", x=5.8, y=0, w=3, d=4, cat="wet")
+        target = _placement("r7", x=5.8, y=4, w=3, d=2, cat="private")
+        placements = [stair, bridge, wet, target]
+        min_area = {"r6": 1.0}
+
+        out = improve_private_room_corridor_access(
+            _footprint(10, 8),
+            placements,
+            "F1",
+            min_area_by_room_id=min_area,
+        )
+
+        assert len([p for p in out if p.room_id.startswith("circ-F1-")]) == 0

@@ -21,7 +21,12 @@ from packages.schema.topology import (
     SpaceConnectionType,
 )
 from solver.geometry.rect import from_placement, shared_edge_length
-from solver.topology.constants import ENTRY_NODE_ID, MIN_ACCESS_WALL, MIN_MEANINGFUL_CORRIDOR_SHORT
+from solver.topology.constants import (
+    ENTRY_NODE_ID,
+    MIN_ACCESS_WALL,
+    MIN_CORRIDOR_SLIVER_SHORT,
+    MIN_MEANINGFUL_CORRIDOR_SHORT,
+)
 
 # 兼容旧 import 路径
 __all__ = [
@@ -120,6 +125,58 @@ def _add_stair_access_realized(
     return out
 
 
+def _is_passable_corridor_fragment(placement: RoomPlacement) -> bool:
+    """ADR-011 借边条（0.9m）或足够长的贴墙残余，可生成 PASSAGE。"""
+    short = min(placement.rect.width, placement.rect.depth)
+    long = max(placement.rect.width, placement.rect.depth)
+    if short + 1e-9 >= MIN_ACCESS_WALL:
+        return True
+    return (
+        long + 1e-9 >= MIN_MEANINGFUL_CORRIDOR_SHORT
+        and short + 1e-9 >= MIN_CORRIDOR_SLIVER_SHORT
+    )
+
+
+def _add_circulation_fragment_links(
+    candidate: LayoutCandidate,
+    *,
+    min_length: float = 0.05,
+) -> list[RealizedConnection]:
+    """相邻走廊碎片互连，避免 circ 网络断裂。"""
+    from solver.topology.doors import shared_boundary_between
+
+    out: list[RealizedConnection] = []
+    seen: set[tuple[str, str]] = set()
+    for fl in candidate.floors:
+        corridors = [
+            p
+            for p in fl.placements
+            if p.room_id.startswith("circ-")
+            and (p.category or "") == "circulation"
+            and _is_passable_corridor_fragment(p)
+        ]
+        for i, a in enumerate(corridors):
+            for b in corridors[i + 1 :]:
+                if shared_boundary_between(a, b, min_length=min_length) is None:
+                    continue
+                pair = tuple(sorted((a.room_id, b.room_id)))
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                out.append(
+                    RealizedConnection(
+                        connection_id=f"circ-link-{pair[0]}-{pair[1]}",
+                        a=pair[0],
+                        b=pair[1],
+                        type=SpaceConnectionType.PASSAGE,
+                        floor_id=fl.floor_id,
+                        opening_id=None,
+                        source="circulation_link",
+                    )
+                )
+    return out
+
+
 def _add_circulation_corridor_passages(
     program: DesignProgram,
     candidate: LayoutCandidate,
@@ -146,8 +203,7 @@ def _add_circulation_corridor_passages(
         ]
         rooms = [p for p in fl.placements if p.room_id in program_ids]
         for circ in corridors:
-            short = min(circ.rect.width, circ.rect.depth)
-            if short + 1e-9 < MIN_MEANINGFUL_CORRIDOR_SHORT:
+            if not _is_passable_corridor_fragment(circ):
                 continue
             for room in rooms:
                 if shared_boundary_between(circ, room, min_length=min_length) is None:
@@ -223,6 +279,7 @@ def build_realized_connections(
 
     realized.extend(_add_stair_realized(candidate))
     realized.extend(_add_stair_access_realized(candidate))
+    realized.extend(_add_circulation_fragment_links(candidate))
     realized.extend(_add_circulation_corridor_passages(program, candidate))
     candidate.realized_connections = list(realized)
     return realized

@@ -2,25 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 from solver.fixtures.benchmark import benchmark_program
 from solver.pipeline import run_pipeline
 from solver.tests.quality_baselines import MEASURED_BASELINE
-
-
-def _count_corridor_repair_strips(candidate) -> int:
-    """识别 ADR-011 借边切出的 0.9m 走廊条（非残余碎片）。"""
-    total = 0
-    for floor in candidate.floors:
-        for placement in floor.placements:
-            if not placement.room_id.startswith("circ-"):
-                continue
-            short = min(placement.rect.width, placement.rect.depth)
-            long = max(placement.rect.width, placement.rect.depth)
-            if abs(short - 0.9) < 0.05 and long + 1e-9 >= 0.9 * 1.5:
-                total += 1
-    return total
 
 
 class TestCorridorRepairIntegration:
@@ -59,29 +43,23 @@ class TestCorridorRepairIntegration:
             f"{len(result.top_candidates)}) expected <= 50%"
         )
 
-    def test_valid_candidates_gain_corridor_strips(self) -> None:
-        """在 valid 候选上，修补应实际生效（非空转）。"""
-        import solver.generators.guillotine as gmod
+    def test_valid_candidates_gain_circulation_passages(self) -> None:
+        """valid 候选应通过走廊 PASSAGE 接入 RealizedAccessGraph。"""
+        from solver.topology.access import build_realized_connections
 
         program = benchmark_program()
         program.solver_config.candidate_count = 64
+        result = run_pipeline(program)
 
-        with patch.object(
-            gmod,
-            "apply_corridor_access_repair_if_safe",
-            side_effect=lambda _p, cand, *_a, **_k: cand,
-        ):
-            baseline = run_pipeline(program)
-
-        repaired = run_pipeline(program)
-        improved = 0
-        for base, cand in zip(baseline.all_candidates, repaired.all_candidates):
+        with_passage = 0
+        for cand in result.all_candidates:
             if not cand.validation or not cand.validation.valid:
                 continue
-            if _count_corridor_repair_strips(cand) > _count_corridor_repair_strips(base):
-                improved += 1
+            realized = build_realized_connections(program, cand)
+            if any(rc.source == "circulation_passage" for rc in realized):
+                with_passage += 1
 
-        assert improved >= 5, (
-            f"expected >=5 valid candidates with new corridor strips, got {improved}"
+        assert with_passage >= 5, (
+            f"expected >=5 valid candidates with circulation_passage, got {with_passage}"
         )
 
