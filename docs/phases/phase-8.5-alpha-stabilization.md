@@ -41,7 +41,7 @@ Experimental Lab:
 - [x] `SolverProfile` + 产品路径 pin  
 - [x] CP-SAT = assignment-only research  
 - [x] 8.4 = Irregular Geometry Foundation（非端到端）  
-- [ ] **8.4.1** Irregular Site Pipeline Integration  
+- [x] **8.4.1** Irregular Site Pipeline Integration  
 - [ ] MaxRect **product qualification**  
 - [ ] 7.1.1 WebView2 Print Smoke  
 - [ ] 安装包 / `.planseed` 往返（见 Release Gate）  

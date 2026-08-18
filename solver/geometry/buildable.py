@@ -10,7 +10,7 @@ from solver.geometry.irregular import (
     inset_with_setbacks,
     prepare_buildable_rects,
 )
-from solver.geometry.rect import Rect, local_buildable, program_local_buildable
+from solver.geometry.rect import Rect, program_local_buildable
 
 
 @dataclass(frozen=True)

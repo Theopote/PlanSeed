@@ -231,7 +231,7 @@ Repair → Evaluation
 **禁止**把整个 Rect / packing 内核迁到 Shapely。  
 **禁止**因 foundation 存在就宣称「不规则场地已支持」。
 
-## 8.4.1 — Irregular Site Pipeline Integration ☐
+## 8.4.1 — Irregular Site Pipeline Integration ✅
 
 端到端跑通后才可写「Irregular site supported」：
 
@@ -273,4 +273,4 @@ Report
 - [x] 8.2 Pareto Frontier
 - [x] 8.3 CP-SAT Research
 - [x] 8.4 Irregular Geometry Foundation（**非**端到端 irregular）
-- [ ] 8.4.1 Irregular Site Pipeline Integration
+- [x] 8.4.1 Irregular Site Pipeline Integration
