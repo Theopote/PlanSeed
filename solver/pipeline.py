@@ -108,6 +108,11 @@ def run_pipeline(
     checker = DefaultConstraintChecker()
     evaluator = CompositeEvaluator()
 
+    from solver.evaluation.findings import findings_to_explanations, findings_to_warnings
+    from solver.program.normalize import check_program_footprint_fit
+
+    program_findings = check_program_footprint_fit(program)
+
     locks = locks or LayoutLocks()
     has_locks = bool(locks.rooms or locks.stair or locks.zones)
     if has_locks:
@@ -141,6 +146,14 @@ def run_pipeline(
 
             if candidate.validation.valid:
                 evaluation = evaluator.evaluate(program, candidate)
+                merged_findings = list(program_findings) + list(evaluation.findings)
+                evaluation = evaluation.model_copy(
+                    update={
+                        "findings": merged_findings,
+                        "explanations": findings_to_explanations(merged_findings),
+                        "warnings": findings_to_warnings(merged_findings),
+                    }
+                )
                 candidate.evaluation = evaluation
                 candidate.score = evaluation.total_score
             else:

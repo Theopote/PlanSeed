@@ -144,3 +144,104 @@ def build_room_graph(spec: ProjectSpec) -> RoomGraph:
             )
 
     return graph
+
+
+def _footprint_area(program: DesignProgram) -> float:
+    return float(program.buildable.width * program.buildable.depth)
+
+
+def _reserved_area_on_floor(program: DesignProgram, floor_id: str) -> float:
+    """该层楼梯核 + 用户声明的预扣除竖向空洞（STAIR/ATRIUM）占用面积。"""
+    from packages.schema.vertical_void import (
+        VerticalVoidType,
+        void_covers_floor,
+    )
+    from solver.vertical.prededuction import (
+        resolve_stair_core_spec_for_program,
+        stair_void_from_program,
+    )
+
+    floor_ids = [f.id for f in program.floors]
+    reserved = 0.0
+    stair_void = stair_void_from_program(program)
+    stair_spec = resolve_stair_core_spec_for_program(program)
+    stair_area = float(stair_spec.width * stair_spec.depth)
+
+    if len(program.floors) > 1:
+        reserved += stair_area
+    elif stair_void is not None and void_covers_floor(
+        stair_void, floor_id, floor_ids=floor_ids
+    ):
+        reserved += stair_area
+
+    for void in program.vertical_voids:
+        if void.void_type in (VerticalVoidType.WET_RISER, VerticalVoidType.STAIR):
+            continue
+        if not void_covers_floor(void, floor_id, floor_ids=floor_ids):
+            continue
+        if void.width is None or void.depth is None:
+            continue
+        reserved += float(void.width * void.depth)
+    return reserved
+
+
+def _program_sum_on_floor(program: DesignProgram, floor_id: str) -> float:
+    return sum(float(room.target_area) for room in program.rooms_on_floor(floor_id))
+
+
+def check_program_footprint_fit(
+    program: DesignProgram,
+    *,
+    circulation_allowance_ratio: float = 0.15,
+    surplus_ratio_threshold: float = 0.3,
+) -> list:
+    """
+  比较每层「房间目标面积 + 循环空间预留」与可建面积；超额则产出 advisory finding。
+
+    仅依赖 DesignProgram，不依赖 LayoutCandidate；在 pipeline 生成前算一次并复用。
+    见 ADR-012 / docs/proposals/program-footprint-mismatch.md。
+    """
+    from packages.schema.scoring import EvaluationAxis, FindingSeverity
+    from solver.evaluation.findings import finding
+
+    findings: list = []
+    footprint = _footprint_area(program)
+    if footprint <= 0:
+        return findings
+
+    recommended = (
+        "可考虑：① 增加天井（VerticalVoidSpec / ATRIUM）消化留白；"
+        "② 缩小该层用地宽或进深；"
+        "③ 增加房间数量或提高现有房间目标面积。"
+    )
+
+    for floor in program.floors:
+        reserved = _reserved_area_on_floor(program, floor.id)
+        program_sum = _program_sum_on_floor(program, floor.id)
+        circulation_allowance = footprint * circulation_allowance_ratio
+        surplus = footprint - reserved - program_sum - circulation_allowance
+        surplus_ratio = surplus / footprint
+
+        if surplus_ratio <= surplus_ratio_threshold:
+            continue
+
+        label = floor.label or floor.id
+        consumed = footprint - surplus
+        findings.append(
+            finding(
+                id=f"program.footprint_underfilled:{floor.id}",
+                category=EvaluationAxis.PROGRAM.value,
+                severity=FindingSeverity.WARNING,
+                title=f"{label} 房间需求未填满可建面积",
+                message=(
+                    f"{label} 可建面积 {footprint:.1f}㎡，"
+                    f"房间需求+走廊预留合计约 {consumed:.1f}㎡，"
+                    f"约有 {surplus:.1f}㎡（占比 {surplus_ratio * 100:.0f}%）"
+                    "难以被当前需求自然消化"
+                ),
+                metric="program_footprint_surplus_ratio",
+                measured_value=round(surplus_ratio, 4),
+                recommended_action=recommended,
+            )
+        )
+    return findings

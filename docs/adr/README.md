@@ -14,5 +14,6 @@
 | [009](009-rect-default-shapely-irregular.md) | Rect default; Shapely = irregular **foundation**（非端到端） |
 | [010](010-vertical-voids.md) | Vertical Voids: Stair / Atrium / Wet Riser **（Proposed）** |
 | [011](011-corridor-access-repair.md) | Private Room Corridor Access Repair **（Implemented）** |
+| [012](012-program-footprint-mismatch-advisory.md) | Program/Footprint Area Mismatch Advisory **（Implemented）** |
 
 格式：Context → Decision → Consequences。
