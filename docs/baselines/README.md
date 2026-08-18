@@ -66,8 +66,11 @@ uv run python -m solver.benchmark --count 32
 
 | 文件 | 含义 |
 |------|------|
-| `layout_generation_guillotine_vs_maxrect.json` | **遗留** 单 case B03 快照（n=32） |
-| `layout_benchmark_suite_v1_n32.json` / `_n64.json` | Suite v1 资格跑（生成后提交） |
+| `layout_generation_guillotine_vs_maxrect.json` | **遗留** 单 case（`benchmark_program` 含车库 · n=32 · **2026-08-09 硬约束前** · `valid_rate=1.0` 已过时） |
+| `layout_benchmark_suite_v1_n32.json` | Suite v1 全量 B01–B12（n=32 · solver 0.6） |
+| `layout_benchmark_suite_v1_n32_qualification.json` | 同上 + MaxRect gate 结论 |
+| `layout_benchmark_suite_v1_n64.json` | Suite v1 全量 B01–B12（n=64 · solver 0.6） |
+| `layout_benchmark_suite_v1_n64_qualification.json` | 同上 + MaxRect gate 结论 |
 
 **资格判定（勿与「实现完成」混淆）：**
 

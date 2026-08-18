@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from packages.schema.locks import LayoutLocks
+from packages.schema.identity import SOLVER_VERSION
 from packages.schema.program import DesignProgram
 
 from solver.fixtures.benchmark import benchmark_program
@@ -91,6 +91,7 @@ class LayoutGenerationBenchmarkReport:
 class LayoutSuiteBenchmarkReport:
     suite_id: str = SUITE_ID
     suite_version: str = SUITE_VERSION
+    solver_version: str = SOLVER_VERSION
     candidate_count: int = 64
     measured_at: str = ""
     cases: list[LayoutGenerationBenchmarkReport] = field(default_factory=list)
@@ -101,6 +102,7 @@ class LayoutSuiteBenchmarkReport:
         return {
             "suite_id": self.suite_id,
             "suite_version": self.suite_version,
+            "solver_version": self.solver_version,
             "candidate_count": self.candidate_count,
             "measured_at": self.measured_at,
             "cases": [c.to_dict() for c in self.cases],
@@ -504,12 +506,67 @@ def main(argv: list[str] | None = None) -> int:
         help="print JSON report instead of table",
     )
     parser.add_argument(
+        "--qualify",
+        action="store_true",
+        help="with --suite v1: run MaxRect qualification gate on report",
+    )
+    parser.add_argument(
+        "--qualify-only",
+        type=str,
+        default="",
+        metavar="JSON",
+        help="evaluate gate from existing suite JSON (no re-run)",
+    )
+    parser.add_argument(
         "--out",
         type=str,
         default="",
         help="optional path to write JSON report",
     )
     args = parser.parse_args(argv)
+
+    if args.qualify_only:
+        from solver.benchmark.maxrect_qualification import (
+            evaluate_maxrect_qualification,
+            format_qualification_report,
+        )
+        with open(args.qualify_only, encoding="utf-8") as f:
+            data = json.load(f)
+        suite = LayoutSuiteBenchmarkReport(
+            suite_id=data.get("suite_id", SUITE_ID),
+            suite_version=data.get("suite_version", SUITE_VERSION),
+            candidate_count=int(data.get("candidate_count", 0)),
+            measured_at=data.get("measured_at", ""),
+            cases=[
+                LayoutGenerationBenchmarkReport(
+                    case=c["case"],
+                    case_title=c.get("case_title", ""),
+                    base_seed=int(c.get("base_seed", 42)),
+                    candidate_count=int(c.get("candidate_count", 0)),
+                    measured_at=c.get("measured_at", ""),
+                    has_locks=bool(c.get("has_locks", False)),
+                    strategies=[],  # not needed for qualify-only path
+                    pairwise_geometry_diff_rate=c.get("pairwise_geometry_diff_rate", {}),
+                    notes=list(c.get("notes", [])),
+                )
+                for c in data.get("cases", [])
+            ],
+            aggregate=data.get("aggregate", {}),
+            notes=list(data.get("notes", [])),
+        )
+        # Rehydrate strategy metrics for gate
+        for i, cdata in enumerate(data.get("cases", [])):
+            from solver.benchmark.layout_generation import StrategyMetrics
+
+            suite.cases[i].strategies = [
+                StrategyMetrics(**s) for s in cdata.get("strategies", [])
+            ]
+        qual = evaluate_maxrect_qualification(suite)
+        if args.json:
+            print(json.dumps(qual.to_dict(), ensure_ascii=False, indent=2))
+        else:
+            print(format_qualification_report(qual))
+        return 0 if qual.passed else 1
 
     if args.list_cases:
         for cid in list_suite_case_ids():
@@ -533,8 +590,25 @@ def main(argv: list[str] | None = None) -> int:
             with open(args.out, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
                 f.write("\n")
+        qual = None
+        if args.qualify:
+            from solver.benchmark.maxrect_qualification import (
+                evaluate_maxrect_qualification,
+                format_qualification_report,
+            )
+            qual = evaluate_maxrect_qualification(report)
+            if args.out:
+                qual_path = args.out.replace(".json", "_qualification.json")
+                if qual_path == args.out:
+                    qual_path = args.out + ".qualification.json"
+                with open(qual_path, "w", encoding="utf-8") as f:
+                    json.dump(qual.to_dict(), f, ensure_ascii=False, indent=2)
+                    f.write("\n")
         if args.json:
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            out = payload
+            if qual is not None:
+                out = {**payload, "qualification": qual.to_dict()}
+            print(json.dumps(out, ensure_ascii=False, indent=2))
         else:
             print(
                 f"layout-benchmark-suite  id={report.suite_id}  "
@@ -542,6 +616,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"cases={len(report.cases)}"
             )
             print(format_suite_table(report))
+            if qual is not None:
+                print()
+                print(format_qualification_report(qual))
+        if qual is not None and not qual.passed:
+            return 1
         return 0
 
     # legacy single-case (B03-equivalent) for back-compat

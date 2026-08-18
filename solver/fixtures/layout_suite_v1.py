@@ -300,20 +300,27 @@ def _locks_from_seed_program(
                     )
     zones: list[LockedZoneRect] = []
     wanted = set(zone_kinds or [])
+    seen_floor_kind: set[tuple[str, str]] = set()
     for z in base.zone_placements:
-        if z.zone in wanted:
-            zones.append(
-                LockedZoneRect(
-                    zone=z.zone,
-                    floor_id=z.floor_id,
-                    x=z.rect.x,
-                    y=z.rect.y,
-                    width=z.rect.width,
-                    depth=z.rect.depth,
-                    room_ids=list(z.room_ids),
-                    zone_id=z.id,
-                )
+        kind = z.zone.value if hasattr(z.zone, "value") else str(z.zone)
+        if z.zone not in wanted:
+            continue
+        key = (z.floor_id, kind)
+        if key in seen_floor_kind:
+            continue
+        seen_floor_kind.add(key)
+        zones.append(
+            LockedZoneRect(
+                zone=z.zone,
+                floor_id=z.floor_id,
+                x=z.rect.x,
+                y=z.rect.y,
+                width=z.rect.width,
+                depth=z.rect.depth,
+                room_ids=list(z.room_ids),
+                zone_id=z.id,
             )
+        )
     return LayoutLocks(rooms=rooms, zones=zones)
 
 

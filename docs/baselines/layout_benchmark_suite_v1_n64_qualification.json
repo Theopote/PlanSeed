@@ -1,0 +1,217 @@
+{
+  "gate_id": "maxrect-suite-v1-gate",
+  "gate_version": "v1",
+  "solver_version": "0.6",
+  "suite_id": "layout-benchmark-suite-v1",
+  "suite_version": "v1",
+  "candidate_count": 64,
+  "passed": false,
+  "case_results": [
+    {
+      "case_id": "B01",
+      "passed": false,
+      "valid_rate_guillotine": 0.5312,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 96.57,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "valid_rate drop 0.531→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B02",
+      "passed": false,
+      "valid_rate_guillotine": 0.2656,
+      "valid_rate_maxrect": 0.1719,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 91.46,
+      "top_score_maxrect": 93.2,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "valid_rate drop 0.266→0.172 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B03",
+      "passed": false,
+      "valid_rate_guillotine": 0.1719,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 91.53,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "valid_rate drop 0.172→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B04",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)"
+      ]
+    },
+    {
+      "case_id": "B05",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)"
+      ]
+    },
+    {
+      "case_id": "B06",
+      "passed": false,
+      "valid_rate_guillotine": 0.3594,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 93.09,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "valid_rate drop 0.359→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B07",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)"
+      ]
+    },
+    {
+      "case_id": "B08",
+      "passed": false,
+      "valid_rate_guillotine": 0.1719,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 81.53,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "valid_rate drop 0.172→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B09",
+      "passed": false,
+      "valid_rate_guillotine": 0.5312,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 92.84,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "valid_rate drop 0.531→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B10",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)"
+      ]
+    },
+    {
+      "case_id": "B11",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "locks case valid_rate 0.000 < 0.5"
+      ]
+    },
+    {
+      "case_id": "B12",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+        "locks case valid_rate 0.000 < 0.5"
+      ]
+    }
+  ],
+  "aggregate_aspect_penalty_ratio": null,
+  "aggregate_top_score_ratio": 0.1704,
+  "failures": [
+    "aggregate top_score ratio 0.170 < 0.92",
+    "B01: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B01: valid_rate drop 0.531→0.000 (max drop 0.05)",
+    "B02: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B02: valid_rate drop 0.266→0.172 (max drop 0.05)",
+    "B03: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B03: valid_rate drop 0.172→0.000 (max drop 0.05)",
+    "B04: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B05: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B06: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B06: valid_rate drop 0.359→0.000 (max drop 0.05)",
+    "B07: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B08: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B08: valid_rate drop 0.172→0.000 (max drop 0.05)",
+    "B09: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B09: valid_rate drop 0.531→0.000 (max drop 0.05)",
+    "B10: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B11: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B11: locks case valid_rate 0.000 < 0.5",
+    "B12: both strategies valid_rate < 0.8 (case may be unsolvable at n=64)",
+    "B12: locks case valid_rate 0.000 < 0.5"
+  ],
+  "notes": [
+    "passed=True 才可讨论混入 Alpha candidate pool",
+    "Alpha 默认仍为 Guillotine only until gate passes + product sign-off",
+    "thresholds: valid_drop<=0.05, case_aspect_ratio<=3.0, agg_aspect_ratio<=2.5"
+  ]
+}

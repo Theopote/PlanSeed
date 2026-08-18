@@ -65,10 +65,77 @@ uv run python -m solver.benchmark --list-cases
 
 ```text
 MaxRect implementation      ✅
-MaxRect product qualified   ❌ 直到 Suite v1（建议 n=32 与 n=64）通过人工门槛
+MaxRect product qualified   ❌  Suite v1 gate FAILED（solver 0.6 · n=32/n=64 · 2026-08-18）
 ```
 
-门槛示例（可后续写成 gate 脚本，当前人工）：
+**自动化 gate：** `solver/benchmark/maxrect_qualification.py`  
+CLI：`uv run python -m solver.benchmark --suite v1 --count 32 --qualify`
+
+```powershell
+.\scripts\run_maxrect_qualify.ps1
+.\scripts\run_maxrect_qualify.ps1 -Count 64
+.\scripts\run_maxrect_qualify.ps1 -QualifyOnly docs\baselines\layout_benchmark_suite_v1_n32.json
+```
+
+### valid_rate 解读（2026-08-18 调查）
+
+**不是 8.4.1 几何回归。** `test_rect_benchmark_regression_unchanged` 确认矩形路径生成指纹不变；ADR-011 走廊修补后 `benchmark_program` valid 仍为 **23/64 ≈ 0.359**。
+
+| 现象 | 解释 |
+|------|------|
+| 遗留 JSON `valid_rate=1.0` | **过时快照**（2026-08-09，硬约束未进 checker） |
+| 当前 `benchmark_program` n=64 | **0.359**（`quality_baselines.py` / ADR-011 已记录） |
+| Suite B03 n=64 Guillotine | **0.172**（11/64）；与遗留单 case **不可比**（无车库 vs 含车库） |
+| Suite aggregate ~0.17 | 多 case（B04–B12）在当前 solver 下 **双策略均接近 0 valid** |
+
+**B03 主要 hard 失败（Guillotine，n=64）：**
+
+| constraint_id | 无效 seed 数（首要失败） |
+|---------------|-------------------------|
+| `geometry.layout_coverage` | 41 |
+| `geometry.room_aspect_ratio` | 12 |
+| `vertical.wet_stack_alignment` | （次位） |
+| `area-bound-*` | 若干 |
+
+**`benchmark_program` 主要 hard 失败：** `area-bound-r4`（车库面积界，17）、`geometry.*`（长宽比/覆盖率，24）。
+
+硬约束上线时间线（见 `quality_baselines.py`）：
+
+- 2026-08-09 前：benchmark 报告 `valid_rate=1.0`（软评分，硬 violation 未剔除）
+- 2026-08-15 起：area-bound + 长宽比硬约束 → plain **≈0.36**
+- 2026-08-18：ADR-011 走廊修补 → valid **不变**
+
+**对 gate 的含义：** aggregate `valid_rate` 反映「硬约束下可解比例」，不是 MaxRect 独有劣化；MaxRect 仍因 `valid_rate` 系统性低于 Guillotine + `top_score` 比值 0.17 而 **FAILED**。
+
+### Suite v1 快照（solver 0.6 · 2026-08-18）
+
+| 指标（aggregate 均值） | n=32 Guillotine | n=32 MaxRect | n=64 Guillotine | n=64 MaxRect |
+|------------------------|-----------------|--------------|-----------------|--------------|
+| valid_rate | 0.167 | **0.013** | 0.169 | **0.014** |
+| area_fit | 0.425 | 0.064 | 0.426 | 0.064 |
+| top_score | 45.6 | 7.8 | 45.6 | 7.8 |
+| mean_score | 45.2 | 7.7 | 45.2 | 7.7 |
+
+Gate：`PASSED=False`（n=32/n=64 `aggregate_top_score_ratio≈0.17` · 多 case MaxRect `valid_rate=0`）  
+n=32 与 n=64 aggregate 一致 → 统计稳定，非采样噪声。
+
+产物：`layout_benchmark_suite_v1_n32.json` · `layout_benchmark_suite_v1_n64.json`（及对应 `_qualification.json`）
+
+**B03（标准两层，无车库）** — 与遗留单 case（`benchmark_program` 含车库）不可直接对比：
+
+| | Guillotine (n=32/64) | MaxRect (n=32/64) |
+|--|----------------------|-------------------|
+| valid_rate | 0.188 / 0.172 | **0.000** |
+| top_score | 91.5 | 0.0 |
+
+**遗留单 case**（`layout_generation_guillotine_vs_maxrect.json` · solver 0.5 前 · n=32）仍记录 aspect penalty 劣化：
+
+| | Guillotine | MaxRect |
+|--|------------|---------|
+| valid_rate | 1.0 | 1.0 |
+| mean_aspect_ratio_penalty | 28.67 | **166.79**（≈5.8×） |
+
+门槛示例（gate v1 已实现）：
 
 1. 各 case `valid_rate` 不得系统性显著低于 Guillotine  
 2. `mean_aspect_ratio_penalty` 不得再出现 ~5× 全局劣化  

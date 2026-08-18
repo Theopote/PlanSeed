@@ -52,6 +52,7 @@
     "aspect_ratio_quality = mean 1/(1+aspect_ratio_penalty) over valid",
     "diversity = distinct geometry fingerprints / generated",
     "VERDICT: MaxRect implementation=yes; product_qualified=no (aspect penalty ~5.8x worse than Guillotine)",
-    "Alpha default generator remains guillotine; maxrect is research/opt-in only"
+    "Alpha default generator remains guillotine; maxrect is research/opt-in only",
+    "STALE: valid_rate=1.0 predates hard-constraint checker (area-bound, aspect_ratio, layout_coverage, wet_stack, access). Re-run 2026-08-18: guillotine valid_rate≈0.359, maxrect≈0.094 at n=64 (solver 0.6). See quality_baselines.py and layout-benchmark-suite-v1.md."
   ]
 }

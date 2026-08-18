@@ -1,0 +1,189 @@
+{
+  "gate_id": "maxrect-suite-v1-gate",
+  "gate_version": "v1",
+  "solver_version": "0.6",
+  "suite_id": "layout-benchmark-suite-v1",
+  "suite_version": "v1",
+  "candidate_count": 32,
+  "passed": false,
+  "case_results": [
+    {
+      "case_id": "B01",
+      "passed": false,
+      "valid_rate_guillotine": 0.5312,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 96.57,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "valid_rate drop 0.531→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B02",
+      "passed": false,
+      "valid_rate_guillotine": 0.2188,
+      "valid_rate_maxrect": 0.1562,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 91.46,
+      "top_score_maxrect": 93.2,
+      "failures": [
+        "valid_rate drop 0.219→0.156 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B03",
+      "passed": false,
+      "valid_rate_guillotine": 0.1875,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 91.53,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "valid_rate drop 0.188→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B04",
+      "passed": true,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": []
+    },
+    {
+      "case_id": "B05",
+      "passed": true,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": []
+    },
+    {
+      "case_id": "B06",
+      "passed": false,
+      "valid_rate_guillotine": 0.3438,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 93.09,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "valid_rate drop 0.344→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B07",
+      "passed": true,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": []
+    },
+    {
+      "case_id": "B08",
+      "passed": false,
+      "valid_rate_guillotine": 0.1875,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 81.53,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "valid_rate drop 0.188→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B09",
+      "passed": false,
+      "valid_rate_guillotine": 0.5312,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 92.84,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "valid_rate drop 0.531→0.000 (max drop 0.05)"
+      ]
+    },
+    {
+      "case_id": "B10",
+      "passed": true,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": []
+    },
+    {
+      "case_id": "B11",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "locks case valid_rate 0.000 < 0.5"
+      ]
+    },
+    {
+      "case_id": "B12",
+      "passed": false,
+      "valid_rate_guillotine": 0.0,
+      "valid_rate_maxrect": 0.0,
+      "aspect_penalty_guillotine": 0.0,
+      "aspect_penalty_maxrect": 0.0,
+      "aspect_penalty_ratio": null,
+      "top_score_guillotine": 0.0,
+      "top_score_maxrect": 0.0,
+      "failures": [
+        "locks case valid_rate 0.000 < 0.5"
+      ]
+    }
+  ],
+  "aggregate_aspect_penalty_ratio": null,
+  "aggregate_top_score_ratio": 0.1704,
+  "failures": [
+    "aggregate top_score ratio 0.170 < 0.92",
+    "B01: valid_rate drop 0.531→0.000 (max drop 0.05)",
+    "B02: valid_rate drop 0.219→0.156 (max drop 0.05)",
+    "B03: valid_rate drop 0.188→0.000 (max drop 0.05)",
+    "B06: valid_rate drop 0.344→0.000 (max drop 0.05)",
+    "B08: valid_rate drop 0.188→0.000 (max drop 0.05)",
+    "B09: valid_rate drop 0.531→0.000 (max drop 0.05)",
+    "B11: locks case valid_rate 0.000 < 0.5",
+    "B12: locks case valid_rate 0.000 < 0.5"
+  ],
+  "notes": [
+    "passed=True 才可讨论混入 Alpha candidate pool",
+    "Alpha 默认仍为 Guillotine only until gate passes + product sign-off",
+    "thresholds: valid_drop<=0.05, case_aspect_ratio<=3.0, agg_aspect_ratio<=2.5"
+  ]
+}
