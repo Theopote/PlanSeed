@@ -19,7 +19,7 @@ from packages.schema.layout import (
     RoomPlacement,
     WindowOpening,
 )
-from packages.schema.site import CardinalEdge, SiteSpec
+from packages.schema.site import CardinalEdge, Polygon2D, SiteSpec
 from packages.schema.topology import AccessGraph, SpaceConnectionType
 from packages.schema.vertical_void import VerticalVoidType
 
@@ -267,9 +267,27 @@ def _site_overlays(
     site: SiteSpec | None,
     floor_index: int,
     render_mode: RenderMode = "customer",
+    buildable_polygon: Polygon2D | None = None,
 ) -> str:
     parts: list[str] = []
     if site is not None:
+        poly = (
+            buildable_polygon
+            or getattr(site, "buildable_polygon", None)
+            or getattr(site, "site_polygon", None)
+        )
+        if poly is not None and render_mode == "debug" and floor_index == 0:
+            pts = poly.exterior
+            if pts:
+                path_d = " ".join(
+                    f"{'M' if i == 0 else 'L'}{p.x:.3f},{p.y + oy:.3f}"
+                    for i, p in enumerate(pts)
+                )
+                path_d += " Z"
+                parts.append(
+                    f'<path d="{path_d}" fill="none" stroke="{_MUTED}" '
+                    f'stroke-width="0.08" stroke-dasharray="0.2 0.12" opacity="0.85"/>'
+                )
         # 临路边
         for edge in site.road_edges or []:
             x1, y1, x2, y2 = _edge_segment(
@@ -600,6 +618,7 @@ def render_candidate_svg(
     site: SiteSpec | None = None,
     access_graph: AccessGraph | None = None,
     render_mode: RenderMode = "customer",
+    buildable_polygon: Polygon2D | None = None,
 ) -> str:
     """渲染单个候选：各层纵向堆叠；customer 为交付视图，debug 含工程师核查叠加。"""
     labels = floor_labels or {}
@@ -714,6 +733,7 @@ def render_candidate_svg(
                 site=site,
                 access_graph=access_graph,
                 render_mode=render_mode,
+                buildable_polygon=buildable_polygon,
             )
         )
 
@@ -745,6 +765,7 @@ def render_floor_svg(
     site: SiteSpec | None = None,
     access_graph: AccessGraph | None = None,
     render_mode: RenderMode = "customer",
+    buildable_polygon: Polygon2D | None = None,
 ) -> str:
     """渲染单层平面 SVG（报告 / 分层消费）；不做 DOM 裁剪整图。"""
     labels = floor_labels or {}
@@ -789,6 +810,7 @@ def render_floor_svg(
             site=site,
             access_graph=access_graph,
             render_mode=render_mode,
+            buildable_polygon=buildable_polygon,
         )
     )
     body.append(_legend(floor_width + 0.4, 1.6))
@@ -838,6 +860,7 @@ def _render_floor_geometry(
     site: SiteSpec | None,
     access_graph: AccessGraph | None,
     render_mode: RenderMode = "customer",
+    buildable_polygon: Polygon2D | None = None,
 ) -> list[str]:
     parts: list[str] = [
         f'<rect x="0" y="{oy:.3f}" width="{floor_width:.3f}" '
@@ -871,6 +894,7 @@ def _render_floor_geometry(
             site=site,
             floor_index=floor_index,
             render_mode=render_mode,
+            buildable_polygon=buildable_polygon,
         )
     )
     access = _access_overlays(floor, oy, access_graph)

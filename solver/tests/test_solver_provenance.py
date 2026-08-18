@@ -65,6 +65,41 @@ def test_assignment_strategy_cpsat_detection():
     assert assignment_strategy_for(program) == "cpsat"
 
 
+def test_geometry_backend_irregular_after_normalize():
+    """normalize 接入 irregular pipeline 后 geometry_backend 为 shapely-orthogonal。"""
+    from packages.schema.project import ProjectSpec
+    from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
+    from packages.schema.site import Point2D, Polygon2D, SiteSpec
+    from solver.program.normalize import normalize
+
+    spec = ProjectSpec(
+        site=SiteSpec(
+            width=10,
+            depth=10,
+            site_polygon=Polygon2D(
+                exterior=[
+                    Point2D(x=0, y=0),
+                    Point2D(x=10, y=0),
+                    Point2D(x=10, y=5),
+                    Point2D(x=5, y=5),
+                    Point2D(x=5, y=10),
+                    Point2D(x=0, y=10),
+                ]
+            ),
+        ),
+        floors=[FloorSpec(id="F1", label="一层", room_ids=["r1"])],
+        rooms=[
+            RoomSpec(
+                id="r1", name="客厅", category=RoomCategory.PUBLIC, target_area=20, floor_id="F1"
+            )
+        ],
+    )
+    program = normalize(spec)
+    assert geometry_backend_for(program) == "shapely-orthogonal"
+    stamped = build_solver_provenance(program=program)
+    assert stamped.geometry_backend == "shapely-orthogonal"
+
+
 def test_geometry_backend_is_runtime_not_input_intent():
     """有 site_polygon ≠ 已走 Shapely packing；8.4.1 前恒为 rect。"""
     program = benchmark_program()

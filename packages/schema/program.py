@@ -13,7 +13,7 @@ from packages.schema.limits import SOLVER_LIMITS
 from packages.schema.project import ProjectSpec
 from packages.schema.requirements import Assumption, UnknownRequirement
 from packages.schema.room import FloorSpec, RoomSpec
-from packages.schema.site import Rect2D, SiteSpec
+from packages.schema.site import Polygon2D, Rect2D, SiteSpec
 from packages.schema.topology import AccessGraph, RoomGraph, TopologyPlan
 from packages.schema.vertical_void import VerticalVoidSpec, validate_vertical_voids_for_floors
 
@@ -89,6 +89,14 @@ class DesignProgram(BaseModel):
     project_id: str
     site: SiteSpec
     buildable: Rect2D
+    buildable_free_rects: list[Rect2D] = Field(
+        default_factory=list,
+        description="可建 free rect 分解；空列表表示退化为单一 buildable 矩形",
+    )
+    buildable_polygon: Polygon2D | None = Field(
+        default=None,
+        description="resolved 可建多边形；irregular 路径用于 boundary / site 评价",
+    )
     floors: list[FloorSpec]
     rooms: list[RoomSpec]
     constraints: list[Constraint]

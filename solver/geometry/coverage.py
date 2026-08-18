@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Union
+
 from packages.schema.layout import PlacementRect, RoomPlacement, Violation
 from packages.schema.program import DesignProgram
 from solver.evaluation.weights import DEFAULT_WEIGHTS
@@ -16,6 +18,14 @@ from solver.geometry.rect import (
 
 COVERAGE_TOLERANCE = 1e-6
 LAYOUT_ABSORB_TOLERANCE = 0.5
+
+FootprintLike = Union[Rect, list[Rect]]
+
+
+def normalize_footprint(footprint: FootprintLike) -> list[Rect]:
+    if isinstance(footprint, Rect):
+        return [footprint]
+    return list(footprint)
 
 
 def is_fixed_void_placement(room_id: str) -> bool:
@@ -94,7 +104,7 @@ def largest_aspect_ok_placement_rect(
 
 
 def clamp_program_room_aspect_ratios(
-    footprint: Rect,
+    footprint: FootprintLike,
     placements: list[RoomPlacement],
     floor_id: str,
     *,
@@ -321,8 +331,12 @@ def layout_coverage_violations(
     placements: list[RoomPlacement],
     tolerance: float = COVERAGE_TOLERANCE,
 ) -> list[Violation]:
-    footprint = program.buildable.width * program.buildable.depth
-    gap = floor_coverage_gap(footprint, placements)
+    from solver.geometry.buildable import program_pack_rects
+
+    pack_rects = program_pack_rects(program)
+    placed = [from_placement(p.rect) for p in placements]
+    gap = pack_coverage_gap(pack_rects, placed)
+    footprint = pack_target_area(pack_rects)
     if gap <= tolerance:
         return []
     return [
@@ -809,7 +823,7 @@ def _cede_along_shared_edge(
 
 
 def grow_rooms_to_min_area(
-    footprint: Rect,
+    footprint: FootprintLike,
     placements: list[RoomPlacement],
     min_area_by_room_id: dict[str, float],
     max_area_by_room_id: dict[str, float],
@@ -938,7 +952,7 @@ def grow_rooms_to_min_area(
 
 
 def fill_floor_coverage_gaps(
-    footprint: Rect,
+    footprint: FootprintLike,
     placements: list[RoomPlacement],
     *,
     tolerance: float = COVERAGE_TOLERANCE,
@@ -950,6 +964,7 @@ def fill_floor_coverage_gaps(
     """把 footprint 内未被 placements 覆盖的碎片并入邻接房间（含楼梯）。"""
     from solver.geometry.free_rects import subtract_rects
 
+    base = normalize_footprint(footprint)
     if max_iterations is None:
         max_iterations = len(placements) * 8 + 8
 
@@ -957,7 +972,7 @@ def fill_floor_coverage_gaps(
     pending_extra = list(extra_gaps) if extra_gaps else []
     for _ in range(max_iterations):
         gaps = subtract_rects(
-            [footprint],
+            base,
             [from_placement(p.rect) for p in updated],
         )
         if pending_extra:
@@ -1383,7 +1398,7 @@ def _try_corridor_strip_from_neighbor(
 
 
 def _floor_repair_maintains_constraints(
-    footprint: Rect,
+    footprint: FootprintLike,
     placements: list[RoomPlacement],
     trial_placements: list[RoomPlacement],
     floor_id: str,
@@ -1397,9 +1412,11 @@ def _floor_repair_maintains_constraints(
         floor_id=floor_id, placements=trial_placements, tolerance=tolerance
     ):
         return False
-    footprint_area = footprint.width * footprint.depth
-    gap_before = floor_coverage_gap(footprint_area, placements)
-    gap_after = floor_coverage_gap(footprint_area, trial_placements)
+    base = normalize_footprint(footprint)
+    placed_before = [from_placement(p.rect) for p in placements]
+    placed_after = [from_placement(p.rect) for p in trial_placements]
+    gap_before = pack_coverage_gap(base, placed_before)
+    gap_after = pack_coverage_gap(base, placed_after)
     if abs(gap_after - gap_before) > tolerance:
         return False
     return True
@@ -1420,7 +1437,7 @@ def _floor_placements_geom_changed(
 
 
 def improve_private_room_corridor_access(
-    footprint: Rect,
+    footprint: FootprintLike,
     placements: list[RoomPlacement],
     floor_id: str,
     *,
@@ -1530,7 +1547,7 @@ def improve_private_room_corridor_access(
 def apply_corridor_access_repair_if_safe(
     program: DesignProgram,
     candidate: "LayoutCandidate",
-    footprint: Rect,
+    footprint: FootprintLike,
     *,
     min_area_by_room_id: dict[str, float] | None = None,
     entry_room_ids: frozenset[str] | None = None,
@@ -1601,7 +1618,7 @@ def apply_corridor_access_repair_if_safe(
 
 
 def assign_residual_gaps_as_circulation(
-    footprint: Rect,
+    footprint: FootprintLike,
     placements: list[RoomPlacement],
     floor_id: str,
     *,
@@ -1611,13 +1628,14 @@ def assign_residual_gaps_as_circulation(
     将 program 房间无法吸收的剩余碎片标为 generated circulation。
 
     典型场景：楼梯核邻接区无法在不重叠的前提下扩入 program 房间。
-  """
+    """
     from packages.schema.layout import PlacementSource
     from solver.geometry.free_rects import subtract_rects
 
+    base = normalize_footprint(footprint)
     updated = [p.model_copy(deep=True) for p in placements]
     gaps = subtract_rects(
-        [footprint],
+        base,
         [from_placement(p.rect) for p in updated],
     )
     gaps = [g for g in gaps if g.area > tolerance]

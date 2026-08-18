@@ -89,6 +89,7 @@ def serialize_candidate(
         site=program.site,
         access_graph=program.access_graph,
         render_mode="customer",
+        buildable_polygon=program.buildable_polygon,
     )
     floor_svgs = {
         fl.floor_id: render_floor_svg(
@@ -101,6 +102,7 @@ def serialize_candidate(
             site=program.site,
             access_graph=program.access_graph,
             render_mode="customer",
+            buildable_polygon=program.buildable_polygon,
         )
         for fl in cand.floors
     }

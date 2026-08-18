@@ -26,6 +26,7 @@ from solver.circulation.stair_core import (
     place_stair_core_resolving,
     resolve_stair_core_spec,
 )
+from solver.geometry.buildable import rect_inside_buildable
 from solver.geometry.rect import Rect, from_placement, intersects
 
 
@@ -185,6 +186,7 @@ def build_prededuction_plan(
             primary_placement=placement,
             snap_module=snap_module,
             rng=rng,
+            rect_validator=lambda r: rect_inside_buildable(r, program),
         )
 
     stair_rect = from_placement(stair_core.rect)

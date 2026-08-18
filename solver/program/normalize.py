@@ -14,6 +14,7 @@ from packages.schema.program import DesignProgram, SolverConfig
 from packages.schema.project import ProjectSpec
 from packages.schema.room import RoomCategory
 from packages.schema.topology import RoomEdge, RoomEdgeKind, RoomGraph
+from solver.geometry.buildable import apply_buildable_geometry, program_footprint_area
 from solver.program.floor_assignment import ensure_floor_assignment
 
 
@@ -31,6 +32,7 @@ def normalize(spec: ProjectSpec, config: SolverConfig | None = None) -> DesignPr
     program.floor_assignment = assignment
     program.constraints = _merge_implicit_constraints(spec, program.constraints)
     program.room_graph = build_room_graph(spec)
+    apply_buildable_geometry(program)
     return program
 
 
@@ -147,7 +149,7 @@ def build_room_graph(spec: ProjectSpec) -> RoomGraph:
 
 
 def _footprint_area(program: DesignProgram) -> float:
-    return float(program.buildable.width * program.buildable.depth)
+    return program_footprint_area(program)
 
 
 def _reserved_area_on_floor(program: DesignProgram, floor_id: str) -> float:

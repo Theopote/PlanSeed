@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import random
-from typing import Literal
+from typing import Callable, Literal
 
 from packages.schema.core import CorePlacement, CorePlacementResult, StairCoreSpec
 from packages.schema.layout import PlacementRect
 from packages.schema.site import CardinalEdge
 
+from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 
 DEFAULT_STAIR_CORE = StairCoreSpec()
@@ -196,6 +197,7 @@ def place_stair_core_resolving(
     primary_placement: CorePlacement,
     snap_module: float = 0.3,
     rng: random.Random | None = None,
+    rect_validator: Callable[[Rect], bool] | None = None,
 ) -> CorePlacementResult:
     """
     尝试放置规定尺寸的楼梯核：
@@ -224,7 +226,7 @@ def place_stair_core_resolving(
         ):
             continue
         try:
-            return place_stair_core(
+            result = place_stair_core(
                 floor_width=floor_width,
                 floor_depth=floor_depth,
                 spec=spec,
@@ -235,6 +237,12 @@ def place_stair_core_resolving(
         except CorePlacementFailure as err:
             last_err = err
             continue
+        if rect_validator is not None:
+            from solver.geometry.rect import from_placement
+
+            if not rect_validator(from_placement(result.rect)):
+                continue
+        return result
 
     raise CorePlacementFailure(
         f"所有区位/朝向均无法以 {spec.width}×{spec.depth} 放入 "

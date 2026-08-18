@@ -42,6 +42,7 @@ from solver.geometry.coverage import (
     largest_aspect_ok_placement_rect,
     resolve_placement_overlaps,
 )
+from solver.geometry.buildable import program_pack_rects
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
@@ -415,6 +416,7 @@ class GuillotineGenerator:
         buildable = program.buildable
         w = buildable.width
         d = buildable.depth
+        pack_rects = program_pack_rects(program)
         locks = locks or LayoutLocks()
         locked_ids = locks.locked_room_ids
 
@@ -465,7 +467,7 @@ class GuillotineGenerator:
             depth=core.rect.depth,
         )
         # WetStack 跨层锚：仅扣楼梯（ATRIUM 按层在 free_rects_by_floor 扣除）
-        shared_free = subtract_rects([floor_rect], [stair_rect])
+        shared_free = subtract_rects(pack_rects, [stair_rect])
 
         def _holes_on_floor(floor_id: str) -> list[Rect]:
             room_holes = [
@@ -482,8 +484,8 @@ class GuillotineGenerator:
             prededuction_holes = prededuction.holes_by_floor.get(floor_id, [])
             holes = _holes_on_floor(floor_id)
             if not holes:
-                return subtract_rects([floor_rect], prededuction_holes)
-            return subtract_rects([floor_rect], [*prededuction_holes, *holes])
+                return subtract_rects(pack_rects, prededuction_holes)
+            return subtract_rects(pack_rects, [*prededuction_holes, *holes])
 
         def _unlocked_for_planning(
             floor_id: str, rooms: list[RoomSpec]
@@ -543,6 +545,7 @@ class GuillotineGenerator:
                 floor_index=program.floors.index(floor),
                 floor_width=w,
                 floor_depth=d,
+                pack_rects=pack_rects,
                 module=module,
                 rng=rng,
                 topology=topology,
@@ -643,7 +646,7 @@ class GuillotineGenerator:
         candidate = apply_corridor_access_repair_if_safe(
             program,
             candidate,
-            Rect(x=0, y=0, width=w, depth=d),
+            pack_rects,
             min_area_by_room_id=min_by_id,
             entry_room_ids=entry_ids,
         )
@@ -748,6 +751,7 @@ class GuillotineGenerator:
         floor_index: int,
         floor_width: float,
         floor_depth: float,
+        pack_rects: list[Rect],
         module: float,
         rng: random.Random,
         topology: TopologyPlan,
@@ -762,11 +766,11 @@ class GuillotineGenerator:
         self._current_layout_rooms = layout_rooms
         self._floor_pack_leftovers = []
 
-        footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
+        footprint_bbox = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
         fixed_obstacles = list(prededuction_obstacles or [])
         preplaced = preplace_wet_anchored_rooms(
             floor_rooms,
-            footprint=footprint,
+            footprint=footprint_bbox,
             occupied=fixed_obstacles,
             wet_anchors=wet_anchors or {},
         )
@@ -882,38 +886,38 @@ class GuillotineGenerator:
                 )
             )
 
-        footprint = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
+        pack_footprint = pack_rects
         min_by_id = {r.id: r.resolved_min_area() for r in floor_rooms}
         max_by_id = {r.id: r.resolved_max_area() for r in floor_rooms}
         placements = fill_floor_coverage_gaps(
-            footprint,
+            pack_footprint,
             placements,
             extra_gaps=self._floor_pack_leftovers,
             max_area_by_room_id=max_by_id,
             min_area_by_room_id=min_by_id,
         )
         placements = grow_rooms_to_min_area(
-            footprint,
+            pack_footprint,
             placements,
             min_by_id,
             max_by_id,
         )
         placements = clamp_program_room_aspect_ratios(
-            footprint,
+            pack_footprint,
             placements,
             floor.id,
             min_area_by_room_id=min_by_id,
         )
         placements = resolve_placement_overlaps(placements)
         placements = fill_floor_coverage_gaps(
-            footprint,
+            pack_footprint,
             placements,
             max_area_by_room_id=max_by_id,
             min_area_by_room_id=min_by_id,
         )
         placements = resolve_placement_overlaps(placements)
         placements = assign_residual_gaps_as_circulation(
-            footprint,
+            pack_footprint,
             placements,
             floor.id,
         )

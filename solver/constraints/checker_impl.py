@@ -47,7 +47,7 @@ class DefaultConstraintChecker:
         buildable = program_local_buildable(program)
 
         result.extend(self._check_overlaps(candidate))
-        result.extend(self._check_boundary(candidate, buildable))
+        result.extend(self._check_boundary(program, candidate, buildable))
         result.extend(self._check_layout_coverage(program, candidate))
         result.extend(self._check_stair_core(program, candidate))
         result.extend(self._check_program_placements(program, candidate))
@@ -129,13 +129,20 @@ class DefaultConstraintChecker:
         return ConstraintEvaluationResult.from_violations(violations)
 
     def _check_boundary(
-        self, candidate: LayoutCandidate, buildable: Rect
+        self, program: DesignProgram, candidate: LayoutCandidate, buildable: Rect
     ) -> ConstraintEvaluationResult:
+        from solver.geometry.buildable import rect_inside_buildable
+
         violations: list[Violation] = []
         for floor in candidate.floors:
             for p in floor.placements:
                 r = from_placement(p.rect)
-                if not contains(buildable, r):
+                inside = (
+                    rect_inside_buildable(r, program)
+                    if program.buildable_polygon is not None
+                    else contains(buildable, r)
+                )
+                if not inside:
                     violations.append(
                         Violation(
                             constraint_id="geometry.boundary",

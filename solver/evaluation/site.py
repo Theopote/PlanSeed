@@ -5,6 +5,7 @@ from __future__ import annotations
 from packages.schema.layout import LayoutCandidate, PlacementSource
 from packages.schema.program import DesignProgram
 from solver.evaluation.orientation import exterior_world_orientations
+from solver.geometry.buildable import rect_inside_buildable
 from solver.geometry.rect import contains, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 from solver.semantics.roles import is_garage
@@ -42,9 +43,13 @@ def compute_site_metrics(
             "garage_on_road": 1.0,
         }
 
-    inside = sum(
-        1 for p in program_placements if contains(buildable, from_placement(p.rect))
-    )
+    def _placement_inside_buildable(p) -> bool:
+        r = from_placement(p.rect)
+        if program.buildable_polygon is not None:
+            return rect_inside_buildable(r, program)
+        return contains(buildable, r)
+
+    inside = sum(1 for p in program_placements if _placement_inside_buildable(p))
     ratio = inside / len(program_placements)
 
     roads = {e.value for e in (site.road_edges or [])}

@@ -26,7 +26,7 @@ def test_solver_identity_keys():
     assert ident["selection_strategy"] == "axis-diverse"
     assert ident["assignment_strategy"] == "heuristic"
     assert ident["geometry_backend"] == "rect"
-    assert SOLVER_VERSION == "0.5"
+    assert SOLVER_VERSION == "0.6"
     assert GENERATOR_VERSION == "guillotine-lock-v4"
     assert EVALUATION_VERSION == "residential-alpha-v1"
     assert SELECTION_VERSION == "axis-diversity-v1"

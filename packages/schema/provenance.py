@@ -88,7 +88,17 @@ def geometry_backend_for(program: Any) -> str:
     真正走 ``prepare_buildable_rects`` → free rects → generator 后，再由调用方显式传入
     ``geometry_backend="shapely-orthogonal"``。
     """
-    _ = program  # 预留：接入后按实际执行路径分支
+    site = getattr(program, "site", None)
+    if site is None:
+        return GEOMETRY_BACKEND_RECT
+    if getattr(site, "buildable_polygon", None) is None and getattr(
+        site, "site_polygon", None
+    ) is None:
+        return GEOMETRY_BACKEND_RECT
+    if getattr(program, "buildable_polygon", None) is not None and getattr(
+        program, "buildable_free_rects", None
+    ):
+        return GEOMETRY_BACKEND_SHAPELY_ORTHOGONAL
     return GEOMETRY_BACKEND_RECT
 
 
