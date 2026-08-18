@@ -1428,6 +1428,7 @@ def improve_private_room_corridor_access(
     min_area_by_room_id: dict[str, float] | None = None,
     entry_room_ids: frozenset[str] | None = None,
     tolerance: float = COVERAGE_TOLERANCE,
+    direct_circ_touch_only: bool = False,
 ) -> list[RoomPlacement]:
     """
     对无走廊邻接的 private 房间，尝试从非 private 邻居借边生成走廊条（尽力而为，单轮）。
@@ -1476,7 +1477,12 @@ def improve_private_room_corridor_access(
             if trial is None:
                 continue
             shrunk_neighbor, corridor = trial
-            if not _corridor_links_private_to_circulation(
+            if direct_circ_touch_only:
+                if not _corridor_touches_circulation_network(
+                    corridor, updated, entry_ids
+                ):
+                    continue
+            elif not _corridor_links_private_to_circulation(
                 priv, corridor, updated, entry_ids
             ):
                 continue
@@ -1546,22 +1552,50 @@ def apply_corridor_access_repair_if_safe(
     entry_ids = entry_room_ids or frozenset()
     result = candidate
 
-    for floor_idx, floor in enumerate(candidate.floors):
+    def _try_floor_repair(
+        floor_idx: int,
+        *,
+        direct_circ_touch_only: bool = False,
+    ) -> None:
+        nonlocal result
+        floor = result.floors[floor_idx]
         improved = improve_private_room_corridor_access(
             footprint,
             list(floor.placements),
             floor.floor_id,
             min_area_by_room_id=min_areas,
             entry_room_ids=entry_ids,
+            direct_circ_touch_only=direct_circ_touch_only,
         )
         if not _floor_placements_geom_changed(floor.placements, improved):
-            continue
+            return
         improved = resolve_placement_overlaps(improved)
         new_floors = [fl.model_copy(deep=True) for fl in result.floors]
         new_floors[floor_idx] = floor.model_copy(update={"placements": improved})
         trial = result.model_copy(deep=True, update={"floors": new_floors})
         if checker.check(program, trial).valid:
             result = trial
+
+    for floor_idx in range(len(candidate.floors)):
+        _try_floor_repair(floor_idx)
+
+    # 对仍无法不经其它卧室到达的 private，尝试必须直连循环网络的借边
+    from solver.evaluation.privacy import private_ids_lacking_avoiding_path
+    from solver.topology.doors import place_door_openings
+
+    lacking = private_ids_lacking_avoiding_path(program, result)
+    if lacking:
+        trial = result.model_copy(deep=True)
+        place_door_openings(program, trial)
+        lacking = private_ids_lacking_avoiding_path(program, trial)
+        for floor_idx, floor in enumerate(result.floors):
+            if not any(
+                p.room_id in lacking
+                for p in floor.placements
+                if (p.category or "").lower() == "private"
+            ):
+                continue
+            _try_floor_repair(floor_idx, direct_circ_touch_only=True)
 
     return result
 

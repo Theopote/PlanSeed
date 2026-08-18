@@ -157,7 +157,10 @@ def _spanning_visit_set(
         visited.add(start)
         while q:
             cur = q.popleft()
-            for nb in sorted(adj.get(cur, [])):
+            for nb in sorted(
+                adj.get(cur, []),
+                key=lambda n: _spanning_neighbor_sort_key(by_id, cur, n),
+            ):
                 if nb in visited or nb not in node_set:
                     continue
                 key = _pair_key(cur, nb)
@@ -241,6 +244,18 @@ def _record_wet_private_pair(
 
 def _private_private_pair(pa: RoomPlacement, pb: RoomPlacement) -> bool:
     return _is_private_category(pa.category) and _is_private_category(pb.category)
+
+
+def _spanning_neighbor_sort_key(
+    by_id: dict[str, RoomPlacement],
+    cur: str,
+    nb: str,
+) -> tuple[int, int, str]:
+    """生成树 BFS 邻接排序：私密-私密边靠后，湿-私其次。"""
+    pa, pb = by_id[cur], by_id[nb]
+    pp = 1 if _private_private_pair(pa, pb) else 0
+    wet = 1 if _is_wet_private_pair(pa, pb) else 0
+    return (pp, wet, nb)
 
 
 @dataclass(frozen=True)
@@ -997,7 +1012,10 @@ def _compute_spanning_tree_edge_keys(
         visited.add(start)
         while q:
             cur = q.popleft()
-            for nb in sorted(adj.get(cur, [])):
+            for nb in sorted(
+                adj.get(cur, []),
+                key=lambda n: _spanning_neighbor_sort_key(by_id, cur, n),
+            ):
                 if nb in visited or nb not in node_set:
                     continue
                 key = _pair_key(cur, nb)

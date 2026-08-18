@@ -75,6 +75,64 @@ def _path_to(parent: dict[str, str | None], target: str) -> list[str]:
     return path
 
 
+def _path_avoiding_other_private(
+    graph,
+    program: DesignProgram,
+    target: str,
+) -> list[str]:
+    """从入口到 target 的路径，途中不穿过其它 private 房间。"""
+    adj: dict[str, set[str]] = defaultdict(set)
+    for c in graph.connections:
+        if c.a == c.b:
+            continue
+        adj[c.a].add(c.b)
+        adj[c.b].add(c.a)
+    q: deque[tuple[str, list[str]]] = deque([(ENTRY_NODE_ID, [ENTRY_NODE_ID])])
+    seen: set[str] = {ENTRY_NODE_ID}
+    while q:
+        cur, path = q.popleft()
+        if cur == target:
+            return path
+        for nb in sorted(adj.get(cur, ())):
+            if nb in seen:
+                continue
+            if _category_of(program, nb) == "private" and nb != target:
+                continue
+            seen.add(nb)
+            q.append((nb, path + [nb]))
+    return []
+
+
+def _preferred_path_for_private(
+    program: DesignProgram,
+    graph,
+    private_id: str,
+) -> list[str]:
+    """优先返回不经其它卧室的路径；不存在时回退最短 BFS。"""
+    avoided = _path_avoiding_other_private(graph, program, private_id)
+    if avoided:
+        return avoided
+    parent = _bfs_parents(graph)
+    return _path_to(parent, private_id)
+
+
+def private_ids_lacking_avoiding_path(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+) -> frozenset[str]:
+    """Realized 图中无法不经其它卧室到达的 private 房间。"""
+    from packages.schema.room import RoomCategory
+
+    graph = build_realized_access_graph(program, candidate)
+    lacking: list[str] = []
+    for room in program.rooms:
+        if room.category != RoomCategory.PRIVATE:
+            continue
+        if not _path_avoiding_other_private(graph, program, room.id):
+            lacking.append(room.id)
+    return frozenset(lacking)
+
+
 def _transition_penalty(a_cat: str, b_cat: str) -> float:
     if a_cat == b_cat:
         if a_cat == "private":
@@ -106,7 +164,6 @@ def compute_privacy_metrics(
 ) -> dict[str, float | int]:
     ensure_access_graph(program)
     graph = build_realized_access_graph(program, candidate)
-    parent = _bfs_parents(graph)
     private_ids = [
         r.id for r in program.rooms if r.category == RoomCategory.PRIVATE
     ]
@@ -114,12 +171,14 @@ def compute_privacy_metrics(
         return {
             "privacy_transition_score": 1.0,
             "private_through_count": 0,
+            "unavoidable_private_through_count": 0,
             "privacy_path_count": 0,
             "bad_privacy_transition_count": 0,
         }
 
     penalties: list[float] = []
     through = 0
+    unavoidable_through = 0
     bad = 0
     explained = 0
     for op in candidate.door_openings:
@@ -131,7 +190,8 @@ def compute_privacy_metrics(
             bad += 1
 
     for pid in private_ids:
-        path = _path_to(parent, pid)
+        path = _preferred_path_for_private(program, graph, pid)
+        avoided = _path_avoiding_other_private(graph, program, pid)
         if len(path) < 2:
             penalties.append(1.0)
             continue
@@ -145,6 +205,8 @@ def compute_privacy_metrics(
                 bad += 1
             if cats[i] == "private" and path[i] != pid:
                 through += 1
+                if not avoided:
+                    unavoidable_through += 1
         norm = min(1.0, path_pen / max(1, len(cats) - 1))
         penalties.append(norm)
 
@@ -153,6 +215,7 @@ def compute_privacy_metrics(
     return {
         "privacy_transition_score": round(score, 4),
         "private_through_count": through,
+        "unavoidable_private_through_count": unavoidable_through,
         "privacy_path_count": explained,
         "bad_privacy_transition_count": bad,
     }
@@ -175,7 +238,6 @@ def privacy_findings(
     """从 realized 路径生成隐私设计发现。"""
     ensure_access_graph(program)
     graph = build_realized_access_graph(program, candidate)
-    parent = _bfs_parents(graph)
     private_ids = [
         r.id for r in program.rooms if r.category == RoomCategory.PRIVATE
     ]
@@ -196,7 +258,7 @@ def privacy_findings(
 
     good_via_hall = 0
     for pid in private_ids:
-        path = _path_to(parent, pid)
+        path = _preferred_path_for_private(program, graph, pid)
         target_name = _name(program, pid)
         if len(path) < 2:
             out.append(

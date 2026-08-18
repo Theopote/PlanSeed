@@ -43,6 +43,23 @@ class TestCorridorRepairIntegration:
             f"{len(result.top_candidates)}) expected <= 50%"
         )
 
+    def test_unavoidable_private_through_documented_on_benchmark(self) -> None:
+        """部分 valid 布局结构上无法消除穿卧室；应能区分 unavoidable 计数。"""
+        from solver.evaluation.privacy import compute_privacy_metrics
+
+        program = benchmark_program()
+        program.solver_config.candidate_count = 64
+        result = run_pipeline(program)
+        unavoidable_hits = 0
+        for cand in result.all_candidates:
+            if not cand.validation or not cand.validation.valid:
+                continue
+            metrics = compute_privacy_metrics(program, cand)
+            if int(metrics.get("unavoidable_private_through_count", 0)) > 0:
+                unavoidable_hits += 1
+        assert unavoidable_hits >= 1
+        assert unavoidable_hits <= result.valid
+
     def test_valid_candidates_gain_circulation_passages(self) -> None:
         """valid 候选应通过走廊 PASSAGE 接入 RealizedAccessGraph。"""
         from solver.topology.access import build_realized_connections
