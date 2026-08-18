@@ -68,6 +68,7 @@ class LayoutGenerationBenchmarkReport:
     base_seed: int = 42
     candidate_count: int = 64
     measured_at: str = ""
+    solver_version: str = SOLVER_VERSION
     has_locks: bool = False
     strategies: list[StrategyMetrics] = field(default_factory=list)
     pairwise_geometry_diff_rate: dict[str, float] = field(default_factory=dict)
@@ -80,6 +81,7 @@ class LayoutGenerationBenchmarkReport:
             "base_seed": self.base_seed,
             "candidate_count": self.candidate_count,
             "measured_at": self.measured_at,
+            "solver_version": self.solver_version,
             "has_locks": self.has_locks,
             "strategies": [s.to_dict() for s in self.strategies],
             "pairwise_geometry_diff_rate": self.pairwise_geometry_diff_rate,

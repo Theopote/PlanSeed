@@ -128,12 +128,20 @@ n=32 与 n=64 aggregate 一致 → 统计稳定，非采样噪声。
 | valid_rate | 0.188 / 0.172 | **0.000** |
 | top_score | 91.5 | 0.0 |
 
-**遗留单 case**（`layout_generation_guillotine_vs_maxrect.json` · solver 0.5 前 · n=32）仍记录 aspect penalty 劣化：
+```bash
+uv run python -m solver.benchmark --count 64 \
+  --out docs/baselines/layout_generation_guillotine_vs_maxrect.json
+```
+
+**遗留单 case**（`layout_generation_guillotine_vs_maxrect.json` · solver 0.6 · n=64）：
 
 | | Guillotine | MaxRect |
 |--|------------|---------|
-| valid_rate | 1.0 | 1.0 |
-| mean_aspect_ratio_penalty | 28.67 | **166.79**（≈5.8×） |
+| valid_rate | 0.359 | **0.094** |
+| top_score | 92.8 | 93.9 |
+| distinct_valid | 23 | 6 |
+
+硬约束前归档（aspect penalty ≈5.8× 证据仍有效）：`layout_generation_guillotine_vs_maxrect_2026-08-09_pre-hard-constraint.json`
 
 门槛示例（gate v1 已实现）：
 

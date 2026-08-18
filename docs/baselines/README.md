@@ -66,7 +66,8 @@ uv run python -m solver.benchmark --count 32
 
 | 文件 | 含义 |
 |------|------|
-| `layout_generation_guillotine_vs_maxrect.json` | **遗留** 单 case（`benchmark_program` 含车库 · n=32 · **2026-08-09 硬约束前** · `valid_rate=1.0` 已过时） |
+| `layout_generation_guillotine_vs_maxrect.json` | 单 case `benchmark_program`（含车库 · n=64 · solver 0.6 · 2026-08-18） |
+| `layout_generation_guillotine_vs_maxrect_2026-08-09_pre-hard-constraint.json` | **归档** 硬约束前快照（n=32 · `valid_rate=1.0` 不可与现行对比） |
 | `layout_benchmark_suite_v1_n32.json` | Suite v1 全量 B01–B12（n=32 · solver 0.6） |
 | `layout_benchmark_suite_v1_n32_qualification.json` | 同上 + MaxRect gate 结论 |
 | `layout_benchmark_suite_v1_n64.json` | Suite v1 全量 B01–B12（n=64 · solver 0.6） |

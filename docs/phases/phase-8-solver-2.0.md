@@ -95,7 +95,7 @@ MaxRect 仅 research：`generator=MaxRectGenerator()` 或显式 `generators=[Gui
 
 ```bash
 uv run python -m solver.benchmark --count 32
-uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_generation_guillotine_vs_maxrect.json
+uv run python -m solver.benchmark --count 64 --json --out docs/baselines/layout_generation_guillotine_vs_maxrect.json
 ```
 
 模块：`solver/benchmark/layout_generation.py`
@@ -114,22 +114,20 @@ uv run python -m solver.benchmark --count 32 --json --out docs/baselines/layout_
 
 基线快照：
 
-- **遗留单 case：** `docs/baselines/layout_generation_guillotine_vs_maxrect.json`（含车库 · **2026-08-09 硬约束前**）  
+- **单 case 回归：** `docs/baselines/layout_generation_guillotine_vs_maxrect.json`（solver 0.6 · n=64）  
+- **归档（硬约束前）：** `layout_generation_guillotine_vs_maxrect_2026-08-09_pre-hard-constraint.json`  
 - **资格套件：** [layout-benchmark-suite-v1.md](../baselines/layout-benchmark-suite-v1.md)  
   `uv run python -m solver.benchmark --suite v1 --count 32|64`
 
-| | Guillotine | MaxRect（单 case，n=32） |
-|--|------------|--------------------------|
-| valid_rate | **1.0（过时）** | **1.0（过时）** |
-| 当前重跑 valid_rate（solver 0.6，n=64） | **≈0.36** | ≈0.09 |
-| area_fit | 0.7533 | 0.7518 |
-| aspect_ratio_quality | 0.037 | **0.007** |
-| **mean_aspect_ratio_penalty** | **28.67** | **166.79** |
-| circulation | 75.59 | 75.38 |
-| top_score | 92.31 | 89.08 |
-| mean_score | 88.24 | 87.17 |
+| | Guillotine | MaxRect（单 case，n=64 · solver 0.6） |
+|--|------------|--------------------------------------|
+| valid_rate | **0.359** | **0.094** |
+| distinct_valid | 23 | 6 |
+| top_score | 92.8 | 93.9 |
+| mean_aspect_ratio_penalty（valid 上） | 0.0 | 0.0（硬拒绝后无细长房间） |
 
-**结论：** 单 case 已暴露 MaxRect 长宽比惩罚约 5.8× 更差 → **未产品验收**；遗留 `valid_rate=1.0` 为硬约束上线前快照，**不得以之为 Guillotine 回归证据**。当前 `benchmark_program` 基线见 `solver/tests/quality_baselines.py`（≈0.359）。
+**结论：** MaxRect **未产品验收**（valid_rate 系统性低于 Guillotine；Suite v1 gate FAILED）。  
+硬约束前归档仍记录 aspect penalty ≈5.8× 劣化（`valid_rate=1.0` 时代）。当前 `benchmark_program` 基线见 `quality_baselines.py`。
 
 **禁止**凭感觉宣称某 strategy 全面更优；以报告数字为准。
 
