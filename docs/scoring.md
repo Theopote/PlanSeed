@@ -170,7 +170,8 @@ Model：`y=0` = model north，`x=0` = model west（绘图坐标）。
 | Metric | 说明 |
 |--------|------|
 | `privacy_transition_score` | entry→各 private 路径上 category 过渡质量 |
-| `private_through_count` | 路径穿过其他 private 的次数 |
+| `private_through_count` | 优选路径穿过其他 private 的次数 |
+| `unavoidable_private_through_count` | 无「不经其它卧室」替代路径时的穿卧室次数（结构限制） |
 | `bad_privacy_transition_count` | 高惩罚过渡步数 |
 
 ### Program Fit / Space Efficiency (`evaluation/program_fit.py`)

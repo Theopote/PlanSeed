@@ -11,6 +11,11 @@ Quality regression 阈值 — Phase 1.5 起开始记录。
   plain valid_ratio ≈ 0.36 (23/64)
   atrium valid_ratio ≈ 0.47 (30/64)
   历史（仅湿区 Step A/B，n=32）：valid_ratio ≈ 0.81
+
+实测（2026-08-18，ADR-011 走廊邻接修补 + circulation PASSAGE 后）：
+  plain valid_ratio ≈ 0.359 (23/64) — 无回退
+  Top-5 private_through_count > 0：0/5（修补前 5/5）
+  valid 中 private_through > 0：12/23，全部为 unavoidable_private_through_count
 """
 
 from __future__ import annotations
@@ -37,11 +42,16 @@ DEFAULT_QUALITY = QualityThresholds()
 
 # 记录实测基线（非断言，供人工对照 / 未来收紧）
 MEASURED_BASELINE = {
-    "date": "2026-08-15",
+    "date": "2026-08-18",
     "case": "benchmark_11x13_2floors",
     "valid_ratio": 0.359,
     "distinct_layouts": 64,
     "distinct_valid": 23,
     "top_area_accuracy": 0.84,
-    "notes": "长宽比硬约束 + guillotine 切分启发式后；plain valid≈36%",
+    "top5_private_through_rate": 0.0,
+    "valid_unavoidable_private_through": 12,
+    "notes": (
+        "ADR-011 走廊修补后 valid 不变；Top-5 穿卧室清零；"
+        "12/23 valid 仍有 unavoidable 穿卧室（F2 拓扑限制）"
+    ),
 }
