@@ -9,3 +9,14 @@ foreach ($dir in $script:ReleasePathCandidates) {
         $env:Path = "$dir;$env:Path"
     }
 }
+
+function Get-PlanSeedNsisSetup([string]$RepoRoot) {
+    $nsisDir = Join-Path $RepoRoot "desktop\src-tauri\target\release\bundle\nsis"
+    $setup = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if (-not $setup) {
+        throw "NSIS setup missing under $nsisDir`nRun: powershell -File scripts/build_installer.ps1"
+    }
+    return $setup.FullName
+}

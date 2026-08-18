@@ -17,7 +17,7 @@ from backend.routes import requirements as requirements_routes
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="PlanSeed API", version="0.1.0")
+    app = FastAPI(title="PlanSeed API", version="0.1.1")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[

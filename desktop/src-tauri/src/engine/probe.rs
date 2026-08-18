@@ -151,7 +151,7 @@ mod tests {
             r#"{"ok":true,"service":"other","api_version":"1","engine_version":"1"}"#
         ));
         assert!(is_planseed_health_json(
-            r#"{"ok":true,"service":"planseed","api_version":"1","engine_version":"0.1.0"}"#
+            r#"{"ok":true,"service":"planseed","api_version":"1","engine_version":"0.1.1"}"#
         ));
     }
 }

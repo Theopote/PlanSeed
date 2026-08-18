@@ -9,7 +9,7 @@ router = APIRouter(tags=["health"])
 
 # Tauri / 前端复用端口的唯一身份依据；改字段需同步 desktop/src-tauri 探针。
 API_VERSION = "1"
-ENGINE_VERSION = "0.1.0"
+ENGINE_VERSION = "0.1.1"
 SERVICE_ID = "planseed"
 
 

@@ -18,12 +18,12 @@ Local-first、本地运行的独栋住宅生成式设计工具。
 
 | 项 | 值 |
 |----|-----|
-| **Release** | **PlanSeed Alpha v0.1.0**（[`v0.1.0-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha)） |
+| **Release** | **PlanSeed Alpha v0.1.1**（[`v0.1.1-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha)）· v0.1.0：[v0.1.0-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) |
 | **Platform** | Windows 10/11 x64 |
 | **Status** | **Released**（2026-08-14） |
 | **Next** | Post-v0.1 planning · issue-driven `v0.1.x` maintenance |
 
-下载安装包：[GitHub Releases](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) · 发布说明：[docs/alpha-v0.1-release-notes.md](docs/alpha-v0.1-release-notes.md) · 验收记录：[docs/alpha-v0.1-release-readiness.md](docs/alpha-v0.1-release-readiness.md)
+下载安装包：[GitHub Releases](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) · v0.1.1 说明：[docs/alpha-v0.1.1-release-notes.md](docs/alpha-v0.1.1-release-notes.md) · v0.1.0：[alpha-v0.1-release-notes.md](docs/alpha-v0.1-release-notes.md)
 
 ## 快速开始
 

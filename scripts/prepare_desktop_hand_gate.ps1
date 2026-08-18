@@ -16,7 +16,7 @@ uv run python scripts/generate_print_smoke_reports.py --seed-desktop
 if ($LASTEXITCODE -ne 0) { throw "generate_print_smoke_reports --seed-desktop failed" }
 
 $pkg = Join-Path $Root "debug\desktop-hand-gate\alpha-v0.1-hand-gate.planseed"
-$setup = Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis\PlanSeed_0.1.0_x64-setup.exe"
+$setup = Get-PlanSeedNsisSetup $Root
 $printIdx = Join-Path $Root "debug\print-smoke\index.html"
 
 Write-Host ""

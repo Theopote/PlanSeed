@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 # 快照容器格式（≠ 设计评价契约版本）
 PROJECT_FORMAT_VERSION = "1"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.1"
 
 
 def _store() -> ProjectStore:

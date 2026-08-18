@@ -40,7 +40,7 @@ $toolsOk = @(
 Write-Host ""
 Write-Host "-- Build artifacts --"
 $sidecar = Join-Path $Root "desktop\src-tauri\resources\planseed-backend\planseed-backend.exe"
-$setup = Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis\PlanSeed_0.1.0_x64-setup.exe"
+$setup = Get-PlanSeedNsisSetup $Root
 $printIdx = Join-Path $Root "debug\print-smoke\index.html"
 $hasSidecar = Show-File "sidecar exe" $sidecar
 $hasSetup = Show-File "NSIS setup" $setup

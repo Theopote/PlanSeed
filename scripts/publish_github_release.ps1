@@ -3,20 +3,22 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1
 #
 # Optional:
-#   $env:PLANSEED_RELEASE_TAG = "v0.1.0-alpha"
-#   $env:PLANSEED_SETUP_EXE = "path\to\PlanSeed_0.1.0_x64-setup.exe"
+#   $env:PLANSEED_RELEASE_TAG = "v0.1.1-alpha"
+#   $env:PLANSEED_SETUP_EXE = "path\to\PlanSeed_0.1.1_x64-setup.exe"
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
+. "$PSScriptRoot\_release_path.ps1"
 
-$Tag = if ($env:PLANSEED_RELEASE_TAG) { $env:PLANSEED_RELEASE_TAG } else { "v0.1.0-alpha" }
-$DefaultSetup = Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis\PlanSeed_0.1.0_x64-setup.exe"
-$Setup = if ($env:PLANSEED_SETUP_EXE) { $env:PLANSEED_SETUP_EXE } else { $DefaultSetup }
+$Tag = if ($env:PLANSEED_RELEASE_TAG) { $env:PLANSEED_RELEASE_TAG } else { "v0.1.1-alpha" }
+$Setup = if ($env:PLANSEED_SETUP_EXE) { $env:PLANSEED_SETUP_EXE } else { Get-PlanSeedNsisSetup $Root }
 
 if (-not (Test-Path $Setup)) {
   throw "Installer not found: $Setup`nBuild first: scripts/build_backend_sidecar.ps1 then pnpm --dir desktop tauri:build"
 }
+
+$setupName = Split-Path $Setup -Leaf
 
 Write-Host "== checking gh auth =="
 $authOk = $false
@@ -39,21 +41,22 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 $Notes = @"
-## PlanSeed Alpha v0.1.0
+## PlanSeed Alpha v0.1.1
 
-**Platform:** Windows 10/11 x64 only
+**Platform:** Windows 10/11 x64 only · solver 0.6 · 8.4.1 irregular pipeline (Engineering)
 
 ### Install
-1. Download ``PlanSeed_0.1.0_x64-setup.exe``
+1. Download ``$setupName``
 2. Run the installer
 3. Launch **PlanSeed** and wait until the engine shows Ready
 
 ### Notes
 - Local-first desktop app (Tauri + embedded solver engine)
 - Natural-language parsing needs a local [Ollama](https://ollama.com) install (optional)
+- Product default geometry remains **rect**; irregular site is engineering-only
 - This is an **Alpha** build for early testing — not a final product release
 
-See full known limitations: ``docs/alpha-v0.1-release-notes.md``
+See full notes: ``docs/alpha-v0.1.1-release-notes.md``
 
 ### Smoke (optional, after install)
 With the app running:
@@ -64,8 +67,9 @@ powershell -File scripts/windows_alpha_smoke.ps1
 
 Write-Host "== creating release $Tag =="
 gh release create $Tag $Setup `
-  --title "PlanSeed Alpha v0.1.0" `
-  --notes $Notes
+  --title "PlanSeed Alpha v0.1.1" `
+  --notes $Notes `
+  --prerelease
 
 if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
 

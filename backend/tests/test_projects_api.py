@@ -369,7 +369,7 @@ def test_import_validates_before_write_and_conflict(
         name="incoming",
         updated_at="2020-01-01T00:00:00+00:00",
         payload={"form": {"width": 9}, "candidates": []},
-        app_version="0.1.0",
+        app_version="0.1.1",
     )
     blocked = client.post(
         "/api/projects/import",
@@ -393,7 +393,7 @@ def test_import_validates_before_write_and_conflict(
         name="poison",
         updated_at="2020-01-01T00:00:00+00:00",
         payload={"form": {}, "candidates": {}},
-        app_version="0.1.0",
+        app_version="0.1.1",
     )
     rejected = client.post(
         "/api/projects/import",

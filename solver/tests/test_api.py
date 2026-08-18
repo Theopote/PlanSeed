@@ -15,7 +15,7 @@ def test_health():
     assert body["ok"] is True
     assert body["service"] == "planseed"
     assert body["api_version"] == "1"
-    assert body["engine_version"] == "0.1.0"
+    assert body["engine_version"] == "0.1.1"
 
 
 def test_health_identity_contract():

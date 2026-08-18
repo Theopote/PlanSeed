@@ -16,7 +16,7 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$Setup = Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis\PlanSeed_0.1.0_x64-setup.exe"
+$Setup = Get-PlanSeedNsisSetup $Root
 if ($RebuildInstaller) {
     & "$PSScriptRoot\build_installer.ps1"
 }
