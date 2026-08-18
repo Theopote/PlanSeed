@@ -375,23 +375,23 @@ uv run pytest -q   # 全量
 
 ## 14. 文档勾选（实现完成后）
 
-- [ ] `docs/phases/phase-8-solver-2.0.md` — 8.4.1 ☐ → ✅
-- [ ] `docs/phases/phase-8.5-alpha-stabilization.md` — 8.4.1 ☐ → ✅
-- [ ] `docs/solver.md` — Pipeline Integration ✅
-- [ ] `docs/adr/009-rect-default-shapely-irregular.md` — 注明 8.4.1 已接入
+- [x] `docs/phases/phase-8-solver-2.0.md` — 8.4.1 ☐ → ✅
+- [x] `docs/phases/phase-8.5-alpha-stabilization.md` — 8.4.1 ☐ → ✅
+- [x] `docs/solver.md` — Pipeline Integration ✅
+- [x] `docs/adr/009-rect-default-shapely-irregular.md` — 注明 8.4.1 已接入
 - [ ] `docs/alpha-v0.1-release-notes.md` Known limitations — irregular 仍为 experimental **直到** product qualify 决策（本任务 = engineering complete，是否改 release notes 由人决定）
 
 ---
 
 ## 15. Definition of Done（8.4.1）
 
-- [ ] `normalize()` 对 `site_polygon` / `buildable_polygon` 调用 `prepare_buildable_rects` 并写入 `DesignProgram`
-- [ ] Guillotine（+ MaxRect 继承链）消费 `buildable_free_rects`，矩形输入零行为变化
-- [ ] Checker boundary + layout_coverage 对 irregular 正确（cut-out 不可放置、不可被 gap-fill）
-- [ ] `geometry_backend` 仅在实际 irregular pipeline 时为 `shapely-orthogonal`
-- [ ] E2E：`run_pipeline` → valid candidate → evaluation → SVG 不 crash
-- [ ] 全量 pytest 绿；矩形 benchmark seed 回归无 drift
-- [ ] `SOLVER_VERSION` bump + provenance 测试更新
+- [x] `normalize()` 对 `site_polygon` / `buildable_polygon` 调用 `prepare_buildable_rects` 并写入 `DesignProgram`
+- [x] Guillotine（+ MaxRect 继承链）消费 `buildable_free_rects`，矩形输入零行为变化
+- [x] Checker boundary + layout_coverage 对 irregular 正确（cut-out 不可放置、不可被 gap-fill）
+- [x] `geometry_backend` 仅在实际 irregular pipeline 时为 `shapely-orthogonal`
+- [x] E2E：`run_pipeline` → valid candidate → evaluation → SVG 不 crash
+- [x] 全量 pytest 绿；矩形 benchmark seed 回归无 drift
+- [x] `SOLVER_VERSION` bump + provenance 测试更新
 
 ---
 

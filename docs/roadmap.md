@@ -16,7 +16,7 @@
 | **7.1.1** | **Presentation Accuracy & Smoke** | **✅**（Desktop WebView2 Print · P02/P06 · 2026-08-14） |
 | **7.2** | **Export Formats** | **✅**（SVG/PNG/JSON/Print/Dialog） |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（A–I） |
-| **8.0–8.4** | **Solver 2.0 能力面** | **✅ Engineering**（8.4.1 ☐；MaxRect 未产品验收） |
+| **8.0–8.4** | **Solver 2.0 能力面** | **✅ Engineering**（8.4.1 ✅ Engineering · MaxRect 未产品验收） |
 | **8.5** | **Alpha Stabilization（语义回稳）** | **✅ P0 代码** |
 | **Alpha RQ** | **v0.1 Release Qualification** | **✅**（[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)） |
 | **v0.1.0** | **Alpha Release** | **✅ Released**（tag `v0.1.0-alpha` → `436ac81`） |
@@ -30,7 +30,7 @@
 8.2       Pareto                         ✅ Engineering / Experimental
 8.3       CP-SAT                         ✅ Engineering / Experimental
 8.4       Irregular Geometry Foundation  ✅（非端到端）
-8.4.1     Irregular Site Pipeline        ☐（Post-v0.1 backlog）
+8.4.1     Irregular Site Pipeline        ✅ Engineering（2026-08-18 · solver 0.6；产品默认仍 rect）
 
 Alpha v0.1.0                             ✅ Released（v0.1.0-alpha · 2026-08-14）
 Post-v0.1 Planning                       ← CURRENT
@@ -65,7 +65,7 @@ Experimental Lab：MaxRect · Pareto · CP-SAT · Shapely（须 experimental / �
 | **7.1.1** | **Presentation Accuracy & Smoke** | **✅**（Desktop Print · 2026-08-14） |
 | **7.2** | **Export Formats** | **✅** |
 | **7.5** | **Alpha Engineering Hardening** | **✅**（见 [phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.4 Foundation；8.4.1 ☐） |
+| **8.0** | **Solver Diversity / Solver 2.0** | **✅ 能力面**（8.4 Foundation · 8.4.1 ✅ Engineering） |
 | **8.5** | **Alpha Stabilization（语义回稳）** | **✅ P0 代码**（见 [phase-8.5](phases/phase-8.5-alpha-stabilization.md)） |
 | **Alpha RQ** | **v0.1 Release Qualification** | **✅** |
 | **v0.1.0** | **Alpha Release** | **✅ Released** |
@@ -449,7 +449,7 @@ Phase 7 = **Deliverable Layer**，不是 Interoperability Platform。
 | **7.1.1** | Presentation Accuracy & Smoke | **✅**（Desktop WebView2 Print · 2026-08-14） |
 | **7.2** | Export Formats | **✅**（SVG · PNG · JSON · Print · Export Dialog） |
 | **7.5** | Alpha Engineering Hardening | **✅**（[phase-7.5-alpha-hardening.md](phase-7.5-alpha-hardening.md)） |
-| **8.0** | Solver Diversity / Solver 2.0 | **✅ 能力面**（8.4 Foundation；8.4.1 ☐） |
+| **8.0** | Solver Diversity / Solver 2.0 | **✅ 能力面**（8.4 Foundation · 8.4.1 ✅ Engineering） |
 | **8.5** | Alpha Stabilization（语义回稳） | **✅ P0 代码** |
 | **Alpha RQ** | v0.1 Release Qualification | **✅** |
 | **v0.1.0** | Alpha Release | **✅ Released** |

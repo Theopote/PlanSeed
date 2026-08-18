@@ -21,7 +21,7 @@
 8.2 Pareto Frontier（非支配集） ✅ Experimental
 8.3 CP-SAT Research（floor assignment opt-in） ✅
 8.4 Irregular Geometry Foundation（Shapely tools） ✅
-8.4.1 Irregular Site Pipeline Integration          ☐
+8.4.1 Irregular Site Pipeline Integration          ✅ Engineering
 ```
 
 | 项 | 主题 | 状态 |
@@ -33,7 +33,7 @@
 | **8.2** | Pareto Frontier | ✅ Experimental |
 | **8.3** | CP-SAT Research | ✅ |
 | **8.4** | Irregular Geometry Foundation | ✅（schema + Shapely utils；**非**端到端） |
-| **8.4.1** | Irregular Site Pipeline Integration | **☐** |
+| **8.4.1** | Irregular Site Pipeline Integration | **✅ Engineering**（非产品宣称） |
 
 ## 8.0-A — Generator Interface
 

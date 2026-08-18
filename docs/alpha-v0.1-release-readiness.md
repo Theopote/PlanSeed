@@ -12,7 +12,7 @@
 8.2       Pareto                         ✅ Engineering / Experimental
 8.3       CP-SAT                         ✅ Engineering / Experimental
 8.4       Irregular Geometry Foundation  ✅（非端到端）
-8.4.1     Irregular Site Pipeline        ☐（Post-v0.1 backlog）
+8.4.1     Irregular Site Pipeline        ✅ Engineering（solver 0.6 · 产品默认仍 rect）
 
 Alpha v0.1.0                             ✅ Released as v0.1.0-alpha（2026-08-14）
 ```
@@ -79,7 +79,7 @@ Desktop UI 手测一键准备：`powershell -File scripts/start_desktop_hand_ses
 - [x] `generator_strategy` 默认 `"guillotine"`
 - [x] `SolverProfile` + Alpha Stable / Research 预设
 - [x] 产品路径 pin：非 experimental → Alpha Stable
-- [x] Solver provenance / `SOLVER_VERSION=0.5` / selection 版本化
+- [x] Solver provenance / `SOLVER_VERSION`（v0.1.0 发布时 `0.5`；Post-v0.1 master `0.6` + 8.4.1）/ selection 版本化
 
 ### 2. Regression（同 seed + 同 profile → 同结果）
 
@@ -167,7 +167,7 @@ Gate B 拆成两层，避免「装包引擎已绿」与「Desktop 壳未测」�
 - Windows 10/11 x64 only
 - 独栋住宅 Alpha；矩形场地 Alpha geometry
 - MaxRect / Pareto / CP-SAT：experimental / research，非默认
-- Irregular site：非产品支持（8.4.1 backlog）
+- Irregular site：pipeline 已接入（8.4.1 Engineering）；**产品默认 geometry 仍为 rect**，不对外宣称 irregular 已产品化
 - 本地 Ollama 可选；非云端 LLM
 - 非规范合规 · 非施工图交付
 

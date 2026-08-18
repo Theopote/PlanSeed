@@ -3,7 +3,7 @@
 ## Status
 
 Accepted（Phase **8.4 Irregular Geometry Foundation**）  
-**未**宣称端到端 irregular site（见 8.4.1 ☐）
+**未**宣称端到端 irregular site 已产品化（8.4.1 ✅ Engineering · 产品默认仍 rect）
 
 ## Context
 

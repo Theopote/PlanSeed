@@ -42,10 +42,10 @@ Experimental Lab:
 - [x] CP-SAT = assignment-only research  
 - [x] 8.4 = Irregular Geometry Foundation（非端到端）  
 - [x] **8.4.1** Irregular Site Pipeline Integration  
-- [ ] MaxRect **product qualification**  
-- [ ] 7.1.1 WebView2 Print Smoke  
-- [ ] 安装包 / `.planseed` 往返（见 Release Gate）  
-- [ ] **禁止**在 Gate 完成前开 Phase 9  
+- [ ] MaxRect **product qualification**（Suite v1 gate FAILED · 保持 experimental）  
+- [x] 7.1.1 WebView2 Print Smoke（v0.1.0 已验收）  
+- [x] 安装包 / `.planseed` 往返（v0.1.0 已验收；Post-v0.1 master 须重跑 smoke）  
+- [x] **禁止**在 Gate 完成前开 Phase 9（v0.1.0 已发布；Post-v0.1 维持纪律）  
 
 完整 Gate 清单与通过标准 → [alpha-v0.1-release-readiness.md](../alpha-v0.1-release-readiness.md)
 

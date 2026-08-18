@@ -117,18 +117,18 @@ Guillotine 降级为 **RoomLayout strategy**，不再独自决定整栋组织。
 
 正式门槛集中在 `solver/tests/quality_baselines.py`，由 `test_quality_regression.py` 执行。
 
-当前默认（基准 11×13 两层，N=32）：
+当前默认（基准 11×13 两层，`benchmark_program`，N=64）：
 
-| 指标 | 门槛 | 实测基线 |
-|------|------|----------|
-| valid_ratio | ≥ 0.70 | ≈ 1.0 |
-| distinct layouts | ≥ 8 | 32 |
-| distinct valid | ≥ 8 | 32 |
+| 指标 | 门槛 | 实测基线（2026-08-18） |
+|------|------|------------------------|
+| valid_ratio | ≥ 0.30 | ≈ 0.359（23/64） |
+| distinct layouts | ≥ 8 | 64 |
+| distinct valid | ≥ 8 | 23 |
 | Top-5 hard violations | 0 | 0 |
-| Top-5 area_accuracy | ≥ 0.60 | ≈ 0.63+ |
-| core placements | ≥ 2 | 5 |
+| Top-5 area_accuracy | ≥ 0.60 | ≈ 0.84 |
+| core placements | ≥ 2 | 多种 |
 
-`valid >= 1` / `distinct > 1` 仅作 smoke；质量以本表为准。收紧阈值前先更新 `MEASURED_BASELINE`。
+硬约束 checker 上线后 `valid_ratio` 不再为 1.0；遗留 JSON 见 `docs/baselines/layout_generation_guillotine_vs_maxrect_2026-08-09_pre-hard-constraint.json`。门槛与实测见 `solver/tests/quality_baselines.py`。
 
 ## Constraint 生命周期（强制）
 
