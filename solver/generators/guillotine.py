@@ -31,6 +31,7 @@ from solver.generators.wet_anchor import (
     collect_wet_anchor_rects,
     preplace_wet_anchored_rooms,
 )
+from solver.geometry.buildable import program_pack_rects
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
     apply_corridor_access_repair_if_safe,
@@ -42,7 +43,6 @@ from solver.geometry.coverage import (
     largest_aspect_ok_placement_rect,
     resolve_placement_overlaps,
 )
-from solver.geometry.buildable import program_pack_rects
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
@@ -459,7 +459,6 @@ class GuillotineGenerator:
             floor.id: prededuction.atrium_placements_on_floor(floor.id)
             for floor in program.floors
         }
-        floor_rect = Rect(x=0, y=0, width=w, depth=d)
         stair_rect = Rect(
             x=core.rect.x,
             y=core.rect.y,

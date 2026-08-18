@@ -31,8 +31,11 @@ Local-first、本地运行的独栋住宅生成式设计工具。
 # 安装依赖（Python 3.12 + uv）
 uv sync --dev
 
-# 运行全部测试
+# 运行全部测试（默认跳过 @pytest.mark.slow 大样本统计用例）
 uv run pytest
+
+# 大样本统计回归（101 种子等，耗时较长）
+uv run pytest -m slow
 
 # 覆盖率报告（Phase 7.5-H：仅观察，无门槛）
 uv run pytest --cov=packages --cov=solver --cov=backend --cov-report=term-missing

@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from packages.schema.identity import SOLVER_VERSION
+from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 
 from solver.fixtures.benchmark import benchmark_program

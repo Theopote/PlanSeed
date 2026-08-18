@@ -5,16 +5,16 @@ from __future__ import annotations
 from packages.schema.core import CorePlacement
 from packages.schema.project import ProjectSpec
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
+from packages.schema.scoring import FindingSeverity
 from packages.schema.site import SiteSpec
 from packages.schema.vertical_void import VerticalVoidSpec, VerticalVoidType
-from packages.schema.scoring import FindingSeverity
 from solver.fixtures.benchmark import benchmark_program
 from solver.pipeline import run_pipeline
 from solver.program.normalize import (
-    check_program_footprint_fit,
     _footprint_area,
     _program_sum_on_floor,
     _reserved_area_on_floor,
+    check_program_footprint_fit,
 )
 
 

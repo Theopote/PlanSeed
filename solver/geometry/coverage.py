@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Union
-
-from packages.schema.layout import PlacementRect, RoomPlacement, Violation
+from packages.schema.layout import LayoutCandidate, PlacementRect, RoomPlacement, Violation
 from packages.schema.program import DesignProgram
 from solver.evaluation.weights import DEFAULT_WEIGHTS
 from solver.geometry.rect import (
@@ -19,7 +17,7 @@ from solver.geometry.rect import (
 COVERAGE_TOLERANCE = 1e-6
 LAYOUT_ABSORB_TOLERANCE = 0.5
 
-FootprintLike = Union[Rect, list[Rect]]
+FootprintLike = Rect | list[Rect]
 
 
 def normalize_footprint(footprint: FootprintLike) -> list[Rect]:
@@ -1262,6 +1260,7 @@ def _corridor_links_private_to_circulation(
 ) -> bool:
     """新走廊条须直接贴循环空间，或不经其它卧室即可从走廊接入循环网络。"""
     from collections import deque
+
     from solver.topology.doors import shared_boundary_between
 
     if shared_boundary_between(private, corridor, min_length=min_length) is None:
@@ -1509,7 +1508,7 @@ def improve_private_room_corridor_access(
                 continue
 
             trial_placements: list[RoomPlacement] = []
-            for idx, p in enumerate(updated):
+            for p in updated:
                 if p.room_id == neighbor.room_id:
                     trial_placements.append(shrunk_neighbor)
                 else:
@@ -1546,12 +1545,12 @@ def improve_private_room_corridor_access(
 
 def apply_corridor_access_repair_if_safe(
     program: DesignProgram,
-    candidate: "LayoutCandidate",
+    candidate: LayoutCandidate,
     footprint: FootprintLike,
     *,
     min_area_by_room_id: dict[str, float] | None = None,
     entry_room_ids: frozenset[str] | None = None,
-) -> "LayoutCandidate":
+) -> LayoutCandidate:
     """
     在完整候选上尝试走廊邻接修补；仅当修补后仍通过 checker 时才采纳。
 

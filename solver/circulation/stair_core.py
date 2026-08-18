@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import random
-from typing import Callable, Literal
+from collections.abc import Callable
+from typing import Literal
 
 from packages.schema.core import CorePlacement, CorePlacementResult, StairCoreSpec
 from packages.schema.layout import PlacementRect

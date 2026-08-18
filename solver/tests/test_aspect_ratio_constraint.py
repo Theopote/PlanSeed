@@ -118,24 +118,35 @@ class TestRoomAspectRatioViolations:
             )
 
 
+def _assert_valid_candidates_respect_aspect_ratio(seed: int) -> None:
+    program = _atrium_benchmark_program()
+    program.solver_config.base_seed = seed
+    program.solver_config.candidate_count = 64
+    program.solver_config.return_top_k = 5
+    result = run_pipeline(program)
+    limit = DEFAULT_WEIGHTS.aspect_ratio_threshold
+    valid_candidates = [
+        c for c in result.all_candidates if c.validation and c.validation.valid
+    ]
+    for candidate in valid_candidates:
+        for p in _functional_placements(candidate):
+            assert p.aspect_ratio <= limit + 1e-6, (
+                f"seed={seed} {candidate.id} {p.room_id} "
+                f"ratio={p.aspect_ratio:.2f}"
+            )
+    for candidate in result.top_candidates:
+        for p in _functional_placements(candidate):
+            assert p.aspect_ratio <= limit + 1e-6
+
+
 class TestPipelineAspectRatioWithAtrium:
-    @pytest.mark.parametrize("seed", range(101))
+    @pytest.mark.parametrize("seed", range(20))
     def test_valid_candidates_respect_aspect_ratio(self, seed: int) -> None:
-        program = _atrium_benchmark_program()
-        program.solver_config.base_seed = seed
-        program.solver_config.candidate_count = 64
-        program.solver_config.return_top_k = 5
-        result = run_pipeline(program)
-        limit = DEFAULT_WEIGHTS.aspect_ratio_threshold
-        valid_candidates = [
-            c for c in result.all_candidates if c.validation and c.validation.valid
-        ]
-        for candidate in valid_candidates:
-            for p in _functional_placements(candidate):
-                assert p.aspect_ratio <= limit + 1e-6, (
-                    f"seed={seed} {candidate.id} {p.room_id} "
-                    f"ratio={p.aspect_ratio:.2f}"
-                )
-        for candidate in result.top_candidates:
-            for p in _functional_placements(candidate):
-                assert p.aspect_ratio <= limit + 1e-6
+        _assert_valid_candidates_respect_aspect_ratio(seed)
+
+
+class TestPipelineAspectRatioWithAtriumSlow:
+    @pytest.mark.slow
+    @pytest.mark.parametrize("seed", range(101))
+    def test_valid_candidates_respect_aspect_ratio_full_sample(self, seed: int) -> None:
+        _assert_valid_candidates_respect_aspect_ratio(seed)

@@ -66,7 +66,10 @@ default-groups = ["dev"]
 [tool.pytest.ini_options]
 testpaths = ["packages/schema/tests", "packages/persistence/tests", "packages/llm/tests", "solver/tests", "backend/tests"]
 pythonpath = ["."]
-addopts = "-v"
+addopts = "-v -m 'not slow'"
+markers = [
+    "slow: 大样本统计回归（日常用 pytest -m 'not slow' 跳过；全量验证用 pytest -m slow）",
+]
 
 # 静态检查：先宽松落地，避免一次大手术；逐步收紧。
 # 顺序（勿跳到 mypy --strict）：

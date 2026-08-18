@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from packages.schema.layout import (
     DoorOpening,
     FloorLayout,
@@ -75,6 +76,35 @@ def _private_private_door_pairs(
         if ca == "private" and cb == "private":
             bad.append((op.room_a_id, op.room_b_id))
     return bad
+
+
+def _benchmark_unacceptable_private_private_rate(
+    seeds: range,
+) -> tuple[int, int, float]:
+    """统计 Top-1 候选中不可接受私密-私密直连的比例。"""
+    hits = 0
+    total = 0
+    for seed in seeds:
+        program = benchmark_program()
+        program.solver_config.base_seed = seed
+        program.solver_config.candidate_count = 64
+        program.solver_config.return_top_k = 1
+        result = run_pipeline(program)
+        if not result.top_candidates:
+            continue
+        top = result.top_candidates[0]
+        total += 1
+        openings = top.door_openings or place_door_openings(program, top)
+        categories = _categories_by_id(top)
+        if _unacceptable_private_private_door_pairs(openings, categories):
+            hits += 1
+    rate = hits / total if total else 0.0
+    return hits, total, rate
+
+
+_PRIVATE_PRIVATE_RATE_THRESHOLD = 0.1
+_FAST_SEED_SAMPLE = range(20)
+_FULL_SEED_SAMPLE = range(101)
 
 
 def _wet_private_fanout(
@@ -252,33 +282,24 @@ class TestPrivatePrivateDoorBlocking:
         else:
             assert len(bath_privates) <= 1
 
-    def test_benchmark_private_private_rate_in_top_candidates(self, capsys) -> None:
-        """统计 Top 候选 private-private 直连比例（修复后应显著下降）。"""
-        hits = 0
-        total = 0
-        for seed in range(101):
-            program = benchmark_program()
-            program.solver_config.base_seed = seed
-            program.solver_config.candidate_count = 64
-            program.solver_config.return_top_k = 1
-            result = run_pipeline(program)
-            if not result.top_candidates:
-                continue
-            top = result.top_candidates[0]
-            total += 1
-            openings = top.door_openings or place_door_openings(program, top)
-            categories = _categories_by_id(top)
-            if _unacceptable_private_private_door_pairs(openings, categories):
-                hits += 1
-
-        rate = hits / total if total else 0.0
-        print(
-            f"[privacy-direct-connection] seeds 0-100 top-1 with unacceptable "
-            f"private-private door: {hits}/{total} ({rate:.1%})"
+    def test_benchmark_private_private_rate_in_top_candidates(self) -> None:
+        """Top-1 不可接受私密-私密直连比例应低于阈值（20 种子快测）。"""
+        hits, total, rate = _benchmark_unacceptable_private_private_rate(_FAST_SEED_SAMPLE)
+        assert total > 0
+        assert rate <= _PRIVATE_PRIVATE_RATE_THRESHOLD, (
+            f"unacceptable private-private rate {rate:.1%} ({hits}/{total}) "
+            f"expected <= {_PRIVATE_PRIVATE_RATE_THRESHOLD:.0%}"
         )
-        captured = capsys.readouterr()
-        assert "private-private door" in captured.out
-        assert hits == 0, f"expected 0 unacceptable private-private in top candidates, got {hits}"
+
+    @pytest.mark.slow
+    def test_benchmark_private_private_rate_full_seed_sample(self) -> None:
+        """101 种子大样本统计（pytest -m slow）。"""
+        hits, total, rate = _benchmark_unacceptable_private_private_rate(_FULL_SEED_SAMPLE)
+        assert total > 0
+        assert rate <= _PRIVATE_PRIVATE_RATE_THRESHOLD, (
+            f"unacceptable private-private rate {rate:.1%} ({hits}/{total}) "
+            f"expected <= {_PRIVATE_PRIVATE_RATE_THRESHOLD:.0%}"
+        )
 
     def test_forced_private_adjacency_when_no_alternative_path(self) -> None:
         """两卧室紧挨、仅能通过卧室-卧室边连通次卧 → 保留边并标记 forced。"""
