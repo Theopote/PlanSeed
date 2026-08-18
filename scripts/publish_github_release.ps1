@@ -22,12 +22,11 @@ $setupName = Split-Path $Setup -Leaf
 
 Write-Host "== checking gh auth =="
 $authOk = $false
-try {
-  gh auth status 2>$null | Out-Null
-  if ($LASTEXITCODE -eq 0) { $authOk = $true }
-} catch {
-  $authOk = $false
-}
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+gh auth status *> $null
+if ($LASTEXITCODE -eq 0) { $authOk = $true }
+$ErrorActionPreference = $prevEap
 
 if (-not $authOk) {
   Write-Host "Not logged in. Starting browser login (complete in browser, then return here)..."
@@ -35,8 +34,14 @@ if (-not $authOk) {
   if ($LASTEXITCODE -ne 0) { throw "gh auth login failed" }
 }
 
-$existing = gh release view $Tag 2>$null
-if ($LASTEXITCODE -eq 0) {
+$releaseExists = $false
+try {
+    gh release view $Tag 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+} catch {
+    $releaseExists = $false
+}
+if ($releaseExists) {
   throw "Release $Tag already exists. Delete it or set PLANSEED_RELEASE_TAG to a new tag."
 }
 

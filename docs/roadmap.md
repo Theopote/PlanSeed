@@ -1,6 +1,6 @@
 # PlanSeed 路线图
 
-> **▶ Alpha v0.1.0 Released**（[`v0.1.0-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) · 2026-08-14）  
+> **▶ Alpha v0.1.1 Released**（[`v0.1.1-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) · 2026-08-18）· v0.1.0：[v0.1.0-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha)  
 > **当前：Post-v0.1 Planning** — issue-driven `v0.1.x` 维护 + 观察窗口；**不是 Phase 9**  
 > Release 验收：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) · 手测：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
 
@@ -19,7 +19,8 @@
 | **8.0–8.4** | **Solver 2.0 能力面** | **✅ Engineering**（8.4.1 ✅ Engineering · MaxRect 未产品验收） |
 | **8.5** | **Alpha Stabilization（语义回稳）** | **✅ P0 代码** |
 | **Alpha RQ** | **v0.1 Release Qualification** | **✅**（[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)） |
-| **v0.1.0** | **Alpha Release** | **✅ Released**（tag `v0.1.0-alpha` → `436ac81`） |
+| **v0.1.0** | **Alpha Release** | **✅ Released**（tag `v0.1.0-alpha` · 2026-08-14） |
+| **v0.1.1** | **Alpha Patch** | **✅ Released**（tag `v0.1.1-alpha` · solver 0.6 · 8.4.1） |
 | **Post-v0.1** | **Planning & Observation** | **← 当前**（`v0.1.x` bugfix/UX · 收集反馈 · 再定 v0.2） |
 | **8.x** | Advanced Site / Code / Interop | **更后**（用户反馈驱动，非预设 Phase 9） |
 
@@ -32,7 +33,7 @@
 8.4       Irregular Geometry Foundation  ✅（非端到端）
 8.4.1     Irregular Site Pipeline        ✅ Engineering（2026-08-18 · solver 0.6；产品默认仍 rect）
 
-Alpha v0.1.0                             ✅ Released（v0.1.0-alpha · 2026-08-14）
+Alpha v0.1.1                             ✅ Released（v0.1.1-alpha · 2026-08-18）
 Post-v0.1 Planning                       ← CURRENT
 ```
 
