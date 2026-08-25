@@ -1,7 +1,8 @@
 # PlanSeed 路线图
 
 > **▶ Alpha v0.1.1 Released**（[`v0.1.1-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) · 2026-08-18）· v0.1.0：[v0.1.0-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha)  
-> **当前：Post-v0.1 Planning** — issue-driven `v0.1.x` 维护 + 观察窗口；**不是 Phase 9**  
+> **当前：v0.2 — Architect Workflow（Planning）** — issue-driven 推进；`v0.1.x` 仅 bugfix/UX  
+> v0.2 总览：[v0.2-architect-workflow.md](v0.2-architect-workflow.md) · Benchmark v2：[design-benchmark-v2.md](design-benchmark-v2.md)  
 > Release 验收：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) · 手测：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
 
 ## 项目状态（阶段判断）
@@ -21,8 +22,9 @@
 | **Alpha RQ** | **v0.1 Release Qualification** | **✅**（[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md)） |
 | **v0.1.0** | **Alpha Release** | **✅ Released**（tag `v0.1.0-alpha` · 2026-08-14） |
 | **v0.1.1** | **Alpha Patch** | **✅ Released**（tag `v0.1.1-alpha` · solver 0.6 · 8.4.1） |
-| **Post-v0.1** | **Planning & Observation** | **← 当前**（`v0.1.x` bugfix/UX · 收集反馈 · 再定 v0.2） |
-| **8.x** | Advanced Site / Code / Interop | **更后**（用户反馈驱动，非预设 Phase 9） |
+| **Post-v0.1** | **Planning & Observation** | **✅**（已收敛为 v0.2 方向） |
+| **v0.2** | **Architect Workflow** | **← 当前**（[v0.2-architect-workflow.md](v0.2-architect-workflow.md)） |
+| **8.x** | Advanced Site / Code / Interop | **并入 v0.2-D/H**（非独立 Phase 9） |
 
 ```text
 0–7.5     Product + Engineering Core     ✅
@@ -34,7 +36,7 @@
 8.4.1     Irregular Site Pipeline        ✅ Engineering（2026-08-18 · solver 0.6；产品默认仍 rect）
 
 Alpha v0.1.1                             ✅ Released（v0.1.1-alpha · 2026-08-18）
-Post-v0.1 Planning                       ← CURRENT
+v0.2 Architect Workflow                  ← CURRENT
 ```
 
 ```text
