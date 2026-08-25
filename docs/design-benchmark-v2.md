@@ -2,7 +2,7 @@
 
 > **代号：** `design-benchmark-v2` / Suite `design-v2`  
 > **版本：** v2.0-spec（2026-08-26）  
-> **状态：** Specification — harness 待实现（v0.2-A）  
+> **状态：** Wave 1–2 harness 已实现（Core B01–B07 · Site B08–B12）；Intent B13–B20 待 Wave 3  
 > **命名注意：** 本 benchmark **不是** Phase 6.7 的 Parser Benchmark v2（relations / floor_preferences）。  
 > 后者测 NL→RequirementSpec；本 benchmark 测 **DesignProgram→LayoutCandidate 的设计可接受性**。
 
@@ -467,25 +467,31 @@ ab_rate(case, strategy) = (count_A + count_B) / candidates_generated
 ### 文件布局（计划）
 
 ```text
-solver/fixtures/design_suite_v2.py      # B01–B20 case builders
-solver/benchmark/design_acceptance.py   # 评级汇总 + ab_rate
+solver/fixtures/design_suite_v2.py      # B01–B07 case builders (Wave 1)
+solver/benchmark/design_acceptance.py   # harness + ab_rate + grade merge
 docs/baselines/design_benchmark_v2_*.json
+docs/baselines/design-benchmark-v2-grades-template.json
 ```
 
 ### CLI（计划）
 
 ```bash
 uv run python -m solver.benchmark --suite design-v2 --count 32
-uv run python -m solver.benchmark --suite design-v2 --cases B01,B08 --count 8
-uv run python -m solver.benchmark --suite design-v2 --export-svg debug/benchmark-v2/
-uv run python -m solver.benchmark --suite design-v2 --merge-grades grades.json
+uv run python -m solver.benchmark --suite design-v2 --cases B01,B03 --count 8
+uv run python -m solver.benchmark --suite design-v2 --list-cases
+uv run python -m solver.benchmark --suite design-v2 --cases B01 --count 32 \
+  --export-svg debug/design-benchmark-v2/ --out docs/baselines/design_benchmark_v2_n32.json
+uv run python -m solver.benchmark --suite design-v2 --merge-grades docs/baselines/grades.json \
+  --out docs/baselines/design_benchmark_v2_n32.json
 ```
+
+评级模板：`docs/baselines/design-benchmark-v2-grades-template.json`
 
 ### 实现顺序
 
-1. **Wave 1（Core B01–B07）** — 矩形场地，复用 Suite v1 builders
-2. **Wave 2（Intent B13–B20）** — 约束张力 case
-3. **Wave 3（Site B08–B12）** — 需 `geometry_backend=shapely` experimental
+1. **Wave 1（Core B01–B07）** — ✅ 已实现
+2. **Wave 2（Site B08–B12）** — ✅ 已实现（含 irregular Shapely）
+3. **Wave 3（Intent B13–B20）** — 约束张力 case
 
 ---
 

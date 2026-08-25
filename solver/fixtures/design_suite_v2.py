@@ -25,13 +25,14 @@ from packages.schema.constraints import (
 from packages.schema.program import DesignProgram
 from packages.schema.project import ProjectSpec
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
-from packages.schema.site import CardinalEdge, SetbackSpec, SiteSpec
+from packages.schema.site import CardinalEdge, Point2D, Polygon2D, SetbackSpec, SiteSpec
 
 from solver.program.normalize import normalize
 
 SUITE_ID = "design-benchmark-v2"
 SUITE_VERSION = "v2"
 WAVE_CORE = "core"
+WAVE_SITE = "site"
 
 Tier = Literal["core", "site", "intent"]
 
@@ -427,6 +428,182 @@ def _b07() -> DesignSuiteCase:
     )
 
 
+def _three_bed_two_floor_rooms() -> list[RoomSpec]:
+    """标准两层三卧（Site / Intent cases 复用）。"""
+    return [
+        _room("living", "客厅", RoomCategory.PUBLIC, 22, "F1"),
+        _room("kitchen", "餐厨", RoomCategory.WET, 14, "F1", tags=["kitchen"]),
+        _room("bath1", "客卫", RoomCategory.WET, 4, "F1"),
+        _room("master", "主卧", RoomCategory.PRIVATE, 15, "F2"),
+        _room("ensuite", "主卫", RoomCategory.WET, 5, "F2", tags=["ensuite", "master_bath"]),
+        _room("bed2", "次卧1", RoomCategory.PRIVATE, 11, "F2"),
+        _room("bed3", "次卧2", RoomCategory.PRIVATE, 11, "F2"),
+        _room("bath2", "公卫", RoomCategory.WET, 4, "F2"),
+    ]
+
+
+_TWO_FLOOR_LABELS = {"F1": "一层", "F2": "二层"}
+
+
+def _l_shape_polygon() -> Polygon2D:
+    """10×10 缺 NE 5×5 → 可建 75㎡。"""
+    return Polygon2D(
+        exterior=[
+            Point2D(x=0, y=0),
+            Point2D(x=10, y=0),
+            Point2D(x=10, y=5),
+            Point2D(x=5, y=5),
+            Point2D(x=5, y=10),
+            Point2D(x=0, y=10),
+        ]
+    )
+
+
+def _stepped_polygon() -> Polygon2D:
+    """14×10 东侧 4×3 凸出阶梯形（正交 8 顶点）。"""
+    return Polygon2D(
+        exterior=[
+            Point2D(x=0, y=0),
+            Point2D(x=10, y=0),
+            Point2D(x=10, y=3),
+            Point2D(x=14, y=3),
+            Point2D(x=14, y=10),
+            Point2D(x=0, y=10),
+        ]
+    )
+
+
+def _b08() -> DesignSuiteCase:
+    program = _program(
+        width=9,
+        depth=20,
+        rooms=_three_bed_two_floor_rooms(),
+        floor_labels=_TWO_FLOOR_LABELS,
+    )
+    return DesignSuiteCase(
+        meta=DesignSuiteCaseMeta(
+            id="B08",
+            title="狭长地块",
+            description="窄面宽 9m 极限下的两层三卧",
+            tier="site",
+            focus_metrics=("spatial", "circulation", "room_proportion"),
+            d_grade_hints=("房间面宽不足", "无自然采光面", "动线折返过多"),
+        ),
+        program=program,
+        wave=WAVE_SITE,
+    )
+
+
+def _b09() -> DesignSuiteCase:
+    rooms = _three_bed_two_floor_rooms()
+    program = _program(
+        width=10,
+        depth=10,
+        rooms=rooms,
+        floor_labels=_TWO_FLOOR_LABELS,
+        site_kwargs={"site_polygon": _l_shape_polygon()},
+    )
+    return DesignSuiteCase(
+        meta=DesignSuiteCaseMeta(
+            id="B09",
+            title="L 型场地",
+            description="L 型正交用地，凹角空间利用",
+            tier="site",
+            focus_metrics=("site_relationship", "spatial", "technical"),
+            d_grade_hints=("房间越出 buildable", "凹角浪费", "翼间动线断裂"),
+        ),
+        program=program,
+        wave=WAVE_SITE,
+    )
+
+
+def _b10() -> DesignSuiteCase:
+    rooms = _three_bed_two_floor_rooms() + [
+        _room("garage", "车库", RoomCategory.OTHER, 18, "F1", tags=["garage"]),
+    ]
+    program = _program(
+        width=12,
+        depth=12,
+        rooms=rooms,
+        floor_labels=_TWO_FLOOR_LABELS,
+        site_kwargs={
+            "road_edges": [CardinalEdge.SOUTH, CardinalEdge.EAST],
+            "entrance_edge": CardinalEdge.SOUTH,
+        },
+        constraints=[
+            _adj("garage", "living", weight=0.9, desc="车库临道路区"),
+        ],
+    )
+    return DesignSuiteCase(
+        meta=DesignSuiteCaseMeta(
+            id="B10",
+            title="转角地块",
+            description="南+东双面临街，入口与车库灵活布置",
+            tier="site",
+            focus_metrics=("site_relationship", "circulation"),
+            d_grade_hints=("入口背路", "车库不可达", "临街房间私密性差"),
+        ),
+        program=program,
+        wave=WAVE_SITE,
+    )
+
+
+def _b11() -> DesignSuiteCase:
+    rooms = _three_bed_two_floor_rooms()
+    program = _program(
+        width=14,
+        depth=10,
+        rooms=rooms,
+        floor_labels=_TWO_FLOOR_LABELS,
+        site_kwargs={"site_polygon": _stepped_polygon()},
+    )
+    return DesignSuiteCase(
+        meta=DesignSuiteCaseMeta(
+            id="B11",
+            title="不规则正交场地",
+            description="阶梯形正交用地的基础可行性",
+            tier="site",
+            focus_metrics=("site_relationship", "technical", "spatial"),
+            d_grade_hints=("轮廓锯齿无逻辑", "凹角不可用地", "房间越界"),
+        ),
+        program=program,
+        wave=WAVE_SITE,
+    )
+
+
+def _b12() -> DesignSuiteCase:
+    rooms = _three_bed_two_floor_rooms() + [
+        _room("garage", "车库", RoomCategory.OTHER, 18, "F1", tags=["garage"]),
+    ]
+    program = _program(
+        width=14,
+        depth=16,
+        rooms=rooms,
+        floor_labels=_TWO_FLOOR_LABELS,
+        site_kwargs={
+            "setbacks": SetbackSpec(north=3, south=2, east=2, west=2),
+            "setback_source": "user",
+            "road_edges": [CardinalEdge.SOUTH],
+            "entrance_edge": CardinalEdge.SOUTH,
+        },
+        constraints=[
+            _adj("garage", "living", weight=1.0, desc="车库临道路"),
+        ],
+    )
+    return DesignSuiteCase(
+        meta=DesignSuiteCaseMeta(
+            id="B12",
+            title="高退界限制",
+            description="四向退界压缩下的紧凑布局",
+            tier="site",
+            focus_metrics=("site_relationship", "program", "spatial"),
+            d_grade_hints=("房间越界", "可建区利用率低", "房间畸形"),
+        ),
+        program=program,
+        wave=WAVE_SITE,
+    )
+
+
 _CASE_BUILDERS: dict[str, Callable[[], DesignSuiteCase]] = {
     "B01": _b01,
     "B02": _b02,
@@ -435,17 +612,22 @@ _CASE_BUILDERS: dict[str, Callable[[], DesignSuiteCase]] = {
     "B05": _b05,
     "B06": _b06,
     "B07": _b07,
+    "B08": _b08,
+    "B09": _b09,
+    "B10": _b10,
+    "B11": _b11,
+    "B12": _b12,
 }
 
-# Wave 1 仅 Core；Site/Intent 在后续 wave 追加
-WAVE1_CASE_IDS: tuple[str, ...] = tuple(_CASE_BUILDERS.keys())
+WAVE1_CASE_IDS: tuple[str, ...] = ("B01", "B02", "B03", "B04", "B05", "B06", "B07")
+WAVE_SITE_CASE_IDS: tuple[str, ...] = ("B08", "B09", "B10", "B11", "B12")
 
 
 def list_suite_case_ids(*, wave: str | None = None) -> list[str]:
-    if wave is None:
-        return sorted(_CASE_BUILDERS.keys())
     if wave == WAVE_CORE:
         return list(WAVE1_CASE_IDS)
+    if wave == WAVE_SITE:
+        return list(WAVE_SITE_CASE_IDS)
     return sorted(_CASE_BUILDERS.keys())
 
 

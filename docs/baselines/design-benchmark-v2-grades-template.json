@@ -1,0 +1,21 @@
+{
+  "suite": "design-benchmark-v2",
+  "suite_version": "v2",
+  "candidate_count": 32,
+  "reviewer": "architect-01",
+  "reviewed_at": "2026-08-26",
+  "grades": {
+    "B01": {
+      "0": {
+        "grade": "B",
+        "notes": "客厅偏窄但可改",
+        "d_checklist": []
+      },
+      "1": {
+        "grade": "D",
+        "notes": "卧室面宽不足",
+        "d_checklist": ["slender_room"]
+      }
+    }
+  }
+}

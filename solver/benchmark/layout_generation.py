@@ -484,7 +484,7 @@ def main(argv: list[str] | None = None) -> int:
         "--suite",
         type=str,
         default="",
-        help="run suite (v1) instead of legacy single case",
+        help="run suite: v1 (qualification) or design-v2 (acceptance)",
     )
     parser.add_argument(
         "--cases",
@@ -493,9 +493,23 @@ def main(argv: list[str] | None = None) -> int:
         help="comma-separated suite case ids (e.g. B01,B03,B11)",
     )
     parser.add_argument(
+        "--export-svg",
+        type=str,
+        default="",
+        metavar="DIR",
+        help="(design-v2) export per-candidate SVG under DIR/<case_id>/",
+    )
+    parser.add_argument(
+        "--merge-grades",
+        type=str,
+        default="",
+        metavar="JSON",
+        help="(design-v2) merge human grades.json and compute ab_rate",
+    )
+    parser.add_argument(
         "--list-cases",
         action="store_true",
-        help="list Layout Suite v1 case ids and exit",
+        help="list suite case ids and exit (use with --suite)",
     )
     parser.add_argument(
         "--count",
@@ -572,6 +586,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if qual.passed else 1
 
     if args.list_cases:
+        if args.suite and args.suite.lower() in (
+            "design-v2",
+            "design_v2",
+            "design-benchmark-v2",
+            "v2",
+        ):
+            from solver.benchmark.design_acceptance import main as design_main
+
+            return design_main(["--list-cases"])
         for cid in list_suite_case_ids():
             print(cid)
         return 0
@@ -583,8 +606,33 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.suite:
-        if args.suite.lower() not in ("v1", "layout-v1", SUITE_ID, "1"):
-            raise SystemExit(f"unknown suite {args.suite!r}; use v1")
+        suite_key = args.suite.lower()
+        if suite_key in (
+            "design-v2",
+            "design_v2",
+            "design-benchmark-v2",
+            "v2",
+        ):
+            from solver.benchmark import design_acceptance
+
+            design_argv: list[str] = []
+            if args.cases:
+                design_argv.extend(["--cases", args.cases])
+            design_argv.extend(["--count", str(args.count)])
+            if args.json:
+                design_argv.append("--json")
+            if args.out:
+                design_argv.extend(["--out", args.out])
+            if args.export_svg:
+                design_argv.extend(["--export-svg", args.export_svg])
+            if args.merge_grades:
+                design_argv.extend(["--merge-grades", args.merge_grades])
+            return design_acceptance.main(design_argv)
+
+        if suite_key not in ("v1", "layout-v1", SUITE_ID, "1"):
+            raise SystemExit(
+                f"unknown suite {args.suite!r}; use v1 or design-v2"
+            )
         report = run_layout_suite_benchmark(
             candidate_count=args.count, case_ids=case_ids
         )
