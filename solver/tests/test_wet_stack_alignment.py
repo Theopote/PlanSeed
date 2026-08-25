@@ -28,6 +28,23 @@ from solver.generators.guillotine import GuillotineGenerator
 from solver.geometry.rect import Rect, from_placement
 from solver.pipeline import run_pipeline
 
+_FAST_SEED_SAMPLE = range(20)
+_FULL_SEED_SAMPLE = range(51)
+
+
+def _assert_pipeline_seeds_top_candidates_wet_stack(seed: int) -> None:
+    program = benchmark_program()
+    program.solver_config.base_seed = seed
+    program.solver_config.candidate_count = 64
+    program.solver_config.return_top_k = 5
+    result = run_pipeline(program)
+    for candidate in result.top_candidates:
+        violations = wet_stack_alignment_violations(candidate, program)
+        assert not violations, (
+            f"seed={seed} {candidate.id} wet_stack: "
+            f"{[v.message for v in violations]}"
+        )
+
 
 def _placement(
     room_id: str,
@@ -226,13 +243,14 @@ class TestPipelineWetStackAlignment:
                 f"{[v.message for v in violations]}"
             )
 
-    @pytest.mark.parametrize("seed", range(51))
+    @pytest.mark.parametrize("seed", _FAST_SEED_SAMPLE)
     def test_pipeline_seeds_top_candidates_wet_stack(self, seed: int) -> None:
-        program = benchmark_program()
-        program.solver_config.base_seed = seed
-        program.solver_config.candidate_count = 64
-        program.solver_config.return_top_k = 5
-        result = run_pipeline(program)
-        for candidate in result.top_candidates:
-            violations = wet_stack_alignment_violations(candidate, program)
-            assert not violations
+        _assert_pipeline_seeds_top_candidates_wet_stack(seed)
+
+
+class TestPipelineWetStackAlignmentSlow:
+    @pytest.mark.slow
+    @pytest.mark.parametrize("seed", _FULL_SEED_SAMPLE)
+    def test_pipeline_seeds_top_candidates_wet_stack_full_sample(self, seed: int) -> None:
+        """51 种子大样本（pytest -m slow）。"""
+        _assert_pipeline_seeds_top_candidates_wet_stack(seed)
