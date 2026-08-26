@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1.200 -5.000 16.700 19.800">
+<rect x="-1.200" y="-5.000" width="16.700" height="19.800" fill="#F7F5F0"/>
+<text x="0" y="-4.650" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">seed=42  score=—  invalid</text>
+<text x="0" y="-4.250" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">hard=6  soft=7  id=candidate-42</text>
+<text x="0" y="-3.850" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">north_angle=0°</text>
+<text x="0" y="-3.450" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">entry=south  on_road=False  @(6.0,14.0)</text>
+<text x="0" y="-3.050" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">doors=3</text>
+<text x="0" y="-2.650" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">! geometry.missing_room: 缺少程序房间放置：storage</text>
+<text x="0" y="-2.250" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">! geometry.missing_room: 缺少程序房间放置：laundry</text>
+<text x="0" y="-1.850" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">! geometry.missing_room: 缺少程序房间放置：bath2</text>
+<text x="0" y="-1.450" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">! area-bound-master: 面积不足：4.98 &lt; 9.60</text>
+<text x="0" y="-1.050" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">! area-bound-bath1: 面积不足：2.22 &lt; 3.60</text>
+<text x="0" y="-0.650" font-size="0.32" fill="#1A1A1A" font-family="Consolas, monospace">! access.unreachable_room: 从入口不可达的占用空间: bath2, laundry, living, storage</text>
+<g transform="translate(13.400,0.900)"><line x1="0" y1="0.25" x2="0" y2="-0.45" stroke="#1A1A1A" stroke-width="0.05"/><polygon points="0,-0.550 -0.18,-0.28 0.18,-0.28" fill="#1A1A1A"/><text x="0.28" y="-0.35" font-size="0.28" fill="#1A1A1A" font-family="Consolas, monospace">N</text><text x="-0.1" y="0.55" font-size="0.22" fill="#5A5A5A" font-family="Consolas, monospace">∠0°</text></g>
+<text x="0.1" y="0.350" font-size="0.36" fill="#1A1A1A" font-family="Segoe UI, sans-serif" font-weight="700">一层 · core=south</text>
+<rect x="0" y="0.000" width="12.000" height="14.000" fill="#fff" stroke="#1A1A1A" stroke-width="0.08"/>
+<g class="room-node" data-room-id="stair-F1">
+<rect class="room-shape" data-room-id="stair-F1" x="3.900" y="12.200" width="4.200" height="1.800" fill="#E0E0E0" fill-opacity="0.9" stroke="#333333" stroke-width="0.080"/>
+<text x="6.000" y="12.820" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">楼梯</text>
+<text x="6.000" y="13.380" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">7.6㎡</text>
+</g>
+<g class="room-node" data-room-id="living">
+<rect class="room-shape" data-room-id="living" x="0.000" y="0.000" width="12.000" height="6.417" fill="#E8D5B5" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="6.000" y="2.928" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">客厅</text>
+<text x="6.000" y="3.488" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">77.0/22㎡</text>
+</g>
+<g class="room-node" data-room-id="kitchen">
+<rect class="room-shape" data-room-id="kitchen" x="0.000" y="6.745" width="10.267" height="5.408" fill="#9EC5C0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="5.133" y="9.170" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">餐厨</text>
+<text x="5.133" y="9.730" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">55.5/16㎡</text>
+</g>
+<g class="room-node" data-room-id="master">
+<rect class="room-shape" data-room-id="master" x="9.300" y="12.154" width="2.700" height="1.846" fill="#C5D4E8" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="10.650" y="12.797" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">主卧</text>
+<text x="10.650" y="13.357" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">5.0/16㎡</text>
+</g>
+<g class="room-node" data-room-id="bed2">
+<rect class="room-shape" data-room-id="bed2" x="0.000" y="12.154" width="3.900" height="1.846" fill="#C5D4E8" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="1.950" y="12.797" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">次卧</text>
+<text x="1.950" y="13.357" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">7.2/12㎡</text>
+</g>
+<g class="room-node" data-room-id="bath1">
+<rect class="room-shape" data-room-id="bath1" x="8.100" y="12.154" width="1.200" height="1.846" fill="#9EC5C0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="8.700" y="13.077" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">主卫</text>
+</g>
+<g class="room-node" data-room-id="circ-F1-0">
+<rect class="room-shape" data-room-id="circ-F1-0" x="0.000" y="6.417" width="12.000" height="0.329" fill="#E0E0E0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="6.000" y="6.581" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">走廊</text>
+</g>
+<g class="room-node" data-room-id="circ-F1-1">
+<rect class="room-shape" data-room-id="circ-F1-1" x="3.900" y="12.154" width="4.200" height="0.046" fill="#E0E0E0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="6.000" y="12.177" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">走廊</text>
+</g>
+<g class="room-node" data-room-id="circ-F1-2">
+<rect class="room-shape" data-room-id="circ-F1-2" x="10.267" y="6.745" width="1.733" height="5.408" fill="#E0E0E0" fill-opacity="0.9" stroke="#1A1A1A" stroke-width="0.040"/>
+<text x="11.133" y="9.170" font-size="0.30" fill="#1A1A1A" text-anchor="middle" font-family="Segoe UI, sans-serif">走廊</text>
+<text x="11.133" y="9.730" font-size="0.24" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">9.4㎡</text>
+</g>
+<line x1="0.050" y1="13.950" x2="11.950" y2="13.950" stroke="#C45C26" stroke-width="0.18"/>
+<circle cx="6.000" cy="14.000" r="0.22" fill="#C45C26" stroke="#1A1A1A" stroke-width="0.03"/>
+<text x="6.300" y="14.080" font-size="0.24" fill="#C45C26" font-family="Segoe UI, sans-serif">入口</text>
+<g class="derived-overlay" data-kind="doors"><line x1="9.300" y1="12.627" x2="9.300" y2="13.527" stroke="#8B4513" stroke-width="0.12"/>
+<line x1="9.300" y1="13.527" x2="10.200" y2="13.527" stroke="#8B4513" stroke-width="0.06"/>
+<path d="M 9.300 12.627 A 0.900 0.900 0 0 1 10.200 13.527" fill="none" stroke="#8B4513" stroke-width="0.04" stroke-dasharray="0.08 0.06" opacity="0.75"/>
+<circle cx="9.300" cy="13.527" r="0.06" fill="#8B4513"/>
+<line x1="8.300" y1="12.154" x2="9.100" y2="12.154" stroke="#8B4513" stroke-width="0.12"/>
+<line x1="0.975" y1="12.154" x2="2.925" y2="12.154" stroke="#8B4513" stroke-width="0.12"/></g>
+<g class="floor-dimensions" data-kind="dimensions"><line x1="0.000" y1="-0.380" x2="12.000" y2="-0.380" stroke="#5A5A5A" stroke-width="0.040"/>
+<line x1="0.000" y1="-0.470" x2="0.000" y2="-0.290" stroke="#5A5A5A" stroke-width="0.040"/>
+<line x1="12.000" y1="-0.470" x2="12.000" y2="-0.290" stroke="#5A5A5A" stroke-width="0.040"/>
+<text x="6.000" y="-0.540" font-size="0.26" fill="#5A5A5A" text-anchor="middle" font-family="Segoe UI, sans-serif">12.0 m</text><line x1="-0.620" y1="0.000" x2="-0.620" y2="14.000" stroke="#5A5A5A" stroke-width="0.040"/>
+<line x1="-0.710" y1="0.000" x2="-0.530" y2="0.000" stroke="#5A5A5A" stroke-width="0.040"/>
+<line x1="-0.710" y1="14.000" x2="-0.530" y2="14.000" stroke="#5A5A5A" stroke-width="0.040"/>
+<text x="-0.780" y="7.000" font-size="0.26" fill="#5A5A5A" text-anchor="middle" font-family="Segoe UI, sans-serif" transform="rotate(-90 -0.780 7.000)">14.0 m</text></g>
+<text x="12.400" y="1.600" font-size="0.32" fill="#5A5A5A" font-family="Segoe UI, sans-serif">图例</text>
+<rect x="12.400" y="1.830" width="0.35" height="0.28" fill="#E8D5B5" stroke="#1A1A1A" stroke-width="0.02"/>
+<text x="12.900" y="2.050" font-size="0.28" fill="#1A1A1A" font-family="Segoe UI, sans-serif">公共/DAY</text>
+<rect x="12.400" y="2.230" width="0.35" height="0.28" fill="#C5D4E8" stroke="#1A1A1A" stroke-width="0.02"/>
+<text x="12.900" y="2.450" font-size="0.28" fill="#1A1A1A" font-family="Segoe UI, sans-serif">私密/NIGHT</text>
+<rect x="12.400" y="2.630" width="0.35" height="0.28" fill="#9EC5C0" stroke="#1A1A1A" stroke-width="0.02"/>
+<text x="12.900" y="2.850" font-size="0.28" fill="#1A1A1A" font-family="Segoe UI, sans-serif">湿区</text>
+<rect x="12.400" y="3.030" width="0.35" height="0.28" fill="#D4C4A8" stroke="#1A1A1A" stroke-width="0.02"/>
+<text x="12.900" y="3.250" font-size="0.28" fill="#1A1A1A" font-family="Segoe UI, sans-serif">服务</text>
+<rect x="12.400" y="3.430" width="0.35" height="0.28" fill="#E0E0E0" stroke="#1A1A1A" stroke-width="0.02"/>
+<text x="12.900" y="3.650" font-size="0.28" fill="#1A1A1A" font-family="Segoe UI, sans-serif">交通/楼梯</text>
+<text x="6.000" y="14.400" font-size="0.28" fill="#5A5A5A" text-anchor="middle" font-family="Consolas, monospace">12.0 × 14.0 m</text>
+</svg>

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi import HTTPException
-from packages.schema.locks import LayoutLocks
+from packages.schema.locks import LayoutLocks, LockedRoomRect
 from packages.schema.program import DesignProgram
 from packages.schema.requirements import RequirementSpec
 from solver.fixtures.benchmark import benchmark_program, benchmark_requirement_spec
@@ -15,7 +15,7 @@ from solver.program.requirements_normalize import (
     normalize_requirements_to_program,
 )
 
-from backend.schemas.api import GenerateRequest
+from backend.schemas.api import GenerateRequest, PartialRegenerateRequest, RoomPlacementPayload
 from backend.services.form_requirements import ensure_spaces_for_solve
 
 
@@ -94,3 +94,38 @@ def generate_layouts(
                 ],
             },
         ) from exc
+
+
+def placements_to_locked_rects(
+    placements: list[RoomPlacementPayload],
+) -> list[LockedRoomRect]:
+    return [
+        LockedRoomRect(
+            room_id=p.room_id,
+            floor_id=p.floor_id,
+            x=p.x,
+            y=p.y,
+            width=p.width,
+            depth=p.depth,
+        )
+        for p in placements
+    ]
+
+
+def resolve_partial_regenerate(
+    body: PartialRegenerateRequest,
+    program: DesignProgram,
+) -> tuple[LayoutLocks, object]:
+    """RegenerationScope + base placements → LayoutLocks。"""
+    from packages.schema.regeneration import RegenerationScope
+    from solver.regeneration.scope import (
+        enrich_regeneration_scope,
+        locks_from_placement_rects,
+    )
+
+    scope: RegenerationScope = enrich_regeneration_scope(
+        body.regeneration_scope, program
+    )
+    rects = placements_to_locked_rects(body.base_placements)
+    locks = locks_from_placement_rects(scope, program, rects)
+    return locks, scope

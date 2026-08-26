@@ -95,6 +95,7 @@ from packages.schema.requirements import (
     SpaceRequirement,
     UnknownRequirement,
 )
+from packages.schema.regeneration import RegenerationScope
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
 from packages.schema.scoring import (
     DesignEvaluation,
@@ -215,6 +216,7 @@ __all__ = [
     "RealizedConnection",
     "Rect2D",
     "RelationIntent",
+    "RegenerationScope",
     "RepairRecord",
     "REPORT_BOUNDARY_LINES",
     "REPORT_SCHEMA_VERSION",

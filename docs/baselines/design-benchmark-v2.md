@@ -1,44 +1,61 @@
 # Design Benchmark v2 — Baseline
 
 > **首跑：** 2026-08-26 · Guillotine · n=32 · seed=42  
-> **数据：** [design_benchmark_v2_n32.json](design_benchmark_v2_n32.json)
+> **自动指标：** [design_benchmark_v2_n32.json](design_benchmark_v2_n32.json)  
+> **人工评级：** [design_benchmark_v2_grades_theopote.json](design_benchmark_v2_grades_theopote.json)（reviewer: Theopote）  
+> **合并报告：** [design_benchmark_v2_n32_graded.json](design_benchmark_v2_n32_graded.json)
 
-## 汇总（valid_rate）
+## 主指标：ab_rate（建筑师可接受率）
 
-| Case | Tier | valid_rate | valid_n/32 | top_score | 备注 |
-|------|------|------------|------------|-----------|------|
-| B01 | core | 0.531 | 17 | 96.5 | 可用 |
-| B02 | core | 0.438 | 14 | 90.1 | 可用 |
-| B03 | core | **0.000** | 0 | — | 南向退界 4m 压缩过强 |
-| B04 | core | 0.625 | 20 | 88.7 | 可用 |
-| B05 | core | **0.000** | 0 | — | 三代同堂程序过满 |
-| B06 | core | 0.531 | 17 | 94.7 | 可用 |
-| B07 | core | **0.000** | 0 | — | 四卧二层 + 11×14 过紧 |
-| B08 | site | **0.000** | 0 | — | 9×20 窄面宽极限 |
-| B09 | site | 0.438 | 14 | 89.7 | L 型 irregular |
-| B10 | site | 0.531 | 17 | 90.7 | 转角地块 |
-| B11 | site | 0.344 | 11 | 93.1 | 阶梯形 irregular |
-| B12 | site | 0.812 | 26 | 89.8 | 高退界但用地较大 |
-
-**Aggregate valid_rate:** 0.354
-
-## 解读
-
-1. **Benchmark 正在起作用** — 暴露的是真实程序/场地张力，不是分数微调空间。
-2. **0% valid cases（B03/B05/B07/B08）** 应优先调查：是 case 程序过满，还是 solver 硬约束过严。
-3. **ab_rate 待人工评级** — 使用 [design-benchmark-v2-grades-template.json](design-benchmark-v2-grades-template.json)，对 valid candidate 评 A/B/C/D 后：
-
-```bash
-uv run python -m solver.benchmark --suite design-v2 \
-  --merge-grades path/to/grades.json \
-  --out docs/baselines/design_benchmark_v2_n32.json
+```text
+ab_rate = (count_A + count_B) / 32
 ```
 
-4. **优先人工评审 cases：** B01, B04, B06, B12（valid_rate 最高，有 A/B 候选可评）
+| Case | valid_rate | **ab_rate** | A | B | C | D(人工) | 解读 |
+|------|------------|-------------|---|---|---|---------|------|
+| B01 | 0.531 | **0.250** | 6 | 2 | 9 | — | 窄宅可用，最佳 case |
+| B04 | 0.625 | **0.031** | 0 | 1 | 19 | — | 双车库几乎不可用 |
+| B06 | 0.531 | **0.062** | 0 | 2 | 10 | 5 | 适老一层，动线问题严重 |
+| B12 | 0.812 | **0.000** | 0 | 0 | 14 | 12 | valid 最高但无 A/B |
+
+**Aggregate ab_rate: 0.086**（11/128）  
+**Aggregate valid_rate: 0.625**（评审子集四 case）
+
+### valid_rate vs ab_rate 落差
+
+| 指标 | 值 | 含义 |
+|------|-----|------|
+| valid_rate | 62.5% | 硬约束通过率（solver 视角） |
+| ab_rate | **8.6%** | 建筑师愿继续深化率（产品视角） |
+
+**7 倍落差** — 证明 Design Benchmark v2 的必要性；自动分数不能代理设计可接受性。
+
+## Failure Patterns（Theopote 首评归纳）
+
+| 优先级 | 模式 | Cases | 建议归属 |
+|--------|------|-------|----------|
+| P0 | 入口-门厅-楼梯逻辑错误 | B04 | AccessGraph / circulation |
+| P0 | 空间串联 / 房间无出口 | B06, B12 | RealizedAccessGraph |
+| P0 | 客卫开向错误（面向主卧/厨房而非公区） | B12 | Privacy + door placement |
+| P1 | 黑卫生间（无外墙） | B01 | Environment / 落位 |
+| P1 | 走廊过多或缺失 | B01, B04, B06 | Circulation / topology |
+| P1 | 车库布局浪费 | B04, B12 | Program + site |
+| P2 | 门 SVG 图示错误 | B01, B04 | Renderer（非 solver） |
+
+## 优先人工评审 cases（已完成）
+
+B01, B04, B06, B12 — 80/80 valid 候选已评级。
 
 ## 复现
 
 ```bash
-uv run python -m solver.benchmark --suite design-v2 --count 32 \
-  --out docs/baselines/design_benchmark_v2_n32.json
+# 生成 + 导出
+uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --count 32 \
+  --export-svg debug/design-benchmark-v2/review \
+  --out debug/design-benchmark-v2/review/report.json
+
+# 合并人工评级
+uv run python -m solver.benchmark.design_acceptance \
+  --grades-only docs/baselines/design_benchmark_v2_grades_theopote.json \
+  --out docs/baselines/design_benchmark_v2_n32_graded.json
 ```

@@ -11,7 +11,8 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from packages.schema.limits import API_LIMITS
-from packages.schema.locks import LayoutLocks
+from packages.schema.locks import LayoutLocks, LockedRoomRect
+from packages.schema.regeneration import RegenerationScope
 from packages.schema.requirements import RequirementSpec
 from packages.schema.scoring import DesignScore
 from pydantic import BaseModel, Field
@@ -39,6 +40,29 @@ class GenerateRequest(BaseModel):
     locks: LayoutLocks | None = Field(
         default=None,
         description="Phase 4.1：锁定房间/楼梯后只重生成其余空间",
+    )
+
+
+class PartialRegenerateRequest(BaseModel):
+    """v0.2-B：基于 RegenerationScope 的局部重生成。"""
+
+    use_benchmark: bool = False
+    requirements: RequirementSpec | None = None
+    candidate_count: int | None = Field(
+        default=None, ge=1, le=API_LIMITS.max_generate_candidates
+    )
+    return_top_k: int | None = Field(
+        default=None, ge=1, le=API_LIMITS.max_generate_return_top_k
+    )
+    base_seed: int | None = Field(
+        default=None,
+        ge=0,
+        le=API_LIMITS.max_base_seed,
+    )
+    regeneration_scope: RegenerationScope
+    base_placements: list[RoomPlacementPayload] = Field(
+        min_length=1,
+        description="当前候选 program 房间放置（用于构建 LayoutLocks）",
     )
 
 
