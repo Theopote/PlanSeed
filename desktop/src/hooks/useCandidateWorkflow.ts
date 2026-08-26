@@ -11,6 +11,7 @@ import {
   generateFromForm,
   generateFromProgram,
   parseRequirementsNl,
+  partialRegenerateFromProgram,
   type CandidatePayload,
   type GenerateResponse,
   type LayoutLocks,
@@ -25,6 +26,10 @@ import {
   type RequirementSpecPayload,
 } from "../api/client";
 import { locksFingerprint } from "../lib/lineage";
+import {
+  buildPartialRegenerationScope,
+  programPlacementsFromCandidate,
+} from "../lib/regeneration";
 import { cloneLayoutLocks } from "./sessionHelpers";
 
 const EMPTY_LOCKS: LayoutLocks = { rooms: [], stair: null, zones: [] };
@@ -178,6 +183,76 @@ export function useCandidateWorkflow({
 
   const runSeq = useRef(0);
 
+  const mergeVariantCandidates = useCallback(
+    (
+      token: number,
+      data: GenerateResponse,
+      prevSelected: string | null,
+      parentGen: number,
+      fp: string,
+    ): boolean => {
+      if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
+      setProgram(data.program_summary);
+      if (data.solver_identity) {
+        setSolverIdentity(identityFromPayload(data.solver_identity));
+      }
+      const fresh = data.candidates
+        .filter((c) => !candidates.some((e) => e.id === c.id))
+        .map((c) => ({
+          ...c,
+          variant_parent_id: prevSelected,
+          variant_generation: parentGen + 1,
+          lock_snapshot_id: fp,
+          revision_status: c.revision_status ?? "generated",
+          mutations: c.mutations ?? [],
+        }));
+      const labeled = relabel([...candidates, ...fresh]);
+      const keepIds = new Set<string>();
+      if (prevSelected) keepIds.add(prevSelected);
+      if (fresh[0]) keepIds.add(fresh[0].id);
+      let merged = labeled;
+      if (labeled.length > 16) {
+        const tail = labeled.slice(-16);
+        const missing = labeled.filter(
+          (c) => keepIds.has(c.id) && !tail.some((t) => t.id === c.id),
+        );
+        merged = [...missing, ...tail].slice(-16);
+      }
+      if (token !== runSeq.current) return false;
+      setCandidates(merged);
+      setStats({
+        generated: data.generated,
+        valid: data.valid,
+        rejected: data.rejected,
+      });
+      setRejectedCandidates(data.rejected_candidates ?? []);
+      setViolationSummary(data.violation_summary ?? {});
+      const pick = fresh[0] ?? merged[merged.length - 1];
+      if (pick) {
+        setSelectedId(pick.id);
+        if (
+          prevSelected &&
+          prevSelected !== pick.id &&
+          merged.some((c) => c.id === prevSelected)
+        ) {
+          setCompareId(prevSelected);
+        }
+      }
+      setHighlightRoomIds([]);
+      setSelectedRoomId(null);
+      setMutationHint(null);
+      setError(null);
+      return true;
+    },
+    [
+      candidates,
+      relabel,
+      setRequirementSpec,
+      setMutationHint,
+      setError,
+    ],
+  );
+
   const run = useCallback(
     async (mode: "form" | "benchmark" | "program" | "variant") => {
       const token = ++runSeq.current;
@@ -199,57 +274,7 @@ export function useCandidateWorkflow({
             candidate_count: 8,
             return_top_k: 3,
           });
-          if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
-          setProgram(data.program_summary);
-          if (data.solver_identity) {
-            setSolverIdentity(identityFromPayload(data.solver_identity));
-          }
-          const fresh = data.candidates
-            .filter((c) => !candidates.some((e) => e.id === c.id))
-            .map((c) => ({
-              ...c,
-              variant_parent_id: prevSelected,
-              variant_generation: parentGen + 1,
-              lock_snapshot_id: fp,
-              revision_status: c.revision_status ?? "generated",
-              mutations: c.mutations ?? [],
-            }));
-          const labeled = relabel([...candidates, ...fresh]);
-          const keepIds = new Set<string>();
-          if (prevSelected) keepIds.add(prevSelected);
-          if (fresh[0]) keepIds.add(fresh[0].id);
-          let merged = labeled;
-          if (labeled.length > 16) {
-            const tail = labeled.slice(-16);
-            const missing = labeled.filter(
-              (c) => keepIds.has(c.id) && !tail.some((t) => t.id === c.id),
-            );
-            merged = [...missing, ...tail].slice(-16);
-          }
-          if (token !== runSeq.current) return;
-          setCandidates(merged);
-          setStats({
-            generated: data.generated,
-            valid: data.valid,
-            rejected: data.rejected,
-          });
-          setRejectedCandidates(data.rejected_candidates ?? []);
-          setViolationSummary(data.violation_summary ?? {});
-          const pick = fresh[0] ?? merged[merged.length - 1];
-          if (pick) {
-            setSelectedId(pick.id);
-            if (
-              prevSelected &&
-              prevSelected !== pick.id &&
-              merged.some((c) => c.id === prevSelected)
-            ) {
-              setCompareId(prevSelected);
-            }
-          }
-          setHighlightRoomIds([]);
-          setSelectedRoomId(null);
-          setMutationHint(null);
-          setError(null);
+          mergeVariantCandidates(token, data, prevSelected, parentGen, fp);
           return;
         }
 
@@ -290,10 +315,53 @@ export function useCandidateWorkflow({
       candidates,
       selectedId,
       relabel,
+      mergeVariantCandidates,
       resolveCanonicalSpec,
       setRequirementSpec,
       setError,
       setMutationHint,
+    ],
+  );
+
+  const runPartialRegen = useCallback(
+    async (mutableRoomId: string) => {
+      const token = ++runSeq.current;
+      setLoading(true);
+      setError(null);
+      try {
+        if (!program) throw new Error("尚无 Program，请先 Generate");
+        if (!selected) throw new Error("请先选择候选方案");
+        const spec = resolveCanonicalSpec();
+        if (!spec) throw new Error("缺少 RequirementSpec");
+        const prevSelected = selectedId;
+        const parentGen = selected.variant_generation ?? 0;
+        const fp = locksFingerprint(locks);
+        const maxSeed = candidates.reduce((m, c) => Math.max(m, c.seed), -1);
+        const scope = buildPartialRegenerationScope(mutableRoomId);
+        const basePlacements = programPlacementsFromCandidate(selected, program);
+        const data = await partialRegenerateFromProgram(spec, {
+          regeneration_scope: scope,
+          base_placements: basePlacements,
+          base_seed: maxSeed + 1,
+          candidate_count: 8,
+          return_top_k: 3,
+        });
+        mergeVariantCandidates(token, data, prevSelected, parentGen, fp);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      program,
+      selected,
+      resolveCanonicalSpec,
+      selectedId,
+      locks,
+      candidates,
+      mergeVariantCandidates,
+      setError,
     ],
   );
 
@@ -495,6 +563,7 @@ export function useCandidateWorkflow({
     stampRootLineage,
     applyResult,
     run,
+    runPartialRegen,
     onParseAndGenerate,
     onToggleRoomLock,
     onClearLocks,

@@ -348,6 +348,9 @@ function App() {
           onClearLocks={candidate.onClearLocks}
           onRegenerate={() => void candidate.run("program")}
           onCreateVariant={() => void candidate.run("variant")}
+          onPartialRegenerate={(roomId) =>
+            void candidate.runPartialRegen(roomId)
+          }
           onRevalidate={() => void mutation.onRevalidate()}
           regenerating={candidate.loading}
           revalidating={mutation.revalidating}

@@ -29,6 +29,7 @@ export type {
   ProjectPayload,
   ProjectSummary,
   RejectedCandidatePayload,
+  RegenerationScope,
   RelationIntentPayload,
   RelationKind,
   RelationStrength,
@@ -62,6 +63,7 @@ import type {
   ProjectPayload,
   ProjectSummary,
   RequirementSpecPayload,
+  RegenerationScope,
   RoomPlacementPayload,
   SvgExportScope,
   UnknownPayload,
@@ -448,6 +450,37 @@ export async function generateFromProgram(
     };
   }
   const r = await fetch(`${_apiBase}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<GenerateResponse>;
+}
+
+/** v0.2-B：RegenerationScope 驱动的局部重生成。 */
+export async function partialRegenerateFromProgram(
+  requirementSpec: RequirementSpecPayload,
+  opts: {
+    regeneration_scope: RegenerationScope;
+    base_placements: RoomPlacementPayload[];
+    candidate_count?: number;
+    return_top_k?: number;
+    base_seed?: number;
+  },
+): Promise<GenerateResponse> {
+  const body: Record<string, unknown> = {
+    use_benchmark: false,
+    candidate_count: opts.candidate_count ?? 8,
+    return_top_k: opts.return_top_k ?? 3,
+    requirements: requirementSpec,
+    regeneration_scope: opts.regeneration_scope,
+    base_placements: opts.base_placements,
+  };
+  if (opts.base_seed != null) {
+    body.base_seed = opts.base_seed;
+  }
+  const r = await fetch(`${_apiBase}/api/regenerate/partial`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

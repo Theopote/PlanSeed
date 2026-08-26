@@ -132,6 +132,15 @@ export type LayoutLocks = {
   zones: LockedZoneRect[];
 };
 
+/** v0.2-B：局部重生成作用域（OpenAPI 待同步；字段与后端一致）。 */
+export type RegenerationScope = {
+  mutable_rooms: string[];
+  locked_rooms?: string[];
+  affected_neighbors?: string[];
+  preserve_topology?: boolean;
+  preserve_floor_assignment?: boolean;
+};
+
 export type ProgramSummary = Omit<
   Schemas["ProgramSummary"],
   "floors" | "assumptions" | "unknowns" | "rooms"

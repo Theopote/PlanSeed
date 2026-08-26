@@ -9,6 +9,7 @@ import type {
 } from "../api/client";
 import { AXIS_SCOPE } from "../lib/axisScope";
 import { FINDINGS_DISCLAIMER } from "../constants/findingsDisclaimer";
+import { canPartialRegenerateRoom } from "../lib/regeneration";
 import { ComparePanel } from "./ComparePanel";
 
 type ZoneGroupRow = {
@@ -68,6 +69,7 @@ type Props = {
   onClearLocks: () => void;
   onRegenerate: () => void;
   onCreateVariant: () => void;
+  onPartialRegenerate?: (roomId: string) => void;
   onRevalidate?: () => void;
   regenerating: boolean;
   revalidating?: boolean;
@@ -164,6 +166,9 @@ function RoomDetail({
   isLocked,
   onUpdateTargetArea,
   onToggleLock,
+  onPartialRegenerate,
+  partialRegenEnabled,
+  regenerating,
   onClear,
 }: {
   program: ProgramSummary | null;
@@ -172,11 +177,15 @@ function RoomDetail({
   isLocked: boolean;
   onUpdateTargetArea: (roomId: string, targetArea: number) => void;
   onToggleLock: (roomId: string) => void;
+  onPartialRegenerate?: (roomId: string) => void;
+  partialRegenEnabled: boolean;
+  regenerating: boolean;
   onClear: () => void;
 }) {
   const isStair = roomId.startsWith("stair-");
   const spec = program?.rooms.find((r) => r.id === roomId);
   const title = isStair ? "楼梯核" : (spec?.name ?? roomId);
+  const canPartial = partialRegenEnabled && canPartialRegenerateRoom(roomId, program);
   const [draft, setDraft] = useState(String(spec?.target_area ?? ""));
 
   useEffect(() => {
@@ -282,11 +291,23 @@ function RoomDetail({
         >
           {isLocked ? "解锁" : isStair ? "锁定楼梯" : "锁定房间"}
         </button>
+        {canPartial && onPartialRegenerate && (
+          <button
+            type="button"
+            className="room-regen"
+            disabled={!placement || regenerating}
+            onClick={() => onPartialRegenerate(roomId)}
+          >
+            {regenerating ? "生成中…" : "重生成周边"}
+          </button>
+        )}
       </div>
       <p className="muted tiny">
-        {isLocked
-          ? "已锁定几何（Room>Zone>Free）；拖拽可改位置，后处理不得移动"
-          : "可拖拽定位（松手自动锁定），或点锁定后 Regenerate"}
+        {canPartial
+          ? "重生成周边：锁定其余房间，仅重排本房及邻接区域；结果追加为变体并自动比较"
+          : isLocked
+            ? "已锁定几何（Room>Zone>Free）；拖拽可改位置，后处理不得移动"
+            : "可拖拽定位（松手自动锁定），或点锁定后 Regenerate"}
       </p>
     </section>
   );
@@ -310,6 +331,7 @@ export function Inspector({
   onClearLocks,
   onRegenerate,
   onCreateVariant,
+  onPartialRegenerate,
   onRevalidate,
   regenerating,
   revalidating = false,
@@ -499,6 +521,9 @@ export function Inspector({
               isLocked={selectedLocked}
               onUpdateTargetArea={onUpdateRoomTargetArea}
               onToggleLock={onToggleRoomLock}
+              onPartialRegenerate={onPartialRegenerate}
+              partialRegenEnabled={canRegenerate}
+              regenerating={regenerating}
               onClear={() => onSelectRoom(null)}
             />
           )}
