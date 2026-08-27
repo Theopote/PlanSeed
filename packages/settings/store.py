@@ -35,6 +35,13 @@ def _truthy(raw: str | None) -> bool:
     return (raw or "0").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _format_timeout_s(timeout_s: float) -> str:
+    """环境变量用整数字符串（45 而非 45.0），与 factory 读取一致。"""
+    if timeout_s == int(timeout_s):
+        return str(int(timeout_s))
+    return str(timeout_s)
+
+
 def _read_llm_from_environ(environ: dict[str, str]) -> LlmSettings:
     timeout_raw = environ.get("PLANSEED_OLLAMA_TIMEOUT", str(DEFAULT_OLLAMA_TIMEOUT_S))
     try:
@@ -108,7 +115,7 @@ def apply_settings_to_environ(
     env["PLANSEED_LLM_PROVIDER"] = llm.provider
     env["PLANSEED_OLLAMA_BASE_URL"] = llm.ollama_base_url
     env["PLANSEED_OLLAMA_MODEL"] = llm.ollama_model
-    env["PLANSEED_OLLAMA_TIMEOUT"] = str(llm.ollama_timeout_s)
+    env["PLANSEED_OLLAMA_TIMEOUT"] = _format_timeout_s(llm.ollama_timeout_s)
     env["PLANSEED_OLLAMA_ALLOW_REMOTE"] = "1" if llm.ollama_allow_remote else "0"
 
 
@@ -130,7 +137,7 @@ def bootstrap_settings(*, path: Path | None = None) -> SettingsResponse:
         if "PLANSEED_OLLAMA_MODEL" not in env:
             env["PLANSEED_OLLAMA_MODEL"] = file_llm.ollama_model
         if "PLANSEED_OLLAMA_TIMEOUT" not in env:
-            env["PLANSEED_OLLAMA_TIMEOUT"] = str(file_llm.ollama_timeout_s)
+            env["PLANSEED_OLLAMA_TIMEOUT"] = _format_timeout_s(file_llm.ollama_timeout_s)
         if "PLANSEED_OLLAMA_ALLOW_REMOTE" not in env:
             env["PLANSEED_OLLAMA_ALLOW_REMOTE"] = (
                 "1" if file_llm.ollama_allow_remote else "0"
