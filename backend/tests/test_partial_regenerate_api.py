@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from backend.main import create_app
 from backend.schemas.api import PartialRegenerateRequest, RoomPlacementPayload
 from backend.services.generation import resolve_partial_regenerate, resolve_solve_input
 from fastapi.testclient import TestClient
 from packages.schema.regeneration import RegenerationScope
-import pytest
 
 
 def _client() -> TestClient:

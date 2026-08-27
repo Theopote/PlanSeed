@@ -6,7 +6,6 @@ import json
 import os
 
 import pytest
-
 from packages.settings.models import AppSettings, LlmSettings
 from packages.settings.store import (
     apply_settings_to_environ,

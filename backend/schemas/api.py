@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from packages.schema.limits import API_LIMITS
-from packages.schema.locks import LayoutLocks, LockedRoomRect
+from packages.schema.locks import LayoutLocks
 from packages.schema.regeneration import RegenerationScope
 from packages.schema.requirements import RequirementSpec
 from packages.schema.scoring import DesignScore

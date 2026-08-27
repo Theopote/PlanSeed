@@ -66,6 +66,7 @@ from packages.schema.provenance import (
     build_solver_provenance,
     geometry_backend_for,
 )
+from packages.schema.regeneration import RegenerationScope
 from packages.schema.report import (
     GEOMETRY_ORIGIN_LABELS,
     REPORT_BOUNDARY_LINES,
@@ -95,7 +96,6 @@ from packages.schema.requirements import (
     SpaceRequirement,
     UnknownRequirement,
 )
-from packages.schema.regeneration import RegenerationScope
 from packages.schema.room import FloorSpec, RoomCategory, RoomSpec, SemanticRole
 from packages.schema.scoring import (
     DesignEvaluation,

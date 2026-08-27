@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from packages.schema.provenance import geometry_backend_for
 from solver.benchmark.design_acceptance import (
     compute_ab_rate,

@@ -6,6 +6,7 @@ from packages.schema.layout import LayoutCandidate, PlacementSource
 from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore
 from packages.schema.program import DesignProgram
 from packages.schema.regeneration import RegenerationScope
+
 from solver.topology.graph import build_graph_from_program, neighbors
 
 
