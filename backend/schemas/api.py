@@ -47,7 +47,7 @@ class PartialRegenerateRequest(GenerateRequest):
     """v0.2-B：基于 RegenerationScope 的局部重生成。"""
 
     regeneration_scope: RegenerationScope
-    base_placements: list["RoomPlacementPayload"] = Field(
+    base_placements: list[RoomPlacementPayload] = Field(
         min_length=1,
         description="当前候选 program 房间放置（用于构建 LayoutLocks）",
     )
