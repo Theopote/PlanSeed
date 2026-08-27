@@ -2106,6 +2106,7 @@
                 "type": "null"
               }
             ],
+            "description": "Phase 4.2：候选种子起点；默认沿用 SolverConfig.base_seed",
             "title": "Base Seed"
           },
           "candidate_count": {
@@ -2120,6 +2121,17 @@
               }
             ],
             "title": "Candidate Count"
+          },
+          "locks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LayoutLocks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 4.1：锁定房间/楼梯后只重生成其余空间"
           },
           "regeneration_scope": {
             "$ref": "#/components/schemas/RegenerationScope"

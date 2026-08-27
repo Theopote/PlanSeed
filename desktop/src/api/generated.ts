@@ -1332,10 +1332,15 @@ export interface components {
              * @description 当前候选 program 房间放置（用于构建 LayoutLocks）
              */
             base_placements: components["schemas"]["RoomPlacementPayload"][];
-            /** Base Seed */
+            /**
+             * Base Seed
+             * @description Phase 4.2：候选种子起点；默认沿用 SolverConfig.base_seed
+             */
             base_seed?: number | null;
             /** Candidate Count */
             candidate_count?: number | null;
+            /** @description Phase 4.1：锁定房间/楼梯后只重生成其余空间 */
+            locks?: components["schemas"]["LayoutLocks"] | null;
             regeneration_scope: components["schemas"]["RegenerationScope"];
             requirements?: components["schemas"]["RequirementSpec"] | null;
             /** Return Top K */
