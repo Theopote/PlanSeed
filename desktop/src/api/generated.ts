@@ -253,6 +253,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/regenerate/partial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Partial
+         * @description v0.2-B：RegenerationScope 驱动的局部重生成。
+         */
+        post: operations["regenerate_partial_api_regenerate_partial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports/build": {
         parameters: {
             query?: never;
@@ -287,6 +307,51 @@ export interface paths {
          * @description 自然语言 → RequirementSpec（含有限 repair；无几何）。
          */
         post: operations["parse_requirements_nl_api_requirements_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Settings
+         * @description 返回当前有效设置（含 env 覆盖标记）。
+         */
+        get: operations["get_settings_api_settings_get"];
+        /**
+         * Put Settings
+         * @description 保存设置到 ~/.planseed/settings.json，写入 os.environ，
+         *     并重置共享 LLM Provider（下次解析时懒加载）。
+         */
+        put: operations["put_settings_api_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/ollama/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ollama Models
+         * @description 列出指定 Ollama 实例已安装模型（供设置面板下拉）。
+         */
+        get: operations["list_ollama_models_api_settings_ollama_models_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -990,6 +1055,38 @@ export interface components {
             zones?: components["schemas"]["LockedZoneRect"][];
         };
         /**
+         * LlmSettings
+         * @description 需求解析 LLM 配置（local-first：仅 ollama / mock）。
+         */
+        LlmSettings: {
+            /**
+             * Ollama Allow Remote
+             * @default false
+             */
+            ollama_allow_remote: boolean;
+            /**
+             * Ollama Base Url
+             * @default http://127.0.0.1:11434
+             */
+            ollama_base_url: string;
+            /**
+             * Ollama Model
+             * @default qwen2.5:7b
+             */
+            ollama_model: string;
+            /**
+             * Ollama Timeout S
+             * @default 120
+             */
+            ollama_timeout_s: number;
+            /**
+             * Provider
+             * @default ollama
+             * @enum {string}
+             */
+            provider: "ollama" | "mock";
+        };
+        /**
          * LockedRoomRect
          * @description 钉死的房间矩形（来自当前候选 Placement）。
          */
@@ -1181,6 +1278,17 @@ export interface components {
          * @enum {string}
          */
         MutationSource: "pointer" | "inspector" | "system";
+        /** OllamaModelsResponse */
+        OllamaModelsResponse: {
+            /** Base Url */
+            base_url: string;
+            /** Detail */
+            detail?: string | null;
+            /** Models */
+            models?: string[];
+            /** Reachable */
+            reachable: boolean;
+        };
         /** ParseNLRequest */
         ParseNLRequest: {
             /**
@@ -1213,6 +1321,30 @@ export interface components {
         ParserAudit: {
             /** Discarded Inferences */
             discarded_inferences?: components["schemas"]["Assumption"][];
+        };
+        /**
+         * PartialRegenerateRequest
+         * @description v0.2-B：基于 RegenerationScope 的局部重生成。
+         */
+        PartialRegenerateRequest: {
+            /**
+             * Base Placements
+             * @description 当前候选 program 房间放置（用于构建 LayoutLocks）
+             */
+            base_placements: components["schemas"]["RoomPlacementPayload"][];
+            /** Base Seed */
+            base_seed?: number | null;
+            /** Candidate Count */
+            candidate_count?: number | null;
+            regeneration_scope: components["schemas"]["RegenerationScope"];
+            requirements?: components["schemas"]["RequirementSpec"] | null;
+            /** Return Top K */
+            return_top_k?: number | null;
+            /**
+             * Use Benchmark
+             * @default false
+             */
+            use_benchmark: boolean;
         };
         /** PlacementRect */
         PlacementRect: {
@@ -1302,7 +1434,7 @@ export interface components {
         ProjectMeta: {
             /**
              * App Version
-             * @default 0.1.0
+             * @default 0.1.1
              */
             app_version: string;
             /**
@@ -1384,6 +1516,45 @@ export interface components {
             name: string;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * RegenerationScope
+         * @description 局部重生成意图（≠ LayoutLocks）。
+         *
+         *     - mutable_rooms：允许 Guillotine 重新切分的 program 房间
+         *     - locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms
+         *     - affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）
+         *     - preserve_topology：为 True 时保留 TopologyPlan 硬语义（v0.2-B 先记录意图）
+         *     - preserve_floor_assignment：为 True 时不改楼层分配
+         */
+        RegenerationScope: {
+            /**
+             * Affected Neighbors
+             * @description 可能受影响的邻接房间；空则由 topology 推导
+             */
+            affected_neighbors?: string[];
+            /**
+             * Locked Rooms
+             * @description 显式锁定；空则锁定其余全部 program 房间
+             */
+            locked_rooms?: string[];
+            /**
+             * Mutable Rooms
+             * @description 待重生成/重排的 room_id 列表
+             */
+            mutable_rooms: string[];
+            /**
+             * Preserve Floor Assignment
+             * @description 保留楼层分配
+             * @default true
+             */
+            preserve_floor_assignment: boolean;
+            /**
+             * Preserve Topology
+             * @description 保留 TopologyPlan 语义（当前为意图标记，逐步硬化）
+             * @default true
+             */
+            preserve_topology: boolean;
         };
         /**
          * RejectedCandidatePayload
@@ -1686,6 +1857,39 @@ export interface components {
              * @default 0
              */
             west: number;
+        };
+        /**
+         * SettingsResponse
+         * @description GET /api/settings 响应：有效配置 + 元数据。
+         */
+        SettingsResponse: {
+            /**
+             * Env Overrides
+             * @description 各字段是否被进程环境变量覆盖（未写入 settings.json）
+             */
+            env_overrides?: {
+                [key: string]: boolean;
+            };
+            llm: components["schemas"]["LlmSettings"];
+            /** Persisted */
+            persisted: boolean;
+            /** Settings Path */
+            settings_path: string;
+        };
+        /**
+         * SettingsUpdateBody
+         * @description PUT /api/settings — 仅接受 llm 段（局部更新）。
+         */
+        SettingsUpdateBody: {
+            llm: components["schemas"]["LlmSettings"];
+        };
+        /** SettingsUpdateResponse */
+        SettingsUpdateResponse: {
+            /** Llm Health */
+            llm_health: {
+                [key: string]: unknown;
+            };
+            settings: components["schemas"]["SettingsResponse"];
         };
         /** SiteRequirements */
         SiteRequirements: {
@@ -2290,6 +2494,39 @@ export interface operations {
             };
         };
     };
+    regenerate_partial_api_regenerate_partial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartialRegenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     build_report_api_reports_build_post: {
         parameters: {
             query?: never;
@@ -2343,6 +2580,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ParseNLResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_api_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+        };
+    };
+    put_settings_api_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ollama_models_api_settings_ollama_models_get: {
+        parameters: {
+            query?: {
+                /** @description 探测用 Ollama 根 URL */
+                base_url?: string | null;
+                /** @description 是否允许非 loopback（与保存设置一致） */
+                allow_remote?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OllamaModelsResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1452,6 +1452,44 @@
         "title": "LayoutLocks",
         "type": "object"
       },
+      "LlmSettings": {
+        "description": "需求解析 LLM 配置（local-first：仅 ollama / mock）。",
+        "properties": {
+          "ollama_allow_remote": {
+            "default": false,
+            "title": "Ollama Allow Remote",
+            "type": "boolean"
+          },
+          "ollama_base_url": {
+            "default": "http://127.0.0.1:11434",
+            "title": "Ollama Base Url",
+            "type": "string"
+          },
+          "ollama_model": {
+            "default": "qwen2.5:7b",
+            "title": "Ollama Model",
+            "type": "string"
+          },
+          "ollama_timeout_s": {
+            "default": 120.0,
+            "maximum": 600.0,
+            "minimum": 5.0,
+            "title": "Ollama Timeout S",
+            "type": "number"
+          },
+          "provider": {
+            "default": "ollama",
+            "enum": [
+              "ollama",
+              "mock"
+            ],
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "title": "LlmSettings",
+        "type": "object"
+      },
       "LockedRoomRect": {
         "description": "钉死的房间矩形（来自当前候选 Placement）。",
         "properties": {
@@ -1936,6 +1974,42 @@
         "title": "MutationSource",
         "type": "string"
       },
+      "OllamaModelsResponse": {
+        "properties": {
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "base_url",
+          "reachable"
+        ],
+        "title": "OllamaModelsResponse",
+        "type": "object"
+      },
       "ParseNLRequest": {
         "properties": {
           "max_repairs": {
@@ -2007,6 +2081,83 @@
           }
         },
         "title": "ParserAudit",
+        "type": "object"
+      },
+      "PartialRegenerateRequest": {
+        "description": "v0.2-B：基于 RegenerationScope 的局部重生成。",
+        "properties": {
+          "base_placements": {
+            "description": "当前候选 program 房间放置（用于构建 LayoutLocks）",
+            "items": {
+              "$ref": "#/components/schemas/RoomPlacementPayload"
+            },
+            "minItems": 1,
+            "title": "Base Placements",
+            "type": "array"
+          },
+          "base_seed": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Seed"
+          },
+          "candidate_count": {
+            "anyOf": [
+              {
+                "maximum": 64.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Count"
+          },
+          "regeneration_scope": {
+            "$ref": "#/components/schemas/RegenerationScope"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "return_top_k": {
+            "anyOf": [
+              {
+                "maximum": 16.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Top K"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "regeneration_scope",
+          "base_placements"
+        ],
+        "title": "PartialRegenerateRequest",
         "type": "object"
       },
       "PlacementRect": {
@@ -2198,7 +2349,7 @@
       "ProjectMeta": {
         "properties": {
           "app_version": {
-            "default": "0.1.0",
+            "default": "0.1.1",
             "title": "App Version",
             "type": "string"
           },
@@ -2370,6 +2521,53 @@
           "updated_at"
         ],
         "title": "ProjectSummaryOut",
+        "type": "object"
+      },
+      "RegenerationScope": {
+        "description": "局部重生成意图（≠ LayoutLocks）。\n\n- mutable_rooms：允许 Guillotine 重新切分的 program 房间\n- locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms\n- affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）\n- preserve_topology：为 True 时保留 TopologyPlan 硬语义（v0.2-B 先记录意图）\n- preserve_floor_assignment：为 True 时不改楼层分配",
+        "properties": {
+          "affected_neighbors": {
+            "description": "可能受影响的邻接房间；空则由 topology 推导",
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Neighbors",
+            "type": "array"
+          },
+          "locked_rooms": {
+            "description": "显式锁定；空则锁定其余全部 program 房间",
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Rooms",
+            "type": "array"
+          },
+          "mutable_rooms": {
+            "description": "待重生成/重排的 room_id 列表",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Mutable Rooms",
+            "type": "array"
+          },
+          "preserve_floor_assignment": {
+            "default": true,
+            "description": "保留楼层分配",
+            "title": "Preserve Floor Assignment",
+            "type": "boolean"
+          },
+          "preserve_topology": {
+            "default": true,
+            "description": "保留 TopologyPlan 语义（当前为意图标记，逐步硬化）",
+            "title": "Preserve Topology",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mutable_rooms"
+        ],
+        "title": "RegenerationScope",
         "type": "object"
       },
       "RejectedCandidatePayload": {
@@ -3161,6 +3359,68 @@
         "title": "SetbackSpec",
         "type": "object"
       },
+      "SettingsResponse": {
+        "description": "GET /api/settings 响应：有效配置 + 元数据。",
+        "properties": {
+          "env_overrides": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "description": "各字段是否被进程环境变量覆盖（未写入 settings.json）",
+            "title": "Env Overrides",
+            "type": "object"
+          },
+          "llm": {
+            "$ref": "#/components/schemas/LlmSettings"
+          },
+          "persisted": {
+            "title": "Persisted",
+            "type": "boolean"
+          },
+          "settings_path": {
+            "title": "Settings Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "llm",
+          "persisted",
+          "settings_path"
+        ],
+        "title": "SettingsResponse",
+        "type": "object"
+      },
+      "SettingsUpdateBody": {
+        "description": "PUT /api/settings — 仅接受 llm 段（局部更新）。",
+        "properties": {
+          "llm": {
+            "$ref": "#/components/schemas/LlmSettings"
+          }
+        },
+        "required": [
+          "llm"
+        ],
+        "title": "SettingsUpdateBody",
+        "type": "object"
+      },
+      "SettingsUpdateResponse": {
+        "properties": {
+          "llm_health": {
+            "additionalProperties": true,
+            "title": "Llm Health",
+            "type": "object"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsResponse"
+          }
+        },
+        "required": [
+          "settings",
+          "llm_health"
+        ],
+        "title": "SettingsUpdateResponse",
+        "type": "object"
+      },
       "SiteRequirements": {
         "properties": {
           "depth": {
@@ -3574,7 +3834,7 @@
   },
   "info": {
     "title": "PlanSeed API",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4153,6 +4413,48 @@
         ]
       }
     },
+    "/api/regenerate/partial": {
+      "post": {
+        "description": "v0.2-B：RegenerationScope 驱动的局部重生成。",
+        "operationId": "regenerate_partial_api_regenerate_partial_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialRegenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Regenerate Partial",
+        "tags": [
+          "generate"
+        ]
+      }
+    },
     "/api/reports/build": {
       "post": {
         "description": "Preview 可 payload；Final 仅 ProjectStore + revision_id 校验。",
@@ -4234,6 +4536,132 @@
         "summary": "Parse Requirements Nl",
         "tags": [
           "requirements"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "description": "返回当前有效设置（含 env 覆盖标记）。",
+        "operationId": "get_settings_api_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "description": "保存设置到 ~/.planseed/settings.json，写入 os.environ，\n并重置共享 LLM Provider（下次解析时懒加载）。",
+        "operationId": "put_settings_api_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsUpdateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/settings/ollama/models": {
+      "get": {
+        "description": "列出指定 Ollama 实例已安装模型（供设置面板下拉）。",
+        "operationId": "list_ollama_models_api_settings_ollama_models_get",
+        "parameters": [
+          {
+            "description": "探测用 Ollama 根 URL",
+            "in": "query",
+            "name": "base_url",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "探测用 Ollama 根 URL",
+              "title": "Base Url"
+            }
+          },
+          {
+            "description": "是否允许非 loopback（与保存设置一致）",
+            "in": "query",
+            "name": "allow_remote",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "是否允许非 loopback（与保存设置一致）",
+              "title": "Allow Remote",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OllamaModelsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ollama Models",
+        "tags": [
+          "settings"
         ]
       }
     }
