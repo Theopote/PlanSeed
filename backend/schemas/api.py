@@ -43,24 +43,11 @@ class GenerateRequest(BaseModel):
     )
 
 
-class PartialRegenerateRequest(BaseModel):
+class PartialRegenerateRequest(GenerateRequest):
     """v0.2-B：基于 RegenerationScope 的局部重生成。"""
 
-    use_benchmark: bool = False
-    requirements: RequirementSpec | None = None
-    candidate_count: int | None = Field(
-        default=None, ge=1, le=API_LIMITS.max_generate_candidates
-    )
-    return_top_k: int | None = Field(
-        default=None, ge=1, le=API_LIMITS.max_generate_return_top_k
-    )
-    base_seed: int | None = Field(
-        default=None,
-        ge=0,
-        le=API_LIMITS.max_base_seed,
-    )
     regeneration_scope: RegenerationScope
-    base_placements: list[RoomPlacementPayload] = Field(
+    base_placements: list["RoomPlacementPayload"] = Field(
         min_length=1,
         description="当前候选 program 房间放置（用于构建 LayoutLocks）",
     )
