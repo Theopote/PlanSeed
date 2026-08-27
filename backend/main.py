@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from packages.settings import bootstrap_settings
 
 from backend.routes import compare as compare_routes
 from backend.routes import exports as exports_routes
@@ -14,10 +17,17 @@ from backend.routes import mutations as mutations_routes
 from backend.routes import projects as projects_routes
 from backend.routes import reports as reports_routes
 from backend.routes import requirements as requirements_routes
+from backend.routes import settings as settings_routes
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    bootstrap_settings()
+    yield
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="PlanSeed API", version="0.1.1")
+    app = FastAPI(title="PlanSeed API", version="0.1.1", lifespan=_lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -42,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_routes.router)
     app.include_router(reports_routes.router)
     app.include_router(exports_routes.router)
+    app.include_router(settings_routes.router)
     return app
 
 

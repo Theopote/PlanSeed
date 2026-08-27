@@ -75,6 +75,29 @@ def _placement_aspect_ok(rect: PlacementRect, threshold: float = _ASPECT_THRESHO
     return _aspect_ratio_ok(rect.width, rect.depth, threshold)
 
 
+def _rebuild_circulation_after_locked_merge(
+    layout: FloorLayout,
+    pack_rects: list[Rect],
+) -> FloorLayout:
+    """锁定房间并入后重算 residual circulation，避免走廊压住已锁几何。"""
+    floor_id = layout.floor_id
+    circ_prefix = f"circ-{floor_id}-"
+    occupied = [
+        p
+        for p in layout.placements
+        if not (
+            p.room_id.startswith(circ_prefix)
+            and p.source == PlacementSource.GENERATED
+        )
+    ]
+    refreshed = assign_residual_gaps_as_circulation(
+        pack_rects,
+        occupied,
+        floor_id,
+    )
+    return layout.model_copy(update={"placements": refreshed})
+
+
 def _span_bounds_for_aspect(cross_span: float, threshold: float = _ASPECT_THRESHOLD) -> tuple[float, float]:
     """cross × span 矩形满足长宽比时，span 的可行区间。"""
     if cross_span <= 0:
@@ -582,6 +605,7 @@ class GuillotineGenerator:
                 layout = layout.model_copy(
                     update={"placements": list(layout.placements) + extra}
                 )
+                layout = _rebuild_circulation_after_locked_merge(layout, pack_rects)
             floor_layouts_by_id[floor.id] = _mirror_wet_stack_onto_floor(
                 layout, primary_stack
             )

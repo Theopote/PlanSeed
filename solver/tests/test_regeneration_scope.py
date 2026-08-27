@@ -75,6 +75,20 @@ def test_locked_room_unchanged_under_partial_regen():
         assert _rect_for(base, rid) == _rect_for(regen, rid)
 
 
+def test_partial_regen_pipeline_produces_valid_candidates():
+    program = benchmark_program()
+    program.solver_config.candidate_count = 8
+    program.solver_config.return_top_k = 3
+    base = GuillotineGenerator().generate(program, seed=0)
+    scope = RegenerationScope(mutable_rooms=["r1"])
+    locks = locks_from_regeneration_scope(scope, program, base)
+    from solver.pipeline import run_pipeline
+
+    result = run_pipeline(program, locks=locks)
+    assert result.valid >= 1
+    assert result.valid == result.generated
+
+
 def _rect_for(cand, room_id: str) -> tuple[float, float, float, float]:
     for fl in cand.floors:
         for p in fl.placements:

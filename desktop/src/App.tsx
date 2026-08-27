@@ -4,11 +4,17 @@ import type {
   LayoutLocks,
   ProgramSummary,
 } from "./api/client";
+import {
+  fetchOllamaModels,
+  fetchSettings,
+  updateSettings,
+} from "./api/client";
 import { CandidateStrip } from "./components/CandidateStrip";
 import { ReportPreview } from "./components/ReportPreview";
 import { FloorplanView } from "./components/FloorplanView";
 import { Inspector } from "./components/Inspector";
 import { RequirementsPanel } from "./components/RequirementsPanel";
+import { SettingsDialog } from "./components/SettingsDialog";
 import {
   useCandidateWorkflow,
   useEngineSession,
@@ -22,6 +28,8 @@ import "./App.css";
 
 function App() {
   const [error, setError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState(false);
 
   const engine = useEngineSession();
 
@@ -191,6 +199,25 @@ function App() {
           ? "引擎已停止"
           : "Generate → 拖拽/锁定 → Regenerate unlocked / Create Variant → Alt+点比较";
 
+  const handleSaveSettings = useCallback(
+    async (llm: Parameters<typeof updateSettings>[0]) => {
+      setSettingsBusy(true);
+      setError(null);
+      try {
+        const result = await updateSettings(llm);
+        engine.setLlmStatus(result.llm_health);
+        engine.setLlmSessionState(null);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(msg);
+        throw e;
+      } finally {
+        setSettingsBusy(false);
+      }
+    },
+    [engine],
+  );
+
   return (
     <div className="app-shell">
       {project.projectPicker !== null && (
@@ -242,6 +269,15 @@ function App() {
           onClose={() => report.setReportHtml(null)}
         />
       ) : null}
+      <SettingsDialog
+        open={settingsOpen}
+        busy={settingsBusy}
+        engineReady={engine.engineStatus === "READY"}
+        onClose={() => setSettingsOpen(false)}
+        onLoad={fetchSettings}
+        onSave={handleSaveSettings}
+        onProbeModels={fetchOllamaModels}
+      />
       <div className="app-main">
         <RequirementsPanel
           form={requirement.form}
@@ -281,6 +317,7 @@ function App() {
           onExportSvg={(scope) => void exportWf.onExportSvg(scope)}
           onExportPng={(scope, size) => void exportWf.onExportPng(scope, size)}
           onOpenProjects={() => void project.onOpenProjects()}
+          onOpenSettings={() => setSettingsOpen(true)}
           projectBusy={project.projectBusy}
           reportBusy={report.reportBusy}
           versionHint={project.versionHint}

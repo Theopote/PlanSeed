@@ -55,6 +55,7 @@ type Props = {
     size: 2048 | 4096,
   ) => void;
   onOpenProjects: () => void;
+  onOpenSettings?: () => void;
   projectBusy?: boolean;
   versionHint?: string | null;
   reportBusy?: boolean;
@@ -135,6 +136,7 @@ export function RequirementsPanel({
   onExportSvg,
   onExportPng,
   onOpenProjects,
+  onOpenSettings,
   projectBusy = false,
   versionHint = null,
   reportBusy = false,
@@ -240,6 +242,15 @@ export function RequirementsPanel({
               : "重试引擎"}
           </button>
         )}
+        <button
+          type="button"
+          className="secondary settings-open-btn"
+          disabled={!engineReady || !onOpenSettings}
+          onClick={() => onOpenSettings?.()}
+          title="Ollama / 模型 / 解析超时"
+        >
+          设置
+        </button>
       </header>
 
       <div className="project-bar">

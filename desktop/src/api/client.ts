@@ -349,6 +349,67 @@ export async function fetchLlmStatus(): Promise<LlmStatusPayload> {
   }
 }
 
+export type LlmSettingsPayload = {
+  provider: "ollama" | "mock";
+  ollama_base_url: string;
+  ollama_model: string;
+  ollama_timeout_s: number;
+  ollama_allow_remote: boolean;
+};
+
+export type SettingsPayload = {
+  llm: LlmSettingsPayload;
+  persisted: boolean;
+  settings_path: string;
+  env_overrides: Record<string, boolean>;
+};
+
+export type OllamaModelsPayload = {
+  base_url: string;
+  models: string[];
+  reachable: boolean;
+  detail: string | null;
+};
+
+export type SettingsUpdateResult = {
+  settings: SettingsPayload;
+  llm_health: LlmStatusPayload;
+};
+
+/** 读取当前有效应用设置。 */
+export async function fetchSettings(): Promise<SettingsPayload> {
+  const r = await fetch(`${_apiBase}/api/settings`);
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<SettingsPayload>;
+}
+
+/** 保存设置并热重载 LLM Provider。 */
+export async function updateSettings(
+  llm: LlmSettingsPayload,
+): Promise<SettingsUpdateResult> {
+  const r = await fetch(`${_apiBase}/api/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ llm }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<SettingsUpdateResult>;
+}
+
+/** 探测 Ollama 已安装模型（设置面板下拉）。 */
+export async function fetchOllamaModels(
+  baseUrl: string,
+  allowRemote: boolean,
+): Promise<OllamaModelsPayload> {
+  const qs = new URLSearchParams({
+    base_url: baseUrl,
+    allow_remote: allowRemote ? "true" : "false",
+  });
+  const r = await fetch(`${_apiBase}/api/settings/ollama/models?${qs}`);
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<OllamaModelsPayload>;
+}
+
 export async function compareCandidates(
   evaluationA: DesignScore,
   evaluationB: DesignScore,

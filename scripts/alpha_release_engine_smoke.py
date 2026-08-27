@@ -106,6 +106,40 @@ def main() -> int:
     )
     _ok(prov.get("geometry_backend") in (None, "rect"), "geometry rect/default")
 
+    # v0.2-B：partial regen（Desktop「重生成周边」等价路径）
+    program_summary = gen.get("program_summary") or {}
+    program_ids = {r["id"] for r in (program_summary.get("rooms") or [])}
+    base_placements = [
+        p
+        for p in (c0.get("placements") or [])
+        if p.get("room_id") in program_ids
+        or str(p.get("room_id", "")).startswith("stair-")
+    ]
+    mutable_room = (program_summary.get("rooms") or [{}])[0].get("id")
+    _ok(bool(mutable_room and base_placements), "partial regen prerequisites")
+    max_seed = max(c["seed"] for c in cands)
+    status, _, raw = _req(
+        "POST",
+        "/api/regenerate/partial",
+        body={
+            "use_benchmark": False,
+            "requirements": gen.get("requirement_spec"),
+            "candidate_count": 8,
+            "return_top_k": 2,
+            "base_seed": max_seed + 1,
+            "regeneration_scope": {
+                "mutable_rooms": [mutable_room],
+                "preserve_topology": True,
+                "preserve_floor_assignment": True,
+            },
+            "base_placements": base_placements,
+        },
+    )
+    _ok(status == 200, f"partial regen HTTP 200 (got {status})")
+    partial = json.loads(raw)
+    _ok(partial.get("valid", 0) >= 1, f"partial regen has valid candidates (got {partial.get('valid')})")
+    _ok(len(partial.get("candidates") or []) >= 1, "partial regen top-k")
+
     if len(cands) >= 2 and c0.get("design_score") and cands[1].get("design_score"):
         status, _, raw = _req(
             "POST",
