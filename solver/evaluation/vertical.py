@@ -18,6 +18,7 @@ from solver.geometry.rect import Rect, from_placement, intersection
 
 _MASTER_BATH_TAGS = frozenset({"master_bath", "master_bathroom", "ensuite"})
 _KITCHEN_TAGS = frozenset({"kitchen"})
+_LAUNDRY_TAGS = frozenset({"laundry"})
 _BATH_TAGS = frozenset({"bath", "bathroom"})
 
 
@@ -73,6 +74,9 @@ def wet_stack_pairing_key(room: RoomSpec) -> str:
     tags = {str(t).lower() for t in (room.tags or [])}
     if tags & _KITCHEN_TAGS:
         return SemanticRole.KITCHEN.value
+    if tags & _LAUNDRY_TAGS:
+        # 洗衣间不与浴室强行 IoU 对齐（常仅一层）
+        return SemanticRole.LAUNDRY.value
     if tags & _MASTER_BATH_TAGS:
         return SemanticRole.MASTER_BATHROOM.value
     if tags & _BATH_TAGS:

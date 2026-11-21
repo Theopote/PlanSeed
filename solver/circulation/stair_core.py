@@ -51,6 +51,7 @@ def choose_core_placement(
     exclude_center: bool = False,
     exclude_opposite: bool = False,
     exclude_entrance: bool = False,
+    entrance_edge_only: bool = False,
 ) -> CorePlacement:
     """seed 选择区位；有 preferred 则固定；否则按入口策略加权。"""
     if preferred is not None:
@@ -69,25 +70,40 @@ def choose_core_placement(
         CardinalEdge.EAST: CorePlacement.WEST,
         CardinalEdge.WEST: CorePlacement.EAST,
     }
-    if exclude_center:
-        # 多层居中楼梯常与入口侧门厅脱边，多一跳走廊
-        options = [p for p in options if p != CorePlacement.CENTER]
-    if exclude_opposite and entrance_edge is not None:
-        opp = opposite_map.get(entrance_edge)
-        if opp is not None:
-            options = [p for p in options if p != opp]
-    if exclude_entrance and entrance_edge is not None:
-        # 一层：楼梯占入口边会挡住客厅外墙进户
+    if entrance_edge_only and entrance_edge is not None:
+        # 多层：入口边为主，正交边少量保留多样性；排除对侧与居中
         ent = edge_map.get(entrance_edge)
+        opp = opposite_map.get(entrance_edge)
+        options = [
+            p
+            for p in options
+            if p != CorePlacement.CENTER and p != opp
+        ]
         if ent is not None:
-            options = [p for p in options if p != ent]
+            # 入口边约占 12/14（≈86%），正交边各 1：保多样性、少伤 privacy
+            options = [ent] * 12 + [p for p in options if p != ent]
+    else:
+        if exclude_center:
+            # 多层居中楼梯常与入口侧门厅脱边，多一跳走廊
+            options = [p for p in options if p != CorePlacement.CENTER]
+        if exclude_opposite and entrance_edge is not None:
+            opp = opposite_map.get(entrance_edge)
+            if opp is not None:
+                options = [p for p in options if p != opp]
+        if exclude_entrance and entrance_edge is not None:
+            # 一层：楼梯占入口边会挡住客厅外墙进户
+            ent = edge_map.get(entrance_edge)
+            if ent is not None:
+                options = [p for p in options if p != ent]
+        if not options:
+            options = list(CorePlacement)
+        if entrance_edge is not None:
+            bias = edge_map.get(entrance_edge)
+            if bias is not None and entrance_bias_copies > 0 and bias in options:
+                # 默认 +2（约 1/3）；多层可再加重，减少对侧楼梯导致的 deep_access
+                options.extend([bias] * entrance_bias_copies)
     if not options:
         options = list(CorePlacement)
-    if entrance_edge is not None:
-        bias = edge_map.get(entrance_edge)
-        if bias is not None and entrance_bias_copies > 0 and bias in options:
-            # 默认 +2（约 1/3）；多层可再加重，减少对侧楼梯导致的 deep_access
-            options.extend([bias] * entrance_bias_copies)
     return rng.choice(options)
 def default_orientation_for(placement: CorePlacement) -> Orientation:
     """WEST/EAST/CENTER → ns；NORTH/SOUTH → ew。"""

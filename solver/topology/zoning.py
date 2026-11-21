@@ -382,7 +382,6 @@ class ZonePlanner:
         entry_model_edge: CardinalEdge | None = None,
         wet_exterior_ends: bool = False,
     ) -> list[ZoneGeometry]:
-        total = sum(g.target_area for g in groups) or 1.0
         by_id = {r.id: r for r in (rooms or [])}
         has_entry_public = any(
             _group_has_foyer(g, by_id) or _group_has_living(g, by_id) for g in groups
@@ -423,6 +422,16 @@ class ZonePlanner:
         if wet_exterior_ends:
             ordered = _pin_wet_groups_to_ends(ordered, rooms or [])
 
+        # 门厅目标面积过小会切出细条，够不着楼梯 → 多一跳走廊/上层深访问
+        raw_total = sum(g.target_area for g in ordered) or 1.0
+        split_weights = []
+        for g in ordered:
+            w = g.target_area
+            if _group_has_foyer(g, by_id) or _group_has_living(g, by_id):
+                w = max(w, raw_total * 0.5)
+            split_weights.append(w)
+        weight_total = sum(split_weights) or 1.0
+
         cursor = rect.x if horizontal else rect.y
         end = rect.right if horizontal else rect.bottom
         span = end - cursor
@@ -432,7 +441,7 @@ class ZonePlanner:
             if i == len(ordered) - 1:
                 cut = end
             else:
-                frac = group.target_area / total
+                frac = split_weights[i] / weight_total
                 raw = cursor + span * frac
                 cut = snap_value(raw, module)
                 min_span = module * 2

@@ -571,6 +571,7 @@ def _best_capped_rect(
         if width > 0:
             candidates.append(PlacementRect(x=x0, y=y0, width=width, depth=h))
             candidates.append(PlacementRect(x=x1 - width, y=y0, width=width, depth=h))
+    thr = DEFAULT_WEIGHTS.aspect_ratio_threshold
     for cand in candidates or [PlacementRect(x=x0, y=y0, width=w, depth=h)]:
         capped = Rect(x=cand.x, y=cand.y, width=cand.width, depth=cand.depth)
         if capped.area > max_area + COVERAGE_TOLERANCE:
@@ -581,9 +582,25 @@ def _best_capped_rect(
             for piece in leftovers
             for neighbor in neighbor_rects
         )
+        # 优先长宽比合规，避免裁到 max 面积却细长打崩 valid
+        if _rect_aspect_ratio(capped) <= thr + 1e-6:
+            score += 1_000.0
         if score > best_score:
             best_score = score
             best = capped
+    if best is None:
+        # 回退：在合规候选里取面积最大者
+        ok = [
+            Rect(x=c.x, y=c.y, width=c.width, depth=c.depth)
+            for c in candidates
+            if c.width * c.depth <= max_area + COVERAGE_TOLERANCE
+            and _rect_aspect_ratio(
+                Rect(x=c.x, y=c.y, width=c.width, depth=c.depth)
+            )
+            <= thr + 1e-6
+        ]
+        if ok:
+            best = max(ok, key=lambda r: r.area)
     return best or Rect(x=x0, y=y0, width=w, depth=min(h, max_area / max(w, 1e-9)))
 
 

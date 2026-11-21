@@ -48,6 +48,7 @@ from solver.geometry.coverage import (
     assign_residual_gaps_as_circulation,
     clamp_program_room_aspect_ratios,
     clip_placement_away_from_obstacles,
+    shrink_placement_to_max_area,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
     largest_aspect_ok_placement_rect,
@@ -1096,6 +1097,40 @@ class GuillotineGenerator:
             min_area_by_room_id=min_by_id,
         )
         placements = resolve_placement_overlaps(placements)
+        placements = assign_residual_gaps_as_circulation(
+            pack_footprint,
+            placements,
+            floor.id,
+        )
+        # 覆盖/长宽比修复后可能超 max：按邻接裁切（保比例），余量改走廊
+        shrunk: list[RoomPlacement] = []
+        for p in placements:
+            if (
+                p.room_id not in max_by_id
+                or p.room_id.startswith(("stair-", "circ-", "void-"))
+            ):
+                shrunk.append(p)
+                continue
+            neighbors = [
+                from_placement(other.rect)
+                for other in placements
+                if other.room_id != p.room_id
+            ]
+            shrunk.append(
+                shrink_placement_to_max_area(p, max_by_id[p.room_id], neighbors)
+            )
+        placements = assign_residual_gaps_as_circulation(
+            pack_footprint,
+            shrunk,
+            floor.id,
+        )
+        # max 裁切后再压一次细长比，余量回走廊
+        placements = clamp_program_room_aspect_ratios(
+            pack_footprint,
+            placements,
+            floor.id,
+            min_area_by_room_id=min_by_id,
+        )
         placements = assign_residual_gaps_as_circulation(
             pack_footprint,
             placements,

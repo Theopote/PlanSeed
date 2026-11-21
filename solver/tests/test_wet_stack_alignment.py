@@ -81,9 +81,17 @@ class TestWetStackPairingKey:
             target_area=5,
             tags=["ensuite", "master_bath"],
         )
+        laundry = RoomSpec(
+            id="r7",
+            name="洗衣间",
+            category=RoomCategory.WET,
+            target_area=5,
+            tags=["laundry"],
+        )
         assert wet_stack_pairing_key(kitchen) == SemanticRole.KITCHEN.value
         assert wet_stack_pairing_key(bath) == SemanticRole.BATHROOM.value
         assert wet_stack_pairing_key(master_bath) == SemanticRole.MASTER_BATHROOM.value
+        assert wet_stack_pairing_key(laundry) == SemanticRole.LAUNDRY.value
 
 
 class TestWetStackAlignmentViolations:
