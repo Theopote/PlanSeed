@@ -9,11 +9,11 @@ from packages.schema.identity import (
 )
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
-from packages.schema.room import RoomCategory
 from packages.schema.provenance import (
     merge_solver_provenance,
     provenance_to_metrics,
 )
+from packages.schema.room import RoomCategory
 from packages.schema.scoring import (
     DesignMetrics,
     DesignScore,

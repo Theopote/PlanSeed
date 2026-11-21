@@ -46,6 +46,8 @@ export function CopilotPanel({
   onMergeGenerate,
   onMergeBest,
 }: Props) {
+  /** 未保存项目也写入进程内会话，首次 Save 可一并持久化 */
+  const conversationKey = projectId ?? "draft";
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [patch, setPatch] = useState<DesignIntentPatch | null>(null);
@@ -86,15 +88,13 @@ export function CopilotPanel({
         `锁定: ${prev.locked_rooms.join(", ") || "—"}`,
         `重排: ${prev.mutable_rooms.join(", ") || "—"}`,
       ]);
-      if (projectId) {
-        await appendCopilotMessage(projectId, "user", text.trim());
-        await appendCopilotMessage(
-          projectId,
-          "assistant",
-          `已解析意图补丁（${p.changes.length} 项变更）`,
-          { patch: p },
-        );
-      }
+      await appendCopilotMessage(conversationKey, "user", text.trim());
+      await appendCopilotMessage(
+        conversationKey,
+        "assistant",
+        `已解析意图补丁（${p.changes.length} 项变更）`,
+        { patch: p },
+      );
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -125,13 +125,11 @@ export function CopilotPanel({
       });
       onMergeGenerate(data, "variant");
       setStatus(`已生成 ${data.candidates.length} 个局部方案`);
-      if (projectId) {
-        await appendCopilotMessage(
-          projectId,
-          "assistant",
-          `已执行意图补丁，得到 ${data.candidates.length} 个候选`,
-        );
-      }
+      await appendCopilotMessage(
+        conversationKey,
+        "assistant",
+        `已执行意图补丁，得到 ${data.candidates.length} 个候选`,
+      );
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
       setStatus(null);
@@ -181,11 +179,11 @@ export function CopilotPanel({
           candidate_budget: 4,
         },
       );
-      if (r.best) {
+      if (r.improved && r.best) {
         onMergeBest(r.best);
         setStatus(`优化结束：${r.stopped_reason}，已加入最佳候选`);
       } else {
-        setStatus(`优化结束：${r.stopped_reason}`);
+        setStatus(`优化结束：${r.stopped_reason}（无改善，未追加候选）`);
       }
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -208,14 +206,12 @@ export function CopilotPanel({
       const label =
         strategies.find((s) => s.id === strategyId)?.label ?? strategyId;
       setStatus(`策略「${label}」生成 ${data.candidates.length} 个候选`);
-      if (projectId) {
-        await appendCopilotMessage(
-          projectId,
-          "assistant",
-          `已按策略「${label}」生成方案`,
-          { strategy_id: strategyId },
-        );
-      }
+      await appendCopilotMessage(
+        conversationKey,
+        "assistant",
+        `已按策略「${label}」生成方案`,
+        { strategy_id: strategyId },
+      );
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
       setStatus(null);

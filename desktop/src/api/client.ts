@@ -1234,6 +1234,7 @@ export async function optimizeCandidate(
   },
 ): Promise<{
   stopped_reason: string;
+  improved: boolean;
   rounds: Array<Record<string, unknown>>;
   best: CandidatePayload | null;
 }> {
@@ -1252,6 +1253,7 @@ export async function optimizeCandidate(
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<{
     stopped_reason: string;
+    improved: boolean;
     rounds: Array<Record<string, unknown>>;
     best: CandidatePayload | null;
   }>;

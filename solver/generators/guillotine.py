@@ -28,6 +28,36 @@ from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometr
 from solver.circulation.exterior_entry import resolve_entry_edge
 from solver.circulation.stair_core import CorePlacementFailure
 from solver.evaluation.weights import DEFAULT_WEIGHTS
+from solver.generators.wet_anchor import (
+    anchor_floor_id,
+    collect_wet_anchor_rects,
+    nudge_wet_stack_alignment,
+    preplace_wet_anchored_rooms,
+    realign_wet_stack_by_occupant_swap,
+)
+from solver.geometry.buildable import program_pack_rects
+from solver.geometry.coverage import (
+    LAYOUT_ABSORB_TOLERANCE,
+    absorb_impassable_corridor_slivers,
+    apply_corridor_access_repair_if_safe,
+    assign_residual_gaps_as_circulation,
+    clamp_program_room_aspect_ratios,
+    clip_circulation_overlapping_program_rooms,
+    clip_placement_away_from_obstacles,
+    clip_placements_to_pack_rects,
+    fill_floor_coverage_gaps,
+    grow_rooms_to_min_area,
+    largest_aspect_ok_placement_rect,
+    resolve_placement_overlaps,
+    shrink_placement_to_max_area,
+)
+from solver.geometry.entrance_claim import claim_entrance_edge_circulation
+from solver.geometry.free_rects import subtract_rects
+from solver.geometry.rect import Rect, from_placement, shared_edge_length
+from solver.geometry.site_coords import SiteCoordinateSystem
+from solver.geometry.snap import snap_value
+from solver.geometry.wet_exterior_repair import swap_black_baths_to_exterior
+from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.semantics.roles import (
     is_foyer,
     is_guest_bath,
@@ -35,38 +65,6 @@ from solver.semantics.roles import (
     is_living,
     is_master_bath,
 )
-from solver.generators.wet_anchor import (
-    anchor_floor_id,
-    collect_wet_anchor_rects,
-    preplace_wet_anchored_rooms,
-)
-from solver.geometry.site_coords import SiteCoordinateSystem
-from solver.geometry.buildable import program_pack_rects
-from solver.geometry.coverage import (
-    LAYOUT_ABSORB_TOLERANCE,
-    apply_corridor_access_repair_if_safe,
-    assign_residual_gaps_as_circulation,
-    clamp_program_room_aspect_ratios,
-    clip_placement_away_from_obstacles,
-    clip_placements_to_pack_rects,
-    absorb_impassable_corridor_slivers,
-    clip_circulation_overlapping_program_rooms,
-    shrink_placement_to_max_area,
-    fill_floor_coverage_gaps,
-    grow_rooms_to_min_area,
-    largest_aspect_ok_placement_rect,
-    resolve_placement_overlaps,
-)
-from solver.geometry.free_rects import subtract_rects
-from solver.geometry.rect import Rect, from_placement, shared_edge_length
-from solver.geometry.snap import snap_value
-from solver.geometry.entrance_claim import claim_entrance_edge_circulation
-from solver.geometry.wet_exterior_repair import swap_black_baths_to_exterior
-from solver.generators.wet_anchor import (
-    nudge_wet_stack_alignment,
-    realign_wet_stack_by_occupant_swap,
-)
-from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
 from solver.topology.plan import (
     TopologyPlanner,

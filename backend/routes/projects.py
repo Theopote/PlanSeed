@@ -69,6 +69,10 @@ class ProjectPayload(BaseModel):
     candidates: list[dict[str, Any]] = Field(default_factory=list)
     selected_id: str | None = None
     compare_id: str | None = None
+    design_conversation: dict[str, Any] | None = Field(
+        default=None,
+        description="DesignConversationState 快照；重启后由客户端回灌 Copilot 会话",
+    )
     schema_versions: SchemaVersions = Field(default_factory=SchemaVersions)
     project_meta: ProjectMeta = Field(default_factory=ProjectMeta)
 

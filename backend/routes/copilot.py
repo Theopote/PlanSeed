@@ -16,9 +16,14 @@ from packages.schema.topology_strategy import BUILTIN_STRATEGIES, TopologyStrate
 from pydantic import BaseModel, Field
 from solver.critique.critic import critique_candidate
 from solver.intent.apply import apply_intent_patch
+from solver.intent.spec_sync import sync_requirement_spec_after_intent
 from solver.topology.strategy import apply_topology_strategy, list_builtin_strategies
 
 from backend.schemas.api import GenerateRequest, GenerateResponse, RoomPlacementPayload
+from backend.services.candidate_rebuild import (
+    CandidateRebuildError,
+    layout_candidate_from_copilot_payload,
+)
 from backend.services.generation import (
     generate_layouts,
     placements_to_locked_rects,
@@ -175,12 +180,13 @@ def preview_intent(body: IntentPreviewRequest) -> IntentPreviewResponse:
     program = resolve_solve_input(
         _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
     ).program
-    _prog, scope, preview = apply_intent_patch(program, body.patch)
+    _prog, _scope, preview = apply_intent_patch(program, body.patch)
+    # 顶层字段须反映实际锁定集合（preview.locked_rooms），非 scope 空列表
     return IntentPreviewResponse(
         preview=preview,
         patch=body.patch,
-        locked_rooms=list(scope.locked_rooms),
-        mutable_rooms=list(scope.mutable_rooms),
+        locked_rooms=list(preview.locked_rooms),
+        mutable_rooms=list(preview.mutable_rooms),
     )
 
 
@@ -208,6 +214,12 @@ def apply_intent(body: IntentApplyRequest) -> GenerateResponse:
         patched, scope, preview = apply_intent_patch(program, body.patch)
         if not preview.ok and not preview.program_deltas:
             raise HTTPException(status_code=422, detail="意图补丁无可执行变更")
+        # RequirementSpec 是唯一需求事实源：补丁必须写回，不能只改一次性 Program
+        requirement_spec = resolved.requirement_spec
+        if requirement_spec is not None:
+            requirement_spec = sync_requirement_spec_after_intent(
+                requirement_spec, patched, body.patch
+            )
         rects = placements_to_locked_rects(body.base_placements)
         scope_locks = locks_from_placement_rects(scope, patched, rects)
         locks = merge_layout_locks(
@@ -224,8 +236,15 @@ def apply_intent(body: IntentApplyRequest) -> GenerateResponse:
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _generate_response(
-        patched, result, top=top, requirement_spec=resolved.requirement_spec
+        patched, result, top=top, requirement_spec=requirement_spec
     )
+
+
+def _require_layout_candidate(raw: dict) -> LayoutCandidate:
+    try:
+        return layout_candidate_from_copilot_payload(raw)
+    except CandidateRebuildError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/api/copilot/critique")
@@ -233,10 +252,7 @@ def critique(body: CritiqueRequest) -> dict:
     program = resolve_solve_input(
         _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
     ).program
-    try:
-        cand = LayoutCandidate.model_validate(body.candidate)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=422, detail=f"candidate 无效：{exc}") from exc
+    cand = _require_layout_candidate(body.candidate)
     return critique_candidate(program, cand)
 
 
@@ -247,21 +263,21 @@ def optimize(body: OptimizeRequest) -> dict:
     program = resolve_solve_input(
         _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
     ).program
-    try:
-        cand = LayoutCandidate.model_validate(body.candidate)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=422, detail=f"candidate 无效：{exc}") from exc
+    cand = _require_layout_candidate(body.candidate)
     result = run_optimization_session(
         program,
         cand,
         max_rounds=body.max_rounds,
         candidate_budget=body.candidate_budget,
     )
+    # 仅当会话选出相对输入候选的新几何时回传 best，避免前端重复追加
+    improved = result.best is not None and result.best.id != cand.id
     best = None
-    if result.best is not None:
+    if improved and result.best is not None:
         best = serialize_candidate(result.program, result.best, 0)
     return {
         "stopped_reason": result.stopped_reason,
+        "improved": improved,
         "rounds": [
             {
                 "index": r.index,

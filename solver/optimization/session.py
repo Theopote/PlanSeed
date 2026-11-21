@@ -50,6 +50,15 @@ def _gate_ok(c: LayoutCandidate) -> bool:
     return bool(c.metrics.get("architectural_gate_pass", True))
 
 
+def candidate_quality_key(c: LayoutCandidate) -> tuple[int, int, float]:
+    """Gate 优先 → 更少穿卧室 → 更高分（越小越好）。"""
+    return (
+        0 if _gate_ok(c) else 1,
+        _priv(c),
+        -_score_of(c),
+    )
+
+
 def run_optimization_session(
     program: DesignProgram,
     base_candidate: LayoutCandidate,
@@ -146,21 +155,10 @@ def run_optimization_session(
             stopped = "empty_candidates"
             break
 
-        # 优先 Gate → 更少 private_through → 更高分
-        ranked = sorted(
-            cands,
-            key=lambda c: (
-                0 if _gate_ok(c) else 1,
-                _priv(c),
-                -_score_of(c),
-            ),
-        )
+        # 优先 Gate → 更少 private_through → 更高分（与 improved 同序）
+        ranked = sorted(cands, key=candidate_quality_key)
         nxt = ranked[0]
-        improved = (_priv(nxt), -_score_of(nxt), 0 if _gate_ok(nxt) else 1) < (
-            _priv(best),
-            -_score_of(best),
-            0 if _gate_ok(best) else 1,
-        )
+        improved = candidate_quality_key(nxt) < candidate_quality_key(best)
         rounds.append(
             OptimizationRound(
                 index=i,

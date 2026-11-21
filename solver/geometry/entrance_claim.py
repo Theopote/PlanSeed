@@ -11,7 +11,6 @@ from packages.schema.layout import (
 )
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge
-
 from solver.circulation.exterior_entry import resolve_entry_edge
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
@@ -234,8 +233,8 @@ def claim_entrance_edge_circulation(
             if merged is None:
                 merged = merge_adjacent_rects(foyer_rect, circ_rect)
                 if merged is not None:
-                    for other in others:
-                        inter = intersection(merged, other)
+                    for other_rect in others:
+                        inter = intersection(merged, other_rect)
                         if inter is not None and inter.area > 1e-6:
                             merged = None
                             break

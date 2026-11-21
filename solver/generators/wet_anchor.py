@@ -266,6 +266,7 @@ def _shrink_larger_toward_smaller(
 def _wet_stack_swap_donor_ok(room: RoomSpec | None, *, room_id: str) -> bool:
     """可与错位湿区对调的占用者：卧室/辅助/走廊；不碰门厅楼梯厨客餐厅。"""
     from packages.schema.room import RoomCategory
+
     from solver.semantics.roles import (
         TAG_BEDROOM,
         TAG_MASTER_BEDROOM,
@@ -307,8 +308,9 @@ def realign_wet_stack_by_occupant_swap(
 
     锚层几何已定（含 clip/grow）；仅挪另一层，避免再改坏 F1。
     """
-    from packages.schema.layout import FloorLayout, RoomPlacement
+    from packages.schema.layout import RoomPlacement
     from packages.schema.vertical_void import DEFAULT_WET_STACK_MIN_IOU
+
     from solver.evaluation.vertical import (
         _greedy_pair_wet_rooms,
         _wet_placements_by_key,
@@ -809,8 +811,9 @@ def nudge_wet_stack_alignment(
 
     返回可能已修改的 FloorLayout 列表（与 candidate.floors 同序）。
     """
-    from packages.schema.layout import FloorLayout, RoomPlacement
+    from packages.schema.layout import RoomPlacement
     from packages.schema.vertical_void import DEFAULT_WET_STACK_MIN_IOU
+
     from solver.evaluation.vertical import (
         _greedy_pair_wet_rooms,
         _wet_placements_by_key,

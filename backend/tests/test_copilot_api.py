@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
 from backend.main import create_app
 from fastapi.testclient import TestClient
 
@@ -26,7 +29,13 @@ def test_strategies_and_intent_parse():
         json={"patch": body, "use_benchmark": True},
     )
     assert prev.status_code == 200
-    assert "mutable_rooms" in prev.json()
+    data = prev.json()
+    assert data["mutable_rooms"]
+    # 顶层 locked_rooms 须为实际锁定集合（非 scope 空列表）
+    assert data["locked_rooms"]
+    assert "r1" in data["locked_rooms"] or any(
+        "客厅" in str(x) or x.startswith("r") for x in data["locked_rooms"]
+    )
 
 
 def test_conversation_roundtrip():
@@ -76,9 +85,12 @@ def test_intent_apply_partial_regen():
         json={"use_benchmark": True, "candidate_count": 4, "return_top_k": 1},
     )
     assert gen.status_code == 200, gen.text
-    cand = gen.json()["candidates"][0]
+    gen_body = gen.json()
+    cand = gen_body["candidates"][0]
     placements = cand.get("placements") or []
     assert placements
+    base_spec = gen_body["requirement_spec"]
+    assert base_spec
 
     parsed = client.post(
         "/api/copilot/intent/parse",
@@ -114,3 +126,138 @@ def test_intent_apply_partial_regen():
     # 局部锁可能使本轮 valid=0；仍须返回结构化响应
     assert "candidates" in body
     assert "program_summary" in body
+    # P0：写回后的 RequirementSpec 须反映主卧面积增大
+    out_spec = body["requirement_spec"]
+    assert out_spec is not None
+    prog_rooms = {r["id"]: r for r in body["program_summary"]["rooms"]}
+    master = next(
+        (r for r in prog_rooms.values() if "主卧" in (r.get("name") or "") or "master" in r["id"]),
+        None,
+    )
+    if master is not None:
+        space = next(
+            (
+                s
+                for s in out_spec["spaces"]
+                if s.get("id") == master["id"] or s.get("name") == master.get("name")
+            ),
+            None,
+        )
+        assert space is not None
+        assert space["target_area"] == master["target_area"]
+        base_space = next(
+            (
+                s
+                for s in base_spec["spaces"]
+                if s.get("id") == master["id"] or s.get("name") == master.get("name")
+            ),
+            None,
+        )
+        if base_space and base_space.get("target_area"):
+            assert space["target_area"] > base_space["target_area"]
+
+
+def test_critique_accepts_candidate_payload_shape():
+    """桌面发送扁平 placements + design_score，不得被解析成空 floors。"""
+    client = TestClient(create_app())
+    gen = client.post(
+        "/api/generate",
+        json={"use_benchmark": True, "candidate_count": 4, "return_top_k": 1},
+    )
+    assert gen.status_code == 200, gen.text
+    cand = gen.json()["candidates"][0]
+    assert cand.get("placements")
+    assert "floors" not in cand or not cand.get("floors")
+
+    # 人为植入 finding，验证 Critic 读 evaluation.findings
+    score = cand.get("design_score") or {}
+    score = {
+        **score,
+        "findings": [
+            {
+                "id": "dark_bath",
+                "category": "environment",
+                "severity": "warning",
+                "message": "黑卫",
+                "title": "黑卫",
+                "room_ids": [],
+            }
+        ],
+    }
+    cand = {**cand, "design_score": score}
+
+    r = client.post(
+        "/api/copilot/critique",
+        json={"use_benchmark": True, "candidate": cand},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    msgs = [x.get("message", "") for x in body.get("should_improve", [])]
+    msgs += [x.get("message", "") for x in body.get("must_fix", [])]
+    assert any("黑卫" in m for m in msgs)
+
+
+def test_critique_rejects_empty_geometry():
+    client = TestClient(create_app())
+    r = client.post(
+        "/api/copilot/critique",
+        json={
+            "use_benchmark": True,
+            "candidate": {
+                "id": "empty",
+                "seed": 0,
+                "score": None,
+                "label": "X",
+                "svg": "",
+                "placements": [],
+            },
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_design_conversation_persists_in_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "conv.db"))
+    client = TestClient(create_app())
+    conv = {
+        "project_id": "will-be-overwritten",
+        "messages": [
+            {
+                "id": "m1",
+                "role": "user",
+                "content": "主卧大一点",
+                "created_at": "2026-11-21T00:00:00+00:00",
+                "meta": {},
+            }
+        ],
+        "selected_candidate_id": "c1",
+        "active_strategy_id": None,
+        "applied_patch_ids": [],
+        "confirmed_facts": [],
+        "locked_room_ids": [],
+        "updated_at": "2026-11-21T00:00:00+00:00",
+    }
+    saved = client.post(
+        "/api/projects",
+        json={
+            "name": "对话宅",
+            "payload": {
+                "form": {"width": 12, "depth": 15, "floors": 2},
+                "program": {"rooms": []},
+                "requirement_spec": {"spaces": []},
+                "locks": {},
+                "candidates": [],
+                "design_conversation": conv,
+            },
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    pid = saved.json()["id"]
+    loaded = client.get(f"/api/projects/{pid}")
+    assert loaded.status_code == 200
+    dc = loaded.json()["payload"].get("design_conversation")
+    assert dc is not None
+    assert len(dc["messages"]) == 1
+    assert dc["messages"][0]["content"] == "主卧大一点"

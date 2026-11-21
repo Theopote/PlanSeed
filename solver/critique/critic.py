@@ -68,7 +68,8 @@ def critique_candidate(
             )
         )
 
-    findings = list(getattr(candidate, "findings", None) or [])
+    evaluation = getattr(candidate, "evaluation", None)
+    findings = list(getattr(evaluation, "findings", None) or []) if evaluation else []
     for f in findings:
         sev = str(getattr(f, "severity", "") or "").lower()
         item = {
