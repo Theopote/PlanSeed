@@ -212,6 +212,59 @@ class TestPrivatePrivateDoorBlocking:
         assert frozenset({"hall", "bed_a"}) in door_pairs
         assert frozenset({"hall", "bed_b"}) in door_pairs
 
+    def test_guest_bath_opens_to_garage_when_only_kitchen_else(self) -> None:
+        """客卫仅贴厨房与车库时，须补开向车库（避免只经厨房）。"""
+        program = DesignProgram(
+            project_id="guest-garage",
+            site=SiteSpec(width=10, depth=10),
+            buildable=SiteSpec(width=10, depth=10).buildable_envelope,
+            floors=[
+                FloorSpec(
+                    id="F1",
+                    label="一层",
+                    room_ids=["kitchen", "bath", "garage"],
+                )
+            ],
+            rooms=[
+                RoomSpec(
+                    id="kitchen",
+                    name="厨房",
+                    category=RoomCategory.WET,
+                    target_area=12,
+                    floor_id="F1",
+                    tags=["kitchen"],
+                ),
+                RoomSpec(
+                    id="bath",
+                    name="客卫",
+                    category=RoomCategory.WET,
+                    target_area=4,
+                    floor_id="F1",
+                ),
+                RoomSpec(
+                    id="garage",
+                    name="车库",
+                    category=RoomCategory.OTHER,
+                    target_area=18,
+                    floor_id="F1",
+                    tags=["garage"],
+                ),
+            ],
+            constraints=[],
+            solver_config=SolverConfig(),
+        )
+        kitchen = _placement("kitchen", x=0, y=0, w=4, d=4, cat="wet", name="厨房")
+        bath = _placement("bath", x=4, y=0, w=2, d=4, cat="wet", name="客卫")
+        garage = _placement("garage", x=6, y=0, w=4, d=4, cat="other", name="车库")
+        candidate = LayoutCandidate(
+            id="guest-garage",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[kitchen, bath, garage])],
+        )
+        place_door_openings(program, candidate)
+        pairs = {frozenset({op.room_a_id, op.room_b_id}) for op in candidate.door_openings}
+        assert frozenset({"bath", "garage"}) in pairs
+
     def test_guest_bath_prefers_public_over_private(self) -> None:
         """规则3：客卫与客厅共墙时，不得再开向卧室。"""
         program = DesignProgram(

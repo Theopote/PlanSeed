@@ -42,10 +42,6 @@ def _is_wet_category(category: str | None) -> bool:
     return (category or "").lower() == "wet"
 
 
-def _is_public_or_circulation_category(category: str | None) -> bool:
-    return (category or "").lower() in ("public", "circulation")
-
-
 def _guest_bath_ids(program: DesignProgram) -> set[str]:
     from solver.semantics.roles import is_guest_bath
 
