@@ -50,8 +50,9 @@ def choose_core_placement(
     entrance_bias_copies: int = 2,
     exclude_center: bool = False,
     exclude_opposite: bool = False,
+    exclude_entrance: bool = False,
 ) -> CorePlacement:
-    """seed 选择区位；有 preferred 则固定；否则偏向入口边（贴近门厅）。"""
+    """seed 选择区位；有 preferred 则固定；否则按入口策略加权。"""
     if preferred is not None:
         return preferred
 
@@ -75,11 +76,16 @@ def choose_core_placement(
         opp = opposite_map.get(entrance_edge)
         if opp is not None:
             options = [p for p in options if p != opp]
+    if exclude_entrance and entrance_edge is not None:
+        # 一层：楼梯占入口边会挡住客厅外墙进户
+        ent = edge_map.get(entrance_edge)
+        if ent is not None:
+            options = [p for p in options if p != ent]
     if not options:
         options = list(CorePlacement)
     if entrance_edge is not None:
         bias = edge_map.get(entrance_edge)
-        if bias is not None and entrance_bias_copies > 0:
+        if bias is not None and entrance_bias_copies > 0 and bias in options:
             # 默认 +2（约 1/3）；多层可再加重，减少对侧楼梯导致的 deep_access
             options.extend([bias] * entrance_bias_copies)
     return rng.choice(options)

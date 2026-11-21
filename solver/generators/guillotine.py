@@ -1280,7 +1280,7 @@ class GuillotineGenerator:
                 if is_guest_bath(lr.spec) or is_master_bath(lr.spec):
                     exterior_bonus = 1500.0
                 elif is_laundry(lr.spec):
-                    exterior_bonus = 250.0
+                    exterior_bonus = 900.0
                 adj = None
                 adj_bonus = 0.0
                 if is_foyer(lr.spec):

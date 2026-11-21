@@ -179,10 +179,12 @@ def build_prededuction_plan(
             rng,
             preferred=preferred,
             entrance_edge=program.site.entrance_edge,
-            # 多层：入口侧加重，去掉居中与对侧，减少门厅-楼梯脱边 → deep_access
-            entrance_bias_copies=4 if multi else 2,
+            # 多层：入口侧加重，去掉居中与对侧（门厅-楼梯共边）
+            # 一层：避开入口边（客厅贴外墙进户），不加重入口
+            entrance_bias_copies=4 if multi else 0,
             exclude_center=multi,
             exclude_opposite=multi,
+            exclude_entrance=not multi,
         )
         stair_core = place_stair_core_resolving(
             floor_width=floor_width,
