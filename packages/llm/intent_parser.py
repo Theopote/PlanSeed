@@ -23,8 +23,12 @@ _LIKE_KEEP = re.compile(
 )
 _ROOM_TOKEN = re.compile(r"客厅|起居室|厨房|餐厅|主卧(?:室)?|次卧|卧室|书房|车库")
 _PRONOUN_KEEP = re.compile(r"(?:保持|锁定|保留)\s*(?:它们|它们的位置|现状|以上)")
-_BIGGER = re.compile(r"(.+?)(?:大一点|更大|加大|增加面积)")
-_SMALLER = re.compile(r"(.+?)(?:小一点|更小|缩小|减少面积)")
+_BIGGER = re.compile(
+    r"(主卧(?:室)?|次卧|卧室|客厅|起居室|厨房|餐厅|书房|车库).{0,6}(?:大一点|更大|加大|增加面积)"
+)
+_SMALLER = re.compile(
+    r"(主卧(?:室)?|次卧|卧室|客厅|起居室|厨房|餐厅|书房|车库).{0,6}(?:小一点|更小|缩小|减少面积)"
+)
 _NO_THROUGH = re.compile(
     r"(?:不要|别|避免).{0,8}(?:穿过|穿|通过).{0,8}(?:卧室|主卧|私人)",
 )
@@ -84,8 +88,8 @@ def parse_intent_patch_deterministic(
                 preserve.extend(_tokens_from_chunk(part))
 
     for m in _BIGGER.finditer(cleaned):
-        tok = _clean_token(m.group(1).split("希望")[-1].split("把")[-1])
-        if tok and tok not in ("我", "想", "比较"):
+        tok = _clean_token(m.group(1))
+        if tok:
             changes.append(
                 IntentChange(
                     action=IntentChangeAction.INCREASE_TARGET_AREA,
@@ -96,7 +100,7 @@ def parse_intent_patch_deterministic(
             )
 
     for m in _SMALLER.finditer(cleaned):
-        tok = _clean_token(m.group(1).split("希望")[-1])
+        tok = _clean_token(m.group(1))
         if tok:
             changes.append(
                 IntentChange(

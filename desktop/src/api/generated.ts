@@ -90,6 +90,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/copilot/intent/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Intent
+         * @description 应用 IntentPatch → 局部重生成（保留 preserve 锁定）。
+         */
+        post: operations["apply_intent_api_copilot_intent_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/copilot/intent/parse": {
         parameters: {
             query?: never;
@@ -169,9 +189,29 @@ export interface paths {
         put?: never;
         /**
          * Apply Strategy
-         * @description 将内置策略合并进 benchmark/requirements program，返回摘要。
+         * @description 将内置策略合并进 program，返回摘要。
          */
         post: operations["apply_strategy_api_copilot_strategy_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/strategy/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate With Strategy
+         * @description 按命名策略物化 RoomGraph 后整栋生成，候选带 strategy 标签。
+         */
+        post: operations["generate_with_strategy_api_copilot_strategy_generate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -824,6 +864,8 @@ export interface components {
             candidate: {
                 [key: string]: unknown;
             };
+            /** Requirements */
+            requirements?: unknown | null;
             /**
              * Use Benchmark
              * @default true
@@ -1305,6 +1347,35 @@ export interface components {
             /** Occupants */
             occupants?: number | null;
         };
+        /** IntentApplyRequest */
+        IntentApplyRequest: {
+            /** Base Placements */
+            base_placements: components["schemas"]["RoomPlacementPayload"][];
+            /**
+             * Base Seed
+             * @default 0
+             */
+            base_seed: number;
+            /**
+             * Candidate Count
+             * @default 8
+             */
+            candidate_count: number;
+            locks?: components["schemas"]["LayoutLocks"] | null;
+            patch: components["schemas"]["DesignIntentPatch"];
+            /** Requirements */
+            requirements?: unknown | null;
+            /**
+             * Return Top K
+             * @default 3
+             */
+            return_top_k: number;
+            /**
+             * Use Benchmark
+             * @default false
+             */
+            use_benchmark: boolean;
+        };
         /**
          * IntentChange
          * @description 单条可执行修改；禁止自由文本 action。
@@ -1336,11 +1407,6 @@ export interface components {
         IntentChangeAction: "increase_target_area" | "decrease_target_area" | "set_orientation_preference" | "avoid_private_through" | "require_adjacency" | "avoid_adjacency" | "reduce_corridor_preference";
         /** IntentParseRequest */
         IntentParseRequest: {
-            /** Candidate */
-            candidate?: {
-                [key: string]: unknown;
-            } | null;
-            requirements?: components["schemas"]["GenerateRequest"] | null;
             /**
              * Target Candidate
              * @default selected
@@ -1380,6 +1446,8 @@ export interface components {
         /** IntentPreviewRequest */
         IntentPreviewRequest: {
             patch: components["schemas"]["DesignIntentPatch"];
+            /** Requirements */
+            requirements?: unknown | null;
             /**
              * Use Benchmark
              * @default true
@@ -1667,6 +1735,8 @@ export interface components {
              * @default 2
              */
             max_rounds: number;
+            /** Requirements */
+            requirements?: unknown | null;
             /**
              * Use Benchmark
              * @default true
@@ -2343,6 +2413,33 @@ export interface components {
             /** Target Area */
             target_area?: number | null;
         };
+        /** StrategyGenerateRequest */
+        StrategyGenerateRequest: {
+            /**
+             * Base Seed
+             * @default 0
+             */
+            base_seed: number;
+            /**
+             * Candidate Count
+             * @default 12
+             */
+            candidate_count: number;
+            /** Requirements */
+            requirements?: unknown | null;
+            /**
+             * Return Top K
+             * @default 5
+             */
+            return_top_k: number;
+            /** Strategy Id */
+            strategy_id: string;
+            /**
+             * Use Benchmark
+             * @default false
+             */
+            use_benchmark: boolean;
+        };
         /**
          * SvgExportRequest
          * @description 正式 SVG 导出：必须绑定 ProjectStore revision。
@@ -2690,6 +2787,39 @@ export interface operations {
             };
         };
     };
+    apply_intent_api_copilot_intent_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntentApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     parse_intent_api_copilot_intent_parse_post: {
         parameters: {
             query?: never;
@@ -2835,6 +2965,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_with_strategy_api_copilot_strategy_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StrategyGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateResponse"];
                 };
             };
             /** @description Validation Error */

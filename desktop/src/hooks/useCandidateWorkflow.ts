@@ -333,6 +333,51 @@ export function useCandidateWorkflow({
     ],
   );
 
+  const ingestCopilotGenerate = useCallback(
+    (data: GenerateResponse, mode: "replace" | "variant" = "variant") => {
+      const fp = locksFingerprint(locks);
+      if (mode === "replace") {
+        applyResult(data, fp);
+        return;
+      }
+      mergeVariantCandidates(
+        runSeq.current,
+        data,
+        selectedId,
+        selected?.variant_generation ?? 0,
+        fp,
+      );
+    },
+    [
+      applyResult,
+      locks,
+      mergeVariantCandidates,
+      selectedId,
+      selected?.variant_generation,
+    ],
+  );
+
+  const ingestCopilotBest = useCallback(
+    (best: CandidatePayload) => {
+      const fp = locksFingerprint(locks);
+      const parentGen = selected?.variant_generation ?? 0;
+      const labeled = relabel([
+        ...candidates,
+        {
+          ...best,
+          variant_parent_id: selectedId,
+          variant_generation: parentGen + 1,
+          lock_snapshot_id: fp,
+          revision_status: best.revision_status ?? "generated",
+          mutations: best.mutations ?? [],
+        },
+      ]);
+      setCandidates(labeled.slice(-16));
+      setSelectedId(best.id);
+    },
+    [locks, selected, selectedId, candidates, relabel],
+  );
+
   const runPartialRegen = useCallback(
     async (mutableRoomId: string) => {
       const token = ++runSeq.current;
@@ -578,6 +623,8 @@ export function useCandidateWorkflow({
     relabel,
     stampRootLineage,
     applyResult,
+    ingestCopilotGenerate,
+    ingestCopilotBest,
     run,
     runPartialRegen,
     onParseAndGenerate,

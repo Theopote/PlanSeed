@@ -404,12 +404,16 @@ function App() {
           />
           <CopilotPanel
             projectId={project.projectId}
-            selectedCandidate={
-              candidate.selected
-                ? (candidate.selected as unknown as Record<string, unknown>)
-                : null
-            }
+            selectedCandidate={candidate.selected}
+            program={candidate.program}
+            locks={candidate.locks}
+            requirementSpec={requirement.requirementSpec}
+            regenerating={candidate.loading}
             onError={setError}
+            onMergeGenerate={(data, mode) =>
+              candidate.ingestCopilotGenerate(data, mode ?? "variant")
+            }
+            onMergeBest={(best) => candidate.ingestCopilotBest(best)}
           />
         </div>
       </div>

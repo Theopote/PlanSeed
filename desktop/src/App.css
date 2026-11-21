@@ -90,6 +90,22 @@ body,
   margin: 0.25rem 0;
 }
 
+.copilot-panel__strategies .linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent, #2f5d50);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.copilot-panel__strategies .linkish:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .panel {
   min-height: 0;
   overflow: auto;

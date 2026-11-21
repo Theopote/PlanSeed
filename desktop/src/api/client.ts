@@ -1097,7 +1097,13 @@ export async function parseIntentPatch(
   return r.json() as Promise<DesignIntentPatch>;
 }
 
-export async function previewIntentPatch(patch: DesignIntentPatch): Promise<{
+export async function previewIntentPatch(
+  patch: DesignIntentPatch,
+  opts?: {
+    use_benchmark?: boolean;
+    requirements?: RequirementSpecPayload | null;
+  },
+): Promise<{
   preview: {
     program_deltas: string[];
     warnings: string[];
@@ -1106,13 +1112,59 @@ export async function previewIntentPatch(patch: DesignIntentPatch): Promise<{
   locked_rooms: string[];
   mutable_rooms: string[];
 }> {
+  const useBenchmark = opts?.use_benchmark ?? !opts?.requirements;
   const r = await fetch(`${_apiBase}/api/copilot/intent/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ patch, use_benchmark: true }),
+    body: JSON.stringify({
+      patch,
+      use_benchmark: useBenchmark,
+      requirements: useBenchmark ? undefined : opts?.requirements,
+    }),
   });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
+}
+
+export async function applyIntentPatch(
+  patch: DesignIntentPatch,
+  opts: {
+    base_placements: RoomPlacementPayload[];
+    locks?: LayoutLocks | null;
+    requirements?: RequirementSpecPayload | null;
+    use_benchmark?: boolean;
+    candidate_count?: number;
+    return_top_k?: number;
+    base_seed?: number;
+  },
+): Promise<GenerateResponse> {
+  const useBenchmark = opts.use_benchmark ?? !opts.requirements;
+  const body: Record<string, unknown> = {
+    patch,
+    use_benchmark: useBenchmark,
+    base_placements: opts.base_placements,
+    candidate_count: opts.candidate_count ?? 8,
+    return_top_k: opts.return_top_k ?? 3,
+    base_seed: opts.base_seed ?? 0,
+  };
+  if (!useBenchmark && opts.requirements) {
+    body.requirements = opts.requirements;
+  }
+  if (
+    opts.locks &&
+    (opts.locks.rooms.length > 0 ||
+      opts.locks.stair ||
+      (opts.locks.zones?.length ?? 0) > 0)
+  ) {
+    body.locks = opts.locks;
+  }
+  const r = await fetch(`${_apiBase}/api/copilot/intent/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<GenerateResponse>;
 }
 
 export async function listCopilotStrategies(): Promise<TopologyStrategy[]> {
@@ -1121,16 +1173,88 @@ export async function listCopilotStrategies(): Promise<TopologyStrategy[]> {
   return r.json() as Promise<TopologyStrategy[]>;
 }
 
+export async function generateWithStrategy(
+  strategyId: string,
+  opts: {
+    requirements?: RequirementSpecPayload | null;
+    use_benchmark?: boolean;
+    candidate_count?: number;
+    return_top_k?: number;
+    base_seed?: number;
+  },
+): Promise<GenerateResponse> {
+  const useBenchmark = opts.use_benchmark ?? !opts.requirements;
+  const body: Record<string, unknown> = {
+    strategy_id: strategyId,
+    use_benchmark: useBenchmark,
+    candidate_count: opts.candidate_count ?? 12,
+    return_top_k: opts.return_top_k ?? 5,
+    base_seed: opts.base_seed ?? 0,
+  };
+  if (!useBenchmark && opts.requirements) {
+    body.requirements = opts.requirements;
+  }
+  const r = await fetch(`${_apiBase}/api/copilot/strategy/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<GenerateResponse>;
+}
+
 export async function critiqueCandidate(
   candidate: Record<string, unknown>,
+  opts?: {
+    use_benchmark?: boolean;
+    requirements?: RequirementSpecPayload | null;
+  },
 ): Promise<Record<string, unknown>> {
+  const useBenchmark = opts?.use_benchmark ?? !opts?.requirements;
   const r = await fetch(`${_apiBase}/api/copilot/critique`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ use_benchmark: true, candidate }),
+    body: JSON.stringify({
+      use_benchmark: useBenchmark,
+      requirements: useBenchmark ? undefined : opts?.requirements,
+      candidate,
+    }),
   });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<Record<string, unknown>>;
+}
+
+export async function optimizeCandidate(
+  candidate: Record<string, unknown>,
+  opts?: {
+    use_benchmark?: boolean;
+    requirements?: RequirementSpecPayload | null;
+    max_rounds?: number;
+    candidate_budget?: number;
+  },
+): Promise<{
+  stopped_reason: string;
+  rounds: Array<Record<string, unknown>>;
+  best: CandidatePayload | null;
+}> {
+  const useBenchmark = opts?.use_benchmark ?? !opts?.requirements;
+  const r = await fetch(`${_apiBase}/api/copilot/optimize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      use_benchmark: useBenchmark,
+      requirements: useBenchmark ? undefined : opts?.requirements,
+      candidate,
+      max_rounds: opts?.max_rounds ?? 2,
+      candidate_budget: opts?.candidate_budget ?? 4,
+    }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<{
+    stopped_reason: string;
+    rounds: Array<Record<string, unknown>>;
+    best: CandidatePayload | null;
+  }>;
 }
 
 export async function appendCopilotMessage(

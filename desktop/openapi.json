@@ -664,6 +664,15 @@
             "title": "Candidate",
             "type": "object"
           },
+          "requirements": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
+          },
           "use_benchmark": {
             "default": true,
             "title": "Use Benchmark",
@@ -1633,6 +1642,71 @@
         "title": "HouseholdRequirements",
         "type": "object"
       },
+      "IntentApplyRequest": {
+        "properties": {
+          "base_placements": {
+            "items": {
+              "$ref": "#/components/schemas/RoomPlacementPayload"
+            },
+            "minItems": 1,
+            "title": "Base Placements",
+            "type": "array"
+          },
+          "base_seed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Base Seed",
+            "type": "integer"
+          },
+          "candidate_count": {
+            "default": 8,
+            "maximum": 32.0,
+            "minimum": 2.0,
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "locks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LayoutLocks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "patch": {
+            "$ref": "#/components/schemas/DesignIntentPatch"
+          },
+          "requirements": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
+          },
+          "return_top_k": {
+            "default": 3,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Return Top K",
+            "type": "integer"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "patch",
+          "base_placements"
+        ],
+        "title": "IntentApplyRequest",
+        "type": "object"
+      },
       "IntentChange": {
         "description": "单条可执行修改；禁止自由文本 action。",
         "properties": {
@@ -1704,28 +1778,6 @@
       },
       "IntentParseRequest": {
         "properties": {
-          "candidate": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Candidate"
-          },
-          "requirements": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GenerateRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "target_candidate": {
             "default": "selected",
             "title": "Target Candidate",
@@ -1799,6 +1851,15 @@
         "properties": {
           "patch": {
             "$ref": "#/components/schemas/DesignIntentPatch"
+          },
+          "requirements": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
           },
           "use_benchmark": {
             "default": true,
@@ -2467,6 +2528,15 @@
             "minimum": 1.0,
             "title": "Max Rounds",
             "type": "integer"
+          },
+          "requirements": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
           },
           "use_benchmark": {
             "default": true,
@@ -4116,6 +4186,53 @@
         "title": "SpaceRequirement",
         "type": "object"
       },
+      "StrategyGenerateRequest": {
+        "properties": {
+          "base_seed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Base Seed",
+            "type": "integer"
+          },
+          "candidate_count": {
+            "default": 12,
+            "maximum": 32.0,
+            "minimum": 2.0,
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "requirements": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
+          },
+          "return_top_k": {
+            "default": 5,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Return Top K",
+            "type": "integer"
+          },
+          "strategy_id": {
+            "title": "Strategy Id",
+            "type": "string"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "strategy_id"
+        ],
+        "title": "StrategyGenerateRequest",
+        "type": "object"
+      },
       "SvgExportRequest": {
         "description": "正式 SVG 导出：必须绑定 ProjectStore revision。",
         "properties": {
@@ -4689,6 +4806,48 @@
         ]
       }
     },
+    "/api/copilot/intent/apply": {
+      "post": {
+        "description": "应用 IntentPatch → 局部重生成（保留 preserve 锁定）。",
+        "operationId": "apply_intent_api_copilot_intent_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntentApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Intent",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
     "/api/copilot/intent/parse": {
       "post": {
         "operationId": "parse_intent_api_copilot_intent_parse_post",
@@ -4841,7 +5000,7 @@
     },
     "/api/copilot/strategy/apply": {
       "post": {
-        "description": "将内置策略合并进 benchmark/requirements program，返回摘要。",
+        "description": "将内置策略合并进 program，返回摘要。",
         "operationId": "apply_strategy_api_copilot_strategy_apply_post",
         "requestBody": {
           "content": {
@@ -4880,6 +5039,48 @@
           }
         },
         "summary": "Apply Strategy",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/strategy/generate": {
+      "post": {
+        "description": "按命名策略物化 RoomGraph 后整栋生成，候选带 strategy 标签。",
+        "operationId": "generate_with_strategy_api_copilot_strategy_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate With Strategy",
         "tags": [
           "copilot"
         ]

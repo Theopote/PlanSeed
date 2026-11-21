@@ -11,30 +11,40 @@ from packages.schema.design_conversation import (
 )
 from packages.schema.intent_patch import DesignIntentPatch, IntentPatchPreview
 from packages.schema.layout import LayoutCandidate
+from packages.schema.locks import LayoutLocks
 from packages.schema.topology_strategy import BUILTIN_STRATEGIES, TopologyStrategy
 from pydantic import BaseModel, Field
 from solver.critique.critic import critique_candidate
 from solver.intent.apply import apply_intent_patch
 from solver.topology.strategy import apply_topology_strategy, list_builtin_strategies
 
-from backend.schemas.api import GenerateRequest
-from backend.services.generation import resolve_solve_input
-from backend.services.serialization import serialize_candidate
+from backend.schemas.api import GenerateRequest, GenerateResponse, RoomPlacementPayload
+from backend.services.generation import (
+    generate_layouts,
+    placements_to_locked_rects,
+    resolve_solve_input,
+)
+from backend.services.serialization import (
+    serialize_candidate,
+    serialize_program_summary,
+    serialize_rejected,
+)
 
 router = APIRouter(tags=["copilot"])
+
+MAX_REJECTED_SAMPLES = 8
 
 
 class IntentParseRequest(BaseModel):
     text: str = Field(min_length=1)
     target_candidate: str = "selected"
-    requirements: GenerateRequest | None = None
     use_benchmark: bool = False
-    candidate: dict | None = None
 
 
 class IntentPreviewRequest(BaseModel):
     patch: DesignIntentPatch
     use_benchmark: bool = True
+    requirements: object | None = None
 
 
 class IntentPreviewResponse(BaseModel):
@@ -44,16 +54,38 @@ class IntentPreviewResponse(BaseModel):
     mutable_rooms: list[str] = Field(default_factory=list)
 
 
+class IntentApplyRequest(BaseModel):
+    patch: DesignIntentPatch
+    use_benchmark: bool = False
+    requirements: object | None = None
+    base_placements: list[RoomPlacementPayload] = Field(min_length=1)
+    locks: LayoutLocks | None = None
+    candidate_count: int = Field(default=8, ge=2, le=32)
+    return_top_k: int = Field(default=3, ge=1, le=10)
+    base_seed: int = Field(default=0, ge=0)
+
+
 class CritiqueRequest(BaseModel):
     use_benchmark: bool = True
+    requirements: object | None = None
     candidate: dict = Field(description="LayoutCandidate 子集 JSON")
 
 
 class OptimizeRequest(BaseModel):
     use_benchmark: bool = True
+    requirements: object | None = None
     candidate: dict
     max_rounds: int = Field(default=2, ge=1, le=5)
     candidate_budget: int = Field(default=4, ge=2, le=16)
+
+
+class StrategyGenerateRequest(BaseModel):
+    strategy_id: str
+    use_benchmark: bool = False
+    requirements: object | None = None
+    candidate_count: int = Field(default=12, ge=2, le=32)
+    return_top_k: int = Field(default=5, ge=1, le=10)
+    base_seed: int = Field(default=0, ge=0)
 
 
 class ConversationUpsertRequest(BaseModel):
@@ -78,11 +110,71 @@ def parse_intent(body: IntentParseRequest) -> DesignIntentPatch:
     return parse_intent_patch(body.text, target_candidate=body.target_candidate)
 
 
+def _solve_request(
+    *,
+    use_benchmark: bool,
+    requirements: object | None,
+    candidate_count: int | None = None,
+    return_top_k: int | None = None,
+    base_seed: int | None = None,
+) -> GenerateRequest:
+    from packages.schema.requirements import RequirementSpec
+
+    reqs = None
+    if requirements is not None:
+        reqs = (
+            requirements
+            if isinstance(requirements, RequirementSpec)
+            else RequirementSpec.model_validate(requirements)
+        )
+    return GenerateRequest(
+        use_benchmark=use_benchmark,
+        requirements=reqs,
+        candidate_count=candidate_count,
+        return_top_k=return_top_k,
+        base_seed=base_seed,
+    )
+
+
+def _generate_response(
+    program,
+    result,
+    *,
+    top=None,
+    requirement_spec=None,
+) -> GenerateResponse:
+    from packages.schema.identity import solver_identity
+
+    selected = list(top if top is not None else result.top_candidates)
+    candidates = [
+        serialize_candidate(program, cand, i) for i, cand in enumerate(selected)
+    ]
+    invalid = [
+        c
+        for c in result.all_candidates
+        if c.validation is not None and not c.validation.valid
+    ]
+    invalid.sort(key=lambda c: c.seed)
+    return GenerateResponse(
+        generated=result.generated,
+        valid=result.valid,
+        rejected=result.rejected,
+        program_summary=serialize_program_summary(program),
+        requirement_spec=requirement_spec,
+        candidates=candidates,
+        violation_summary=dict(result.violation_summary),
+        rejected_candidates=[
+            serialize_rejected(c) for c in invalid[:MAX_REJECTED_SAMPLES]
+        ],
+        solver_identity=solver_identity(),
+    )
+
+
 @router.post("/api/copilot/intent/preview", response_model=IntentPreviewResponse)
 def preview_intent(body: IntentPreviewRequest) -> IntentPreviewResponse:
-    from backend.schemas.api import GenerateRequest as GR
-
-    program = resolve_solve_input(GR(use_benchmark=body.use_benchmark)).program
+    program = resolve_solve_input(
+        _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
+    ).program
     _prog, scope, preview = apply_intent_patch(program, body.patch)
     return IntentPreviewResponse(
         preview=preview,
@@ -92,11 +184,55 @@ def preview_intent(body: IntentPreviewRequest) -> IntentPreviewResponse:
     )
 
 
+@router.post("/api/copilot/intent/apply", response_model=GenerateResponse)
+def apply_intent(body: IntentApplyRequest) -> GenerateResponse:
+    """应用 IntentPatch → 局部重生成（保留 preserve 锁定）。"""
+    from solver.regeneration.errors import RegenerationScopeError
+    from solver.regeneration.scope import (
+        filter_candidates_preserving_topology,
+        locks_from_placement_rects,
+        merge_layout_locks,
+    )
+
+    resolved = resolve_solve_input(
+        _solve_request(
+            use_benchmark=body.use_benchmark,
+            requirements=body.requirements,
+            candidate_count=body.candidate_count,
+            return_top_k=body.return_top_k,
+            base_seed=body.base_seed,
+        )
+    )
+    program = resolved.program
+    try:
+        patched, scope, preview = apply_intent_patch(program, body.patch)
+        if not preview.ok and not preview.program_deltas:
+            raise HTTPException(status_code=422, detail="意图补丁无可执行变更")
+        rects = placements_to_locked_rects(body.base_placements)
+        scope_locks = locks_from_placement_rects(scope, patched, rects)
+        locks = merge_layout_locks(
+            body.locks, scope_locks, mutable_room_ids=scope.mutable_room_ids
+        )
+        result = generate_layouts(patched, locks=locks)
+        top = filter_candidates_preserving_topology(
+            scope, patched, list(result.top_candidates)
+        )
+    except RegenerationScopeError as exc:
+        raise HTTPException(status_code=422, detail=exc.to_detail()) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _generate_response(
+        patched, result, top=top, requirement_spec=resolved.requirement_spec
+    )
+
+
 @router.post("/api/copilot/critique")
 def critique(body: CritiqueRequest) -> dict:
-    from backend.schemas.api import GenerateRequest as GR
-
-    program = resolve_solve_input(GR(use_benchmark=body.use_benchmark)).program
+    program = resolve_solve_input(
+        _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
+    ).program
     try:
         cand = LayoutCandidate.model_validate(body.candidate)
     except Exception as exc:  # noqa: BLE001
@@ -108,9 +244,9 @@ def critique(body: CritiqueRequest) -> dict:
 def optimize(body: OptimizeRequest) -> dict:
     from solver.optimization.session import run_optimization_session
 
-    from backend.schemas.api import GenerateRequest as GR
-
-    program = resolve_solve_input(GR(use_benchmark=body.use_benchmark)).program
+    program = resolve_solve_input(
+        _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
+    ).program
     try:
         cand = LayoutCandidate.model_validate(body.candidate)
     except Exception as exc:  # noqa: BLE001
@@ -144,12 +280,14 @@ def optimize(body: OptimizeRequest) -> dict:
 
 @router.post("/api/copilot/strategy/apply")
 def apply_strategy(body: dict) -> dict:
-    """将内置策略合并进 benchmark/requirements program，返回摘要。"""
-    from backend.schemas.api import GenerateRequest as GR
-
+    """将内置策略合并进 program，返回摘要。"""
     strategy_id = str(body.get("strategy_id") or "")
     use_benchmark = bool(body.get("use_benchmark", True))
-    program = resolve_solve_input(GR(use_benchmark=use_benchmark)).program
+    program = resolve_solve_input(
+        _solve_request(
+            use_benchmark=use_benchmark, requirements=body.get("requirements")
+        )
+    ).program
     try:
         program2 = apply_topology_strategy(program, strategy_id)
     except ValueError as exc:
@@ -159,6 +297,33 @@ def apply_strategy(body: dict) -> dict:
         "room_graph_edges": len(program2.room_graph.edges) if program2.room_graph else 0,
         "room_count": len(program2.rooms),
     }
+
+
+@router.post("/api/copilot/strategy/generate", response_model=GenerateResponse)
+def generate_with_strategy(body: StrategyGenerateRequest) -> GenerateResponse:
+    """按命名策略物化 RoomGraph 后整栋生成，候选带 strategy 标签。"""
+    from packages.schema.topology_strategy import builtin_strategy
+    from solver.topology.strategy import tag_candidates_with_strategy
+
+    strategy = builtin_strategy(body.strategy_id)
+    if strategy is None:
+        raise HTTPException(status_code=404, detail=f"未知策略：{body.strategy_id}")
+    resolved = resolve_solve_input(
+        _solve_request(
+            use_benchmark=body.use_benchmark,
+            requirements=body.requirements,
+            candidate_count=body.candidate_count,
+            return_top_k=body.return_top_k,
+            base_seed=body.base_seed,
+        )
+    )
+    program = apply_topology_strategy(resolved.program, strategy)
+    result = generate_layouts(program)
+    tag_candidates_with_strategy(result.top_candidates, strategy)
+    tag_candidates_with_strategy(result.all_candidates, strategy)
+    return _generate_response(
+        program, result, requirement_spec=resolved.requirement_spec
+    )
 
 
 # 进程内会话（桌面单用户）；项目 payload 同步由客户端负责持久化
