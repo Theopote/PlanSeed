@@ -970,6 +970,19 @@ class GuillotineGenerator:
             )
             realigned_floors.append(fl.model_copy(update={"placements": placed}))
         candidate = candidate.model_copy(update={"floors": realigned_floors})
+        # 锁定房优先：收尾消重叠，避免局部 regen 可变房间压住锁区
+        if protected:
+            resolved_floors: list[FloorLayout] = []
+            for fl in candidate.floors:
+                placed = resolve_placement_overlaps(
+                    list(fl.placements),
+                    protected_room_ids=protected,
+                )
+                placed = assign_residual_gaps_as_circulation(
+                    pack_rects, placed, fl.floor_id
+                )
+                resolved_floors.append(fl.model_copy(update={"placements": placed}))
+            candidate = candidate.model_copy(update={"floors": resolved_floors})
         # 几何修补后再解析入口，避免走廊回收后仍绑定旧 connected_room_ids
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         place_door_openings(program, candidate)

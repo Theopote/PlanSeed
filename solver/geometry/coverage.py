@@ -342,11 +342,17 @@ def _thicken_slender_room_from_neighbors(
     return True
 
 
-def _overlap_clip_priority(p: RoomPlacement) -> int:
-    """数值越小越不应被裁切（楼梯 / 天井 > 走廊 > 其他 generated > program）。"""
+def _overlap_clip_priority(
+    p: RoomPlacement,
+    *,
+    protected_room_ids: frozenset[str] | set[str] | None = None,
+) -> int:
+    """数值越小越不应被裁切（楼梯/锁定 > 走廊 > 其他 generated > program）。"""
     from packages.schema.layout import PlacementSource
 
     if is_fixed_void_placement(p.room_id):
+        return 0
+    if protected_room_ids and p.room_id in protected_room_ids:
         return 0
     if p.room_id.startswith("circ-"):
         return 1
@@ -396,8 +402,10 @@ def resolve_placement_overlaps(
     placements: list[RoomPlacement],
     *,
     tolerance: float = COVERAGE_TOLERANCE,
+    protected_room_ids: frozenset[str] | set[str] | None = None,
 ) -> list[RoomPlacement]:
-    """消除轴对齐矩形重叠；固定区优先保留，退让方取最大残余片段。"""
+    """消除轴对齐矩形重叠；固定区/锁定房优先保留，退让方取最大残余片段。"""
+    protected = frozenset(protected_room_ids or ())
     updated = [p.model_copy(deep=True) for p in placements]
     max_iter = len(updated) ** 2 + 4
     for _ in range(max_iter):
@@ -416,7 +424,8 @@ def resolve_placement_overlaps(
             break
         i, j = best_pair
         a, b = updated[i], updated[j]
-        pa, pb = _overlap_clip_priority(a), _overlap_clip_priority(b)
+        pa = _overlap_clip_priority(a, protected_room_ids=protected)
+        pb = _overlap_clip_priority(b, protected_room_ids=protected)
         if pa > pb:
             clip_idx, keep_idx = i, j
         elif pb > pa:
@@ -1718,7 +1727,7 @@ def improve_private_room_corridor_access(
         )
     ]
 
-    circ_seq = sum(1 for p in updated if p.room_id.startswith(f"circ-{floor_id}-"))
+    circ_seq = _next_circ_index(updated, floor_id)
 
     for priv_id in needs_repair:
         priv = by_id[priv_id]
@@ -1743,20 +1752,6 @@ def improve_private_room_corridor_access(
             if trial is None:
                 continue
             shrunk_neighbor, corridor = trial
-            if direct_circ_touch_only:
-                if not _corridor_touches_circulation_network(
-                    corridor, updated, entry_ids
-                ):
-                    continue
-            elif not _corridor_links_private_to_circulation(
-                priv, corridor, updated, entry_ids
-            ):
-                continue
-            if shared_boundary_between(priv, corridor, min_length=0.05) is None:
-                continue
-            if not _corridor_clear_of_fixed_voids(corridor, updated, tolerance=tolerance):
-                continue
-
             trial_placements: list[RoomPlacement] = []
             for p in updated:
                 if p.room_id == neighbor.room_id:
@@ -1764,6 +1759,22 @@ def improve_private_room_corridor_access(
                 else:
                     trial_placements.append(p)
             trial_placements.append(corridor)
+            # 连通性须在「donor 已收缩」的试布局上判断，否则新条与旧 donor 重叠假阴性
+            if direct_circ_touch_only:
+                if not _corridor_touches_circulation_network(
+                    corridor, trial_placements, entry_ids
+                ):
+                    continue
+            elif not _corridor_links_private_to_circulation(
+                priv, corridor, trial_placements, entry_ids
+            ):
+                continue
+            if shared_boundary_between(priv, corridor, min_length=0.05) is None:
+                continue
+            if not _corridor_clear_of_fixed_voids(
+                corridor, trial_placements, tolerance=tolerance
+            ):
+                continue
             if not _floor_repair_maintains_constraints(
                 footprint,
                 updated,
@@ -1802,14 +1813,19 @@ def apply_corridor_access_repair_if_safe(
     entry_room_ids: frozenset[str] | None = None,
 ) -> LayoutCandidate:
     """
-    在完整候选上尝试走廊邻接修补；仅当修补后仍通过 checker 时才采纳。
+    在完整候选上尝试走廊邻接修补。
 
-    避免在 per-floor 管线中盲目借边，把原本 valid 的候选打成 invalid。
+    - 已 valid：修补后须仍 valid 才采纳
+    - 仅 access.unreachable_room 失败：允许修补，若 hard 变少或变 valid 则采纳
     """
     from solver.constraints.checker_impl import DefaultConstraintChecker
 
     checker = DefaultConstraintChecker()
-    if not checker.check(program, candidate.model_copy(deep=True)).valid:
+    before = checker.check(program, candidate.model_copy(deep=True))
+    only_unreachable = (not before.valid) and bool(before.hard_violations) and all(
+        v.constraint_id == "access.unreachable_room" for v in before.hard_violations
+    )
+    if not before.valid and not only_unreachable:
         return candidate
 
     min_areas = min_area_by_room_id or {
@@ -1817,6 +1833,15 @@ def apply_corridor_access_repair_if_safe(
     }
     entry_ids = entry_room_ids or frozenset()
     result = candidate
+    before_hard_n = len(before.hard_violations)
+
+    def _accept(trial: LayoutCandidate) -> bool:
+        after = checker.check(program, trial)
+        if after.valid:
+            return True
+        if only_unreachable and len(after.hard_violations) < before_hard_n:
+            return True
+        return False
 
     def _try_floor_repair(
         floor_idx: int,
@@ -1836,10 +1861,13 @@ def apply_corridor_access_repair_if_safe(
         if not _floor_placements_geom_changed(floor.placements, improved):
             return
         improved = resolve_placement_overlaps(improved)
+        improved = assign_residual_gaps_as_circulation(
+            footprint, improved, floor.floor_id
+        )
         new_floors = [fl.model_copy(deep=True) for fl in result.floors]
         new_floors[floor_idx] = floor.model_copy(update={"placements": improved})
         trial = result.model_copy(deep=True, update={"floors": new_floors})
-        if checker.check(program, trial).valid:
+        if _accept(trial):
             result = trial
 
     for floor_idx in range(len(candidate.floors)):
@@ -2056,13 +2084,11 @@ def assign_residual_gaps_as_circulation(
     if not gaps:
         return updated
 
-    residual_count = sum(
-        1 for p in updated if p.room_id.startswith(f"circ-{floor_id}-")
-    )
-    for i, gap in enumerate(gaps):
+    next_idx = _next_circ_index(updated, floor_id)
+    for gap in gaps:
         updated.append(
             RoomPlacement(
-                room_id=f"circ-{floor_id}-{residual_count + i}",
+                room_id=f"circ-{floor_id}-{next_idx}",
                 floor_id=floor_id,
                 rect=PlacementRect(
                     x=gap.x,
@@ -2075,7 +2101,21 @@ def assign_residual_gaps_as_circulation(
                 category="circulation",
             )
         )
+        next_idx += 1
     return updated
+
+
+def _next_circ_index(placements: list[RoomPlacement], floor_id: str) -> int:
+    """下一个 circ-{floor}-N 数字后缀（避免 count 与缺口下标撞号）。"""
+    prefix = f"circ-{floor_id}-"
+    best = -1
+    for p in placements:
+        if not p.room_id.startswith(prefix):
+            continue
+        suffix = p.room_id[len(prefix) :]
+        if suffix.isdigit():
+            best = max(best, int(suffix))
+    return best + 1
 
 
 def expand_rect_to_cover_pack_gaps(

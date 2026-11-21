@@ -57,8 +57,9 @@ class TestCorridorRepairIntegration:
             metrics = compute_privacy_metrics(program, cand)
             if int(metrics.get("unavoidable_private_through_count", 0)) > 0:
                 unavoidable_hits += 1
-        assert unavoidable_hits >= 1
+        # 动线修补增强后可能不再出现 unavoidable；有则须不超过 valid
         assert unavoidable_hits <= result.valid
+        assert result.valid >= 1
 
     def test_valid_candidates_gain_circulation_passages(self) -> None:
         """valid 候选应通过走廊 PASSAGE 接入 RealizedAccessGraph。"""

@@ -35,7 +35,12 @@ class TestGuillotineGenerator:
         ]
         stairs = [p for p in generated if p.room_id.startswith("stair-")]
         assert len(stairs) == 2
-        assert all(p.category == "circulation" for p in generated)
+        # foyer 由入口边走廊提升，category=public；其余 generated 为 circulation
+        for p in generated:
+            if p.room_id.startswith("foyer-"):
+                assert p.category == "public"
+            else:
+                assert p.category == "circulation", p.room_id
 
     def test_no_room_overlap_on_valid_candidate(self):
         program = benchmark_program()
