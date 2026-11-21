@@ -328,8 +328,9 @@ def privacy_findings(
             good_via_hall += 1
 
         # 深度偏大（楼梯跨层折叠后再判）
+        # 阈值 5：入户→门厅→楼梯→一层走廊→卧室 的常见两层路径约为 4，不误杀
         depth = collapsed_access_depth(path)
-        if depth >= 4:
+        if depth >= 5:
             out.append(
                 finding(
                     id=f"privacy.deep_access:{pid}",

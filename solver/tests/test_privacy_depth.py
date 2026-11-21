@@ -35,3 +35,16 @@ def test_empty_and_short() -> None:
     assert collapsed_access_depth([]) == 0
     assert collapsed_access_depth(["exterior-entry"]) == 0
     assert collapsed_access_depth(["exterior-entry", "living"]) == 1
+
+
+def test_typical_two_floor_secondary_bed_depth() -> None:
+    """门厅直连楼梯 + 一层走廊进次卧 → 折叠深度 4（不应触发 deep_access）。"""
+    path = [
+        "exterior-entry",
+        "entry",
+        "stair-F1",
+        "stair-F2",
+        "circ-F2-0",
+        "bed2",
+    ]
+    assert collapsed_access_depth(path) == 4
