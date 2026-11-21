@@ -48,19 +48,36 @@ def choose_core_placement(
     preferred: CorePlacement | None = None,
     entrance_edge: CardinalEdge | None = None,
     entrance_bias_copies: int = 2,
+    exclude_center: bool = False,
+    exclude_opposite: bool = False,
 ) -> CorePlacement:
     """seed 选择区位；有 preferred 则固定；否则偏向入口边（贴近门厅）。"""
     if preferred is not None:
         return preferred
 
     options = list(CorePlacement)
+    edge_map = {
+        CardinalEdge.NORTH: CorePlacement.NORTH,
+        CardinalEdge.SOUTH: CorePlacement.SOUTH,
+        CardinalEdge.EAST: CorePlacement.EAST,
+        CardinalEdge.WEST: CorePlacement.WEST,
+    }
+    opposite_map = {
+        CardinalEdge.NORTH: CorePlacement.SOUTH,
+        CardinalEdge.SOUTH: CorePlacement.NORTH,
+        CardinalEdge.EAST: CorePlacement.WEST,
+        CardinalEdge.WEST: CorePlacement.EAST,
+    }
+    if exclude_center:
+        # 多层居中楼梯常与入口侧门厅脱边，多一跳走廊
+        options = [p for p in options if p != CorePlacement.CENTER]
+    if exclude_opposite and entrance_edge is not None:
+        opp = opposite_map.get(entrance_edge)
+        if opp is not None:
+            options = [p for p in options if p != opp]
+    if not options:
+        options = list(CorePlacement)
     if entrance_edge is not None:
-        edge_map = {
-            CardinalEdge.NORTH: CorePlacement.NORTH,
-            CardinalEdge.SOUTH: CorePlacement.SOUTH,
-            CardinalEdge.EAST: CorePlacement.EAST,
-            CardinalEdge.WEST: CorePlacement.WEST,
-        }
         bias = edge_map.get(entrance_edge)
         if bias is not None and entrance_bias_copies > 0:
             # 默认 +2（约 1/3）；多层可再加重，减少对侧楼梯导致的 deep_access

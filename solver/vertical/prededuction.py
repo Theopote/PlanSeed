@@ -174,12 +174,15 @@ def build_prededuction_plan(
         preferred = core_spec.preferred_placement
         if stair_void is not None and stair_void.preferred_placement is not None:
             preferred = stair_void.preferred_placement
+        multi = len(program.floors) >= 2
         placement = choose_core_placement(
             rng,
             preferred=preferred,
             entrance_edge=program.site.entrance_edge,
-            # 多层：入口侧楼梯更常与门厅共边，避免多一跳走廊触发 deep_access
-            entrance_bias_copies=4 if len(program.floors) >= 2 else 2,
+            # 多层：入口侧加重，去掉居中与对侧，减少门厅-楼梯脱边 → deep_access
+            entrance_bias_copies=4 if multi else 2,
+            exclude_center=multi,
+            exclude_opposite=multi,
         )
         stair_core = place_stair_core_resolving(
             floor_width=floor_width,

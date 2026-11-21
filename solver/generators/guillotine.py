@@ -398,6 +398,17 @@ def _best_capped_placement(
     pool = compliant if compliant else candidates
     # 贴边判定相对整层 footprint（入口边），缺省退化为 pack 区
     fx0, fy0, fx1, fy1 = footprint_edge or (x0, y0, x1, y1)
+    # 有入口边偏好时：先限制在贴边候选（若存在），避免楼梯共边分把门厅拽到对侧
+    if prefer_edge is not None:
+        edged = [
+            c
+            for c in pool
+            if _placement_touches_edge(
+                c, prefer_edge, pack_x0=fx0, pack_y0=fy0, pack_x1=fx1, pack_y1=fy1
+            )
+        ]
+        if edged:
+            pool = edged
     for cand in pool:
         capped = Rect(x=cand.x, y=cand.y, width=cand.width, depth=cand.depth)
         leftovers = subtract_rects([full], [capped])
@@ -416,6 +427,7 @@ def _best_capped_placement(
         if prefer_adjacent is not None and adjacent_bonus > 0:
             shared = shared_edge_length(capped, prefer_adjacent)
             if shared > 0.5:
+                # 弱于入口边硬过滤；仅在同侧候选里拉近楼梯
                 score += adjacent_bonus + 100.0 * shared
         if score > best_score:
             best_score = score
@@ -1260,7 +1272,7 @@ class GuillotineGenerator:
                 adj_bonus = 0.0
                 if is_foyer(lr.spec):
                     adj = getattr(self, "_stair_rect", None)
-                    adj_bonus = 2_000.0
+                    adj_bonus = 800.0
                 capped = _best_capped_placement(
                     x0,
                     y0,
