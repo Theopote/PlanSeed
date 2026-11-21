@@ -48,3 +48,16 @@ def test_typical_two_floor_secondary_bed_depth() -> None:
         "bed2",
     ]
     assert collapsed_access_depth(path) == 4
+
+
+def test_generated_foyer_counts_as_entry_landing() -> None:
+    """exterior → 生成门厅 视为进户落点，再出发才计深度。"""
+    path = [
+        "exterior-entry",
+        "foyer-F1-0",
+        "dining",
+        "living",
+        "circ-F1-0",
+        "elder",
+    ]
+    assert collapsed_access_depth(path) == 4

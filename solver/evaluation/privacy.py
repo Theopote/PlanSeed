@@ -122,11 +122,18 @@ def collapsed_access_depth(path: list[str]) -> int:
 
     跨层楼梯核在 realized 图上是两个节点，但对日常往返应视为一次竖向交通；
     否则两层住宅卧室几乎必然 depth≥4，deep_access 失去区分度。
+
+    生成门厅：exterior-entry → foyer-* 视为同一次进户落点，不另计一步。
     """
     if len(path) < 2:
         return 0
     depth = 0
     i = 1
+    # 进户落点：外门直接进生成门厅时，从门厅再出发才开始计深度
+    if path[0].startswith("exterior") and path[1].startswith("foyer-"):
+        i = 2
+        if i >= len(path):
+            return 0
     while i < len(path):
         depth += 1
         if path[i].startswith("stair-"):

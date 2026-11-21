@@ -137,9 +137,17 @@ def circulation_findings(
         if ENTRY_NODE_ID in (c.a, c.b)
     ]
     public_hit = False
+    placement_cat = {
+        p.room_id: (p.category or "").lower()
+        for fl in candidate.floors
+        for p in fl.placements
+    }
     for rid in entry_rooms:
         room = program.room_by_id(rid)
-        if room is not None and room.category == RoomCategory.PUBLIC:
+        is_public = (room is not None and room.category == RoomCategory.PUBLIC) or (
+            placement_cat.get(rid) == "public"
+        )
+        if is_public:
             public_hit = True
             out.append(
                 finding(

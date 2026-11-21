@@ -172,6 +172,52 @@ def _add_circulation_fragment_links(
     return out
 
 
+def _is_generated_foyer(placement: RoomPlacement) -> bool:
+    if placement.room_id.startswith("foyer-"):
+        return True
+    return (placement.name or "") == "门厅" and (placement.category or "").lower() == "public"
+
+
+def _add_generated_foyer_passages(
+    candidate: LayoutCandidate,
+    *,
+    min_length: float | None = None,
+) -> list[RealizedConnection]:
+    """生成门厅与贴邻房间/走廊：同楼梯贴邻 PASSAGE，避免门厅成孤岛。"""
+    from solver.topology.doors import PHYSICAL_MIN_WIDTH, shared_boundary_between
+
+    edge_min = PHYSICAL_MIN_WIDTH if min_length is None else min_length
+    out: list[RealizedConnection] = []
+    seen: set[tuple[str, str]] = set()
+    for fl in candidate.floors:
+        foyers = [p for p in fl.placements if _is_generated_foyer(p)]
+        if not foyers:
+            continue
+        others = [p for p in fl.placements if not _is_generated_foyer(p)]
+        for foyer in foyers:
+            for other in others:
+                if is_stair_core_placement(other):
+                    continue  # 楼梯已由 stair_access 覆盖
+                if shared_boundary_between(foyer, other, min_length=edge_min) is None:
+                    continue
+                pair = tuple(sorted((foyer.room_id, other.room_id)))
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                out.append(
+                    RealizedConnection(
+                        connection_id=f"foyer-passage-{pair[0]}-{pair[1]}",
+                        a=pair[0],
+                        b=pair[1],
+                        type=SpaceConnectionType.PASSAGE,
+                        floor_id=fl.floor_id,
+                        opening_id=None,
+                        source="foyer_passage",
+                    )
+                )
+    return out
+
+
 def _add_circulation_corridor_passages(
     program: DesignProgram,
     candidate: LayoutCandidate,
@@ -289,6 +335,7 @@ def build_realized_connections(
     realized.extend(_add_stair_access_realized(candidate))
     realized.extend(_add_circulation_fragment_links(candidate))
     realized.extend(_add_circulation_corridor_passages(program, candidate))
+    realized.extend(_add_generated_foyer_passages(candidate))
     candidate.realized_connections = list(realized)
     return realized
 

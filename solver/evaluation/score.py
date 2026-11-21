@@ -157,8 +157,20 @@ class CompositeEvaluator:
         # 主入口未进公区：与 circulation.entry_not_public 对齐，拉开可推荐差距
         entry = candidate.exterior_entry
         if entry is not None and entry.connected_room_ids:
-            er = program.room_by_id(entry.connected_room_ids[0])
-            if er is not None and er.category != RoomCategory.PUBLIC:
+            eid = entry.connected_room_ids[0]
+            er = program.room_by_id(eid)
+            place_cat = next(
+                (
+                    (p.category or "").lower()
+                    for fl in candidate.floors
+                    for p in fl.placements
+                    if p.room_id == eid
+                ),
+                "",
+            )
+            if place_cat != "public" and (
+                er is None or er.category != RoomCategory.PUBLIC
+            ):
                 total = max(0.0, total - 4.0)
 
         if float(adj_m.get("required_adjacency_satisfaction", 1.0)) < 1.0:

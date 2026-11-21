@@ -99,11 +99,24 @@ def resolve_exterior_entry(
     foyer_ids = {r.id for r in program.rooms if is_foyer(r)}
     living_ids = {r.id for r in program.rooms if is_living(r)}
 
-    def rank(p: RoomPlacement) -> tuple[int, int, int, str]:
+    def rank(p: RoomPlacement) -> tuple[int, int, int, int, str]:
         stair_pen = 10 if _is_stair(p) else 0
         foyer_pen = 0 if p.room_id in foyer_ids else (1 if p.room_id in living_ids else 2)
         cat = (p.category or "other").lower()
-        return (stair_pen, foyer_pen, _ENTRY_CATEGORY_RANK.get(cat, 5), p.room_id)
+        # 细条走廊（短边 < 入口宽）不宜作为入户落点
+        rect = from_placement(p.rect)
+        thin_pen = (
+            1
+            if cat == "circulation" and min(rect.width, rect.depth) + 1e-9 < width
+            else 0
+        )
+        return (
+            stair_pen,
+            thin_pen,
+            foyer_pen,
+            _ENTRY_CATEGORY_RANK.get(cat, 5),
+            p.room_id,
+        )
 
     ground_placements: list[RoomPlacement] = (
         list(candidate.floors[0].placements) if candidate.floors else []

@@ -57,6 +57,7 @@ from solver.geometry.coverage import (
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
+from solver.geometry.entrance_claim import claim_entrance_edge_circulation
 from solver.geometry.wet_exterior_repair import swap_black_baths_to_exterior
 from solver.generators.wet_anchor import nudge_wet_stack_alignment
 from solver.program.floor_assignment import assert_all_rooms_placed
@@ -887,6 +888,12 @@ class GuillotineGenerator:
             )
             nudged_floors.append(fl.model_copy(update={"placements": placed}))
         candidate = candidate.model_copy(update={"floors": nudged_floors})
+        # 入口边走廊并入公区，避免 ExteriorEntry 落在细条走廊上
+        candidate = claim_entrance_edge_circulation(
+            candidate,
+            program,
+            max_area_by_room_id=max_by_id,
+        )
         # 几何修补后再解析入口，避免走廊回收后仍绑定旧 connected_room_ids
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         place_door_openings(program, candidate)

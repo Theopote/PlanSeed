@@ -166,6 +166,11 @@ B05/B07 历史 valid=0：老人卫误与公卫湿对齐、连接修补拉长房�
 core 波 B01–B07 n=32 **valid=1.00**；焦点四案 draft ab 仍 **1.00**。  
 B05/B07 draft ab 仍为 0（deep_access + entry_not_public）；不替代人工签章。
 
+### 入口门厅提升 + 访问深度折叠（2026-11-21）
+
+楼梯占入口边时，旁侧走廊提升为生成「门厅」并接入 realized 通行；  
+`exterior→foyer` 计为进户落点。B05/B07 draft ab → **1.00**（与焦点四案一并 n=32）；不替代人工签章。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。
