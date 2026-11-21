@@ -65,13 +65,20 @@ def regenerate_partial(body: PartialRegenerateRequest) -> GenerateResponse:
     resolved = resolve_solve_input(body)
     program = resolved.program
     try:
-        locks, _scope = resolve_partial_regenerate(body, program)
+        locks, scope = resolve_partial_regenerate(body, program)
     except RegenerationScopeError as exc:
         raise HTTPException(status_code=422, detail=exc.to_detail()) from exc
     result = generate_layouts(program, locks=locks)
+    from solver.regeneration.scope import filter_candidates_preserving_topology
+
+    try:
+        top = filter_candidates_preserving_topology(
+            scope, program, list(result.top_candidates)
+        )
+    except RegenerationScopeError as exc:
+        raise HTTPException(status_code=422, detail=exc.to_detail()) from exc
     candidates = [
-        serialize_candidate(program, cand, i)
-        for i, cand in enumerate(result.top_candidates)
+        serialize_candidate(program, cand, i) for i, cand in enumerate(top)
     ]
     invalid = [
         c

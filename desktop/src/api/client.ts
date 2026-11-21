@@ -1058,3 +1058,124 @@ export async function revalidateMutation(opts: {
   }
   return r.json() as Promise<CandidatePayload>;
 }
+
+/* —— AI Design Copilot —— */
+
+export type DesignIntentPatch = {
+  target_candidate: string;
+  preserve: string[];
+  changes: Array<{
+    action: string;
+    target?: string | null;
+    partner?: string | null;
+    value?: string | number | null;
+    priority: string;
+  }>;
+  regeneration: string;
+  source: string;
+  confidence: number;
+  raw_utterance_ref?: string | null;
+};
+
+export type TopologyStrategy = {
+  id: string;
+  label: string;
+  objective: string;
+  description: string;
+};
+
+export async function parseIntentPatch(
+  text: string,
+  target_candidate = "selected",
+): Promise<DesignIntentPatch> {
+  const r = await fetch(`${_apiBase}/api/copilot/intent/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, target_candidate }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<DesignIntentPatch>;
+}
+
+export async function previewIntentPatch(patch: DesignIntentPatch): Promise<{
+  preview: {
+    program_deltas: string[];
+    warnings: string[];
+    ok: boolean;
+  };
+  locked_rooms: string[];
+  mutable_rooms: string[];
+}> {
+  const r = await fetch(`${_apiBase}/api/copilot/intent/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patch, use_benchmark: true }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json();
+}
+
+export async function listCopilotStrategies(): Promise<TopologyStrategy[]> {
+  const r = await fetch(`${_apiBase}/api/copilot/strategies`);
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<TopologyStrategy[]>;
+}
+
+export async function critiqueCandidate(
+  candidate: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const r = await fetch(`${_apiBase}/api/copilot/critique`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ use_benchmark: true, candidate }),
+  });
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<Record<string, unknown>>;
+}
+
+export async function appendCopilotMessage(
+  projectId: string,
+  role: "user" | "assistant" | "system",
+  content: string,
+  meta: Record<string, unknown> = {},
+): Promise<void> {
+  const r = await fetch(
+    `${_apiBase}/api/copilot/conversation/${encodeURIComponent(projectId)}/messages`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: projectId,
+        role,
+        content,
+        meta,
+      }),
+    },
+  );
+  if (!r.ok) throw new Error(await readApiError(r));
+}
+
+export async function getCopilotConversation(
+  projectId: string,
+): Promise<Record<string, unknown>> {
+  const r = await fetch(
+    `${_apiBase}/api/copilot/conversation/${encodeURIComponent(projectId)}`,
+  );
+  if (!r.ok) throw new Error(await readApiError(r));
+  return r.json() as Promise<Record<string, unknown>>;
+}
+
+export async function putCopilotConversation(
+  projectId: string,
+  state: Record<string, unknown>,
+): Promise<void> {
+  const r = await fetch(
+    `${_apiBase}/api/copilot/conversation/${encodeURIComponent(projectId)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+    },
+  );
+  if (!r.ok) throw new Error(await readApiError(r));
+}

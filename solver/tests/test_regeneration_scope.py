@@ -81,6 +81,18 @@ def test_locked_room_unchanged_under_partial_regen():
         assert _rect_for(base, rid) == _rect_for(regen, rid)
 
 
+def test_preserve_topology_passes_when_locked_geometry_held():
+    from solver.regeneration.scope import assert_preserve_topology
+
+    program = benchmark_program()
+    base = GuillotineGenerator().generate(program, seed=0)
+    scope = RegenerationScope(mutable_rooms=["r1"], preserve_topology=True)
+    locks = locks_from_regeneration_scope(scope, program, base)
+    regen = GuillotineGenerator().generate(program, seed=1, locks=locks)
+    # 锁定几何不变 → 锁定↔锁定邻接应保留
+    assert_preserve_topology(scope, program, regen)
+
+
 def test_partial_regen_pipeline_produces_valid_candidates():
     program = benchmark_program()
     program.solver_config.candidate_count = 8

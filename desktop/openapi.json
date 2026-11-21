@@ -589,6 +589,161 @@
         "title": "CompareResponse",
         "type": "object"
       },
+      "ConversationAppendRequest": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ConversationRole"
+          }
+        },
+        "required": [
+          "project_id",
+          "role",
+          "content"
+        ],
+        "title": "ConversationAppendRequest",
+        "type": "object"
+      },
+      "ConversationMessage": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ConversationRole"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "content"
+        ],
+        "title": "ConversationMessage",
+        "type": "object"
+      },
+      "ConversationRole": {
+        "enum": [
+          "user",
+          "assistant",
+          "system"
+        ],
+        "title": "ConversationRole",
+        "type": "string"
+      },
+      "CritiqueRequest": {
+        "properties": {
+          "candidate": {
+            "additionalProperties": true,
+            "description": "LayoutCandidate 子集 JSON",
+            "title": "Candidate",
+            "type": "object"
+          },
+          "use_benchmark": {
+            "default": true,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "candidate"
+        ],
+        "title": "CritiqueRequest",
+        "type": "object"
+      },
+      "DesignConversationState": {
+        "description": "跨轮保留：选中候选、策略、补丁与确认事项。",
+        "properties": {
+          "active_strategy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Strategy Id"
+          },
+          "applied_patch_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Applied Patch Ids",
+            "type": "array"
+          },
+          "confirmed_facts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Confirmed Facts",
+            "type": "array"
+          },
+          "locked_room_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Room Ids",
+            "type": "array"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "selected_candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Candidate Id"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "DesignConversationState",
+        "type": "object"
+      },
       "DesignFinding": {
         "description": "可解释设计发现（≠ 单纯报分数；≠ 法规合规结论）。\n\ncategory 应对齐 EvaluationAxis（或子域，如仍兼容旧 id）。\n文案须保持 design heuristic；禁止无 CodeProfile / Jurisdiction / Rule source\n时声称「符合规范 / 合法 / 消防 / 无障碍」等。",
         "properties": {
@@ -662,6 +817,63 @@
           "message"
         ],
         "title": "DesignFinding",
+        "type": "object"
+      },
+      "DesignIntentPatch": {
+        "description": "自然语言 → 结构化补丁；LLM 不得直接输出坐标。",
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/IntentChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "confidence": {
+            "default": 0.8,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "preserve": {
+            "description": "须锁定的 room_id / 角色",
+            "items": {
+              "type": "string"
+            },
+            "title": "Preserve",
+            "type": "array"
+          },
+          "raw_utterance_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "原始话语引用 / 哈希，可追溯",
+            "title": "Raw Utterance Ref"
+          },
+          "regeneration": {
+            "$ref": "#/components/schemas/IntentRegenerationMode",
+            "default": "partial"
+          },
+          "source": {
+            "default": "user",
+            "description": "user | critic | copilot",
+            "title": "Source",
+            "type": "string"
+          },
+          "target_candidate": {
+            "default": "selected",
+            "description": "'selected' 或具体 candidate id",
+            "title": "Target Candidate",
+            "type": "string"
+          }
+        },
+        "title": "DesignIntentPatch",
         "type": "object"
       },
       "DesignMetrics": {
@@ -1421,6 +1633,231 @@
         "title": "HouseholdRequirements",
         "type": "object"
       },
+      "IntentChange": {
+        "description": "单条可执行修改；禁止自由文本 action。",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/IntentChangeAction"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "邻接类动作的另一端 room_id / 角色",
+            "title": "Partner"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/IntentPriority",
+            "default": "preferred"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "room_id 或语义角色（living/master_bedroom/…）",
+            "title": "Target"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "如朝向 south、面积增量比例 0.15",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "IntentChange",
+        "type": "object"
+      },
+      "IntentChangeAction": {
+        "enum": [
+          "increase_target_area",
+          "decrease_target_area",
+          "set_orientation_preference",
+          "avoid_private_through",
+          "require_adjacency",
+          "avoid_adjacency",
+          "reduce_corridor_preference"
+        ],
+        "title": "IntentChangeAction",
+        "type": "string"
+      },
+      "IntentParseRequest": {
+        "properties": {
+          "candidate": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenerateRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_candidate": {
+            "default": "selected",
+            "title": "Target Candidate",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "use_benchmark": {
+            "default": false,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "IntentParseRequest",
+        "type": "object"
+      },
+      "IntentPatchPreview": {
+        "description": "补丁应用预览（确认前展示）。",
+        "properties": {
+          "locked_rooms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Rooms",
+            "type": "array"
+          },
+          "mutable_rooms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mutable Rooms",
+            "type": "array"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/DesignIntentPatch"
+          },
+          "program_deltas": {
+            "description": "人类可读的 program/constraint 变更摘要",
+            "items": {
+              "type": "string"
+            },
+            "title": "Program Deltas",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "patch"
+        ],
+        "title": "IntentPatchPreview",
+        "type": "object"
+      },
+      "IntentPreviewRequest": {
+        "properties": {
+          "patch": {
+            "$ref": "#/components/schemas/DesignIntentPatch"
+          },
+          "use_benchmark": {
+            "default": true,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "patch"
+        ],
+        "title": "IntentPreviewRequest",
+        "type": "object"
+      },
+      "IntentPreviewResponse": {
+        "properties": {
+          "locked_rooms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Rooms",
+            "type": "array"
+          },
+          "mutable_rooms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mutable Rooms",
+            "type": "array"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/DesignIntentPatch"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/IntentPatchPreview"
+          }
+        },
+        "required": [
+          "preview",
+          "patch"
+        ],
+        "title": "IntentPreviewResponse",
+        "type": "object"
+      },
+      "IntentPriority": {
+        "enum": [
+          "required",
+          "preferred"
+        ],
+        "title": "IntentPriority",
+        "type": "string"
+      },
+      "IntentRegenerationMode": {
+        "enum": [
+          "partial",
+          "full"
+        ],
+        "title": "IntentRegenerationMode",
+        "type": "string"
+      },
       "LayoutLocks": {
         "description": "Generate 时尊重的锁；空 = 全自由生成。",
         "properties": {
@@ -2010,6 +2447,39 @@
         "title": "OllamaModelsResponse",
         "type": "object"
       },
+      "OptimizeRequest": {
+        "properties": {
+          "candidate": {
+            "additionalProperties": true,
+            "title": "Candidate",
+            "type": "object"
+          },
+          "candidate_budget": {
+            "default": 4,
+            "maximum": 16.0,
+            "minimum": 2.0,
+            "title": "Candidate Budget",
+            "type": "integer"
+          },
+          "max_rounds": {
+            "default": 2,
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Max Rounds",
+            "type": "integer"
+          },
+          "use_benchmark": {
+            "default": true,
+            "title": "Use Benchmark",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "candidate"
+        ],
+        "title": "OptimizeRequest",
+        "type": "object"
+      },
       "ParseNLRequest": {
         "properties": {
           "max_repairs": {
@@ -2536,7 +3006,7 @@
         "type": "object"
       },
       "RegenerationScope": {
-        "description": "局部重生成意图（≠ LayoutLocks）。\n\n- mutable_rooms：允许 Guillotine 重新切分的 program 房间\n- locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms\n- affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）\n- preserve_topology：意图标记；当前未作为硬不变量验收（勿在 UI 宣称已保证）\n- preserve_floor_assignment：为 True 时校验锁定房间楼层与 program 一致（硬）",
+        "description": "局部重生成意图（≠ LayoutLocks）。\n\n- mutable_rooms：允许 Guillotine 重新切分的 program 房间\n- locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms\n- affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）\n- preserve_topology：硬不变量——锁定房间之间的 required Access / 邻接共墙须在局部 regen 后仍成立\n- preserve_floor_assignment：为 True 时校验锁定房间楼层与 program 一致（硬）",
         "properties": {
           "affected_neighbors": {
             "description": "可能受影响的邻接房间；空则由 topology 推导",
@@ -2571,7 +3041,7 @@
           },
           "preserve_topology": {
             "default": true,
-            "description": "拓扑保留意图（尚未硬化为硬不变量；勿对外保证）",
+            "description": "硬：锁定↔锁定 required Access 与邻接共墙在局部 regen 后必须保留",
             "title": "Preserve Topology",
             "type": "boolean"
           }
@@ -3062,6 +3532,45 @@
         },
         "title": "RequirementSummary",
         "type": "object"
+      },
+      "RoomEdge": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RoomEdgeKind"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "weight": {
+            "default": 1.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "source_id",
+          "target_id",
+          "kind"
+        ],
+        "title": "RoomEdge",
+        "type": "object"
+      },
+      "RoomEdgeKind": {
+        "enum": [
+          "adjacent",
+          "connected",
+          "near",
+          "far",
+          "avoid"
+        ],
+        "title": "RoomEdgeKind",
+        "type": "string"
       },
       "RoomPlacementPayload": {
         "description": "候选上的房间放置摘要（Phase 4.0 Inspector；additive）。",
@@ -3654,6 +4163,67 @@
         "title": "SvgExportRequest",
         "type": "object"
       },
+      "TopologyStrategy": {
+        "description": "AI / 规则提出的空间组织策略。\n\n物化为 RoomGraph delta + 软目标权重；经 TopologyPlanner → TopologyPlan。",
+        "properties": {
+          "corridor_penalty": {
+            "default": 1.0,
+            "description": ">1 更抑制走廊面积倾向（软）",
+            "maximum": 2.0,
+            "minimum": 0.5,
+            "title": "Corridor Penalty",
+            "type": "number"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "objective": {
+            "$ref": "#/components/schemas/TopologyStrategyObjective"
+          },
+          "objective_weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "七轴软权重微调，如 privacy=1.2",
+            "title": "Objective Weights",
+            "type": "object"
+          },
+          "room_graph_edges": {
+            "description": "追加/覆盖的 RoomGraph 边（无坐标）",
+            "items": {
+              "$ref": "#/components/schemas/RoomEdge"
+            },
+            "title": "Room Graph Edges",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "objective"
+        ],
+        "title": "TopologyStrategy",
+        "type": "object"
+      },
+      "TopologyStrategyObjective": {
+        "enum": [
+          "family_core",
+          "privacy",
+          "daylight_courtyard"
+        ],
+        "title": "TopologyStrategyObjective",
+        "type": "string"
+      },
       "UnknownRequirement": {
         "description": "用户未提供且未推断的信息。",
         "properties": {
@@ -3906,6 +4476,412 @@
         "summary": "Compare Candidates",
         "tags": [
           "compare"
+        ]
+      }
+    },
+    "/api/copilot/builtins": {
+      "get": {
+        "operationId": "builtins_meta_api_copilot_builtins_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Builtins Meta Api Copilot Builtins Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Builtins Meta",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/conversation/{project_id}": {
+      "get": {
+        "operationId": "get_conversation_api_copilot_conversation__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignConversationState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversation",
+        "tags": [
+          "copilot"
+        ]
+      },
+      "put": {
+        "operationId": "put_conversation_api_copilot_conversation__project_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesignConversationState"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignConversationState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Conversation",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/conversation/{project_id}/messages": {
+      "post": {
+        "operationId": "append_message_api_copilot_conversation__project_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationAppendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignConversationState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Append Message",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/critique": {
+      "post": {
+        "operationId": "critique_api_copilot_critique_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CritiqueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Critique Api Copilot Critique Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Critique",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/intent/parse": {
+      "post": {
+        "operationId": "parse_intent_api_copilot_intent_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntentParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignIntentPatch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Intent",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/intent/preview": {
+      "post": {
+        "operationId": "preview_intent_api_copilot_intent_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntentPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntentPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Intent",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/optimize": {
+      "post": {
+        "operationId": "optimize_api_copilot_optimize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Optimize Api Copilot Optimize Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Optimize",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/strategies": {
+      "get": {
+        "operationId": "list_strategies_api_copilot_strategies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopologyStrategy"
+                  },
+                  "title": "Response List Strategies Api Copilot Strategies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Strategies",
+        "tags": [
+          "copilot"
+        ]
+      }
+    },
+    "/api/copilot/strategy/apply": {
+      "post": {
+        "description": "将内置策略合并进 benchmark/requirements program，返回摘要。",
+        "operationId": "apply_strategy_api_copilot_strategy_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Strategy Api Copilot Strategy Apply Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Strategy",
+        "tags": [
+          "copilot"
         ]
       }
     },

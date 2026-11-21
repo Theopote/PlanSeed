@@ -16,7 +16,7 @@ class RegenerationScope(BaseModel):
     - mutable_rooms：允许 Guillotine 重新切分的 program 房间
     - locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms
     - affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）
-    - preserve_topology：意图标记；当前未作为硬不变量验收（勿在 UI 宣称已保证）
+    - preserve_topology：硬不变量——锁定房间之间的 required Access / 邻接共墙须在局部 regen 后仍成立
     - preserve_floor_assignment：为 True 时校验锁定房间楼层与 program 一致（硬）
     """
 
@@ -34,7 +34,7 @@ class RegenerationScope(BaseModel):
     )
     preserve_topology: bool = Field(
         default=True,
-        description="拓扑保留意图（尚未硬化为硬不变量；勿对外保证）",
+        description="硬：锁定↔锁定 required Access 与邻接共墙在局部 regen 后必须保留",
     )
     preserve_floor_assignment: bool = Field(
         default=True,

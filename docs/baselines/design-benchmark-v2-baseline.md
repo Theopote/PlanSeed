@@ -67,6 +67,19 @@ B01, B04, B06, B12 — 80/80 valid 候选已评级。
 重跑常见 Gate **warning**（非 blocker）：B06 几乎全部 valid 带 `black_wet`；B01/B04/B12 亦见暗卫/深度访问类 findings。  
 **下一步：** 导出 SVG 后按原标准重做 A/B/C/D，才能更新 ab_rate；在此之前不得宣称建筑师接受率已提升。
 
+### 人工 ab_rate 重评门闩（AI Copilot 前）
+
+旧 grades 绑定首跑几何，**不可**套到 ExteriorWallSegment / Gate / Intent 之后的新候选。
+
+```bash
+uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --count 32 \
+  --export-svg debug/design-benchmark-v2/review-ab-rerate \
+  --out debug/design-benchmark-v2/auto_rerun_for_ab.json
+```
+
+人工按 [design-benchmark-v2.md](../design-benchmark-v2.md) 协议评级后，合并写入 `docs/baselines/`。  
+**产品 KPI = ab_rate**；Blind 字段准仅衡量需求解析，不替代建筑师接受率。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。

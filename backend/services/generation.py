@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from fastapi import HTTPException
 from packages.schema.locks import LayoutLocks, LockedRoomRect
 from packages.schema.program import DesignProgram
+from packages.schema.regeneration import RegenerationScope
 from packages.schema.requirements import RequirementSpec
 from solver.fixtures.benchmark import benchmark_program, benchmark_requirement_spec
 from solver.pipeline import PipelineResult, run_pipeline
@@ -115,18 +116,15 @@ def placements_to_locked_rects(
 def resolve_partial_regenerate(
     body: PartialRegenerateRequest,
     program: DesignProgram,
-) -> tuple[LayoutLocks, object]:
+) -> tuple[LayoutLocks, RegenerationScope]:
     """RegenerationScope + base placements → LayoutLocks（合并既有会话锁）。"""
-    from packages.schema.regeneration import RegenerationScope
     from solver.regeneration.scope import (
         enrich_regeneration_scope,
         locks_from_placement_rects,
         merge_layout_locks,
     )
 
-    scope: RegenerationScope = enrich_regeneration_scope(
-        body.regeneration_scope, program
-    )
+    scope = enrich_regeneration_scope(body.regeneration_scope, program)
     rects = placements_to_locked_rects(body.base_placements)
     scope_locks = locks_from_placement_rects(scope, program, rects)
     locks = merge_layout_locks(

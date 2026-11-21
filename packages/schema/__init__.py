@@ -12,6 +12,11 @@ from packages.schema.constraints import (
     SeparationConstraint,
     WidthConstraint,
 )
+from packages.schema.design_conversation import (
+    ConversationMessage,
+    ConversationRole,
+    DesignConversationState,
+)
 from packages.schema.entry import (
     ExteriorEntry,
     ExteriorEntryPlacement,
@@ -25,6 +30,14 @@ from packages.schema.identity import (
     selection_strategy_for,
     selection_version_for,
     solver_identity,
+)
+from packages.schema.intent_patch import (
+    DesignIntentPatch,
+    IntentChange,
+    IntentChangeAction,
+    IntentPatchPreview,
+    IntentPriority,
+    IntentRegenerationMode,
 )
 from packages.schema.layout import (
     CandidateProvenance,
@@ -137,6 +150,12 @@ from packages.schema.topology import (
     SpaceConnectionType,
     TopologyPlan,
 )
+from packages.schema.topology_strategy import (
+    BUILTIN_STRATEGIES,
+    TopologyStrategy,
+    TopologyStrategyObjective,
+    builtin_strategy,
+)
 from packages.schema.vertical_void import (
     DEFAULT_WET_RISER_ALIGNMENT_TOLERANCE,
     DEFAULT_WET_STACK_MIN_IOU,
@@ -217,6 +236,19 @@ __all__ = [
     "Rect2D",
     "RelationIntent",
     "RegenerationScope",
+    "DesignIntentPatch",
+    "IntentChange",
+    "IntentChangeAction",
+    "IntentPatchPreview",
+    "IntentPriority",
+    "IntentRegenerationMode",
+    "TopologyStrategy",
+    "TopologyStrategyObjective",
+    "BUILTIN_STRATEGIES",
+    "builtin_strategy",
+    "DesignConversationState",
+    "ConversationMessage",
+    "ConversationRole",
     "RepairRecord",
     "REPORT_BOUNDARY_LINES",
     "REPORT_SCHEMA_VERSION",

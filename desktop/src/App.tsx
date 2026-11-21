@@ -12,6 +12,7 @@ import {
 import { CandidateStrip } from "./components/CandidateStrip";
 import { ReportPreview } from "./components/ReportPreview";
 import { FloorplanView } from "./components/FloorplanView";
+import { CopilotPanel } from "./components/CopilotPanel";
 import { Inspector } from "./components/Inspector";
 import { RequirementsPanel } from "./components/RequirementsPanel";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -372,34 +373,45 @@ function App() {
           revisionStatus={candidate.selected?.revision_status ?? null}
           onLiveDragStart={mutation.onLiveDragStart}
         />
-        <Inspector
-          candidate={candidate.selected}
-          compareWith={candidate.compareWith}
-          program={candidate.program}
-          selectedRoomId={candidate.selectedRoomId}
-          highlightRoomIds={candidate.highlightRoomIds}
-          locks={candidate.locks}
-          lockCount={candidate.lockCount}
-          onHighlightRooms={candidate.setHighlightRoomIds}
-          onSelectRoom={candidate.onSelectRoom}
-          onSelectZone={candidate.onSelectZone}
-          onClearCompare={() => candidate.setCompareId(null)}
-          onUpdateRoomTargetArea={requirement.onUpdateRoomTargetArea}
-          onToggleRoomLock={candidate.onToggleRoomLock}
-          onToggleZoneLock={candidate.onToggleZoneLock}
-          onClearLocks={candidate.onClearLocks}
-          onRegenerate={() => void candidate.run("program")}
-          onCreateVariant={() => void candidate.run("variant")}
-          onPartialRegenerate={(roomId) =>
-            void candidate.runPartialRegen(roomId)
-          }
-          onRevalidate={() => void mutation.onRevalidate()}
-          regenerating={candidate.loading}
-          revalidating={mutation.revalidating}
-          canRegenerate={
-            !!candidate.program && engine.engineStatus === "READY"
-          }
-        />
+        <div className="app-right-column">
+          <Inspector
+            candidate={candidate.selected}
+            compareWith={candidate.compareWith}
+            program={candidate.program}
+            selectedRoomId={candidate.selectedRoomId}
+            highlightRoomIds={candidate.highlightRoomIds}
+            locks={candidate.locks}
+            lockCount={candidate.lockCount}
+            onHighlightRooms={candidate.setHighlightRoomIds}
+            onSelectRoom={candidate.onSelectRoom}
+            onSelectZone={candidate.onSelectZone}
+            onClearCompare={() => candidate.setCompareId(null)}
+            onUpdateRoomTargetArea={requirement.onUpdateRoomTargetArea}
+            onToggleRoomLock={candidate.onToggleRoomLock}
+            onToggleZoneLock={candidate.onToggleZoneLock}
+            onClearLocks={candidate.onClearLocks}
+            onRegenerate={() => void candidate.run("program")}
+            onCreateVariant={() => void candidate.run("variant")}
+            onPartialRegenerate={(roomId) =>
+              void candidate.runPartialRegen(roomId)
+            }
+            onRevalidate={() => void mutation.onRevalidate()}
+            regenerating={candidate.loading}
+            revalidating={mutation.revalidating}
+            canRegenerate={
+              !!candidate.program && engine.engineStatus === "READY"
+            }
+          />
+          <CopilotPanel
+            projectId={project.projectId}
+            selectedCandidate={
+              candidate.selected
+                ? (candidate.selected as unknown as Record<string, unknown>)
+                : null
+            }
+            onError={setError}
+          />
+        </div>
       </div>
       <CandidateStrip
         candidates={candidate.candidates}

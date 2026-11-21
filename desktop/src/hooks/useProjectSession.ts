@@ -161,6 +161,16 @@ export function useProjectSession({
       } else {
         setVersionHint(null);
       }
+      const conv = (p as { design_conversation?: Record<string, unknown> })
+        .design_conversation;
+      if (conv && detail.id) {
+        void import("../api/client").then(({ putCopilotConversation }) =>
+          putCopilotConversation(detail.id, {
+            ...conv,
+            project_id: detail.id,
+          }),
+        );
+      }
     },
     [
       setForm,
@@ -190,6 +200,15 @@ export function useProjectSession({
     setError(null);
     try {
       const schema_versions = buildSchemaVersions(solverIdentity, candidates);
+      let design_conversation: Record<string, unknown> | undefined;
+      if (projectId) {
+        try {
+          const { getCopilotConversation } = await import("../api/client");
+          design_conversation = await getCopilotConversation(projectId);
+        } catch {
+          /* 无对话时跳过 */
+        }
+      }
       const saved = await saveProjectWithConflictPrompt({
         name: projectName.trim() || "未命名项目",
         id: projectId,
@@ -203,6 +222,7 @@ export function useProjectSession({
           selected_id: selectedId,
           compare_id: compareId,
           schema_versions,
+          ...(design_conversation ? { design_conversation } : {}),
         },
       });
       if (!saved) {

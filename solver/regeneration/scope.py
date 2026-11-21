@@ -221,6 +221,103 @@ def _stair_lock_from_candidate(
     return None
 
 
+def _placement_map(candidate: LayoutCandidate) -> dict[str, object]:
+    out: dict[str, object] = {}
+    for fl in candidate.floors:
+        for p in fl.placements:
+            if p.source == PlacementSource.PROGRAM:
+                out[p.room_id] = p
+    return out
+
+
+def assert_preserve_topology(
+    scope: RegenerationScope,
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+) -> None:
+    """
+    硬校验：``preserve_topology=True`` 时，锁定房间之间的
+    RoomGraph 邻接/连通与 required AccessIntent 须仍可实现（共墙或已 realized）。
+    """
+    if not scope.preserve_topology:
+        return
+
+    from packages.schema.topology import RoomEdgeKind
+
+    from solver.topology.doors import MIN_ACCESS_WALL, shared_boundary_between
+
+    locked = resolve_locked_room_ids(scope, program)
+    if len(locked) < 2:
+        return
+
+    placements = _placement_map(candidate)
+    broken: list[str] = []
+
+    graph = build_graph_from_program(program)
+    for edge in graph.edges:
+        if edge.kind not in (RoomEdgeKind.ADJACENT, RoomEdgeKind.CONNECTED):
+            continue
+        if edge.source_id not in locked or edge.target_id not in locked:
+            continue
+        pa = placements.get(edge.source_id)
+        pb = placements.get(edge.target_id)
+        if pa is None or pb is None:
+            broken.append(f"{edge.source_id}↔{edge.target_id}:missing")
+            continue
+        if shared_boundary_between(pa, pb, min_length=MIN_ACCESS_WALL) is None:
+            broken.append(f"{edge.source_id}↔{edge.target_id}:no_shared_wall")
+
+    access = program.access_graph
+    if access is not None:
+        realized_pairs: set[tuple[str, str]] = set()
+        for rc in candidate.realized_connections or []:
+            a, b = sorted((rc.a, rc.b))
+            realized_pairs.add((a, b))
+        for conn in access.required_connections():
+            if conn.a not in locked or conn.b not in locked:
+                continue
+            if conn.a not in placements or conn.b not in placements:
+                continue  # 入口/楼梯等非房间节点：不在本硬校验范围
+            key = tuple(sorted((conn.a, conn.b)))
+            if key in realized_pairs:
+                continue
+            pa = placements[conn.a]
+            pb = placements[conn.b]
+            if shared_boundary_between(pa, pb, min_length=MIN_ACCESS_WALL) is None:
+                broken.append(f"access:{conn.a}↔{conn.b}")
+
+    if broken:
+        raise RegenerationScopeError(
+            "preserve_topology：锁定房间拓扑未保留：" + ", ".join(sorted(set(broken))[:12]),
+            code="topology_not_preserved",
+            room_ids=sorted(locked),
+        )
+
+
+def filter_candidates_preserving_topology(
+    scope: RegenerationScope,
+    program: DesignProgram,
+    candidates: list[LayoutCandidate],
+) -> list[LayoutCandidate]:
+    """保留通过 ``assert_preserve_topology`` 的候选；全部失败则抛错。"""
+    if not scope.preserve_topology:
+        return list(candidates)
+    kept: list[LayoutCandidate] = []
+    for c in candidates:
+        try:
+            assert_preserve_topology(scope, program, c)
+            kept.append(c)
+        except RegenerationScopeError:
+            continue
+    if candidates and not kept:
+        raise RegenerationScopeError(
+            "preserve_topology：局部重生成结果均破坏锁定房间拓扑",
+            code="topology_not_preserved",
+            room_ids=sorted(resolve_locked_room_ids(scope, program)),
+        )
+    return kept
+
+
 def locks_from_regeneration_scope(
     scope: RegenerationScope,
     program: DesignProgram,

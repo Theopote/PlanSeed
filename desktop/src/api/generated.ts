@@ -21,6 +21,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/copilot/builtins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Builtins Meta */
+        get: operations["builtins_meta_api_copilot_builtins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/conversation/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conversation */
+        get: operations["get_conversation_api_copilot_conversation__project_id__get"];
+        /** Put Conversation */
+        put: operations["put_conversation_api_copilot_conversation__project_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/conversation/{project_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append Message */
+        post: operations["append_message_api_copilot_conversation__project_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/critique": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Critique */
+        post: operations["critique_api_copilot_critique_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/intent/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parse Intent */
+        post: operations["parse_intent_api_copilot_intent_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/intent/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Intent */
+        post: operations["preview_intent_api_copilot_intent_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/optimize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Optimize */
+        post: operations["optimize_api_copilot_optimize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/strategies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Strategies */
+        get: operations["list_strategies_api_copilot_strategies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/strategy/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Strategy
+         * @description 将内置策略合并进 benchmark/requirements program，返回摘要。
+         */
+        post: operations["apply_strategy_api_copilot_strategy_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/exports/png": {
         parameters: {
             query?: never;
@@ -627,6 +784,74 @@ export interface components {
             /** Rows */
             rows: components["schemas"]["AxisCompareRowPayload"][];
         };
+        /** ConversationAppendRequest */
+        ConversationAppendRequest: {
+            /** Content */
+            content: string;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
+            /** Project Id */
+            project_id: string;
+            role: components["schemas"]["ConversationRole"];
+        };
+        /** ConversationMessage */
+        ConversationMessage: {
+            /** Content */
+            content: string;
+            /** Created At */
+            created_at?: string;
+            /** Id */
+            id: string;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
+            role: components["schemas"]["ConversationRole"];
+        };
+        /**
+         * ConversationRole
+         * @enum {string}
+         */
+        ConversationRole: "user" | "assistant" | "system";
+        /** CritiqueRequest */
+        CritiqueRequest: {
+            /**
+             * Candidate
+             * @description LayoutCandidate 子集 JSON
+             */
+            candidate: {
+                [key: string]: unknown;
+            };
+            /**
+             * Use Benchmark
+             * @default true
+             */
+            use_benchmark: boolean;
+        };
+        /**
+         * DesignConversationState
+         * @description 跨轮保留：选中候选、策略、补丁与确认事项。
+         */
+        DesignConversationState: {
+            /** Active Strategy Id */
+            active_strategy_id?: string | null;
+            /** Applied Patch Ids */
+            applied_patch_ids?: string[];
+            /** Confirmed Facts */
+            confirmed_facts?: string[];
+            /** Locked Room Ids */
+            locked_room_ids?: string[];
+            /** Messages */
+            messages?: components["schemas"]["ConversationMessage"][];
+            /** Project Id */
+            project_id: string;
+            /** Selected Candidate Id */
+            selected_candidate_id?: string | null;
+            /** Updated At */
+            updated_at?: string;
+        };
         /**
          * DesignFinding
          * @description 可解释设计发现（≠ 单纯报分数；≠ 法规合规结论）。
@@ -659,6 +884,43 @@ export interface components {
             severity: components["schemas"]["FindingSeverity"];
             /** Title */
             title: string;
+        };
+        /**
+         * DesignIntentPatch
+         * @description 自然语言 → 结构化补丁；LLM 不得直接输出坐标。
+         */
+        DesignIntentPatch: {
+            /** Changes */
+            changes?: components["schemas"]["IntentChange"][];
+            /**
+             * Confidence
+             * @default 0.8
+             */
+            confidence: number;
+            /**
+             * Preserve
+             * @description 须锁定的 room_id / 角色
+             */
+            preserve?: string[];
+            /**
+             * Raw Utterance Ref
+             * @description 原始话语引用 / 哈希，可追溯
+             */
+            raw_utterance_ref?: string | null;
+            /** @default partial */
+            regeneration: components["schemas"]["IntentRegenerationMode"];
+            /**
+             * Source
+             * @description user | critic | copilot
+             * @default user
+             */
+            source: string;
+            /**
+             * Target Candidate
+             * @description 'selected' 或具体 candidate id
+             * @default selected
+             */
+            target_candidate: string;
         };
         /**
          * DesignMetrics
@@ -1044,6 +1306,106 @@ export interface components {
             occupants?: number | null;
         };
         /**
+         * IntentChange
+         * @description 单条可执行修改；禁止自由文本 action。
+         */
+        IntentChange: {
+            action: components["schemas"]["IntentChangeAction"];
+            /**
+             * Partner
+             * @description 邻接类动作的另一端 room_id / 角色
+             */
+            partner?: string | null;
+            /** @default preferred */
+            priority: components["schemas"]["IntentPriority"];
+            /**
+             * Target
+             * @description room_id 或语义角色（living/master_bedroom/…）
+             */
+            target?: string | null;
+            /**
+             * Value
+             * @description 如朝向 south、面积增量比例 0.15
+             */
+            value?: string | number | null;
+        };
+        /**
+         * IntentChangeAction
+         * @enum {string}
+         */
+        IntentChangeAction: "increase_target_area" | "decrease_target_area" | "set_orientation_preference" | "avoid_private_through" | "require_adjacency" | "avoid_adjacency" | "reduce_corridor_preference";
+        /** IntentParseRequest */
+        IntentParseRequest: {
+            /** Candidate */
+            candidate?: {
+                [key: string]: unknown;
+            } | null;
+            requirements?: components["schemas"]["GenerateRequest"] | null;
+            /**
+             * Target Candidate
+             * @default selected
+             */
+            target_candidate: string;
+            /** Text */
+            text: string;
+            /**
+             * Use Benchmark
+             * @default false
+             */
+            use_benchmark: boolean;
+        };
+        /**
+         * IntentPatchPreview
+         * @description 补丁应用预览（确认前展示）。
+         */
+        IntentPatchPreview: {
+            /** Locked Rooms */
+            locked_rooms?: string[];
+            /** Mutable Rooms */
+            mutable_rooms?: string[];
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            patch: components["schemas"]["DesignIntentPatch"];
+            /**
+             * Program Deltas
+             * @description 人类可读的 program/constraint 变更摘要
+             */
+            program_deltas?: string[];
+            /** Warnings */
+            warnings?: string[];
+        };
+        /** IntentPreviewRequest */
+        IntentPreviewRequest: {
+            patch: components["schemas"]["DesignIntentPatch"];
+            /**
+             * Use Benchmark
+             * @default true
+             */
+            use_benchmark: boolean;
+        };
+        /** IntentPreviewResponse */
+        IntentPreviewResponse: {
+            /** Locked Rooms */
+            locked_rooms?: string[];
+            /** Mutable Rooms */
+            mutable_rooms?: string[];
+            patch: components["schemas"]["DesignIntentPatch"];
+            preview: components["schemas"]["IntentPatchPreview"];
+        };
+        /**
+         * IntentPriority
+         * @enum {string}
+         */
+        IntentPriority: "required" | "preferred";
+        /**
+         * IntentRegenerationMode
+         * @enum {string}
+         */
+        IntentRegenerationMode: "partial" | "full";
+        /**
          * LayoutLocks
          * @description Generate 时尊重的锁；空 = 全自由生成。
          */
@@ -1289,6 +1651,28 @@ export interface components {
             /** Reachable */
             reachable: boolean;
         };
+        /** OptimizeRequest */
+        OptimizeRequest: {
+            /** Candidate */
+            candidate: {
+                [key: string]: unknown;
+            };
+            /**
+             * Candidate Budget
+             * @default 4
+             */
+            candidate_budget: number;
+            /**
+             * Max Rounds
+             * @default 2
+             */
+            max_rounds: number;
+            /**
+             * Use Benchmark
+             * @default true
+             */
+            use_benchmark: boolean;
+        };
         /** ParseNLRequest */
         ParseNLRequest: {
             /**
@@ -1529,7 +1913,7 @@ export interface components {
          *     - mutable_rooms：允许 Guillotine 重新切分的 program 房间
          *     - locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms
          *     - affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）
-         *     - preserve_topology：意图标记；当前未作为硬不变量验收（勿在 UI 宣称已保证）
+         *     - preserve_topology：硬不变量——锁定房间之间的 required Access / 邻接共墙须在局部 regen 后仍成立
          *     - preserve_floor_assignment：为 True 时校验锁定房间楼层与 program 一致（硬）
          */
         RegenerationScope: {
@@ -1556,7 +1940,7 @@ export interface components {
             preserve_floor_assignment: boolean;
             /**
              * Preserve Topology
-             * @description 拓扑保留意图（尚未硬化为硬不变量；勿对外保证）
+             * @description 硬：锁定↔锁定 required Access 与邻接共墙在局部 regen 后必须保留
              * @default true
              */
             preserve_topology: boolean;
@@ -1743,6 +2127,24 @@ export interface components {
             /** Site Width */
             site_width?: number | null;
         };
+        /** RoomEdge */
+        RoomEdge: {
+            kind: components["schemas"]["RoomEdgeKind"];
+            /** Source Id */
+            source_id: string;
+            /** Target Id */
+            target_id: string;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+        };
+        /**
+         * RoomEdgeKind
+         * @enum {string}
+         */
+        RoomEdgeKind: "adjacent" | "connected" | "near" | "far" | "avoid";
         /**
          * RoomPlacementPayload
          * @description 候选上的房间放置摘要（Phase 4.0 Inspector；additive）。
@@ -1966,6 +2368,47 @@ export interface components {
             scope: "floor" | "snapshot" | "all_floors";
         };
         /**
+         * TopologyStrategy
+         * @description AI / 规则提出的空间组织策略。
+         *
+         *     物化为 RoomGraph delta + 软目标权重；经 TopologyPlanner → TopologyPlan。
+         */
+        TopologyStrategy: {
+            /**
+             * Corridor Penalty
+             * @description >1 更抑制走廊面积倾向（软）
+             * @default 1
+             */
+            corridor_penalty: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            objective: components["schemas"]["TopologyStrategyObjective"];
+            /**
+             * Objective Weights
+             * @description 七轴软权重微调，如 privacy=1.2
+             */
+            objective_weights?: {
+                [key: string]: number;
+            };
+            /**
+             * Room Graph Edges
+             * @description 追加/覆盖的 RoomGraph 边（无坐标）
+             */
+            room_graph_edges?: components["schemas"]["RoomEdge"][];
+        };
+        /**
+         * TopologyStrategyObjective
+         * @enum {string}
+         */
+        TopologyStrategyObjective: "family_core" | "privacy" | "daylight_courtyard";
+        /**
          * UnknownRequirement
          * @description 用户未提供且未推断的信息。
          */
@@ -2076,6 +2519,322 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompareResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    builtins_meta_api_copilot_builtins_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_conversation_api_copilot_conversation__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignConversationState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_conversation_api_copilot_conversation__project_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesignConversationState"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignConversationState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    append_message_api_copilot_conversation__project_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationAppendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignConversationState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    critique_api_copilot_critique_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CritiqueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parse_intent_api_copilot_intent_parse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntentParseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignIntentPatch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_intent_api_copilot_intent_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntentPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    optimize_api_copilot_optimize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OptimizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_strategies_api_copilot_strategies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopologyStrategy"][];
+                };
+            };
+        };
+    };
+    apply_strategy_api_copilot_strategy_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

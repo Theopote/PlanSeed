@@ -44,6 +44,52 @@ body,
   border-bottom: 1px solid var(--line);
 }
 
+.app-right-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+}
+
+.copilot-panel {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 1rem 1rem;
+  background: var(--bg-panel);
+}
+
+.copilot-panel__header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.copilot-panel__input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.5rem 0;
+  font: inherit;
+  resize: vertical;
+}
+
+.copilot-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.copilot-panel__strategies,
+.copilot-panel__preview ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.copilot-panel__critique {
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
 .panel {
   min-height: 0;
   overflow: auto;

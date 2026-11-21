@@ -46,6 +46,9 @@ def create_app() -> FastAPI:
     app.include_router(health_routes.router)
     app.include_router(llm_routes.router)
     app.include_router(generate_routes.router)
+    from backend.routes import copilot as copilot_routes
+
+    app.include_router(copilot_routes.router)
     app.include_router(requirements_routes.router)
     app.include_router(compare_routes.router)
     app.include_router(mutations_routes.router)
