@@ -23,6 +23,8 @@ from packages.schema.site import CardinalEdge, Polygon2D, SiteSpec
 from packages.schema.topology import AccessGraph, SpaceConnectionType
 from packages.schema.vertical_void import VerticalVoidType
 
+from solver.geometry.site_coords import SiteCoordinateSystem
+
 _CATEGORY_FILL: dict[str, str] = {
     "public": "#E8D5B5",
     "private": "#C5D4E8",
@@ -288,8 +290,12 @@ def _site_overlays(
                     f'<path d="{path_d}" fill="none" stroke="{_MUTED}" '
                     f'stroke-width="0.08" stroke-dasharray="0.2 0.12" opacity="0.85"/>'
                 )
-        # 临路边
-        for edge in site.road_edges or []:
+        # 临路边：road_edges 为世界方位 → 换成 model 边再画
+        cs = SiteCoordinateSystem.from_site(site)
+        model_roads: set[str] = set()
+        for world_edge in site.road_edges or []:
+            model_roads |= cs.model_edges_facing(world_edge)
+        for edge in sorted(model_roads):
             x1, y1, x2, y2 = _edge_segment(
                 edge, w=floor_width, d=floor_depth, oy=oy, inset=0.12
             )
@@ -297,20 +303,20 @@ def _site_overlays(
                 f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
                 f'stroke="{_ROAD}" stroke-width="0.14" stroke-dasharray="0.25 0.12"/>'
             )
-        # 入口边高亮（仅地面层）
+        # 入口边高亮（仅地面层）：ExteriorEntry.edge 已是 model；否则 world→model
         if floor_index == 0:
-            edge = (
-                candidate.exterior_entry.edge
-                if candidate.exterior_entry is not None
-                else site.entrance_edge
-            )
-            x1, y1, x2, y2 = _edge_segment(
-                edge, w=floor_width, d=floor_depth, oy=oy, inset=0.05
-            )
-            parts.append(
-                f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
-                f'stroke="{_ENTRY}" stroke-width="0.18"/>'
-            )
+            if candidate.exterior_entry is not None:
+                entry_models = {candidate.exterior_entry.edge.value}
+            else:
+                entry_models = cs.model_edges_facing(site.entrance_edge)
+            for edge in sorted(entry_models):
+                x1, y1, x2, y2 = _edge_segment(
+                    edge, w=floor_width, d=floor_depth, oy=oy, inset=0.05
+                )
+                parts.append(
+                    f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
+                    f'stroke="{_ENTRY}" stroke-width="0.18"/>'
+                )
 
     entry = candidate.exterior_entry
     if entry is not None and floor_index == 0:

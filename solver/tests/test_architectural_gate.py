@@ -450,4 +450,4 @@ class TestGateRanking:
         CompositeEvaluator().evaluate(program, cand)
         assert "architectural_gate_pass" in cand.metrics
         assert cand.metrics["architectural_gate_version"] == "arch-gate-v1"
-        assert cand.metrics["evaluation_version"] == "residential-alpha-v2"
+        assert cand.metrics["evaluation_version"] == "residential-alpha-v3"

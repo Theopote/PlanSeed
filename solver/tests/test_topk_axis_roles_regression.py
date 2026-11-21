@@ -88,4 +88,4 @@ def test_pareto_opt_in_diverges_from_axis_fixture():
     assert pareto_roles != [row[1] for row in EXPECTED_TOP_ROLES]
     assert all(r in ("top_score", "pareto", "diverse") for r in pareto_roles)
     assert pareto_roles[0] == "top_score"
-    assert all(c.metrics.get("selection_version") == "pareto-top1-axes-v2" for c in pareto)
+    assert all(c.metrics.get("selection_version") == "pareto-gate-top1-axes-v3" for c in pareto)

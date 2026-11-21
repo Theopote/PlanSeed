@@ -56,18 +56,26 @@ def dominates(
     return ge_all and gt_any
 
 
+def _gate_sort_key(c: LayoutCandidate) -> tuple[int, int, int, float]:
+    """Gate 优先：过门槛 → 更少 blocker → 更少穿卧室 → 更高分。"""
+    gate_fail = 0 if bool(c.metrics.get("architectural_gate_pass", True)) else 1
+    blockers = int(c.metrics.get("architectural_gate_blocker_count") or 0)
+    priv = int(c.metrics.get("private_through_count") or 0)
+    return (gate_fail, blockers, priv, -(c.score or 0.0))
+
+
 def pareto_front(
     candidates: list[LayoutCandidate],
     *,
     objectives: tuple[tuple[str, str, str], ...] = PARETO_OBJECTIVES,
 ) -> list[LayoutCandidate]:
-    """返回非支配候选（先按总分排序再筛，保持稳定）。"""
+    """返回非支配候选（Gate 优先序稳定筛）。"""
     valid = [
         c
         for c in candidates
         if c.validation and c.validation.valid and c.score is not None
     ]
-    valid.sort(key=lambda c: c.score or 0.0, reverse=True)
+    valid.sort(key=_gate_sort_key)
     front: list[LayoutCandidate] = []
     for c in valid:
         if any(dominates(other, c, objectives=objectives) for other in valid if other.id != c.id):
@@ -154,10 +162,22 @@ def select_pareto_frontier(
     if not valid:
         return []
 
-    valid.sort(key=lambda c: c.score or 0.0, reverse=True)
-    top = valid[0]
+    # Architectural Quality Gate：过门槛池优先；不足再回填门槛外
+    gate_pass = [
+        c for c in valid if bool(c.metrics.get("architectural_gate_pass", True))
+    ]
+    gate_fail = [
+        c for c in valid if not bool(c.metrics.get("architectural_gate_pass", True))
+    ]
+    pool = gate_pass if gate_pass else valid
+    # slot1 = 池内最高总分（过门槛优先已由 pool 选择体现）
+    pool.sort(key=lambda c: c.score or 0.0, reverse=True)
+
+    top = pool[0]
     top.metrics["selection_role"] = "top_score"
-    top.metrics["selection_label"] = "最高总分"
+    top.metrics["selection_label"] = (
+        "最高总分" if bool(top.metrics.get("architectural_gate_pass", True)) else "门槛外最高分"
+    )
     top.metrics["pareto_front"] = False
 
     selected: list[LayoutCandidate] = [top]
@@ -165,7 +185,7 @@ def select_pareto_frontier(
     if top_k == 1:
         return selected
 
-    front = pareto_front(valid, objectives=objectives)
+    front = pareto_front(pool, objectives=objectives)
     front_size = len(front)
     remaining = [c for c in front if c.id not in selected_ids]
     slots = top_k - 1
@@ -174,13 +194,15 @@ def select_pareto_frontier(
         crowd = crowding_distances(remaining, objectives=objectives)
         remaining = sorted(
             remaining,
-            key=lambda c: (crowd.get(c.id, 0.0), c.score or 0.0),
-            reverse=True,
+            key=lambda c: (
+                0 if bool(c.metrics.get("architectural_gate_pass", True)) else 1,
+                -crowd.get(c.id, 0.0),
+                -(c.score or 0.0),
+            ),
         )[:slots]
     else:
-        remaining = sorted(remaining, key=lambda c: c.score or 0.0, reverse=True)
+        remaining = sorted(remaining, key=_gate_sort_key)
 
-    # 标签相对「含 top 的完整前沿」表达轴优势，避免丢掉全局最优参考
     label_ref = front if front else remaining
     for c in remaining:
         _tag_pareto(
@@ -191,11 +213,24 @@ def select_pareto_frontier(
         selected.append(c)
         selected_ids.add(c.id)
 
+    if len(selected) < top_k and gate_pass and gate_fail:
+        fill = sorted(
+            (c for c in gate_fail if c.id not in selected_ids),
+            key=_gate_sort_key,
+        )
+        for c in fill:
+            if len(selected) >= top_k:
+                break
+            c.metrics["selection_role"] = "gate_fill"
+            c.metrics["selection_label"] = "门槛外补充"
+            c.metrics["pareto_front"] = False
+            selected.append(c)
+            selected_ids.add(c.id)
+
     if len(selected) < top_k:
         rest = sorted(
             (c for c in valid if c.id not in selected_ids),
-            key=lambda c: c.score or 0.0,
-            reverse=True,
+            key=_gate_sort_key,
         )
         for c in rest:
             if len(selected) >= top_k:

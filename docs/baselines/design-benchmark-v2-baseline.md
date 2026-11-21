@@ -62,6 +62,8 @@ B01, B04, B06, B12 — 80/80 valid 候选已评级。
 
 四 case 合计 valid_rate：首跑评审子集 **0.625** → 重跑 **0.586**（B04 明显下降）。
 
+**B04 −5 valid 复核（当前 HEAD）：** 再跑仍为 **20/32 = 0.625**；中间 0.469 为 ExteriorEntry/Gate 收紧窗口态。当前 12 个 invalid 主因：`geometry.missing_room`（bath2）+ 连带 `access.unreachable_room`、床/卫 `area-bound-*`、`vertical.wet_stack_alignment`、洗衣间 `room_aspect_ratio`、偶发车库面积过大——非 ExteriorWallSegment 回归。valid 中 Gate blocker / `private_through` 均为 0。
+
 重跑常见 Gate **warning**（非 blocker）：B06 几乎全部 valid 带 `black_wet`；B01/B04/B12 亦见暗卫/深度访问类 findings。  
 **下一步：** 导出 SVG 后按原标准重做 A/B/C/D，才能更新 ab_rate；在此之前不得宣称建筑师接受率已提升。
 

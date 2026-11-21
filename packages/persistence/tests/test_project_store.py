@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+
 from packages.persistence import CURRENT_VERSION, ProjectStore
 from packages.persistence.migrations import get_user_version, migrate
 
@@ -95,6 +96,7 @@ def test_project_store_optimistic_conflict(tmp_path: Path):
 def test_project_store_concurrent_expected_updated_at(tmp_path: Path):
     """两连接同时持有同一 expected_updated_at 时，至多一人写入成功。"""
     import threading
+
     from packages.persistence import ProjectConflictError
 
     db = tmp_path / "concurrent.db"

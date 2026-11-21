@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedStairCore, LockedZoneRect
+from packages.schema.locks import LayoutLocks, LockedRoomRect, LockedZoneRect
 from packages.schema.regeneration import RegenerationScope
 from packages.schema.zoning import ArchitecturalZone
 from solver.fixtures.benchmark import benchmark_program

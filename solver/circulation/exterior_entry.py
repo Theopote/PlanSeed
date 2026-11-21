@@ -16,7 +16,10 @@ from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge, CardinalOrientation
 
-from solver.geometry.exterior import program_exterior_edges
+from solver.geometry.exterior import (
+    ExteriorWallSegment,
+    program_exterior_segments,
+)
 from solver.geometry.rect import Rect, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 
@@ -108,15 +111,15 @@ def resolve_exterior_entry(
 
     def rooms_on_world(
         world: CardinalOrientation,
-    ) -> list[tuple[RoomPlacement, str]]:
-        """返回 (placement, model_edge) 贴靠朝向 ``world`` 的真实外墙。"""
+    ) -> list[tuple[RoomPlacement, ExteriorWallSegment]]:
+        """返回 (placement, 真实外墙段) 贴靠朝向 ``world`` 的外墙。"""
         wanted = cs.model_edges_facing(world)
-        out: list[tuple[RoomPlacement, str]] = []
+        out: list[tuple[RoomPlacement, ExteriorWallSegment]] = []
         for p in ground_placements:
             rect = from_placement(p.rect)
-            model = set(program_exterior_edges(rect, program))
-            for me in sorted(model & wanted):
-                out.append((p, me))
+            for seg in program_exterior_segments(rect, program):
+                if seg.direction in wanted and seg.can_fit(width):
+                    out.append((p, seg))
         return out
 
     # 1) 首选世界方位；2) 临路其它方位；3) 任意有外墙方位（并改写实际朝向）
@@ -130,20 +133,23 @@ def resolve_exterior_entry(
 
     chosen_world = preferred_world
     primary: RoomPlacement | None = None
-    model_edge_name: str | None = None
+    chosen_seg: ExteriorWallSegment | None = None
 
     for world in search_worlds:
         hits = rooms_on_world(world)
         if not hits:
             continue
-        hits_sorted = sorted(hits, key=lambda t: rank(t[0]))
-        primary, model_edge_name = hits_sorted[0]
+        # 房间优先级 → 更长可落位墙段
+        hits_sorted = sorted(
+            hits, key=lambda t: (*rank(t[0]), -t[1].length)
+        )
+        primary, chosen_seg = hits_sorted[0]
         chosen_world = world
         break
 
     model_edge = (
-        _as_model_edge(model_edge_name)
-        if model_edge_name is not None
+        _as_model_edge(chosen_seg.direction)
+        if chosen_seg is not None
         else _as_model_edge(
             next(iter(cs.model_edges_facing(preferred_world)), preferred_world.value)
         )
@@ -151,13 +157,11 @@ def resolve_exterior_entry(
 
     cx, cy = _point_on_buildable_model_edge(buildable, model_edge)
     connected: list[str] = []
-    if primary is not None:
-        room_rect = from_placement(primary.rect)
-        cx, cy = _snap_entry_to_room_edge(room_rect, model_edge, width, buildable)
-        if _entry_opening_on_room(room_rect, model_edge, cx, cy, width):
+    if primary is not None and chosen_seg is not None:
+        cx, cy = _snap_entry_to_segment(chosen_seg, width)
+        if _entry_opening_on_segment(chosen_seg, cx, cy, width):
             connected = [primary.room_id]
         else:
-            # 吸附失败则不建立虚假 EXTERIOR_ENTRY
             connected = []
 
     on_road = bool(
@@ -192,63 +196,42 @@ def _point_on_buildable_model_edge(
     return buildable.right, mid_y
 
 
-def _snap_entry_to_room_edge(
-    room: Rect,
-    model_edge: CardinalEdge,
+def _snap_entry_to_segment(
+    seg: ExteriorWallSegment,
     width: float,
-    buildable: Rect,
 ) -> tuple[float, float]:
-    """把入口中心吸附到房间的 **model** 外墙中段。"""
+    """把入口中心吸附到真实外墙段中点（保证开口落在段内）。"""
     half = max(width, 0.1) / 2
-    if model_edge == CardinalEdge.SOUTH:
-        lo = max(room.left + half, buildable.left + half)
-        hi = min(room.right - half, buildable.right - half)
-        x = (lo + hi) / 2 if lo <= hi else (room.left + room.right) / 2
-        return x, room.bottom
-    if model_edge == CardinalEdge.NORTH:
-        lo = max(room.left + half, buildable.left + half)
-        hi = min(room.right - half, buildable.right - half)
-        x = (lo + hi) / 2 if lo <= hi else (room.left + room.right) / 2
-        return x, room.top
-    if model_edge == CardinalEdge.WEST:
-        lo = max(room.bottom + half, buildable.bottom + half)
-        hi = min(room.top - half, buildable.top - half)
-        y = (lo + hi) / 2 if lo <= hi else (room.bottom + room.top) / 2
-        return room.left, y
-    lo = max(room.bottom + half, buildable.bottom + half)
-    hi = min(room.top - half, buildable.top - half)
-    y = (lo + hi) / 2 if lo <= hi else (room.bottom + room.top) / 2
-    return room.right, y
+    if seg.axis == "x":
+        lo = min(seg.x0, seg.x1) + half
+        hi = max(seg.x0, seg.x1) - half
+        x = (lo + hi) / 2 if lo <= hi else seg.mid_x
+        return x, seg.mid_y
+    lo = min(seg.y0, seg.y1) + half
+    hi = max(seg.y0, seg.y1) - half
+    y = (lo + hi) / 2 if lo <= hi else seg.mid_y
+    return seg.mid_x, y
 
 
-def _entry_opening_on_room(
-    room: Rect,
-    model_edge: CardinalEdge,
+def _entry_opening_on_segment(
+    seg: ExteriorWallSegment,
     cx: float,
     cy: float,
     width: float,
 ) -> bool:
-    """入口线段是否完整落在房间该 model 外墙上。"""
+    """入口线段是否完整落在真实外墙段上。"""
     half = max(width, 0.1) / 2
-    if model_edge == CardinalEdge.SOUTH:
-        if abs(cy - room.bottom) > _EDGE_EPS:
+    if seg.axis == "x":
+        if abs(cy - seg.mid_y) > _EDGE_EPS:
             return False
         a, b = cx - half, cx + half
-        return a >= room.left - _EDGE_EPS and b <= room.right + _EDGE_EPS
-    if model_edge == CardinalEdge.NORTH:
-        if abs(cy - room.top) > _EDGE_EPS:
-            return False
-        a, b = cx - half, cx + half
-        return a >= room.left - _EDGE_EPS and b <= room.right + _EDGE_EPS
-    if model_edge == CardinalEdge.WEST:
-        if abs(cx - room.left) > _EDGE_EPS:
-            return False
-        a, b = cy - half, cy + half
-        return a >= room.top - _EDGE_EPS and b <= room.bottom + _EDGE_EPS
-    if abs(cx - room.right) > _EDGE_EPS:
+        lo, hi = sorted((seg.x0, seg.x1))
+        return a >= lo - _EDGE_EPS and b <= hi + _EDGE_EPS
+    if abs(cx - seg.mid_x) > _EDGE_EPS:
         return False
     a, b = cy - half, cy + half
-    return a >= room.top - _EDGE_EPS and b <= room.bottom + _EDGE_EPS
+    lo, hi = sorted((seg.y0, seg.y1))
+    return a >= lo - _EDGE_EPS and b <= hi + _EDGE_EPS
 
 
 def _opening_on_buildable_exterior(

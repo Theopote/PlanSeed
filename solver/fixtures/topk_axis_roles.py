@@ -18,7 +18,7 @@ from packages.schema.scoring import DesignScore
 
 # 与 SolverConfig / identity 对齐的冻结契约
 FIXTURE_ID = "topk-axis-roles-v1"
-EXPECTED_SELECTION_VERSION = "axis-diversity-v1"
+EXPECTED_SELECTION_VERSION = "axis-diversity-v2"
 EXPECTED_RANK_MODE = "axis"
 BUILDABLE_WIDTH = 30.0
 BUILDABLE_DEPTH = 20.0

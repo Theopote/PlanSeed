@@ -6,6 +6,7 @@ from packages.schema.constraints import ConstraintKind, OrientationConstraint
 from packages.schema.layout import LayoutCandidate, Violation
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalOrientation
+from solver.geometry.exterior import program_exterior_edges
 from solver.geometry.rect import Rect, exterior_edges, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 
@@ -17,8 +18,14 @@ def exterior_model_edges(
     buildable: Rect,
     *,
     tolerance: float = EDGE_TOLERANCE,
+    program: DesignProgram | None = None,
 ) -> set[str]:
-    """房间贴靠的 model 边集合（north/south/east/west，绘图坐标）。"""
+    """房间贴靠的 model 边集合（north/south/east/west，绘图坐标）。
+
+    传入 ``program`` 时走真实外围护线段（L / 庭院）；否则退化为 bbox。
+    """
+    if program is not None:
+        return set(program_exterior_edges(room_rect, program, tolerance=tolerance))
     return set(exterior_edges(room_rect, buildable, tolerance=tolerance))
 
 
@@ -28,13 +35,16 @@ def exterior_world_orientations(
     coords: SiteCoordinateSystem,
     *,
     tolerance: float = EDGE_TOLERANCE,
+    program: DesignProgram | None = None,
 ) -> set[str]:
     """
     房间外墙朝向的世界 cardinal 集合。
 
     preferred_orientation=south 表示世界正南，不是「SVG 下边」。
     """
-    model = exterior_model_edges(room_rect, buildable, tolerance=tolerance)
+    model = exterior_model_edges(
+        room_rect, buildable, tolerance=tolerance, program=program
+    )
     return {coords.world_orientation_for_edge(edge).value for edge in model}
 
 
@@ -66,7 +76,7 @@ def _faces_for_placement(
     buildable: Rect,
 ) -> set[str]:
     return exterior_world_orientations(
-        room_rect, buildable, _site_coords(program)
+        room_rect, buildable, _site_coords(program), program=program
     )
 
 
@@ -152,7 +162,9 @@ def orientation_soft_violations(
                 )
             )
             continue
-        model_edges = exterior_model_edges(from_placement(p.rect), buildable)
+        model_edges = exterior_model_edges(
+            from_placement(p.rect), buildable, program=program
+        )
         faces = {
             coords.world_orientation_for_edge(e).value for e in model_edges
         }

@@ -6,13 +6,6 @@ import pytest
 
 pytest.importorskip("shapely")
 
-from packages.schema.program import DesignProgram, SolverConfig
-from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
-from packages.schema.site import Point2D, Polygon2D, SiteSpec
-from solver.evaluation.architectural_gate import evaluate_architectural_gate
-from solver.geometry.buildable import apply_buildable_geometry
-from solver.geometry.exterior import has_exterior_wall, program_exterior_edges
-from solver.geometry.rect import Rect
 from packages.schema.layout import (
     FloorLayout,
     LayoutCandidate,
@@ -20,6 +13,17 @@ from packages.schema.layout import (
     PlacementSource,
     RoomPlacement,
 )
+from packages.schema.program import DesignProgram, SolverConfig
+from packages.schema.room import FloorSpec, RoomCategory, RoomSpec
+from packages.schema.site import Point2D, Polygon2D, SiteSpec
+from solver.evaluation.architectural_gate import evaluate_architectural_gate
+from solver.geometry.buildable import apply_buildable_geometry
+from solver.geometry.exterior import (
+    has_exterior_wall,
+    program_exterior_edges,
+    program_exterior_segments,
+)
+from solver.geometry.rect import Rect
 
 
 def _l_poly() -> Polygon2D:
@@ -86,6 +90,20 @@ def test_l_shape_reentrant_edge_is_exterior():
     edges = program_exterior_edges(room, program)
     assert "south" in edges
     assert has_exterior_wall(room, program)
+    segs = [s for s in program_exterior_segments(room, program) if s.direction == "south"]
+    assert segs
+    assert abs(segs[0].length - 4.0) < 1e-6
+
+
+def test_partial_edge_is_not_full_bbox_length():
+    """部分贴外墙不得虚报整边 10m（旧三点采样 bug）。"""
+    program = _program_with_poly(_l_poly())
+    # 贴 L 形西外墙整边 10m 中的一段：左缘 x=0，y=0..4
+    room = Rect(x=0, y=0, width=3, depth=4)
+    west = [s for s in program_exterior_segments(room, program) if s.direction == "west"]
+    assert west
+    assert abs(west[0].length - 4.0) < 1e-6
+    assert program_exterior_edges(room, program)["west"] < 9.0
 
 
 def test_l_shape_fully_interior_not_exterior():

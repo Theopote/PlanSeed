@@ -80,7 +80,7 @@ def compute_site_metrics(
             hits = 0
             for p in garage_placements:
                 worlds = exterior_world_orientations(
-                    from_placement(p.rect), buildable, cs
+                    from_placement(p.rect), buildable, cs, program=program
                 )
                 if worlds & roads:
                     hits += 1

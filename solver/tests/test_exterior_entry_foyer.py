@@ -74,8 +74,8 @@ def test_entry_prefers_foyer_over_other_public() -> None:
 
 def test_entry_only_connects_primary_among_three_south_rooms() -> None:
     """南侧门厅+客厅+卧室同贴边时，仅门厅获得 EXTERIOR_ENTRY。"""
-    from solver.topology.access import build_realized_connections
     from packages.schema.topology import SpaceConnectionType
+    from solver.topology.access import build_realized_connections
 
     site = SiteSpec(width=12, depth=10, entrance_edge=CardinalEdge.SOUTH)
     rooms = [

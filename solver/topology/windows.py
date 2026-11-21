@@ -1,12 +1,10 @@
 """
 外窗标注 — daylight_required 房间与建筑外轮廓的几何连接。
 
-复用 orientation / exterior_edges 判定贴外墙；无外墙时产出 DesignFinding。
+落在真实 ``ExteriorWallSegment`` 中段；无外墙时产出 DesignFinding。
 """
 
 from __future__ import annotations
-
-from typing import Literal
 
 from packages.schema.layout import LayoutCandidate, RoomPlacement, WindowOpening
 from packages.schema.program import DesignProgram
@@ -14,8 +12,8 @@ from packages.schema.room import RoomSpec
 from packages.schema.scoring import DesignFinding, EvaluationAxis, FindingSeverity
 from solver.evaluation.findings import finding
 from solver.evaluation.orientation import EDGE_TOLERANCE
-from solver.geometry.exterior import pick_longest_exterior_edge
-from solver.geometry.rect import Rect, from_placement
+from solver.geometry.exterior import ExteriorWallSegment, pick_longest_exterior_segment
+from solver.geometry.rect import from_placement
 
 MIN_WINDOW_WIDTH = 0.9
 MAX_WINDOW_WIDTH = 3.0
@@ -35,29 +33,16 @@ def _window_width_for_edge(edge_length: float, room_id: str) -> float:
     return min(width, edge_length)
 
 
-def _edge_opening_geometry(
-    room: Rect,
-    edge: str,
-    edge_length: float,
-) -> tuple[float, float, Literal["x", "y"]]:
-    """外墙段中点与墙走向。"""
-    if edge == "north":
-        return room.x + room.width / 2, room.top, "x"
-    if edge == "south":
-        return room.x + room.width / 2, room.bottom, "x"
-    if edge == "west":
-        return room.left, room.y + room.depth / 2, "y"
-    return room.right, room.y + room.depth / 2, "y"
-
-
-def _pick_exterior_edge(
-    room_rect: Rect,
+def _pick_exterior_segment(
+    room_rect,
     program: DesignProgram,
     *,
     tolerance: float = EDGE_TOLERANCE,
-) -> tuple[str, float] | None:
-    """取贴真实外围护中最长的一段（支持 L / 庭院）；无则 None。"""
-    return pick_longest_exterior_edge(room_rect, program, tolerance=tolerance)
+) -> ExteriorWallSegment | None:
+    """取可贴窗的最长真实外墙段。"""
+    return pick_longest_exterior_segment(
+        room_rect, program, tolerance=tolerance, min_length=MIN_WINDOW_WIDTH
+    )
 
 
 def _find_placement(
@@ -114,23 +99,21 @@ def place_window_openings(
             continue
         placement, floor_id = located
         room_rect = from_placement(placement.rect)
-        picked = _pick_exterior_edge(room_rect, program)
-        if picked is None:
+        seg = _pick_exterior_segment(room_rect, program)
+        if seg is None:
             findings.append(_no_exterior_wall_finding(room))
             continue
 
-        edge_name, edge_len = picked
-        mid_x, mid_y, axis = _edge_opening_geometry(room_rect, edge_name, edge_len)
-        width = _window_width_for_edge(edge_len, room.id)
+        width = _window_width_for_edge(seg.length, room.id)
         seq += 1
         opening = WindowOpening(
             id=f"win-{floor_id}-{room.id}-{seq}",
             room_id=room.id,
             floor_id=floor_id,
-            x=mid_x,
-            y=mid_y,
+            x=seg.mid_x,
+            y=seg.mid_y,
             width=width,
-            axis=axis,
+            axis=seg.axis,  # type: ignore[arg-type]
         )
         for fl in candidate.floors:
             if fl.floor_id == floor_id:
@@ -153,6 +136,6 @@ def collect_daylight_findings(
         if located is None:
             continue
         placement, _ = located
-        if _pick_exterior_edge(from_placement(placement.rect), program) is None:
+        if _pick_exterior_segment(from_placement(placement.rect), program) is None:
             findings.append(_no_exterior_wall_finding(room))
     return findings

@@ -856,6 +856,7 @@ class DefaultConstraintChecker:
                 from_placement(p.rect),
                 program_local_buildable(program),
                 coords,
+                program=program,
             )
             entry = candidate.exterior_entry
             on_entry = bool(
@@ -899,7 +900,7 @@ class DefaultConstraintChecker:
             )
         coords = SiteCoordinateSystem.from_site(program.site)
         faces = exterior_world_orientations(
-            from_placement(placement.rect), buildable, coords
+            from_placement(placement.rect), buildable, coords, program=program
         )
         preferred = constraint.preferred_orientation.lower()
         if preferred not in faces:

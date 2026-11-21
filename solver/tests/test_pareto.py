@@ -161,7 +161,7 @@ def test_rank_mode_pareto_opt_in():
     assert ranked[0].metrics.get("selection_role") == "top_score"
     assert ranked[1].metrics.get("selection_role") == "pareto"
     assert ranked[0].metrics.get("rank_mode") == "pareto"
-    assert ranked[0].metrics.get("selection_version") == "pareto-top1-axes-v2"
+    assert ranked[0].metrics.get("selection_version") == "pareto-gate-top1-axes-v3"
     assert len(objective_vector(ranked[0])) == 5
 
 
@@ -172,8 +172,23 @@ def test_rank_mode_default_is_axis_not_pareto():
     ]
     ranked = rank_candidates(cands, top_k=2, min_diversity_threshold=0.5)
     assert ranked[0].metrics.get("rank_mode") == "axis"
-    assert ranked[0].metrics.get("selection_version") == "axis-diversity-v1"
+    assert ranked[0].metrics.get("selection_version") == "axis-diversity-v2"
     assert ranked[0].metrics.get("selection_role") != "pareto"
+
+
+def test_pareto_prefers_gate_pass_over_higher_score_fail():
+    """过门槛低分优先于门槛外高分。"""
+    fail = _cand(cid="fail", seed=0, total=99, spatial=99, circ=99, priv=99, env=99, x=0)
+    fail.metrics["architectural_gate_pass"] = False
+    fail.metrics["architectural_gate_blocker_count"] = 2
+    ok = _cand(cid="ok", seed=1, total=70, spatial=70, circ=70, priv=70, env=70, x=8)
+    ok.metrics["architectural_gate_pass"] = True
+    ok.metrics["architectural_gate_blocker_count"] = 0
+    selected = select_pareto_frontier([fail, ok], top_k=2)
+    assert selected[0].id == "ok"
+    assert selected[0].metrics["selection_role"] == "top_score"
+    assert any(c.id == "fail" for c in selected)
+    assert next(c for c in selected if c.id == "fail").metrics.get("selection_role") == "gate_fill"
 
 
 def test_incomparable_pair_both_on_front():

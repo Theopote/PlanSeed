@@ -835,7 +835,7 @@ export interface components {
             /**
              * Evaluation Version
              * @description 评价规则签名（packages.schema.identity.EVALUATION_VERSION）；相同几何在不同版本下分数可不同。由 Evaluator 写入。
-             * @default residential-alpha-v2
+             * @default residential-alpha-v3
              */
             evaluation_version: string;
             /**

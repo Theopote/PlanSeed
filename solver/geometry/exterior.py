@@ -1,14 +1,62 @@
-"""建筑外围护边界 — 矩形可建区与不规则多边形统一查询。
+"""建筑外围护边界 — 真实外墙线段（非「整面外墙」布尔）。
 
-供窗户、暗卫 Gate、朝向、入口共用；禁止各模块自行只用外接矩形 bbox。
+矩形可建与不规则多边形统一：返回连续 ``ExteriorWallSegment``，
+供窗户 / 入口 / 朝向 / 暗卫共用。禁止三点采样把部分外墙当成整边。
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from packages.schema.program import DesignProgram
-from solver.evaluation.orientation import EDGE_TOLERANCE
 from solver.geometry.buildable import program_uses_irregular_geometry
 from solver.geometry.rect import Rect, exterior_edges, program_local_buildable
+
+# 与 solver.evaluation.orientation.EDGE_TOLERANCE 对齐；此处不导入以免循环依赖
+EDGE_TOLERANCE = 0.05
+
+
+@dataclass(frozen=True)
+class ExteriorWallSegment:
+    """房间一侧上的一段真实外墙（model 坐标）。"""
+
+    direction: str  # north/south/east/west
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+    @property
+    def length(self) -> float:
+        return abs(self.x1 - self.x0) + abs(self.y1 - self.y0)
+
+    @property
+    def mid_x(self) -> float:
+        return (self.x0 + self.x1) / 2
+
+    @property
+    def mid_y(self) -> float:
+        return (self.y0 + self.y1) / 2
+
+    @property
+    def axis(self) -> str:
+        """墙走向：水平墙为 x，竖向墙为 y。"""
+        return "x" if self.direction in ("north", "south") else "y"
+
+    def can_fit(self, opening_width: float, *, eps: float = 1e-9) -> bool:
+        return self.length + eps >= opening_width
+
+
+def program_exterior_segments(
+    room: Rect,
+    program: DesignProgram,
+    *,
+    tolerance: float = EDGE_TOLERANCE,
+) -> list[ExteriorWallSegment]:
+    """房间贴靠真实可建外围护的全部连续线段。"""
+    if not program_uses_irregular_geometry(program):
+        return _rect_bbox_segments(room, program, tolerance=tolerance)
+    return _polygon_segments(room, program, tolerance=tolerance)
 
 
 def program_exterior_edges(
@@ -17,18 +65,29 @@ def program_exterior_edges(
     *,
     tolerance: float = EDGE_TOLERANCE,
 ) -> dict[str, float]:
-    """
-    房间贴靠**真实可建外围护**的各向边长（米）。
+    """兼容旧 API：各向**真实线段长度之和**（非整边虚报）。"""
+    out: dict[str, float] = {}
+    for seg in program_exterior_segments(room, program, tolerance=tolerance):
+        out[seg.direction] = out.get(seg.direction, 0.0) + seg.length
+    return out
 
-    - 矩形可建：等价于 ``exterior_edges(room, bbox)``
-    - 不规则（L / 庭院）：外向偏移点落在可建多边形外 → 该侧为外墙
-      （含凹角与内院侧墙，不会被 bbox 误判）
-    """
-    if not program_uses_irregular_geometry(program):
-        return exterior_edges(
-            room, program_local_buildable(program), tolerance=tolerance
-        )
-    return _polygon_exterior_edges(room, program, tolerance=tolerance)
+
+def pick_longest_exterior_segment(
+    room: Rect,
+    program: DesignProgram,
+    *,
+    tolerance: float = EDGE_TOLERANCE,
+    min_length: float = 0.0,
+) -> ExteriorWallSegment | None:
+    """取最长且长度 ≥ ``min_length`` 的外墙段。"""
+    segs = [
+        s
+        for s in program_exterior_segments(room, program, tolerance=tolerance)
+        if s.length + 1e-9 >= min_length
+    ]
+    if not segs:
+        return None
+    return max(segs, key=lambda s: s.length)
 
 
 def pick_longest_exterior_edge(
@@ -37,7 +96,7 @@ def pick_longest_exterior_edge(
     *,
     tolerance: float = EDGE_TOLERANCE,
 ) -> tuple[str, float] | None:
-    """取最长外墙段；无外墙返回 None。"""
+    """兼容旧 API：返回 (direction, 该向线段总长)。"""
     edges = program_exterior_edges(room, program, tolerance=tolerance)
     if not edges:
         return None
@@ -50,90 +109,168 @@ def has_exterior_wall(
     *,
     tolerance: float = EDGE_TOLERANCE,
 ) -> bool:
-    return bool(program_exterior_edges(room, program, tolerance=tolerance))
+    return bool(program_exterior_segments(room, program, tolerance=tolerance))
 
 
-def _polygon_exterior_edges(
+def _rect_bbox_segments(
     room: Rect,
     program: DesignProgram,
     *,
     tolerance: float,
-) -> dict[str, float]:
-    from shapely.geometry import Point
+) -> list[ExteriorWallSegment]:
+    buildable = program_local_buildable(program)
+    edges = exterior_edges(room, buildable, tolerance=tolerance)
+    segs: list[ExteriorWallSegment] = []
+    if "north" in edges:
+        segs.append(
+            ExteriorWallSegment("north", room.left, room.top, room.right, room.top)
+        )
+    if "south" in edges:
+        segs.append(
+            ExteriorWallSegment(
+                "south", room.left, room.bottom, room.right, room.bottom
+            )
+        )
+    if "west" in edges:
+        segs.append(
+            ExteriorWallSegment("west", room.left, room.top, room.left, room.bottom)
+        )
+    if "east" in edges:
+        segs.append(
+            ExteriorWallSegment("east", room.right, room.top, room.right, room.bottom)
+        )
+    return segs
 
+
+def _room_side_line(room: Rect, direction: str):
+    from shapely.geometry import LineString
+
+    if direction == "north":
+        return LineString([(room.left, room.top), (room.right, room.top)])
+    if direction == "south":
+        return LineString([(room.left, room.bottom), (room.right, room.bottom)])
+    if direction == "west":
+        return LineString([(room.left, room.top), (room.left, room.bottom)])
+    return LineString([(room.right, room.top), (room.right, room.bottom)])
+
+
+def _polygon_segments(
+    room: Rect,
+    program: DesignProgram,
+    *,
+    tolerance: float,
+) -> list[ExteriorWallSegment]:
+    from shapely.geometry import Point
     from solver.geometry.irregular import polygon_to_shapely
 
     poly = program.buildable_polygon
     if poly is None:
-        return exterior_edges(
-            room, program_local_buildable(program), tolerance=tolerance
-        )
+        return _rect_bbox_segments(room, program, tolerance=tolerance)
 
     geom = polygon_to_shapely(poly)
-    # 稍放大容差，避免边界数值抖动把外墙判成「内」
+    boundary = geom.boundary
     probe = max(tolerance, 0.05)
-    edges: dict[str, float] = {}
+    min_len = max(tolerance, 0.05)
+    segs: list[ExteriorWallSegment] = []
 
-    samples: dict[str, list[tuple[float, float]]] = {
-        "north": [
-            (room.left + room.width * t, room.top - probe)
-            for t in (0.25, 0.5, 0.75)
-        ],
-        "south": [
-            (room.left + room.width * t, room.bottom + probe)
-            for t in (0.25, 0.5, 0.75)
-        ],
-        "west": [
-            (room.left - probe, room.top + room.depth * t)
-            for t in (0.25, 0.5, 0.75)
-        ],
-        "east": [
-            (room.right + probe, room.top + room.depth * t)
-            for t in (0.25, 0.5, 0.75)
-        ],
-    }
-    lengths = {
-        "north": room.width,
-        "south": room.width,
-        "west": room.depth,
-        "east": room.depth,
+    outward = {
+        "north": (0.0, -probe),
+        "south": (0.0, probe),
+        "west": (-probe, 0.0),
+        "east": (probe, 0.0),
     }
 
-    for name, pts in samples.items():
-        # 外墙：多数外探点不在可建体内（含洞/凹角）
-        outside = 0
-        for x, y in pts:
-            if not geom.contains(Point(x, y)):
-                outside += 1
-        if outside >= 2:
-            # 还要求墙身本身贴在可建边界附近（避免「整房悬空」误报）
-            if _edge_near_boundary(room, name, geom, tolerance=tolerance):
-                edges[name] = lengths[name]
-    return edges
+    for direction, (dx, dy) in outward.items():
+        wall = _room_side_line(room, direction)
+        hit = wall.intersection(boundary.buffer(tolerance))
+        if hit.is_empty:
+            continue
+        for part in _iter_lines(hit):
+            clipped = _clip_line_to_wall(part, wall)
+            if clipped is None or clipped.length + 1e-9 < min_len:
+                continue
+            mx = (clipped.coords[0][0] + clipped.coords[-1][0]) / 2
+            my = (clipped.coords[0][1] + clipped.coords[-1][1]) / 2
+            # 外探点须在可建体外，排除内部分割
+            if geom.contains(Point(mx + dx, my + dy)):
+                continue
+            x0, y0 = clipped.coords[0]
+            x1, y1 = clipped.coords[-1]
+            segs.append(
+                ExteriorWallSegment(
+                    direction, float(x0), float(y0), float(x1), float(y1)
+                )
+            )
+    return _merge_colinear(segs)
 
 
-def _edge_near_boundary(
-    room: Rect,
-    edge: str,
-    geom,
-    *,
-    tolerance: float,
-) -> bool:
-    """墙线上采样点应落在多边形边界附近（覆盖或贴边）。"""
-    from shapely.geometry import Point
+def _iter_lines(geom):
+    from shapely.geometry import GeometryCollection, LineString, MultiLineString
 
-    if edge == "north":
-        pts = [(room.left + room.width * t, room.top) for t in (0.25, 0.5, 0.75)]
-    elif edge == "south":
-        pts = [(room.left + room.width * t, room.bottom) for t in (0.25, 0.5, 0.75)]
-    elif edge == "west":
-        pts = [(room.left, room.top + room.depth * t) for t in (0.25, 0.5, 0.75)]
-    else:
-        pts = [(room.right, room.top + room.depth * t) for t in (0.25, 0.5, 0.75)]
+    if geom.is_empty:
+        return
+    if isinstance(geom, LineString):
+        if geom.length > 0:
+            yield geom
+        return
+    if isinstance(geom, MultiLineString | GeometryCollection):
+        for g in geom.geoms:
+            yield from _iter_lines(g)
 
-    hit = 0
-    for x, y in pts:
-        p = Point(x, y)
-        if geom.covers(p) or geom.boundary.distance(p) <= tolerance + 1e-6:
-            hit += 1
-    return hit >= 2
+
+def _clip_line_to_wall(part, wall):
+    from shapely.geometry import LineString, Point
+
+    coords = list(part.coords)
+    if len(coords) < 2:
+        return None
+    params = [wall.project(Point(x, y)) for x, y in coords]
+    lo, hi = min(params), max(params)
+    if hi - lo <= 1e-9:
+        return None
+    p0 = wall.interpolate(lo)
+    p1 = wall.interpolate(hi)
+    return LineString([(p0.x, p0.y), (p1.x, p1.y)])
+
+
+def _merge_colinear(segs: list[ExteriorWallSegment]) -> list[ExteriorWallSegment]:
+    if not segs:
+        return []
+    by_dir: dict[str, list[ExteriorWallSegment]] = {}
+    for s in segs:
+        by_dir.setdefault(s.direction, []).append(s)
+
+    merged: list[ExteriorWallSegment] = []
+    for direction, group in by_dir.items():
+        horizontal = direction in ("north", "south")
+        items = sorted(
+            group,
+            key=lambda s: (
+                min(s.x0, s.x1) if horizontal else min(s.y0, s.y1),
+                max(s.x0, s.x1) if horizontal else max(s.y0, s.y1),
+            ),
+        )
+        cur = items[0]
+        for nxt in items[1:]:
+            if horizontal and abs(cur.y0 - nxt.y0) <= 1e-6:
+                a0, a1 = sorted((cur.x0, cur.x1))
+                b0, b1 = sorted((nxt.x0, nxt.x1))
+                if b0 <= a1 + 1e-6:
+                    y = cur.y0
+                    cur = ExteriorWallSegment(
+                        direction, min(a0, b0), y, max(a1, b1), y
+                    )
+                    continue
+            elif (not horizontal) and abs(cur.x0 - nxt.x0) <= 1e-6:
+                a0, a1 = sorted((cur.y0, cur.y1))
+                b0, b1 = sorted((nxt.y0, nxt.y1))
+                if b0 <= a1 + 1e-6:
+                    x = cur.x0
+                    cur = ExteriorWallSegment(
+                        direction, x, min(a0, b0), x, max(a1, b1)
+                    )
+                    continue
+            merged.append(cur)
+            cur = nxt
+        merged.append(cur)
+    return merged
