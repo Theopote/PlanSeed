@@ -274,6 +274,141 @@ class TestEntryStairGate:
         assert any(i.code == "entry_stair_via_private" for i in gate.blockers)
         assert not gate.passed
 
+    def test_entry_stair_safe_public_path_not_blocker(self, stub_realized: None):
+        """存在穿卧室短路径时，若另有公区可达则不记 via_private。"""
+        rooms = [
+            RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=16),
+            RoomSpec(id="bed1", name="主卧", category=RoomCategory.PRIVATE, target_area=14),
+            RoomSpec(id="bed2", name="次卧", category=RoomCategory.PRIVATE, target_area=12),
+        ]
+        floors = [
+            FloorSpec(id="F1", label="一层", room_ids=["living", "bed1"]),
+            FloorSpec(id="F2", label="二层", room_ids=["bed2"]),
+        ]
+        rooms[0].floor_id = "F1"
+        rooms[1].floor_id = "F1"
+        rooms[2].floor_id = "F2"
+        program = DesignProgram(
+            project_id="stair-safe",
+            site=_site(),
+            buildable=_site().buildable_envelope,
+            floors=floors,
+            rooms=rooms,
+            constraints=[],
+            solver_config=SolverConfig(),
+            access_graph=AccessGraph(),
+        )
+        living = _p("living", floor_id="F1", x=0, y=0, w=5, d=6, category="public")
+        bed1 = _p("bed1", floor_id="F1", x=5, y=0, w=4, d=6, category="private")
+        stair1 = RoomPlacement(
+            room_id="stair-F1",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=6, width=2.5, depth=4.2),
+            source=PlacementSource.GENERATED,
+            name="楼梯",
+            category="circulation",
+        )
+        bed2 = _p("bed2", floor_id="F2", x=0, y=0, w=6, d=6, category="private")
+        stair2 = RoomPlacement(
+            room_id="stair-F2",
+            floor_id="F2",
+            rect=PlacementRect(x=0, y=6, width=2.5, depth=4.2),
+            source=PlacementSource.GENERATED,
+            name="楼梯",
+            category="circulation",
+        )
+        cand = LayoutCandidate(
+            id="stair-safe",
+            seed=0,
+            floors=[
+                FloorLayout(floor_id="F1", placements=[living, bed1, stair1]),
+                FloorLayout(floor_id="F2", placements=[bed2, stair2]),
+            ],
+            realized_connections=[
+                _rc("e-l", ENTRY_NODE_ID, "living", ctype=SpaceConnectionType.EXTERIOR_ENTRY),
+                # 短路径：入口→客厅→卧室→楼梯
+                _rc("l-b1", "living", "bed1"),
+                _rc("b1-s", "bed1", "stair-F1"),
+                # 安全路径：入口→客厅→楼梯（稍长或并列）
+                _rc("l-s", "living", "stair-F1"),
+                _rc(
+                    "s-vert",
+                    "stair-F1",
+                    "stair-F2",
+                    ctype=SpaceConnectionType.STAIR,
+                    floor_id="F1",
+                ),
+                _rc("s-b2", "stair-F2", "bed2", floor_id="F2"),
+            ],
+        )
+        gate = evaluate_architectural_gate(program, cand)
+        assert not any(i.code == "entry_stair_via_private" for i in gate.blockers)
+
+    def test_entry_stair_skips_foyer_warning(self, stub_realized: None):
+        rooms = [
+            RoomSpec(id="foyer", name="门厅", category=RoomCategory.PUBLIC, target_area=6),
+            RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=16),
+            RoomSpec(id="bed2", name="次卧", category=RoomCategory.PRIVATE, target_area=12),
+        ]
+        floors = [
+            FloorSpec(id="F1", label="一层", room_ids=["foyer", "living"]),
+            FloorSpec(id="F2", label="二层", room_ids=["bed2"]),
+        ]
+        for r, fl in zip(rooms, ["F1", "F1", "F2"], strict=True):
+            r.floor_id = fl
+        program = DesignProgram(
+            project_id="stair-foyer",
+            site=_site(),
+            buildable=_site().buildable_envelope,
+            floors=floors,
+            rooms=rooms,
+            constraints=[],
+            solver_config=SolverConfig(),
+            access_graph=AccessGraph(),
+        )
+        foyer = _p("foyer", floor_id="F1", x=0, y=0, w=3, d=3, category="public", name="门厅")
+        living = _p("living", floor_id="F1", x=3, y=0, w=5, d=6, category="public")
+        stair1 = RoomPlacement(
+            room_id="stair-F1",
+            floor_id="F1",
+            rect=PlacementRect(x=8, y=0, width=2.5, depth=4.2),
+            source=PlacementSource.GENERATED,
+            name="楼梯",
+            category="circulation",
+        )
+        bed2 = _p("bed2", floor_id="F2", x=0, y=0, w=6, d=6, category="private")
+        stair2 = RoomPlacement(
+            room_id="stair-F2",
+            floor_id="F2",
+            rect=PlacementRect(x=8, y=0, width=2.5, depth=4.2),
+            source=PlacementSource.GENERATED,
+            name="楼梯",
+            category="circulation",
+        )
+        cand = LayoutCandidate(
+            id="skip-foyer",
+            seed=0,
+            floors=[
+                FloorLayout(floor_id="F1", placements=[foyer, living, stair1]),
+                FloorLayout(floor_id="F2", placements=[bed2, stair2]),
+            ],
+            realized_connections=[
+                # 入口直接进客厅，门厅孤立 — 路径不经门厅
+                _rc("e-l", ENTRY_NODE_ID, "living", ctype=SpaceConnectionType.EXTERIOR_ENTRY),
+                _rc("l-s", "living", "stair-F1"),
+                _rc(
+                    "s-vert",
+                    "stair-F1",
+                    "stair-F2",
+                    ctype=SpaceConnectionType.STAIR,
+                    floor_id="F1",
+                ),
+                _rc("s-b2", "stair-F2", "bed2", floor_id="F2"),
+            ],
+        )
+        gate = evaluate_architectural_gate(program, cand)
+        assert any(i.code == "entry_stair_skips_foyer" for i in gate.warnings)
+
 
 class TestGateRanking:
     def test_rank_prefers_gate_pass(self):

@@ -835,7 +835,7 @@ export interface components {
             /**
              * Evaluation Version
              * @description 评价规则签名（packages.schema.identity.EVALUATION_VERSION）；相同几何在不同版本下分数可不同。由 Evaluator 写入。
-             * @default residential-alpha-v1
+             * @default residential-alpha-v2
              */
             evaluation_version: string;
             /**
@@ -1529,8 +1529,8 @@ export interface components {
          *     - mutable_rooms：允许 Guillotine 重新切分的 program 房间
          *     - locked_rooms：显式钉死；为空时 = 全部 program 房间 − mutable_rooms
          *     - affected_neighbors：拓扑邻接、可能受影响的房间（默认可由 solver 推导填充）
-         *     - preserve_topology：为 True 时保留 TopologyPlan 硬语义（v0.2-B 先记录意图）
-         *     - preserve_floor_assignment：为 True 时不改楼层分配
+         *     - preserve_topology：意图标记；当前未作为硬不变量验收（勿在 UI 宣称已保证）
+         *     - preserve_floor_assignment：为 True 时校验锁定房间楼层与 program 一致（硬）
          */
         RegenerationScope: {
             /**
@@ -1550,13 +1550,13 @@ export interface components {
             mutable_rooms: string[];
             /**
              * Preserve Floor Assignment
-             * @description 保留楼层分配
+             * @description 硬校验：锁定房间 floor_id 须与 DesignProgram 楼层分配一致
              * @default true
              */
             preserve_floor_assignment: boolean;
             /**
              * Preserve Topology
-             * @description 保留 TopologyPlan 语义（当前为意图标记，逐步硬化）
+             * @description 拓扑保留意图（尚未硬化为硬不变量；勿对外保证）
              * @default true
              */
             preserve_topology: boolean;
@@ -1809,10 +1809,21 @@ export interface components {
         };
         /** SaveProjectRequest */
         SaveProjectRequest: {
+            /**
+             * Expected Updated At
+             * @description 乐观并发：已有项目时须匹配库中 updated_at；不匹配 → 409
+             */
+            expected_updated_at?: string | null;
             /** Id */
             id?: string | null;
             /** Name */
             name: string;
+            /**
+             * Overwrite
+             * @description 为 True 时忽略 expected_updated_at，强制覆盖
+             * @default false
+             */
+            overwrite: boolean;
             payload: components["schemas"]["ProjectPayload"];
         };
         /**

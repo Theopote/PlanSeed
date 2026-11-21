@@ -141,6 +141,7 @@ function App() {
     solverIdentity: candidate.solverIdentity,
     setSolverIdentity: candidate.setSolverIdentity,
     resolveCanonicalSpec: requirement.resolveCanonicalSpec,
+    invalidateGenerationRequests: candidate.invalidateGenerationRequests,
   });
 
   versionHintBridge.current = project.setVersionHint;

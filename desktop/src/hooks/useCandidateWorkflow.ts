@@ -183,6 +183,11 @@ export function useCandidateWorkflow({
 
   const runSeq = useRef(0);
 
+  /** 项目加载/导入/新建时调用，使进行中的 Generate 结果失效。 */
+  const invalidateGenerationRequests = useCallback(() => {
+    runSeq.current += 1;
+  }, []);
+
   const mergeVariantCandidates = useCallback(
     (
       token: number,
@@ -581,6 +586,7 @@ export function useCandidateWorkflow({
     onSelectRoom,
     onComparePick,
     onSelectCandidate,
+    invalidateGenerationRequests,
     lockCount,
     lockedZoneRoomIds,
   };

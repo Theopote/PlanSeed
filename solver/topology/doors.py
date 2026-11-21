@@ -1000,10 +1000,13 @@ def _ensure_guest_bath_acceptable_openings(
             thr = (
                 min_length
                 if not str(other.room_id).startswith("circ-")
-                else min(min_length, 0.5)
+                else min(min_length, PHYSICAL_MIN_WIDTH)
             )
             bound = shared_boundary_between(gp, other, min_length=thr)
             if bound is None:
+                continue
+            # 过窄开口不补：图论连通 ≠ 建筑可通行
+            if bound.length + 1e-9 < PHYSICAL_MIN_WIDTH:
                 continue
             key = _pair_key(gid, other.room_id)
             if key in local_seen:
@@ -1015,7 +1018,10 @@ def _ensure_guest_bath_acceptable_openings(
         _pref_key, other, bound = options[0]
         key = _pair_key(gid, other.room_id)
         local_seen.add(key)
-        width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
+        width = min(
+            bound.length,
+            max(PHYSICAL_MIN_WIDTH, min(PREFERRED_CLEAR_WIDTH, bound.length)),
+        )
         added.append(
             DoorOpening(
                 id=f"open-guest-{key[0]}-{key[1]}",
@@ -1496,9 +1502,11 @@ def door_clear_width_violations(
 
     viols: list[Violation] = []
     for op in candidate.door_openings:
-        if op.connection_type == SpaceConnectionType.OPEN.value:
-            continue
         clear = op.clear_width if op.clear_width is not None else op.width
+        is_open = op.connection_type == SpaceConnectionType.OPEN.value
+        # OPEN/PASSAGE 也要满足物理最小净宽；过窄不得冒充正常通行
+        if is_open and clear + 1e-9 >= physical_min:
+            continue
         if clear + 1e-9 < physical_min:
             viols.append(
                 Violation(

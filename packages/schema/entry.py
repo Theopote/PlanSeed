@@ -38,7 +38,10 @@ class ExteriorEntryPlacement(BaseModel):
     )
     connected_room_ids: list[str] = Field(
         default_factory=list,
-        description="与入口贴边直接相连的房间（厅/门厅优先，非楼梯）",
+        description=(
+            "入口开口真正落在其外墙上的房间（通常仅 1 个；门厅/客厅优先）。"
+            "同侧其它房间不得仅因贴边获得 EXTERIOR_ENTRY。"
+        ),
     )
 
 

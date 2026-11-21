@@ -183,15 +183,13 @@ def _add_circulation_corridor_passages(
     使 ADR-011 几何修补切出的 circ-* 真正进入 RealizedAccessGraph，
     卧室可经走廊到达，而非被迫穿其他卧室。
 
-    共边门槛默认 ``MIN_CORRIDOR_SLIVER_SHORT``（0.5m），低于门洞的
-    ``MIN_ACCESS_WALL``（0.9m）：走廊贴边常为短边，过严会导致客卫/卧室
-    几何上贴廊却图论上仍只能经私密互穿（B12 Gate 失败模式）。
+    共边门槛默认取物理可通行下限（``PHYSICAL_MIN_WIDTH`` 0.7m）：
+    短于该值的贴边只表示几何残余，不得记为建筑可用 PASSAGE。
+    仍低于门洞 ``MIN_ACCESS_WALL``（0.9m），以免走廊短边全部丢失。
     """
-    from solver.topology.doors import shared_boundary_between
+    from solver.topology.doors import PHYSICAL_MIN_WIDTH, shared_boundary_between
 
-    edge_min = (
-        MIN_CORRIDOR_SLIVER_SHORT if min_length is None else min_length
-    )
+    edge_min = PHYSICAL_MIN_WIDTH if min_length is None else min_length
     program_ids = {r.id for r in program.rooms}
     out: list[RealizedConnection] = []
     seen: set[tuple[str, str]] = set()
@@ -245,10 +243,12 @@ def build_realized_connections(
         entry = resolve_exterior_entry(program, candidate)
         candidate.exterior_entry = entry
 
+    # 入口只连一个物理落位房间；connected_room_ids 已按优先级排序
     targets = list(entry.connected_room_ids)
     non_stair = [r for r in targets if not str(r).startswith("stair-")]
     use = non_stair if non_stair else targets
-    for rid in use:
+    if use:
+        rid = use[0]
         realized.append(
             RealizedConnection(
                 connection_id=f"ext-entry-{rid}",

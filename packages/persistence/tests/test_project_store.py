@@ -92,6 +92,52 @@ def test_project_store_optimistic_conflict(tmp_path: Path):
     assert forced["name"] == "forced"
 
 
+def test_project_store_concurrent_expected_updated_at(tmp_path: Path):
+    """两连接同时持有同一 expected_updated_at 时，至多一人写入成功。"""
+    import threading
+    from packages.persistence import ProjectConflictError
+
+    db = tmp_path / "concurrent.db"
+    store = ProjectStore(db_path=db)
+    first = store.save(name="base", payload={"form": {"n": 0}})
+    stamp = first["updated_at"]
+    pid = first["id"]
+
+    results: list[str] = []
+    lock = threading.Lock()
+    barrier = threading.Barrier(2)
+
+    def _worker(tag: str) -> None:
+        local = ProjectStore(db_path=db)
+        barrier.wait(timeout=5)
+        try:
+            local.save(
+                name=tag,
+                payload={"form": {"tag": tag}},
+                project_id=pid,
+                expected_updated_at=stamp,
+            )
+            with lock:
+                results.append(f"ok:{tag}")
+        except ProjectConflictError:
+            with lock:
+                results.append(f"conflict:{tag}")
+
+    t1 = threading.Thread(target=_worker, args=("A",))
+    t2 = threading.Thread(target=_worker, args=("B",))
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+    oks = [r for r in results if r.startswith("ok:")]
+    conflicts = [r for r in results if r.startswith("conflict:")]
+    assert len(oks) == 1, results
+    assert len(conflicts) == 1, results
+    loaded = store.get(pid)
+    assert loaded is not None
+    assert loaded["payload"]["form"]["tag"] in {"A", "B"}
+
+
 def _write_legacy_v0_db(path: Path, *, project_id: str, name: str, payload: dict) -> None:
     """模拟 Phase 5 时代库：有 projects 表、无 PRAGMA user_version（=0）。"""
     path.parent.mkdir(parents=True, exist_ok=True)

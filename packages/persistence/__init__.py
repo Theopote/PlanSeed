@@ -121,7 +121,12 @@ class ProjectStore:
         pid = project_id or str(uuid.uuid4())
         now = datetime.now(UTC).isoformat()
         blob = json.dumps(payload, ensure_ascii=False)
-        with self._connect() as conn:
+        conn = self._connect()
+        # 手动事务 + IMMEDIATE 写锁：版本检查与写入不可被其它连接插入
+        prev_isolation = conn.isolation_level
+        try:
+            conn.isolation_level = None
+            conn.execute("BEGIN IMMEDIATE")
             existing = conn.execute(
                 "SELECT updated_at FROM projects WHERE id = ?",
                 (pid,),
@@ -135,24 +140,57 @@ class ProjectStore:
             ):
                 current = str(existing["updated_at"])
                 if expected_updated_at != current:
+                    conn.execute("ROLLBACK")
                     raise ProjectConflictError(
                         "项目已被其它会话更新，拒绝覆盖",
                         project_id=pid,
                         current_updated_at=current,
                         expected_updated_at=expected_updated_at,
                     )
-            conn.execute(
-                """
-                INSERT INTO projects (id, name, updated_at, payload_json)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    name = excluded.name,
-                    updated_at = excluded.updated_at,
-                    payload_json = excluded.payload_json
-                """,
-                (pid, name, now, blob),
-            )
-            conn.commit()
+                cur = conn.execute(
+                    """
+                    UPDATE projects
+                    SET name = ?, updated_at = ?, payload_json = ?
+                    WHERE id = ? AND updated_at = ?
+                    """,
+                    (name, now, blob, pid, expected_updated_at),
+                )
+                if cur.rowcount != 1:
+                    row = conn.execute(
+                        "SELECT updated_at FROM projects WHERE id = ?",
+                        (pid,),
+                    ).fetchone()
+                    conn.execute("ROLLBACK")
+                    raise ProjectConflictError(
+                        "项目已被其它会话更新，拒绝覆盖",
+                        project_id=pid,
+                        current_updated_at=str(row["updated_at"]) if row else "",
+                        expected_updated_at=expected_updated_at,
+                    )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO projects (id, name, updated_at, payload_json)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name = excluded.name,
+                        updated_at = excluded.updated_at,
+                        payload_json = excluded.payload_json
+                    """,
+                    (pid, name, now, blob),
+                )
+            conn.execute("COMMIT")
+        except ProjectConflictError:
+            raise
+        except Exception:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise
+        finally:
+            conn.isolation_level = prev_isolation
+            conn.close()
         return {"id": pid, "name": name, "updated_at": now, "payload": payload}
 
     def delete(self, project_id: str) -> bool:

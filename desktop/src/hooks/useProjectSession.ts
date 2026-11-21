@@ -51,6 +51,8 @@ export type UseProjectSessionArgs = {
   solverIdentity: SolverIdentity | null;
   setSolverIdentity: Dispatch<SetStateAction<SolverIdentity | null>>;
   resolveCanonicalSpec: () => RequirementSpecPayload | null;
+  /** 切换项目时使进行中的 Generate 失效 */
+  invalidateGenerationRequests?: () => void;
 };
 
 export function useProjectSession({
@@ -77,6 +79,7 @@ export function useProjectSession({
   solverIdentity,
   setSolverIdentity,
   resolveCanonicalSpec,
+  invalidateGenerationRequests,
 }: UseProjectSessionArgs) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("未命名项目");
@@ -91,6 +94,7 @@ export function useProjectSession({
 
   const applyProjectDetail = useCallback(
     (detail: ProjectDetail) => {
+      invalidateGenerationRequests?.();
       const p = detail.payload;
       setProjectId(detail.id);
       setProjectName(detail.name);
@@ -173,6 +177,7 @@ export function useProjectSession({
       setRejectedCandidates,
       setViolationSummary,
       setSolverIdentity,
+      invalidateGenerationRequests,
     ],
   );
 

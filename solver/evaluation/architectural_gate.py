@@ -96,15 +96,25 @@ def _adj(graph) -> dict[str, set[str]]:
     return out
 
 
-def _bfs_path(adj: dict[str, set[str]], start: str, goal: str) -> list[str]:
+def _bfs_path(
+    adj: dict[str, set[str]],
+    start: str,
+    goal: str,
+    *,
+    avoid: set[str] | None = None,
+) -> list[str]:
+    """最短路径；``avoid`` 中的节点不可进入（起终点除外）。"""
     if start == goal:
         return [start]
+    blocked = set(avoid or ())
     q: deque[tuple[str, list[str]]] = deque([(start, [start])])
     seen = {start}
     while q:
         cur, path = q.popleft()
         for nb in sorted(adj.get(cur, ())):
             if nb in seen:
+                continue
+            if nb in blocked and nb != goal:
                 continue
             nxt = path + [nb]
             if nb == goal:
@@ -257,20 +267,31 @@ def _stair_ids(candidate: LayoutCandidate) -> list[str]:
 def _check_entry_stair(
     program: DesignProgram, candidate: LayoutCandidate, graph
 ) -> list[GateIssue]:
-    """多层时：入口到楼梯不得主要依赖穿越卧室。"""
+    """多层时：入口到楼梯不得只能靠穿越卧室；有门厅时应经过门厅。"""
     if len(candidate.floors) < 2:
         return []
     stairs = _stair_ids(candidate)
     if not stairs:
         return []
     adj = _adj(graph)
-    # 任一层楼梯核与入口连通即可；取最短可到达楼梯
-    best: list[str] = []
+    private_ids = {
+        n
+        for n in adj
+        if _is_private_room(program, n)
+    }
+
+    # 优先：不穿私密房间的可达路径；否则退回任意最短路径
+    best_safe: list[str] = []
+    best_any: list[str] = []
     for sid in stairs:
-        path = _bfs_path(adj, ENTRY_NODE_ID, sid)
-        if path and (not best or len(path) < len(best)):
-            best = path
-    if not best:
+        safe = _bfs_path(adj, ENTRY_NODE_ID, sid, avoid=private_ids)
+        if safe and (not best_safe or len(safe) < len(best_safe)):
+            best_safe = safe
+        any_path = _bfs_path(adj, ENTRY_NODE_ID, sid)
+        if any_path and (not best_any or len(any_path) < len(best_any)):
+            best_any = any_path
+
+    if not best_any:
         return [
             GateIssue(
                 code="stair_unreachable",
@@ -282,33 +303,33 @@ def _check_entry_stair(
             )
         ]
 
-    private_on_path = [
-        n for n in best[1:-1] if _is_private_room(program, n)
-    ]
-    if private_on_path:
-        mid = private_on_path[0]
+    if not best_safe:
+        private_on_path = [
+            n for n in best_any[1:-1] if _is_private_room(program, n)
+        ]
+        mid = private_on_path[0] if private_on_path else best_any[1]
         return [
             GateIssue(
                 code="entry_stair_via_private",
                 level=GateLevel.BLOCKER,
                 title="入户到楼梯需穿卧室",
                 message=(
-                    f"从主入口到楼梯的路径需要穿过「{_name(program, mid)}」"
-                    f"（{' → '.join(_name(program, n) for n in best)}），"
-                    "入口—门厅—楼梯组织不合理。"
+                    f"从主入口到楼梯不存在避开私密房间的路径，"
+                    f"最短路线穿过「{_name(program, mid)}」"
+                    f"（{' → '.join(_name(program, n) for n in best_any)}）。"
                 ),
                 room_ids=[mid, *stairs[:2]],
                 recommended_action="将楼梯贴邻门厅或公共厅，避免经卧室上楼。",
-                measured_value=float(len(private_on_path)),
+                measured_value=float(len(private_on_path) or 1),
             )
         ]
 
+    best = best_safe
     foyers = [r for r in program.rooms if is_foyer(r)]
     if foyers:
         foyer_ids = {r.id for r in foyers}
-        public_nodes = [n for n in best if _is_publicish(program, n)]
-        if not (foyer_ids & set(best)) and len(public_nodes) <= 1:
-            # 有门厅但路径几乎不经公区（仅入口→楼梯）
+        # 有门厅却不在入口→楼梯路径上 → warning（不再用不可达的 public_nodes<=1）
+        if not (foyer_ids & set(best)):
             return [
                 GateIssue(
                     code="entry_stair_skips_foyer",
