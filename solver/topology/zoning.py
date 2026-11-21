@@ -11,6 +11,7 @@ import random
 
 from packages.schema.layout import PlacementRect, WetStack
 from packages.schema.room import RoomCategory, RoomSpec
+from packages.schema.site import CardinalEdge
 from packages.schema.zoning import (
     ArchitecturalZone,
     BuildingZonePlan,
@@ -23,6 +24,7 @@ from packages.schema.zoning import (
 from solver.geometry.rect import Rect
 from solver.geometry.snap import snap_value
 from solver.semantics.roles import (
+    is_foyer,
     is_garage,
     is_guest_bath,
     is_kitchen,
@@ -128,6 +130,7 @@ class ZonePlanner:
         snap_module: float = 0.3,
         rng: random.Random | None = None,
         floor_id: str = "_shared",
+        entry_model_edge: CardinalEdge | None = None,
     ) -> list[ZoneGeometry]:
         rng = rng or random.Random(0)
         groups = [g for g in self.group_rooms(rooms) if g.room_ids]
@@ -138,9 +141,25 @@ class ZonePlanner:
 
         if len(free_rects) == 1 and len(groups) > 1:
             return self._split_rect_into_zones(
-                floor_id, free_rects[0], groups, snap_module, rng
+                floor_id,
+                free_rects[0],
+                groups,
+                snap_module,
+                rng,
+                rooms=rooms,
+                entry_model_edge=entry_model_edge,
             )
-        return self._assign_rects_to_zones(floor_id, free_rects, groups)
+        # 多块 free：先按面积排序，再把贴入口边的碎块优先给 DAY
+        groups = _order_groups_for_entry(
+            groups, rooms, entry_model_edge=entry_model_edge
+        )
+        return self._assign_rects_to_zones(
+            floor_id,
+            free_rects,
+            groups,
+            rooms=rooms,
+            entry_model_edge=entry_model_edge,
+        )
 
     def plan_floor(
         self,
@@ -170,6 +189,8 @@ class ZonePlanner:
         rng: random.Random | None = None,
         max_wet_stacks: int = 1,
         free_rects_by_floor: dict[str, list[Rect]] | None = None,
+        entry_model_edge: CardinalEdge | None = None,
+        ground_floor_id: str | None = None,
     ) -> BuildingZonePlan:
         """
         各层按功能区打包（空区回收）；整栋 WetStack 作技术对齐参考。
@@ -179,10 +200,12 @@ class ZonePlanner:
 
         free_rects：跨层共享空间（通常只扣 StairCore），供 WetStack 锚点。
         free_rects_by_floor：按层 free space（扣本层 room/zone lock）；缺省回退到 free_rects。
+        entry_model_edge：仅对 ground_floor 生效，把 DAY/门厅区贴到入口边。
         """
         rng = rng or random.Random(0)
         all_rooms = [r for _, rooms in floors for r in rooms]
         floor_ids = [fid for fid, _ in floors]
+        ground = ground_floor_id or (floor_ids[0] if floor_ids else None)
 
         wet_stacks = self._build_wet_stacks(
             free_rects,
@@ -200,12 +223,14 @@ class ZonePlanner:
                 if free_rects_by_floor is not None
                 else free_rects
             )
+            edge = entry_model_edge if floor_id == ground else None
             zones = self.plan_geometry(
                 rooms=rooms,
                 free_rects=floor_free,
                 snap_module=snap_module,
                 rng=rng,
                 floor_id=floor_id,
+                entry_model_edge=edge,
             )
             floor_plans[floor_id] = FloorZonePlan(floor_id=floor_id, zones=zones)
         return BuildingZonePlan(floors=floor_plans, wet_stacks=wet_stacks)
@@ -339,26 +364,63 @@ class ZonePlanner:
         groups: list[ZoneRoomGroup],
         module: float,
         rng: random.Random,
+        *,
+        rooms: list[RoomSpec] | None = None,
+        entry_model_edge: CardinalEdge | None = None,
     ) -> list[ZoneGeometry]:
         total = sum(g.target_area for g in groups) or 1.0
+        by_id = {r.id: r for r in (rooms or [])}
+        has_foyer = any(_group_has_foyer(g, by_id) for g in groups)
+
+        # 有门厅时优先沿入口法向切开；无门厅保持短边启发式（避免 valid 回退）
         horizontal = rect.width >= rect.depth
         if abs(rect.width - rect.depth) < 1e-6:
             horizontal = rng.random() < 0.5
+        if has_foyer and entry_model_edge is not None:
+            min_span = module * 4
+            if (
+                entry_model_edge in (CardinalEdge.WEST, CardinalEdge.EAST)
+                and rect.width >= min_span
+            ):
+                horizontal = True
+            elif (
+                entry_model_edge in (CardinalEdge.NORTH, CardinalEdge.SOUTH)
+                and rect.depth >= min_span
+            ):
+                horizontal = False
+
+        axis_aligned = (
+            (horizontal and entry_model_edge in (CardinalEdge.WEST, CardinalEdge.EAST))
+            or (
+                (not horizontal)
+                and entry_model_edge in (CardinalEdge.NORTH, CardinalEdge.SOUTH)
+            )
+        )
+        ordered = (
+            _order_groups_for_entry(
+                groups, rooms or [], entry_model_edge=entry_model_edge
+            )
+            if axis_aligned
+            else list(groups)
+        )
 
         cursor = rect.x if horizontal else rect.y
         end = rect.right if horizontal else rect.bottom
         span = end - cursor
         geometries: list[ZoneGeometry] = []
 
-        for i, group in enumerate(groups):
-            if i == len(groups) - 1:
+        for i, group in enumerate(ordered):
+            if i == len(ordered) - 1:
                 cut = end
             else:
                 frac = group.target_area / total
                 raw = cursor + span * frac
                 cut = snap_value(raw, module)
                 min_span = module * 2
-                cut = max(cursor + min_span, min(end - min_span * (len(groups) - i - 1), cut))
+                cut = max(
+                    cursor + min_span,
+                    min(end - min_span * (len(ordered) - i - 1), cut),
+                )
 
             if horizontal:
                 zr = PlacementRect(
@@ -385,6 +447,9 @@ class ZonePlanner:
         floor_id: str,
         free_rects: list[Rect],
         groups: list[ZoneRoomGroup],
+        *,
+        rooms: list[RoomSpec] | None = None,
+        entry_model_edge: CardinalEdge | None = None,
     ) -> list[ZoneGeometry]:
         """把 stair 切分后的多块 free rect 按目标面积缺口分给各功能区。"""
         geometries: list[ZoneGeometry] = []
@@ -394,12 +459,30 @@ class ZonePlanner:
         rects = sorted(free_rects, key=lambda r: r.area, reverse=True)
         remaining_need = {g.zone: g.target_area for g in groups}
         buckets: dict[ArchitecturalZone, list[Rect]] = {g.zone: [] for g in groups}
+        by_id = {r.id: r for r in (rooms or [])}
+        foyer_zone = next(
+            (g.zone for g in groups if _group_has_foyer(g, by_id)),
+            None,
+        )
 
         for rect in rects:
-            best = max(groups, key=lambda g: remaining_need.get(g.zone, 0.0))
-            buckets[best.zone].append(rect)
-            remaining_need[best.zone] = max(
-                0.0, remaining_need[best.zone] - rect.area
+            need = remaining_need.get(foyer_zone, 0.0) if foyer_zone else 0.0
+            # 仅把「面积不太离谱」的贴边碎块给门厅组，避免整块大区饿死 SERVICE
+            edge_ok = (
+                entry_model_edge is not None
+                and foyer_zone is not None
+                and need > 1e-9
+                and rect.area <= max(need * 3.0, 24.0)
+                and _rect_touches_edge(rect, entry_model_edge, free_rects)
+            )
+            if edge_ok:
+                best_zone = foyer_zone
+            else:
+                best = max(groups, key=lambda g: remaining_need.get(g.zone, 0.0))
+                best_zone = best.zone
+            buckets[best_zone].append(rect)
+            remaining_need[best_zone] = max(
+                0.0, remaining_need[best_zone] - rect.area
             )
 
         for group in groups:
@@ -422,3 +505,63 @@ def rooms_for_zone(
 ) -> list[RoomSpec]:
     id_set = set(zone_geom.room_ids)
     return [r for r in rooms if r.id in id_set]
+
+
+def _group_has_foyer(
+    group: ZoneRoomGroup, rooms_by_id: dict[str, RoomSpec]
+) -> bool:
+    """仅门厅触发入口区重排；客厅过大，挪 DAY 会打崩 valid。"""
+    for rid in group.room_ids:
+        room = rooms_by_id.get(rid)
+        if room is not None and is_foyer(room):
+            return True
+    return False
+
+
+def _order_groups_for_entry(
+    groups: list[ZoneRoomGroup],
+    rooms: list[RoomSpec],
+    *,
+    entry_model_edge: CardinalEdge | None,
+) -> list[ZoneRoomGroup]:
+    """
+    有门厅时：入口低坐标侧（W/N）把门厅所在组放到切分前端；
+    高坐标侧（E/S）放到后端。无门厅则保持面积序。
+    """
+    if entry_model_edge is None or len(groups) < 2:
+        return groups
+    by_id = {r.id: r for r in rooms}
+    foyer_groups = [g for g in groups if _group_has_foyer(g, by_id)]
+    if not foyer_groups:
+        return groups
+    prefer = min(foyer_groups, key=lambda g: (g.target_area, g.zone.value))
+    rest = [g for g in groups if g is not prefer]
+    if entry_model_edge in (CardinalEdge.WEST, CardinalEdge.NORTH):
+        return [prefer, *rest]
+    if entry_model_edge in (CardinalEdge.EAST, CardinalEdge.SOUTH):
+        return [*rest, prefer]
+    return groups
+
+
+def _rect_touches_edge(
+    rect: Rect,
+    edge: CardinalEdge,
+    all_rects: list[Rect],
+) -> bool:
+    """相对本层 free 包络判断是否贴入口边。"""
+    if not all_rects:
+        return False
+    min_x = min(r.x for r in all_rects)
+    max_x = max(r.right for r in all_rects)
+    min_y = min(r.y for r in all_rects)
+    max_y = max(r.bottom for r in all_rects)
+    eps = 1e-6
+    if edge == CardinalEdge.WEST:
+        return abs(rect.left - min_x) <= eps
+    if edge == CardinalEdge.EAST:
+        return abs(rect.right - max_x) <= eps
+    if edge == CardinalEdge.NORTH:
+        return abs(rect.top - min_y) <= eps
+    if edge == CardinalEdge.SOUTH:
+        return abs(rect.bottom - max_y) <= eps
+    return False

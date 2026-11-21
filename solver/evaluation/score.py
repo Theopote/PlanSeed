@@ -9,6 +9,7 @@ from packages.schema.identity import (
 )
 from packages.schema.layout import LayoutCandidate
 from packages.schema.program import DesignProgram
+from packages.schema.room import RoomCategory
 from packages.schema.provenance import (
     merge_solver_provenance,
     provenance_to_metrics,
@@ -148,6 +149,17 @@ class CompositeEvaluator:
         sliver_n = sum(1 for w in gate.warnings if w.code == "sliver_room")
         if sliver_n:
             total = max(0.0, total - min(4.0, 1.5 * sliver_n))
+        foyer_skip = sum(
+            1 for w in gate.warnings if w.code == "entry_stair_skips_foyer"
+        )
+        if foyer_skip:
+            total = max(0.0, total - 3.0)
+        # 主入口未进公区：与 circulation.entry_not_public 对齐，拉开可推荐差距
+        entry = candidate.exterior_entry
+        if entry is not None and entry.connected_room_ids:
+            er = program.room_by_id(entry.connected_room_ids[0])
+            if er is not None and er.category != RoomCategory.PUBLIC:
+                total = max(0.0, total - 4.0)
 
         if float(adj_m.get("required_adjacency_satisfaction", 1.0)) < 1.0:
             findings.append(

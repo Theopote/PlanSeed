@@ -114,6 +114,11 @@ uv run python -m solver.benchmark.design_acceptance \
 产物：`debug/.../grades-agent-draft.json`、`auto_rerun_for_ab_graded_draft.json`。  
 **不得**当作建筑师 baseline；人工复核后替换 `reviewer` 再入库 `docs/baselines/`。
 
+### 入口公区偏置（2026-11-21）
+
+B04 P0「入口未进公区」：门厅 capped 放置偏好贴入口边 + 有门厅时 Zone 沿入口法向偏置 + 几何修补后重解析 ExteriorEntry。  
+n=32 自动 valid 与首跑同量级（B04 **0.625**）；入口连门厅率显著上升（抽样约半数以上），不替代人工 ab_rate。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。

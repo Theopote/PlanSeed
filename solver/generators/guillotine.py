@@ -20,17 +20,21 @@ from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 from packages.schema.provenance import build_solver_provenance, provenance_to_metrics
 from packages.schema.room import RoomSpec
+from packages.schema.site import CardinalEdge, CardinalOrientation
 from packages.schema.topology import TopologyPlan
 from packages.schema.vertical_void import VerticalVoidPlacement
 from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometry
 
+from solver.circulation.exterior_entry import resolve_entry_edge
 from solver.circulation.stair_core import CorePlacementFailure
 from solver.evaluation.weights import DEFAULT_WEIGHTS
+from solver.semantics.roles import is_foyer
 from solver.generators.wet_anchor import (
     anchor_floor_id,
     collect_wet_anchor_rects,
     preplace_wet_anchored_rooms,
 )
+from solver.geometry.site_coords import SiteCoordinateSystem
 from solver.geometry.buildable import program_pack_rects
 from solver.geometry.coverage import (
     LAYOUT_ABSORB_TOLERANCE,
@@ -286,6 +290,27 @@ def _capped_placement_candidates(
     return out or [_placement_rect_area_capped(x0, y0, x1, y1, max_area)]
 
 
+def _placement_touches_edge(
+    cand: PlacementRect,
+    edge: CardinalEdge,
+    *,
+    pack_x0: float,
+    pack_y0: float,
+    pack_x1: float,
+    pack_y1: float,
+    eps: float = 1e-6,
+) -> bool:
+    if edge == CardinalEdge.WEST:
+        return abs(cand.x - pack_x0) <= eps
+    if edge == CardinalEdge.EAST:
+        return abs(cand.x + cand.width - pack_x1) <= eps
+    if edge == CardinalEdge.NORTH:
+        return abs(cand.y - pack_y0) <= eps
+    if edge == CardinalEdge.SOUTH:
+        return abs(cand.y + cand.depth - pack_y1) <= eps
+    return False
+
+
 def _best_capped_placement(
     x0: float,
     y0: float,
@@ -293,6 +318,9 @@ def _best_capped_placement(
     y1: float,
     max_area: float,
     neighbor_rects: list[Rect],
+    *,
+    prefer_edge: CardinalEdge | None = None,
+    footprint_edge: tuple[float, float, float, float] | None = None,
 ) -> PlacementRect:
     """选择使剩余碎片与同层其它房间邻接边最大的 capped 放置。"""
     full = Rect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
@@ -301,6 +329,8 @@ def _best_capped_placement(
     candidates = _capped_placement_candidates(x0, y0, x1, y1, max_area)
     compliant = [c for c in candidates if _placement_aspect_ok(c)]
     pool = compliant if compliant else candidates
+    # 贴边判定相对整层 footprint（入口边），缺省退化为 pack 区
+    fx0, fy0, fx1, fy1 = footprint_edge or (x0, y0, x1, y1)
     for cand in pool:
         capped = Rect(x=cand.x, y=cand.y, width=cand.width, depth=cand.depth)
         leftovers = subtract_rects([full], [capped])
@@ -308,6 +338,10 @@ def _best_capped_placement(
         for piece in leftovers:
             for neighbor in neighbor_rects:
                 score += shared_edge_length(piece, neighbor)
+        if prefer_edge is not None and _placement_touches_edge(
+            cand, prefer_edge, pack_x0=fx0, pack_y0=fy0, pack_x1=fx1, pack_y1=fy1
+        ):
+            score += 1_000.0
         if score > best_score:
             best_score = score
             best = cand
@@ -532,6 +566,18 @@ class GuillotineGenerator:
         free_rects_by_floor = {
             floor.id: _free_on_floor(floor.id) for floor in program.floors
         }
+        world_entry = resolve_entry_edge(program)
+        world_o = CardinalOrientation(
+            world_entry.value
+            if isinstance(world_entry, CardinalEdge)
+            else str(world_entry).lower()
+        )
+        model_names = SiteCoordinateSystem.from_site(program.site).model_edges_facing(
+            world_o
+        )
+        entry_model_edge = (
+            CardinalEdge(sorted(model_names)[0]) if model_names else None
+        )
         building_zones = self._zone_planner.plan_building(
             floors=floor_room_lists,
             free_rects=shared_free,
@@ -539,6 +585,8 @@ class GuillotineGenerator:
             snap_module=module,
             rng=rng,
             max_wet_stacks=program.solver_config.max_wet_stacks,
+            entry_model_edge=entry_model_edge,
+            ground_floor_id=program.floors[0].id if program.floors else None,
         )
         if locks.zones:
             self._inject_locked_zones(program, locks, building_zones)
@@ -559,6 +607,7 @@ class GuillotineGenerator:
             zone_plan = building_zones.floors.get(
                 floor.id, FloorZonePlan(floor_id=floor.id, zones=[])
             )
+            is_ground = floor.id == program.floors[0].id
             layout = self._layout_floor_with_zones(
                 floor=floor,
                 floor_rooms=floor_rooms,
@@ -575,6 +624,7 @@ class GuillotineGenerator:
                 wet_anchors=wet_anchors,
                 atrium_voids=atrium_voids_by_floor.get(floor.id, []),
                 prededuction_obstacles=prededuction.holes_by_floor.get(floor.id, []),
+                entry_model_edge=entry_model_edge if is_ground else None,
             )
             # 合并锁定房间放置
             locked_on_floor = locks.rooms_on_floor(floor.id)
@@ -691,6 +741,8 @@ class GuillotineGenerator:
             protected_room_ids=protected,
             zone_envelopes=zone_envelopes,
         )
+        # 几何修补后再解析入口，避免走廊回收后仍绑定旧 connected_room_ids
+        candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         place_door_openings(program, candidate)
         place_window_openings(program, candidate)
         build_realized_connections(program, candidate)
@@ -782,12 +834,15 @@ class GuillotineGenerator:
         wet_anchors: dict[str, Rect] | None = None,
         atrium_voids: list[VerticalVoidPlacement] | None = None,
         prededuction_obstacles: list[Rect] | None = None,
+        entry_model_edge: CardinalEdge | None = None,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
         }
         self._current_layout_rooms = layout_rooms
         self._floor_pack_leftovers = []
+        self._entry_model_edge = entry_model_edge
+        self._footprint_bounds = (0.0, 0.0, floor_width, floor_depth)
 
         footprint_bbox = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
         fixed_obstacles = list(prededuction_obstacles or [])
@@ -1101,8 +1156,20 @@ class GuillotineGenerator:
                     for other in self._current_layout_rooms.values()
                     if other.rect is not None and other.spec.id != lr.spec.id
                 ]
+                prefer = (
+                    getattr(self, "_entry_model_edge", None)
+                    if is_foyer(lr.spec)
+                    else None
+                )
                 capped = _best_capped_placement(
-                    x0, y0, x1, y1, max_a, neighbor_rects
+                    x0,
+                    y0,
+                    x1,
+                    y1,
+                    max_a,
+                    neighbor_rects,
+                    prefer_edge=prefer,
+                    footprint_edge=getattr(self, "_footprint_bounds", None),
                 )
                 lr.rect = capped
                 full = Rect(x=x0, y=y0, width=cw, depth=ch)
