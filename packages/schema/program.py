@@ -77,6 +77,16 @@ class SolverConfig(BaseModel):
         le=1.0,
         description="修补累计 |Δarea| / 程序总面积上限；超出 → hard",
     )
+    score_weight_overrides: dict[str, float] = Field(
+        default_factory=dict,
+        description="七轴 ScoreWeights 字段覆盖（如 privacy=1.25）；TopologyStrategy 写入",
+    )
+    corridor_penalty: float = Field(
+        default=1.0,
+        ge=0.5,
+        le=2.0,
+        description=">1 提高 circulation 轴权重（抑制走廊）；<1 放宽",
+    )
 
 
 class DesignProgram(BaseModel):

@@ -161,6 +161,10 @@ class CandidatePayload(BaseModel):
         default=None,
         description="Phase 5：生成时 locks 指纹",
     )
+    requirement_revision_id: str | None = Field(
+        default=None,
+        description="生成时 RequirementSpec 内容指纹；跨版本比较时须提示不可直接比分",
+    )
     revision_status: RevisionStatus = Field(
         default="generated",
         description="Phase 5.1：generated | dirty | validated",

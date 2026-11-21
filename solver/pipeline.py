@@ -10,7 +10,6 @@ from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
 
 from solver.constraints.checker_impl import DefaultConstraintChecker
-from solver.evaluation.score import CompositeEvaluator
 from solver.generators.base import LayoutGenerator
 from solver.generators.guillotine import GuillotineGenerator
 from solver.optimization.rank import rank_candidates
@@ -118,7 +117,9 @@ def run_pipeline(
     else:
         gens = _generators_from_config(program.solver_config)
     checker = DefaultConstraintChecker()
-    evaluator = CompositeEvaluator()
+    from solver.evaluation.strategy_weights import evaluator_for_program
+
+    evaluator = evaluator_for_program(program)
 
     from solver.evaluation.findings import findings_to_explanations, findings_to_warnings
     from solver.program.normalize import check_program_footprint_fit

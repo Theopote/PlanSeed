@@ -16,6 +16,7 @@ from packages.schema.provenance import (
     DEFAULT_GENERATOR_STRATEGY,
     DEFAULT_GEOMETRY_BACKEND,
 )
+from packages.schema.requirement_fingerprint import requirement_revision_id
 from solver.visualize.svg import render_candidate_svg, render_floor_svg
 
 from backend.schemas.api import (
@@ -77,6 +78,8 @@ def serialize_candidate(
     program: DesignProgram,
     cand: LayoutCandidate,
     index: int,
+    *,
+    requirement_spec=None,
 ) -> CandidatePayload:
     labels = {fl.id: fl.label or fl.id for fl in program.floors}
     targets = {r.id: r.target_area for r in program.rooms}
@@ -118,6 +121,10 @@ def serialize_candidate(
             ],
             "warnings": list(cand.validation.warnings),
         }
+    req_rev = requirement_revision_id(requirement_spec)
+    if req_rev is None:
+        raw = cand.metrics.get("requirement_revision_id")
+        req_rev = str(raw) if raw else None
     return CandidatePayload(
         id=cand.id,
         seed=cand.seed,
@@ -132,6 +139,7 @@ def serialize_candidate(
         variant_parent_id=cand.variant_parent_id,
         variant_generation=cand.variant_generation,
         lock_snapshot_id=cand.lock_snapshot_id,
+        requirement_revision_id=req_rev,
         revision_status="generated",
         revision_id=make_revision_id(cand.id, kind="gen"),
         mutations=[],

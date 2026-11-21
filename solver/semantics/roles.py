@@ -175,6 +175,34 @@ def is_master_bedroom(room: RoomSpec, *, allow_name_fallback: bool = True) -> bo
     return "主卧" in room.name
 
 
+def is_bedroom_like(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
+    """主卧 + 次卧等私人卧室（不含卫）。"""
+    if is_master_bedroom(room, allow_name_fallback=allow_name_fallback):
+        return True
+    if has_any_tag(room, TAG_BEDROOM):
+        return True
+    cat = room.category.value if hasattr(room.category, "value") else str(room.category)
+    if cat == "private" and "卫" not in (room.name or ""):
+        return True
+    if not allow_name_fallback:
+        return False
+    return "卧" in (room.name or "")
+
+
+def is_secondary_bedroom(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
+    """次卧：卧室类且非主卧。"""
+    if is_master_bedroom(room, allow_name_fallback=allow_name_fallback):
+        return False
+    if has_any_tag(room, TAG_BEDROOM) and not has_any_tag(room, TAG_MASTER, TAG_MASTER_BEDROOM):
+        return True
+    if not allow_name_fallback:
+        return False
+    name = room.name or ""
+    if "主卧" in name:
+        return False
+    return "次卧" in name or ("卧" in name and "卫" not in name)
+
+
 def is_master_bath(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
     if has_role(room, SemanticRole.MASTER_BATHROOM):
         return True

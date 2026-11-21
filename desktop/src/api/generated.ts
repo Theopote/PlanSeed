@@ -685,6 +685,11 @@ export interface components {
             placements?: components["schemas"]["RoomPlacementPayload"][];
             provenance?: components["schemas"]["CandidateProvenance"] | null;
             /**
+             * Requirement Revision Id
+             * @description 生成时 RequirementSpec 内容指纹；跨版本比较时须提示不可直接比分
+             */
+            requirement_revision_id?: string | null;
+            /**
              * Revision Id
              * @description Phase 7：几何+评价 revision 标识；Final Export 须与 store 一致。缺省时兼容旧快照，视为等于 candidate.id
              */

@@ -96,10 +96,19 @@ NL「两层、四卧、客厅朝南」→ 生成 A → 选中 A
 
 保存后再次 Generate，邻接/分离/通行不得静默丢失。
 
+## 候选需求版本（P0）
+
+`CandidatePayload.requirement_revision_id` = `requirement_revision_id(RequirementSpec)` 短指纹。  
+比较面板在两侧指纹不同时提示「分数不可直接当作同一基准比较」。
+
+## 策略权重（P1）
+
+`apply_topology_strategy` 将 `objective_weights` / `corridor_penalty` 写入 `SolverConfig`；  
+`run_pipeline` 经 `evaluator_for_program` 使用调整后的 `ScoreWeights`。
+
 ## 已知缺口（勿标完成）
 
 - 意图解析正式入口尚未完整接入 Ollama 草稿  
-- TopologyStrategy 的 `objective_weights` / `corridor_penalty` 尚未全部进入 SolverPolicy  
-- 候选跨需求版本比较指纹（`requirement_revision_id`）尚未落地  
+- 走廊意图已调评价权重，生成侧几何目标仍可加深  
 - 候选重建仍为有损（无门洞/入口元数据）；优化宜逐步改为后端可信快照  
 - Design Benchmark v2 人工 ab_rate 待几何改动后重评  

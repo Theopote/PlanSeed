@@ -21,6 +21,10 @@ export function ComparePanel({ a, b, onClear }: Props) {
 
   const stale =
     a.revision_status === "dirty" || b.revision_status === "dirty";
+  const reqMismatch =
+    !!a.requirement_revision_id &&
+    !!b.requirement_revision_id &&
+    a.requirement_revision_id !== b.requirement_revision_id;
 
   useEffect(() => {
     if (stale) {
@@ -107,6 +111,14 @@ export function ComparePanel({ a, b, onClear }: Props) {
           退出
         </button>
       </div>
+
+      {reqMismatch && (
+        <p className="error" role="status">
+          两方案对应不同需求版本（
+          {a.requirement_revision_id} vs {b.requirement_revision_id}
+          ），分数不可直接当作同一基准比较。
+        </p>
+      )}
 
       <table className="compare-table">
         <thead>

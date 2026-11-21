@@ -270,6 +270,18 @@
               }
             ]
           },
+          "requirement_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "生成时 RequirementSpec 内容指纹；跨版本比较时须提示不可直接比分",
+            "title": "Requirement Revision Id"
+          },
           "revision_id": {
             "anyOf": [
               {

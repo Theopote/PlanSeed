@@ -54,3 +54,28 @@ def test_apply_intent_partial_regen_keeps_valids():
     patched = patched.model_copy(update={"solver_config": cfg})
     result = run_pipeline(patched, locks=locks, generator=GuillotineGenerator())
     assert result.valid >= 1, result.violation_summary
+
+
+def test_secondary_bedroom_does_not_resize_master():
+    program = benchmark_program()
+    patch = parse_intent_patch_deterministic("次卧大一点")
+    assert any(
+        c.target == "secondary_bedroom"
+        for c in patch.changes
+        if c.action == IntentChangeAction.INCREASE_TARGET_AREA
+    )
+    new_prog, _scope, preview = apply_intent_patch(program, patch)
+    by_id = {r.id: r.target_area for r in new_prog.rooms}
+    old = {r.id: r.target_area for r in program.rooms}
+    # 主卧 r5 面积不变；至少一间次卧变大
+    assert by_id["r5"] == old["r5"]
+    grew = [rid for rid in ("r7", "r8") if by_id[rid] > old[rid]]
+    assert grew, preview.program_deltas
+
+
+def test_reduce_corridor_raises_penalty():
+    program = benchmark_program()
+    patch = parse_intent_patch_deterministic("尽量缩短走廊")
+    new_prog, _scope, _preview = apply_intent_patch(program, patch)
+    assert new_prog.solver_config.corridor_penalty >= 1.2
+    assert new_prog.solver_config.score_weight_overrides.get("circulation", 0) >= 0.22

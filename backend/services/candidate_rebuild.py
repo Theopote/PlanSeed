@@ -114,6 +114,11 @@ def layout_candidate_from_copilot_payload(raw: dict[str, Any]) -> LayoutCandidat
             provenance = SolverProvenance.model_validate(
                 payload.provenance.model_dump()
             )
+        metrics = dict(payload.metrics or {})
+        if payload.requirement_revision_id:
+            metrics.setdefault(
+                "requirement_revision_id", payload.requirement_revision_id
+            )
         cand = LayoutCandidate(
             id=payload.id,
             seed=payload.seed,
@@ -125,7 +130,7 @@ def layout_candidate_from_copilot_payload(raw: dict[str, Any]) -> LayoutCandidat
             variant_parent_id=payload.variant_parent_id,
             variant_generation=payload.variant_generation,
             lock_snapshot_id=payload.lock_snapshot_id,
-            metrics=dict(payload.metrics or {}),
+            metrics=metrics,
             validation=_validation_from_payload(payload.validation),
         )
 

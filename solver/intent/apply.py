@@ -23,19 +23,12 @@ from packages.schema.regeneration import RegenerationScope
 from packages.schema.site import CardinalOrientation
 
 from solver.semantics.roles import (
+    is_bedroom_like,
     is_kitchen,
     is_living,
     is_master_bedroom,
+    is_secondary_bedroom,
 )
-
-
-def _is_bedroom_like(room) -> bool:
-    if is_master_bedroom(room):
-        return True
-    cat = (room.category or "").lower()
-    if cat == "private" and "卫" not in (room.name or ""):
-        return True
-    return "卧" in (room.name or "")
 
 
 def _role_match(room, role: str) -> bool:
@@ -48,7 +41,12 @@ def _role_match(room, role: str) -> bool:
         return True
     if key in ("master", "master_bedroom", "primary_bedroom") and is_master_bedroom(room):
         return True
-    if key in ("bedroom", "bed") and _is_bedroom_like(room):
+    if key in ("secondary_bedroom", "secondary", "guest_bedroom") and is_secondary_bedroom(
+        room
+    ):
+        return True
+    # 泛指「卧室」：全部卧室类；具体「次卧」已走 secondary
+    if key in ("bedroom", "bed") and is_bedroom_like(room):
         return True
     name = (room.name or "").lower()
     return key in name or role in (room.name or "")
@@ -205,14 +203,30 @@ def apply_intent_patch(
             # Gate 已有 private_through 评价；标卧室为 touched 促局部 regen
             deltas.append("优先消除穿卧室通行（avoid_private_through）")
             for r in new_program.rooms:
-                if _is_bedroom_like(r):
+                if is_bedroom_like(r):
                     touched.add(r.id)
 
         elif ch.action == IntentChangeAction.REDUCE_CORRIDOR_PREFERENCE:
-            deltas.append("降低走廊偏好（软目标）")
+            deltas.append("降低走廊偏好（软目标：提高 circulation 轴权重）")
             for r in new_program.rooms:
-                if (r.category or "").lower() == "circulation":
+                cat = r.category.value if hasattr(r.category, "value") else str(r.category)
+                if cat.lower() == "circulation":
                     touched.add(r.id)
+            # 可观测目标：提高 corridor_penalty，使评价更惩罚差交通
+            cfg = new_program.solver_config
+            pen = max(float(cfg.corridor_penalty), 1.2)
+            overrides = dict(cfg.score_weight_overrides or {})
+            overrides["circulation"] = max(float(overrides.get("circulation", 0.16)), 0.22)
+            new_program = new_program.model_copy(
+                update={
+                    "solver_config": cfg.model_copy(
+                        update={
+                            "corridor_penalty": pen,
+                            "score_weight_overrides": overrides,
+                        }
+                    )
+                }
+            )
 
     program_ids = {r.id for r in new_program.rooms}
     locked = [rid for rid in locked if rid in program_ids]

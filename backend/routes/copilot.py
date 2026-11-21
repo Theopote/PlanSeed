@@ -153,7 +153,10 @@ def _generate_response(
 
     selected = list(top if top is not None else result.top_candidates)
     candidates = [
-        serialize_candidate(program, cand, i) for i, cand in enumerate(selected)
+        serialize_candidate(
+            program, cand, i, requirement_spec=requirement_spec
+        )
+        for i, cand in enumerate(selected)
     ]
     invalid = [
         c
@@ -276,7 +279,12 @@ def optimize(body: OptimizeRequest) -> dict:
     improved = result.best is not None and result.best.id != cand.id
     best = None
     if improved and result.best is not None:
-        best = serialize_candidate(result.program, result.best, 0)
+        best = serialize_candidate(
+            result.program,
+            result.best,
+            0,
+            requirement_spec=body.requirements,
+        )
     return {
         "stopped_reason": result.stopped_reason,
         "improved": improved,

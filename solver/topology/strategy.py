@@ -59,10 +59,17 @@ def apply_topology_strategy(
             room_ids.append(b)
 
     graph = RoomGraph(room_ids=room_ids, edges=edges)
+    cfg = program.solver_config.model_copy(
+        update={
+            "score_weight_overrides": dict(strategy.objective_weights or {}),
+            "corridor_penalty": float(strategy.corridor_penalty),
+        }
+    )
     return program.model_copy(
         update={
             "room_graph": graph,
             "topology_plan": None,  # 强制 TopologyPlanner 重算
+            "solver_config": cfg,
         }
     )
 
@@ -80,5 +87,8 @@ def tag_candidates_with_strategy(
     for c in candidates:
         c.metrics["topology_strategy_id"] = strategy.id
         c.metrics["topology_strategy_label"] = strategy.label
+        c.metrics["topology_corridor_penalty"] = float(strategy.corridor_penalty)
+        for axis, w in (strategy.objective_weights or {}).items():
+            c.metrics[f"strategy_weight_{axis}"] = float(w)
         if not c.metrics.get("selection_label"):
             c.metrics["selection_label"] = strategy.label

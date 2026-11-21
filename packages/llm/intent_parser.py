@@ -43,7 +43,7 @@ _ALIASES = {
     "餐厅": "dining",
     "主卧": "master_bedroom",
     "主卧室": "master_bedroom",
-    "次卧": "bedroom",
+    "次卧": "secondary_bedroom",
     "卧室": "bedroom",
     "书房": "study",
     "车库": "garage",

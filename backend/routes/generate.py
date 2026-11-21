@@ -31,7 +31,9 @@ def generate(body: GenerateRequest) -> GenerateResponse:
     program = resolved.program
     result = generate_layouts(program, locks=body.locks)
     candidates = [
-        serialize_candidate(program, cand, i)
+        serialize_candidate(
+            program, cand, i, requirement_spec=resolved.requirement_spec
+        )
         for i, cand in enumerate(result.top_candidates)
     ]
     invalid = [
@@ -78,7 +80,10 @@ def regenerate_partial(body: PartialRegenerateRequest) -> GenerateResponse:
     except RegenerationScopeError as exc:
         raise HTTPException(status_code=422, detail=exc.to_detail()) from exc
     candidates = [
-        serialize_candidate(program, cand, i) for i, cand in enumerate(top)
+        serialize_candidate(
+            program, cand, i, requirement_spec=resolved.requirement_spec
+        )
+        for i, cand in enumerate(top)
     ]
     invalid = [
         c
