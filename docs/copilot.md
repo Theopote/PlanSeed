@@ -106,9 +106,18 @@ NL「两层、四卧、客厅朝南」→ 生成 A → 选中 A
 `apply_topology_strategy` 将 `objective_weights` / `corridor_penalty` 写入 `SolverConfig`；  
 `run_pipeline` 经 `evaluator_for_program` 使用调整后的 `ScoreWeights`。
 
+## layout_snapshot（可信几何）
+
+`serialize_candidate` 写入 `CandidatePayload.layout_snapshot`（floors / doors / entry / wet_stacks / …）。  
+`layout_candidate_from_copilot_payload` 重建优先级：顶层 `floors` → `layout_snapshot` → 扁平 `placements`（有损回退）。
+
+`POST /api/copilot/optimize` 可传 `project_id` + `candidate_id` 从项目快照取候选（找不到则回退请求体）。
+
+## 走廊面积目标
+
+`circulation_area_ratio` 写入 metrics；`corridor_penalty>1` 且交通面积比 >12% 时，circulation 轴额外扣分。
+
 ## 已知缺口（勿标完成）
 
 - 意图解析正式入口尚未完整接入 Ollama 草稿  
-- 走廊意图已调评价权重，生成侧几何目标仍可加深  
-- 候选重建仍为有损（无门洞/入口元数据）；优化宜逐步改为后端可信快照  
 - Design Benchmark v2 人工 ab_rate 待几何改动后重评  

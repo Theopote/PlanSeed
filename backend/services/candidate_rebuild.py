@@ -76,12 +76,51 @@ def _validation_from_payload(raw: dict[str, Any] | None) -> CandidateValidation 
         return None
 
 
+def _from_layout_snapshot(
+    payload: CandidatePayload,
+    snap: dict[str, Any],
+) -> LayoutCandidate:
+    """优先消费 serialize 写入的可信几何包。"""
+    data: dict[str, Any] = {
+        "id": payload.id,
+        "seed": payload.seed,
+        "floors": snap.get("floors") or [],
+        "wet_stacks": snap.get("wet_stacks") or [],
+        "vertical_void_placements": snap.get("vertical_void_placements") or [],
+        "zone_placements": snap.get("zone_placements") or [],
+        "door_openings": snap.get("door_openings") or [],
+        "exterior_entry": snap.get("exterior_entry"),
+        "repair_records": snap.get("repair_records") or [],
+        "realized_connections": snap.get("realized_connections") or [],
+        "evaluation": payload.design_score,
+        "score": payload.score,
+        "variant_parent_id": payload.variant_parent_id,
+        "variant_generation": payload.variant_generation,
+        "lock_snapshot_id": payload.lock_snapshot_id,
+        "metrics": dict(payload.metrics or {}),
+        "validation": payload.validation,
+    }
+    if payload.requirement_revision_id:
+        data["metrics"].setdefault(
+            "requirement_revision_id", payload.requirement_revision_id
+        )
+    if payload.provenance is not None:
+        data["provenance"] = payload.provenance.model_dump()
+    try:
+        return LayoutCandidate.model_validate(data)
+    except ValidationError as exc:
+        raise CandidateRebuildError(f"layout_snapshot 无效：{exc}") from exc
+
+
 def layout_candidate_from_copilot_payload(raw: dict[str, Any]) -> LayoutCandidate:
     """
     接受桌面 CandidatePayload 或完整 LayoutCandidate JSON。
 
-    桌面侧房间在扁平 placements，评价在 design_score；
-    Solver 需要 floors[].placements 与 evaluation。
+    优先级：
+    1. 顶层 floors[]（完整 LayoutCandidate）
+    2. layout_snapshot（生成时写入的可信几何包）
+    3. 扁平 placements（有损回退）
+
     几何缺失时显式失败，禁止靠 Pydantic 默认空列表悄悄通过。
     """
     if not isinstance(raw, dict):
@@ -101,38 +140,43 @@ def layout_candidate_from_copilot_payload(raw: dict[str, Any]) -> LayoutCandidat
             payload = CandidatePayload.model_validate(raw)
         except ValidationError as exc:
             raise CandidateRebuildError(f"CandidatePayload 无效：{exc}") from exc
-        if not payload.placements:
-            raise CandidateRebuildError(
-                "candidate 缺少 placements，无法重建楼层几何"
+
+        snap = payload.layout_snapshot
+        if isinstance(snap, dict) and snap.get("floors"):
+            cand = _from_layout_snapshot(payload, snap)
+        else:
+            if not payload.placements:
+                raise CandidateRebuildError(
+                    "candidate 缺少 placements / layout_snapshot，无法重建楼层几何"
+                )
+            evaluation: DesignScore | None = payload.design_score
+            score = payload.score
+            if score is None and evaluation is not None:
+                score = evaluation.total_score
+            provenance = None
+            if payload.provenance is not None:
+                provenance = SolverProvenance.model_validate(
+                    payload.provenance.model_dump()
+                )
+            metrics = dict(payload.metrics or {})
+            if payload.requirement_revision_id:
+                metrics.setdefault(
+                    "requirement_revision_id", payload.requirement_revision_id
+                )
+            cand = LayoutCandidate(
+                id=payload.id,
+                seed=payload.seed,
+                floors=_placements_by_floor(payload.placements),
+                zone_placements=_zones_from_payload(payload),
+                evaluation=evaluation,
+                score=score,
+                provenance=provenance,
+                variant_parent_id=payload.variant_parent_id,
+                variant_generation=payload.variant_generation,
+                lock_snapshot_id=payload.lock_snapshot_id,
+                metrics=metrics,
+                validation=_validation_from_payload(payload.validation),
             )
-        evaluation: DesignScore | None = payload.design_score
-        score = payload.score
-        if score is None and evaluation is not None:
-            score = evaluation.total_score
-        provenance = None
-        if payload.provenance is not None:
-            provenance = SolverProvenance.model_validate(
-                payload.provenance.model_dump()
-            )
-        metrics = dict(payload.metrics or {})
-        if payload.requirement_revision_id:
-            metrics.setdefault(
-                "requirement_revision_id", payload.requirement_revision_id
-            )
-        cand = LayoutCandidate(
-            id=payload.id,
-            seed=payload.seed,
-            floors=_placements_by_floor(payload.placements),
-            zone_placements=_zones_from_payload(payload),
-            evaluation=evaluation,
-            score=score,
-            provenance=provenance,
-            variant_parent_id=payload.variant_parent_id,
-            variant_generation=payload.variant_generation,
-            lock_snapshot_id=payload.lock_snapshot_id,
-            metrics=metrics,
-            validation=_validation_from_payload(payload.validation),
-        )
 
     if not cand.floors or not any(fl.placements for fl in cand.floors):
         raise CandidateRebuildError("candidate 无有效楼层/房间几何")

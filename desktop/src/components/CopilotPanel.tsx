@@ -207,6 +207,8 @@ export function CopilotPanel({
           use_benchmark: useBenchmark,
           requirements: requirementSpec,
           locks,
+          project_id: projectId,
+          candidate_id: selectedCandidate.id,
           max_rounds: 2,
           candidate_budget: 4,
         },

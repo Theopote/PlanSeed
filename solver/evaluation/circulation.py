@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from packages.schema.layout import LayoutCandidate
+from packages.schema.layout import LayoutCandidate, PlacementSource
 from packages.schema.program import DesignProgram
 from packages.schema.room import RoomCategory
 from packages.schema.scoring import DesignFinding, EvaluationAxis, FindingSeverity
@@ -15,6 +15,38 @@ from solver.topology.access import (
     reachable_nodes,
 )
 from solver.topology.derive_access import ensure_access_graph
+
+
+def _is_circulation_placement(program: DesignProgram, room_id: str, category: str | None) -> bool:
+    if room_id.startswith(("circ-", "corridor-", "foyer-")):
+        return True
+    cat = (category or "").lower()
+    if cat == "circulation":
+        return True
+    room = program.room_by_id(room_id)
+    if room is not None and room.category == RoomCategory.CIRCULATION:
+        return True
+    return False
+
+
+def circulation_area_ratio(program: DesignProgram, candidate: LayoutCandidate) -> float:
+    """交通/走廊占布局总面积比例（生成走廊 circ-* + CIRCULATION）。"""
+    total = 0.0
+    circ = 0.0
+    for fl in candidate.floors:
+        for p in fl.placements:
+            area = float(p.rect.area)
+            total += area
+            if _is_circulation_placement(program, p.room_id, p.category):
+                circ += area
+            elif (
+                p.source == PlacementSource.GENERATED
+                and "廊" in (p.name or "")
+            ):
+                circ += area
+    if total <= 1e-9:
+        return 0.0
+    return round(circ / total, 4)
 
 
 def _name(program: DesignProgram, room_id: str) -> str:
@@ -86,6 +118,7 @@ def compute_circulation_metrics(
         repairs = float(candidate.metrics.get("connection_repairs", 0) or 0)
         stability = max(0.0, 1.0 - 0.08 * repairs)
 
+    ratio = circulation_area_ratio(program, candidate)
     return {
         "reachable_ratio": round(len(reached) / len(occupied), 4),
         "average_access_depth": round(avg_d, 4),
@@ -93,14 +126,20 @@ def compute_circulation_metrics(
         "dead_end_count": float(dead),
         "through_room_count": float(through),
         "layout_stability_score": round(stability * 100.0, 2),
+        "circulation_area_ratio": ratio,
     }
 
 
-def circulation_architecture_score(metrics: dict[str, float]) -> float:
+def circulation_architecture_score(
+    metrics: dict[str, float],
+    *,
+    corridor_penalty: float = 1.0,
+) -> float:
     reachable = float(metrics.get("reachable_ratio", 1.0))
     through = float(metrics.get("through_room_count", 0.0))
     dead = float(metrics.get("dead_end_count", 0.0))
     avg_d = float(metrics.get("average_access_depth", 0.0))
+    circ_ratio = float(metrics.get("circulation_area_ratio", 0.0))
 
     depth_pen = 0.0
     if avg_d > 0:
@@ -115,6 +154,10 @@ def circulation_architecture_score(metrics: dict[str, float]) -> float:
         - through * 6.0
         - dead * 2.0
     )
+    # corridor_penalty>1 时，过高交通面积比被额外扣分（可观测优化目标）
+    pen = max(0.5, float(corridor_penalty or 1.0))
+    if pen > 1.0 and circ_ratio > 0.12:
+        score -= (circ_ratio - 0.12) * 100.0 * (pen - 1.0) * 2.5
     return max(0.0, min(100.0, score))
 
 

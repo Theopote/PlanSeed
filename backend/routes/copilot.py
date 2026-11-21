@@ -79,7 +79,12 @@ class CritiqueRequest(BaseModel):
 class OptimizeRequest(BaseModel):
     use_benchmark: bool = True
     requirements: object | None = None
-    candidate: dict
+    candidate: dict | None = None
+    project_id: str | None = Field(
+        default=None,
+        description="若提供则从项目快照按 candidate_id 取可信候选",
+    )
+    candidate_id: str | None = None
     locks: LayoutLocks | None = None
     max_rounds: int = Field(default=2, ge=1, le=5)
     candidate_budget: int = Field(default=4, ge=2, le=16)
@@ -251,6 +256,39 @@ def _require_layout_candidate(raw: dict) -> LayoutCandidate:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+def _candidate_from_project(project_id: str, candidate_id: str) -> dict:
+    from packages.persistence import ProjectStore
+
+    row = ProjectStore().get(project_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"项目不存在：{project_id}")
+    payload = row.get("payload") or {}
+    for c in payload.get("candidates") or []:
+        if isinstance(c, dict) and c.get("id") == candidate_id:
+            return c
+    raise HTTPException(
+        status_code=404,
+        detail=f"项目中无候选：{candidate_id}",
+    )
+
+
+def _resolve_optimize_candidate(body: OptimizeRequest) -> LayoutCandidate:
+    # 优先项目快照（含 layout_snapshot）；未保存或找不到则回退请求体
+    if body.project_id and body.candidate_id:
+        try:
+            raw = _candidate_from_project(body.project_id, body.candidate_id)
+            return _require_layout_candidate(raw)
+        except HTTPException as exc:
+            if exc.status_code != 404 or not body.candidate:
+                raise
+    if body.candidate:
+        return _require_layout_candidate(body.candidate)
+    raise HTTPException(
+        status_code=422,
+        detail="须提供 candidate，或 project_id + candidate_id",
+    )
+
+
 @router.post("/api/copilot/critique")
 def critique(body: CritiqueRequest) -> dict:
     program = resolve_solve_input(
@@ -267,7 +305,7 @@ def optimize(body: OptimizeRequest) -> dict:
     program = resolve_solve_input(
         _solve_request(use_benchmark=body.use_benchmark, requirements=body.requirements)
     ).program
-    cand = _require_layout_candidate(body.candidate)
+    cand = _resolve_optimize_candidate(body)
     result = run_optimization_session(
         program,
         cand,

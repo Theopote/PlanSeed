@@ -165,6 +165,13 @@ class CandidatePayload(BaseModel):
         default=None,
         description="生成时 RequirementSpec 内容指纹；跨版本比较时须提示不可直接比分",
     )
+    layout_snapshot: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Solver 可信几何快照（floors/doors/entry/wet_stacks/…）；"
+            "Copilot critique/optimize 优先据此重建，避免仅靠扁平 placements 有损还原"
+        ),
+    )
     revision_status: RevisionStatus = Field(
         default="generated",
         description="Phase 5.1：generated | dirty | validated",

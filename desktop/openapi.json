@@ -227,6 +227,19 @@
             "title": "Label",
             "type": "string"
           },
+          "layout_snapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solver 可信几何快照（floors/doors/entry/wet_stacks/…）；Copilot critique/optimize 优先据此重建，避免仅靠扁平 placements 有损还原",
+            "title": "Layout Snapshot"
+          },
           "lock_snapshot_id": {
             "anyOf": [
               {
@@ -2523,9 +2536,16 @@
       "OptimizeRequest": {
         "properties": {
           "candidate": {
-            "additionalProperties": true,
-            "title": "Candidate",
-            "type": "object"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate"
           },
           "candidate_budget": {
             "default": 4,
@@ -2533,6 +2553,17 @@
             "minimum": 2.0,
             "title": "Candidate Budget",
             "type": "integer"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
           },
           "locks": {
             "anyOf": [
@@ -2551,6 +2582,18 @@
             "title": "Max Rounds",
             "type": "integer"
           },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "若提供则从项目快照按 candidate_id 取可信候选",
+            "title": "Project Id"
+          },
           "requirements": {
             "anyOf": [
               {},
@@ -2566,9 +2609,6 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "candidate"
-        ],
         "title": "OptimizeRequest",
         "type": "object"
       },

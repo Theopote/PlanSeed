@@ -1230,6 +1230,8 @@ export async function optimizeCandidate(
     use_benchmark?: boolean;
     requirements?: RequirementSpecPayload | null;
     locks?: LayoutLocks | null;
+    project_id?: string | null;
+    candidate_id?: string | null;
     max_rounds?: number;
     candidate_budget?: number;
   },
@@ -1247,6 +1249,8 @@ export async function optimizeCandidate(
       use_benchmark: useBenchmark,
       requirements: useBenchmark ? undefined : opts?.requirements,
       candidate,
+      project_id: opts?.project_id ?? undefined,
+      candidate_id: opts?.candidate_id ?? undefined,
       locks: opts?.locks ?? undefined,
       max_rounds: opts?.max_rounds ?? 2,
       candidate_budget: opts?.candidate_budget ?? 4,

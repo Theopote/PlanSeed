@@ -665,6 +665,13 @@ export interface components {
             /** Label */
             label: string;
             /**
+             * Layout Snapshot
+             * @description Solver 可信几何快照（floors/doors/entry/wet_stacks/…）；Copilot critique/optimize 优先据此重建，避免仅靠扁平 placements 有损还原
+             */
+            layout_snapshot?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Lock Snapshot Id
              * @description Phase 5：生成时 locks 指纹
              */
@@ -1727,20 +1734,27 @@ export interface components {
         /** OptimizeRequest */
         OptimizeRequest: {
             /** Candidate */
-            candidate: {
+            candidate?: {
                 [key: string]: unknown;
-            };
+            } | null;
             /**
              * Candidate Budget
              * @default 4
              */
             candidate_budget: number;
+            /** Candidate Id */
+            candidate_id?: string | null;
             locks?: components["schemas"]["LayoutLocks"] | null;
             /**
              * Max Rounds
              * @default 2
              */
             max_rounds: number;
+            /**
+             * Project Id
+             * @description 若提供则从项目快照按 candidate_id 取可信候选
+             */
+            project_id?: string | null;
             /** Requirements */
             requirements?: unknown | null;
             /**

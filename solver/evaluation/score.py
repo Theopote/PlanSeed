@@ -93,10 +93,19 @@ class CompositeEvaluator:
         adj_s = adjacency_score(adj_m)
         prop_s = geometry_score(geo_m)
         compact_s = space_efficiency_score(eff_m)
+        corridor_pen = float(
+            getattr(program.solver_config, "corridor_penalty", 1.0) or 1.0
+        )
         circ_s = (
             0.45 * access_circulation_score(access_m)
-            + 0.55 * circulation_architecture_score(circ_m)
+            + 0.55
+            * circulation_architecture_score(circ_m, corridor_penalty=corridor_pen)
         )
+        # 供 Inspector / Copilot 观测
+        candidate.metrics["circulation_area_ratio"] = float(
+            circ_m.get("circulation_area_ratio", 0.0)
+        )
+        candidate.metrics["corridor_penalty"] = corridor_pen
         priv_s = privacy_score(priv_m)
         env_s = orientation_score(orient_m)
         vert_s = vertical_score(vert_m)

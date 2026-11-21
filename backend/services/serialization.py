@@ -140,12 +140,35 @@ def serialize_candidate(
         variant_generation=cand.variant_generation,
         lock_snapshot_id=cand.lock_snapshot_id,
         requirement_revision_id=req_rev,
+        layout_snapshot=_layout_snapshot(cand),
         revision_status="generated",
         revision_id=make_revision_id(cand.id, kind="gen"),
         mutations=[],
         placements=_placements_payload(cand),
         zones=_zones_payload(cand),
     )
+
+
+def _layout_snapshot(cand: LayoutCandidate) -> dict:
+    """完整几何包：Copilot 重建优先消费，保留 source/门洞/入口等元数据。"""
+    return {
+        "floors": [fl.model_dump(mode="json") for fl in cand.floors],
+        "wet_stacks": [w.model_dump(mode="json") for w in cand.wet_stacks],
+        "vertical_void_placements": [
+            v.model_dump(mode="json") for v in cand.vertical_void_placements
+        ],
+        "zone_placements": [z.model_dump(mode="json") for z in cand.zone_placements],
+        "door_openings": [d.model_dump(mode="json") for d in cand.door_openings],
+        "exterior_entry": (
+            cand.exterior_entry.model_dump(mode="json")
+            if cand.exterior_entry is not None
+            else None
+        ),
+        "repair_records": [r.model_dump(mode="json") for r in cand.repair_records],
+        "realized_connections": [
+            c.model_dump(mode="json") for c in cand.realized_connections
+        ],
+    }
 
 
 def _placements_payload(cand: LayoutCandidate) -> list[RoomPlacementPayload]:
