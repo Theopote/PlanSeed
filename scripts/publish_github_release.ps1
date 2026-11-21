@@ -3,15 +3,15 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1
 #
 # Optional:
-#   $env:PLANSEED_RELEASE_TAG = "v0.1.1-alpha"
-#   $env:PLANSEED_SETUP_EXE = "path\to\PlanSeed_0.1.1_x64-setup.exe"
+#   $env:PLANSEED_RELEASE_TAG = "v0.2.0-alpha"
+#   $env:PLANSEED_SETUP_EXE = "path\to\PlanSeed_0.2.0_x64-setup.exe"
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 . "$PSScriptRoot\_release_path.ps1"
 
-$Tag = if ($env:PLANSEED_RELEASE_TAG) { $env:PLANSEED_RELEASE_TAG } else { "v0.1.1-alpha" }
+$Tag = if ($env:PLANSEED_RELEASE_TAG) { $env:PLANSEED_RELEASE_TAG } else { "v0.2.0-alpha" }
 $Setup = if ($env:PLANSEED_SETUP_EXE) { $env:PLANSEED_SETUP_EXE } else { Get-PlanSeedNsisSetup $Root }
 
 if (-not (Test-Path $Setup)) {
@@ -46,22 +46,28 @@ if ($releaseExists) {
 }
 
 $Notes = @"
-## PlanSeed Alpha v0.1.1
+## PlanSeed Alpha v0.2.0
 
-**Platform:** Windows 10/11 x64 only · solver 0.6 · 8.4.1 irregular pipeline (Engineering)
+**Platform:** Windows 10/11 x64 only · solver 0.6 · Architect Workflow / AI Design Copilot (early Alpha)
 
 ### Install
 1. Download ``$setupName``
 2. Run the installer
 3. Launch **PlanSeed** and wait until the engine shows Ready
 
+### Highlights
+- Intent Patch → Spec sync → Critique / Optimize / Strategies / Conversation
+- ``candidate_rebuild`` for Copilot; Optimize respects user locks
+- Intent Hybrid: deterministic + optional local Ollama draft (fallback on failure)
+- Desktop Copilot panel + ``design_conversation`` in project snapshot
+
 ### Notes
 - Local-first desktop app (Tauri + embedded solver engine)
 - Natural-language parsing needs a local [Ollama](https://ollama.com) install (optional)
 - Product default geometry remains **rect**; irregular site is engineering-only
-- This is an **Alpha** build for early testing — not a final product release
+- Copilot Benchmark **ab_rate** still needs human review — this is an **Alpha** build
 
-See full notes: ``docs/alpha-v0.1.1-release-notes.md``
+See full notes: ``docs/alpha-v0.2.0-release-notes.md``
 
 ### Smoke (optional, after install)
 With the app running:
@@ -72,7 +78,7 @@ powershell -File scripts/windows_alpha_smoke.ps1
 
 Write-Host "== creating release $Tag =="
 gh release create $Tag $Setup `
-  --title "PlanSeed Alpha v0.1.1" `
+  --title "PlanSeed Alpha v0.2.0" `
   --notes $Notes `
   --prerelease
 

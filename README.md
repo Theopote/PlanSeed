@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Theopote/PlanSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/Theopote/PlanSeed/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Theopote/PlanSeed?include_prereleases&label=Alpha)](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha)
+[![Release](https://img.shields.io/github/v/release/Theopote/PlanSeed?include_prereleases&label=Alpha)](https://github.com/Theopote/PlanSeed/releases/tag/v0.2.0-alpha)
 
 Local-first、本地运行的独栋住宅生成式设计工具。
 
@@ -18,12 +18,12 @@ Local-first、本地运行的独栋住宅生成式设计工具。
 
 | 项 | 值 |
 |----|-----|
-| **Release** | **PlanSeed Alpha v0.1.1**（[`v0.1.1-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha)）· v0.1.0：[v0.1.0-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) |
+| **Release** | **PlanSeed Alpha v0.2.0**（[`v0.2.0-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.2.0-alpha)）· v0.1.1：[v0.1.1-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) |
 | **Platform** | Windows 10/11 x64 |
-| **Status** | **Released**（v0.1.1-alpha · 2026-08-18） |
-| **Next** | [v0.2 Architect Workflow](docs/v0.2-architect-workflow.md) · [AI Copilot 数据闭环](docs/copilot.md) · [Design Benchmark v2](docs/design-benchmark-v2.md) |
+| **Status** | **Released**（v0.2.0-alpha · 2026-11-22） |
+| **Focus** | [v0.2 Architect Workflow](docs/v0.2-architect-workflow.md) · [AI Copilot 数据闭环](docs/copilot.md) · [Design Benchmark v2](docs/design-benchmark-v2.md) |
 
-下载安装包：[GitHub Releases](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) · v0.1.1 说明：[docs/alpha-v0.1.1-release-notes.md](docs/alpha-v0.1.1-release-notes.md) · v0.1.0：[alpha-v0.1-release-notes.md](docs/alpha-v0.1-release-notes.md)
+下载安装包：[GitHub Releases](https://github.com/Theopote/PlanSeed/releases/tag/v0.2.0-alpha) · v0.2.0 说明：[docs/alpha-v0.2.0-release-notes.md](docs/alpha-v0.2.0-release-notes.md) · v0.1.1：[alpha-v0.1.1-release-notes.md](docs/alpha-v0.1.1-release-notes.md)
 
 ## 快速开始
 
