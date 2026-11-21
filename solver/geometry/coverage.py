@@ -940,8 +940,12 @@ def grow_rooms_to_min_area(
                 if k in (i, j):
                     continue
                 other_r = from_placement(other.rect)
-                if intersects(new_recv_r, other_r) or intersects(new_donor_r, other_r):
-                    overlaps = True
+                for piece in (new_recv_r, new_donor_r):
+                    inter = intersection(piece, other_r)
+                    if inter is not None and inter.area > tolerance:
+                        overlaps = True
+                        break
+                if overlaps:
                     break
             if overlaps:
                 continue
@@ -1631,6 +1635,70 @@ def apply_corridor_access_repair_if_safe(
             _try_floor_repair(floor_idx, direct_circ_touch_only=True)
 
     return result
+
+
+def clip_placements_to_pack_rects(
+    pack_rects: list[Rect],
+    placements: list[RoomPlacement],
+    floor_id: str,
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """
+    将越出 pack union 的房间裁回最大轴对齐相交块。
+
+    不规则场地（阶梯/L 型）上 fill/连接修补可能把房间扩进 bbox 缺口；
+    收尾裁回可建 union，余量交走廊。
+    """
+    from packages.schema.layout import PlacementRect, PlacementSource
+
+    if not pack_rects:
+        return placements
+    updated: list[RoomPlacement] = []
+    changed = False
+    for p in placements:
+        cur = from_placement(p.rect)
+        pieces: list[Rect] = []
+        for pack in pack_rects:
+            inter = intersection(cur, pack)
+            if inter is not None and inter.area > tolerance:
+                pieces.append(inter)
+        if not pieces:
+            # 完全在外：楼梯尽量保留原点裁到某个 pack，其它丢弃为走廊位
+            if is_fixed_void_placement(p.room_id):
+                updated.append(p)
+            continue
+        # 已完全在内
+        covered = sum(pc.area for pc in pieces)
+        if covered + tolerance >= cur.area:
+            updated.append(p)
+            continue
+        best = max(pieces, key=lambda r: r.area)
+        if best.area + tolerance < cur.area:
+            changed = True
+        updated.append(
+            p.model_copy(
+                update={
+                    "rect": PlacementRect(
+                        x=best.x,
+                        y=best.y,
+                        width=best.width,
+                        depth=best.depth,
+                    ),
+                    "source": p.source
+                    if p.source == PlacementSource.PROGRAM
+                    else p.source,
+                }
+            )
+        )
+    if not changed and len(updated) == len(placements):
+        return placements
+    return assign_residual_gaps_as_circulation(
+        pack_rects,
+        updated,
+        floor_id,
+        tolerance=tolerance,
+    )
 
 
 def assign_residual_gaps_as_circulation(

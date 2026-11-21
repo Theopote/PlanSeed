@@ -48,6 +48,7 @@ from solver.geometry.coverage import (
     assign_residual_gaps_as_circulation,
     clamp_program_room_aspect_ratios,
     clip_placement_away_from_obstacles,
+    clip_placements_to_pack_rects,
     shrink_placement_to_max_area,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
@@ -894,6 +895,29 @@ class GuillotineGenerator:
             program,
             max_area_by_room_id=max_by_id,
         )
+        # 不规则场地：裁回 pack union，再补 min_area
+        clipped_floors: list[FloorLayout] = []
+        for fl in candidate.floors:
+            placed = clip_placements_to_pack_rects(
+                pack_rects, list(fl.placements), fl.floor_id
+            )
+            placed = grow_rooms_to_min_area(
+                pack_rects, placed, min_by_id, max_by_id
+            )
+            placed = clamp_program_room_aspect_ratios(
+                pack_rects,
+                placed,
+                fl.floor_id,
+                min_area_by_room_id=min_by_id,
+            )
+            placed = clip_placements_to_pack_rects(
+                pack_rects, placed, fl.floor_id
+            )
+            placed = assign_residual_gaps_as_circulation(
+                pack_rects, placed, fl.floor_id
+            )
+            clipped_floors.append(fl.model_copy(update={"placements": placed}))
+        candidate = candidate.model_copy(update={"floors": clipped_floors})
         # 几何修补后再解析入口，避免走廊回收后仍绑定旧 connected_room_ids
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         place_door_openings(program, candidate)
