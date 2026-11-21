@@ -185,12 +185,33 @@ def is_master_bath(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
     return "主卫" in room.name
 
 
+def is_elder_bath(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
+    """老人卫：与跨层公卫湿区对齐分离（常仅一层）。"""
+    if is_master_bath(room, allow_name_fallback=allow_name_fallback):
+        return False
+    if is_laundry(room, allow_name_fallback=allow_name_fallback):
+        return False
+    if has_any_tag(room, TAG_ELDER, TAG_ELDERLY, TAG_ELDERLY_ACCESSIBLE):
+        cat = room.category.value if hasattr(room.category, "value") else str(room.category)
+        if cat == "wet" or has_any_tag(room, TAG_GUEST_BATH, TAG_BATHROOM):
+            return True
+        if allow_name_fallback and "卫" in room.name:
+            return True
+    if not allow_name_fallback:
+        return False
+    return "老人卫" in room.name or (
+        "老人" in room.name and "卫" in room.name
+    )
+
+
 def is_guest_bath(room: RoomSpec, *, allow_name_fallback: bool = True) -> bool:
     if is_kitchen(room, allow_name_fallback=allow_name_fallback):
         return False
     if is_master_bath(room, allow_name_fallback=allow_name_fallback):
         return False
     if is_laundry(room, allow_name_fallback=allow_name_fallback):
+        return False
+    if is_elder_bath(room, allow_name_fallback=allow_name_fallback):
         return False
     if has_role(room, SemanticRole.BATHROOM):
         return True

@@ -159,6 +159,13 @@ agent-draft（n=32，非签章）：聚合 ab≈**0.98**（B01≈1.00 · B04≈0
 多层改为只贴 entrance_edge；多样性改为「换入口方位 → 不同区位」。  
 agent-draft（n=32，非签章）：聚合 ab≈**1.00**（四案均 1.00）；valid=1.00；不替代人工签章。
 
+### Wave1 valid 拉齐（2026-11-21）
+
+B05/B07 历史 valid=0：老人卫误与公卫湿对齐、连接修补拉长房间、床位面积被挤占。  
+修复：老人卫独立 pairing key、收尾 aspect clamp（余量改走廊）、湿区 IoU 削偏大侧、黑卫可与外墙走廊对调。  
+core 波 B01–B07 n=32 **valid=1.00**；焦点四案 draft ab 仍 **1.00**。  
+B05/B07 draft ab 仍为 0（deep_access + entry_not_public）；不替代人工签章。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。

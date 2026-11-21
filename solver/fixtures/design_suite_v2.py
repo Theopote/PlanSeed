@@ -328,7 +328,7 @@ def _b05() -> DesignSuiteCase:
         _room("dining", "餐厅", RoomCategory.PUBLIC, 14, "F1"),
         _room("kitchen", "厨房", RoomCategory.WET, 12, "F1", tags=["kitchen"]),
         _room("elder", "老人卧", RoomCategory.PRIVATE, 14, "F1", tags=["elder"]),
-        _room("elder_bath", "老人卫", RoomCategory.WET, 5, "F1"),
+        _room("elder_bath", "老人卫", RoomCategory.WET, 5, "F1", tags=["elder"]),
         _room("bath1", "客卫", RoomCategory.WET, 4, "F1"),
         _room("master", "主卧", RoomCategory.PRIVATE, 18, "F2"),
         _room("ensuite", "主卫", RoomCategory.WET, 5, "F2", tags=["ensuite", "master_bath"]),

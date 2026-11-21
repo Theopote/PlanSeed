@@ -58,6 +58,7 @@ from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
 from solver.geometry.wet_exterior_repair import swap_black_baths_to_exterior
+from solver.generators.wet_anchor import nudge_wet_stack_alignment
 from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
 from solver.topology.plan import (
@@ -836,6 +837,56 @@ class GuillotineGenerator:
             protected_room_ids=protected,
             zone_envelopes=zone_envelopes,
         )
+        # 连接修补可能重新拉长房间：收尾再压长宽比并回补 min_area
+        max_by_id = {r.id: r.resolved_max_area() for r in program.rooms}
+        finalized_floors: list[FloorLayout] = []
+        for fl in candidate.floors:
+            placed = clamp_program_room_aspect_ratios(
+                pack_rects,
+                list(fl.placements),
+                fl.floor_id,
+                min_area_by_room_id=min_by_id,
+            )
+            placed = grow_rooms_to_min_area(
+                pack_rects,
+                placed,
+                min_by_id,
+                max_by_id,
+            )
+            placed = clamp_program_room_aspect_ratios(
+                pack_rects,
+                placed,
+                fl.floor_id,
+                min_area_by_room_id=min_by_id,
+            )
+            placed = assign_residual_gaps_as_circulation(
+                pack_rects,
+                placed,
+                fl.floor_id,
+            )
+            finalized_floors.append(fl.model_copy(update={"placements": placed}))
+        candidate = candidate.model_copy(update={"floors": finalized_floors})
+        # 湿区跨层 IoU：削偏大一侧，余量回走廊；再清一次黑卫
+        rooms_by_id = {r.id: r for r in program.rooms}
+        nudged_floors: list[FloorLayout] = []
+        for fl in nudge_wet_stack_alignment(candidate, program):
+            placed = assign_residual_gaps_as_circulation(
+                pack_rects,
+                list(fl.placements),
+                fl.floor_id,
+            )
+            floor_rooms = {
+                rid: rooms_by_id[rid]
+                for rid in (p.room_id for p in placed)
+                if rid in rooms_by_id
+            }
+            placed = swap_black_baths_to_exterior(
+                placed,
+                program=program,
+                rooms_by_id=floor_rooms,
+            )
+            nudged_floors.append(fl.model_copy(update={"placements": placed}))
+        candidate = candidate.model_copy(update={"floors": nudged_floors})
         # 几何修补后再解析入口，避免走廊回收后仍绑定旧 connected_room_ids
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         place_door_openings(program, candidate)

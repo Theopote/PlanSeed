@@ -205,3 +205,152 @@ def preplace_wet_anchored_rooms(
         placements[room.id] = placed
         free = subtract_rects(free, [from_placement(placed)])
     return placements
+
+
+def _shrink_larger_toward_smaller(
+    larger: Rect,
+    smaller: Rect,
+    *,
+    min_area: float,
+    min_iou: float,
+) -> Rect | None:
+    """把偏大湿区裁向偏小侧，使 IoU≥阈值且不低于 min_area。"""
+    if larger.area + 1e-9 < min_area:
+        return None
+    # 优先：完全落到 smaller footprint（IoU=1）
+    if smaller.area + 1e-9 >= min_area:
+        exact = Rect(
+            x=smaller.x, y=smaller.y, width=smaller.width, depth=smaller.depth
+        )
+        if rect_iou(exact, smaller) + 1e-9 >= min_iou:
+            return exact
+    # 同宽条带：只削深度（smaller 嵌在 larger 投影内时 IoU≈smaller.depth/depth）
+    if abs(larger.x - smaller.x) <= 1e-6 and abs(larger.width - smaller.width) <= 1e-6:
+        w = larger.width
+        if w <= 1e-9:
+            return None
+        max_depth = smaller.depth / max(min_iou, 1e-6)
+        min_depth = min_area / w
+        if min_depth > max_depth + 1e-9:
+            return None
+        depth = min(larger.depth, max(min_depth, smaller.depth))
+        if depth > max_depth + 1e-9:
+            depth = max_depth
+        y = smaller.y
+        if y < larger.y - 1e-9 or y + depth > larger.bottom + 1e-9:
+            y = larger.y
+        cand = Rect(x=larger.x, y=y, width=w, depth=depth)
+        if cand.area + 1e-9 >= min_area and rect_iou(cand, smaller) + 1e-9 >= min_iou:
+            return cand
+    # 同高条带：只削宽度
+    if abs(larger.y - smaller.y) <= 1e-6 and abs(larger.depth - smaller.depth) <= 1e-6:
+        h = larger.depth
+        if h <= 1e-9:
+            return None
+        max_width = smaller.width / max(min_iou, 1e-6)
+        min_width = min_area / h
+        if min_width > max_width + 1e-9:
+            return None
+        width = min(larger.width, max(min_width, smaller.width))
+        if width > max_width + 1e-9:
+            width = max_width
+        x = smaller.x
+        if x < larger.x - 1e-9 or x + width > larger.right + 1e-9:
+            x = larger.x
+        cand = Rect(x=x, y=larger.y, width=width, depth=h)
+        if cand.area + 1e-9 >= min_area and rect_iou(cand, smaller) + 1e-9 >= min_iou:
+            return cand
+    return None
+
+
+def nudge_wet_stack_alignment(
+    candidate,
+    program: DesignProgram,
+    *,
+    min_iou: float | None = None,
+) -> list:
+    """
+    跨层同 key 湿区 IoU 不足时，裁切偏大一侧（余量留给后续走廊填缝）。
+
+    返回可能已修改的 FloorLayout 列表（与 candidate.floors 同序）。
+    """
+    from packages.schema.layout import FloorLayout, RoomPlacement
+    from packages.schema.vertical_void import DEFAULT_WET_STACK_MIN_IOU
+    from solver.evaluation.vertical import (
+        _greedy_pair_wet_rooms,
+        _wet_placements_by_key,
+        min_iou_for_floor_pair,
+        wet_room_ids_for,
+    )
+
+    if len(candidate.floors) < 2:
+        return list(candidate.floors)
+
+    thr = min_iou if min_iou is not None else DEFAULT_WET_STACK_MIN_IOU
+    wet_ids = wet_room_ids_for(candidate, program)
+    room_by_id = {r.id: r for r in program.rooms}
+    floors: list[FloorLayout] = [fl.model_copy(deep=True) for fl in candidate.floors]
+    by_floor_placements: dict[str, dict[str, RoomPlacement]] = {
+        fl.floor_id: {p.room_id: p for p in fl.placements} for fl in floors
+    }
+
+    for i in range(len(floors) - 1):
+        low = floors[i]
+        high = floors[i + 1]
+        pair_min = (
+            thr
+            if min_iou is not None
+            else min_iou_for_floor_pair(program, low.floor_id, high.floor_id)
+        )
+        low_by = _wet_placements_by_key(
+            low, wet_ids=wet_ids, room_by_id=room_by_id
+        )
+        high_by = _wet_placements_by_key(
+            high, wet_ids=wet_ids, room_by_id=room_by_id
+        )
+        for key in sorted(set(low_by) & set(high_by)):
+            for (rid_a, rect_a), (rid_b, rect_b) in _greedy_pair_wet_rooms(
+                low_by[key], high_by[key]
+            ):
+                if rect_iou(rect_a, rect_b) + 1e-6 >= pair_min:
+                    continue
+                # 裁较大者
+                if rect_a.area >= rect_b.area:
+                    shrink_id, shrink_rect, keep_rect = rid_a, rect_a, rect_b
+                    shrink_floor = low.floor_id
+                else:
+                    shrink_id, shrink_rect, keep_rect = rid_b, rect_b, rect_a
+                    shrink_floor = high.floor_id
+                room = room_by_id.get(shrink_id)
+                if room is None:
+                    continue
+                new_rect = _shrink_larger_toward_smaller(
+                    shrink_rect,
+                    keep_rect,
+                    min_area=room.resolved_min_area(),
+                    min_iou=pair_min,
+                )
+                if new_rect is None:
+                    continue
+                p = by_floor_placements[shrink_floor].get(shrink_id)
+                if p is None:
+                    continue
+                by_floor_placements[shrink_floor][shrink_id] = p.model_copy(
+                    update={
+                        "rect": PlacementRect(
+                            x=new_rect.x,
+                            y=new_rect.y,
+                            width=new_rect.width,
+                            depth=new_rect.depth,
+                        )
+                    }
+                )
+
+    out: list[FloorLayout] = []
+    for fl in floors:
+        placed = list(by_floor_placements[fl.floor_id].values())
+        # 保持原顺序
+        order = {p.room_id: i for i, p in enumerate(fl.placements)}
+        placed.sort(key=lambda p: order.get(p.room_id, 10_000))
+        out.append(fl.model_copy(update={"placements": placed}))
+    return out

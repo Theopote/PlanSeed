@@ -110,7 +110,7 @@ def clamp_program_room_aspect_ratios(
     min_area_by_room_id: dict[str, float] | None = None,
     tolerance: float = COVERAGE_TOLERANCE,
 ) -> list[RoomPlacement]:
-    """裁切超细长 program 房间，余量交回 fill（不裁到低于 min_area）。"""
+    """裁切超细长 program 房间；余量改走廊（避免 fill 再吸回细长）。"""
     from packages.schema.layout import PlacementSource
 
     thr = (
@@ -142,10 +142,10 @@ def clamp_program_room_aspect_ratios(
         changed = True
     if not changed:
         return updated
-    return fill_floor_coverage_gaps(
+    return assign_residual_gaps_as_circulation(
         footprint,
         updated,
-        min_area_by_room_id=min_area_by_room_id,
+        floor_id,
         tolerance=tolerance,
     )
 

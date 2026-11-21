@@ -69,6 +69,8 @@ def wet_room_ids_for(
 
 def wet_stack_pairing_key(room: RoomSpec) -> str:
     """跨层湿区配对键：semantic_role 优先，其次 tags，最后泛化 bathroom。"""
+    from solver.semantics.roles import is_elder_bath
+
     if room.semantic_role is not None:
         return room.semantic_role.value
     tags = {str(t).lower() for t in (room.tags or [])}
@@ -79,6 +81,9 @@ def wet_stack_pairing_key(room: RoomSpec) -> str:
         return SemanticRole.LAUNDRY.value
     if tags & _MASTER_BATH_TAGS:
         return SemanticRole.MASTER_BATHROOM.value
+    if is_elder_bath(room):
+        # 老人卫不与二层公卫强行 IoU（套房专属、常仅一层）
+        return "bathroom:elderly"
     if tags & _BATH_TAGS:
         return SemanticRole.BATHROOM.value
     if room.category == RoomCategory.WET:
