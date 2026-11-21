@@ -6,6 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
 from packages.persistence import CURRENT_VERSION, ProjectStore
 from packages.persistence.migrations import get_user_version, migrate
 
@@ -59,6 +60,36 @@ def test_project_store_update(tmp_path: Path):
     assert loaded is not None
     assert loaded["payload"]["form"]["width"] == 12
     assert len(store.list_projects()) == 1
+
+
+def test_project_store_optimistic_conflict(tmp_path: Path):
+    from packages.persistence import ProjectConflictError
+
+    store = ProjectStore(db_path=tmp_path / "conflict.db")
+    first = store.save(name="v1", payload={"form": {}})
+    store.save(
+        name="v2",
+        payload={"form": {"width": 1}},
+        project_id=first["id"],
+        expected_updated_at=first["updated_at"],
+    )
+    with pytest.raises(ProjectConflictError) as ei:
+        store.save(
+            name="stale",
+            payload={"form": {"width": 99}},
+            project_id=first["id"],
+            expected_updated_at=first["updated_at"],
+        )
+    assert ei.value.project_id == first["id"]
+    # overwrite 可强制写入
+    forced = store.save(
+        name="forced",
+        payload={"form": {"width": 7}},
+        project_id=first["id"],
+        expected_updated_at=first["updated_at"],
+        overwrite=True,
+    )
+    assert forced["name"] == "forced"
 
 
 def _write_legacy_v0_db(path: Path, *, project_id: str, name: str, payload: dict) -> None:

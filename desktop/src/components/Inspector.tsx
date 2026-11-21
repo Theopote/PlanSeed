@@ -363,6 +363,28 @@ export function Inspector({
   const soft = candidate?.validation?.soft_violations ?? [];
   const findings = isDirty ? [] : (ds?.findings ?? []);
   const groups = groupFindings(findings);
+  const gatePassRaw = candidate?.metrics?.architectural_gate_pass;
+  const gatePass =
+    gatePassRaw === undefined || gatePassRaw === null
+      ? null
+      : gatePassRaw === true || gatePassRaw === "true";
+  const gateBlockers = Number(
+    candidate?.metrics?.architectural_gate_blocker_count ?? 0,
+  );
+  const gateWarnings = Number(
+    candidate?.metrics?.architectural_gate_warning_count ?? 0,
+  );
+  const gateCodes =
+    typeof candidate?.metrics?.architectural_gate_blocker_codes === "string"
+      ? candidate.metrics.architectural_gate_blocker_codes
+      : "";
+  const selectionLabel =
+    typeof candidate?.metrics?.selection_label === "string"
+      ? candidate.metrics.selection_label
+      : null;
+  const gateFindings = findings.filter((f) =>
+    (f.metric ?? "").startsWith("arch_gate."),
+  );
   const placement =
     selectedRoomId && candidate
       ? (candidate.placements?.find((p) => p.room_id === selectedRoomId) ?? null)
@@ -426,6 +448,45 @@ export function Inspector({
                 {" "}
                 · mutations {candidate?.mutations?.length ?? 0}
               </span>
+            </p>
+          )}
+
+          {!isDirty && gatePass === false && (
+            <div className="gate-banner gate-fail">
+              <p>
+                Architectural Gate 未通过
+                {gateBlockers > 0 ? ` · ${gateBlockers} blockers` : ""}
+                {gateCodes ? ` · ${gateCodes}` : ""}
+                {selectionLabel ? ` · ${selectionLabel}` : ""}
+              </p>
+              {gateFindings.length > 0 && (
+                <ul className="gate-issue-list">
+                  {gateFindings.slice(0, 6).map((f) => (
+                    <li key={f.id}>
+                      <button
+                        type="button"
+                        className="gate-issue"
+                        onClick={() => toggleFinding(f)}
+                      >
+                        {f.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {!isDirty && gatePass === true && gateWarnings > 0 && (
+            <p className="gate-banner gate-warn">
+              Gate 通过 · {gateWarnings} warnings
+              {selectionLabel ? ` · ${selectionLabel}` : ""}
+            </p>
+          )}
+
+          {!isDirty && gatePass === true && gateWarnings === 0 && selectionLabel && (
+            <p className="gate-banner gate-ok">
+              Gate 通过 · {selectionLabel}
             </p>
           )}
 

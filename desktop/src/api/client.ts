@@ -561,10 +561,35 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   return r.json() as Promise<ProjectSummary[]>;
 }
 
+/** 乐观并发：expected_updated_at 与库不一致时由 saveProject 抛出。 */
+export class ProjectConflictError extends Error {
+  readonly code = "project_conflict" as const;
+  readonly projectId: string;
+  readonly currentUpdatedAt: string;
+  readonly expectedUpdatedAt: string;
+
+  constructor(
+    message: string,
+    opts: {
+      projectId: string;
+      currentUpdatedAt: string;
+      expectedUpdatedAt: string;
+    },
+  ) {
+    super(message);
+    this.name = "ProjectConflictError";
+    this.projectId = opts.projectId;
+    this.currentUpdatedAt = opts.currentUpdatedAt;
+    this.expectedUpdatedAt = opts.expectedUpdatedAt;
+  }
+}
+
 export async function saveProject(opts: {
   name: string;
   id?: string | null;
   payload: ProjectPayload;
+  expected_updated_at?: string | null;
+  overwrite?: boolean;
 }): Promise<ProjectDetail> {
   const r = await fetch(`${_apiBase}/api/projects`, {
     method: "POST",
@@ -573,19 +598,76 @@ export async function saveProject(opts: {
       name: opts.name,
       id: opts.id ?? null,
       payload: opts.payload,
+      expected_updated_at: opts.expected_updated_at ?? null,
+      overwrite: opts.overwrite ?? false,
     }),
   });
   if (!r.ok) {
     let msg = `HTTP ${r.status}`;
     try {
-      const body = (await r.json()) as { detail?: string };
-      if (typeof body.detail === "string") msg = body.detail;
-    } catch {
-      /* keep */
+      const body = (await r.json()) as {
+        detail?:
+          | string
+          | {
+              code?: string;
+              message?: string;
+              project_id?: string;
+              current_updated_at?: string;
+              expected_updated_at?: string;
+            };
+      };
+      const d = body.detail;
+      if (d && typeof d === "object" && d.code === "project_conflict") {
+        throw new ProjectConflictError(d.message ?? "项目保存冲突", {
+          projectId: d.project_id ?? opts.id ?? "",
+          currentUpdatedAt: d.current_updated_at ?? "",
+          expectedUpdatedAt:
+            d.expected_updated_at ?? opts.expected_updated_at ?? "",
+        });
+      }
+      if (typeof d === "string") msg = d;
+      else if (d && typeof d === "object" && d.message) msg = d.message;
+    } catch (e) {
+      if (e instanceof ProjectConflictError) throw e;
     }
     throw new Error(msg);
   }
   return r.json() as Promise<ProjectDetail>;
+}
+
+/**
+ * 保存并处理 409：覆盖 / 另存为新项目 / 取消（返回 null）。
+ * 桌面端所有写路径应走此函数，以便带上 expected_updated_at。
+ */
+export async function saveProjectWithConflictPrompt(opts: {
+  name: string;
+  id?: string | null;
+  payload: ProjectPayload;
+  expected_updated_at?: string | null;
+}): Promise<ProjectDetail | null> {
+  try {
+    return await saveProject(opts);
+  } catch (e) {
+    if (!(e instanceof ProjectConflictError)) throw e;
+    const overwrite = window.confirm(
+      "项目已被其它会话更新，拒绝静默覆盖。\n\n确定要覆盖本地较新版本吗？",
+    );
+    if (overwrite) {
+      return saveProject({ ...opts, overwrite: true });
+    }
+    const saveAs = window.confirm(
+      "改为另存为新项目？（将生成新的项目 id）",
+    );
+    if (saveAs) {
+      return saveProject({
+        ...opts,
+        id: null,
+        expected_updated_at: null,
+        overwrite: false,
+      });
+    }
+    return null;
+  }
 }
 
 export async function loadProject(id: string): Promise<ProjectDetail> {

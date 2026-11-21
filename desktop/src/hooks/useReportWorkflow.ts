@@ -6,7 +6,7 @@ import {
 } from "react";
 import {
   buildReport,
-  saveProject,
+  saveProjectWithConflictPrompt,
   type CandidatePayload,
   type LayoutLocks,
   type ProgramSummary,
@@ -26,6 +26,8 @@ export type UseReportWorkflowArgs = {
   compareId: string | null;
   projectId: string | null;
   setProjectId: Dispatch<SetStateAction<string | null>>;
+  projectUpdatedAt: string | null;
+  setProjectUpdatedAt: Dispatch<SetStateAction<string | null>>;
   projectName: string;
   setProjectName: Dispatch<SetStateAction<string>>;
   solverIdentity: SolverIdentity | null;
@@ -42,6 +44,8 @@ export function useReportWorkflow({
   compareId,
   projectId,
   setProjectId,
+  projectUpdatedAt,
+  setProjectUpdatedAt,
   projectName,
   setProjectName,
   solverIdentity,
@@ -71,9 +75,10 @@ export function useReportWorkflow({
     try {
       // 正式报告只引用已保存快照（禁止 client 任意 SVG payload）
       const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-      const saved = await saveProject({
+      const saved = await saveProjectWithConflictPrompt({
         name: projectName.trim() || "未命名项目",
         id: projectId,
+        expected_updated_at: projectId ? projectUpdatedAt : null,
         payload: {
           form,
           program,
@@ -85,8 +90,13 @@ export function useReportWorkflow({
           schema_versions,
         },
       });
+      if (!saved) {
+        setError("已取消导出");
+        return;
+      }
       setProjectId(saved.id);
       setProjectName(saved.name);
+      setProjectUpdatedAt(saved.updated_at);
       const stored = saved.payload.candidates?.find((c) => c.id === selectedId);
       const revisionId =
         stored?.revision_id ?? selected?.revision_id ?? selectedId;
@@ -112,6 +122,7 @@ export function useReportWorkflow({
     candidates,
     projectName,
     projectId,
+    projectUpdatedAt,
     selectedId,
     form,
     locks,
@@ -120,6 +131,7 @@ export function useReportWorkflow({
     resolveCanonicalSpec,
     setProjectId,
     setProjectName,
+    setProjectUpdatedAt,
     setError,
   ]);
 

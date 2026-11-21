@@ -402,3 +402,69 @@ def test_import_validates_before_write_and_conflict(
     )
     assert rejected.status_code == 400
     assert client.get("/api/projects/poison").status_code == 404
+
+
+def test_save_optimistic_conflict_409(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PLANSEED_DB", str(tmp_path / "conflict-api.db"))
+    first = client.post(
+        "/api/projects",
+        json={
+            "name": "v1",
+            "payload": {"form": {}, "candidates": []},
+        },
+    )
+    assert first.status_code == 200, first.text
+    body = first.json()
+    pid = body["id"]
+    stamp = body["updated_at"]
+
+    second = client.post(
+        "/api/projects",
+        json={
+            "name": "v2",
+            "id": pid,
+            "expected_updated_at": stamp,
+            "payload": {"form": {"width": 1}, "candidates": []},
+        },
+    )
+    assert second.status_code == 200, second.text
+
+    stale = client.post(
+        "/api/projects",
+        json={
+            "name": "stale",
+            "id": pid,
+            "expected_updated_at": stamp,
+            "payload": {"form": {"width": 99}, "candidates": []},
+        },
+    )
+    assert stale.status_code == 409, stale.text
+    detail = stale.json()["detail"]
+    assert detail["code"] == "project_conflict"
+    assert detail["project_id"] == pid
+
+    forced = client.post(
+        "/api/projects",
+        json={
+            "name": "forced",
+            "id": pid,
+            "expected_updated_at": stamp,
+            "overwrite": True,
+            "payload": {"form": {"width": 7}, "candidates": []},
+        },
+    )
+    assert forced.status_code == 200, forced.text
+    assert forced.json()["name"] == "forced"
+
+    # 未带 expected_updated_at 时保持旧客户端兼容（不 409）
+    legacy = client.post(
+        "/api/projects",
+        json={
+            "name": "legacy",
+            "id": pid,
+            "payload": {"form": {"width": 3}, "candidates": []},
+        },
+    )
+    assert legacy.status_code == 200, legacy.text

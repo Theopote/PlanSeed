@@ -34,6 +34,23 @@ class ProjectMeta:
     updated_at: str
 
 
+class ProjectConflictError(Exception):
+    """乐观并发冲突：expected_updated_at 与库中不一致。"""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        project_id: str,
+        current_updated_at: str,
+        expected_updated_at: str,
+    ) -> None:
+        super().__init__(message)
+        self.project_id = project_id
+        self.current_updated_at = current_updated_at
+        self.expected_updated_at = expected_updated_at
+
+
 class ProjectStore:
     """projects(id, name, updated_at, payload_json)；打开时自动 migrate。"""
 
@@ -92,11 +109,38 @@ class ProjectStore:
         name: str,
         payload: dict[str, Any],
         project_id: str | None = None,
+        expected_updated_at: str | None = None,
+        overwrite: bool = False,
     ) -> dict[str, Any]:
+        """
+        保存项目快照。
+
+        ``expected_updated_at``：已有项目时须与库中 ``updated_at`` 一致，否则
+        抛 ``ProjectConflictError``（除非 ``overwrite=True``）。新建项目忽略该字段。
+        """
         pid = project_id or str(uuid.uuid4())
         now = datetime.now(UTC).isoformat()
         blob = json.dumps(payload, ensure_ascii=False)
         with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT updated_at FROM projects WHERE id = ?",
+                (pid,),
+            ).fetchone()
+            # 仅当调用方提供 expected_updated_at 时启用乐观锁（桌面端）；
+            # 未提供则保持旧行为，兼容内部脚本与未升级客户端。
+            if (
+                existing is not None
+                and expected_updated_at is not None
+                and not overwrite
+            ):
+                current = str(existing["updated_at"])
+                if expected_updated_at != current:
+                    raise ProjectConflictError(
+                        "项目已被其它会话更新，拒绝覆盖",
+                        project_id=pid,
+                        current_updated_at=current,
+                        expected_updated_at=expected_updated_at,
+                    )
             conn.execute(
                 """
                 INSERT INTO projects (id, name, updated_at, payload_json)
@@ -122,6 +166,7 @@ __all__ = [
     "CURRENT_VERSION",
     "PLANSEED_EXTENSION",
     "PLANSEED_FORMAT",
+    "ProjectConflictError",
     "ProjectMeta",
     "ProjectStore",
     "default_db_path",

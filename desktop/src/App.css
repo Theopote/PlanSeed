@@ -1248,6 +1248,82 @@ button.secondary {
   line-height: 1.2;
 }
 
+.strip-role.role-top {
+  color: #c4b59a;
+}
+
+.strip-role.role-axis {
+  color: #8fa88a;
+}
+
+.strip-role.role-fill {
+  color: #c49a6c;
+}
+
+.strip-item.is-gate-fail {
+  border-color: #a66b5a;
+}
+
+.strip-item.is-gate-fail .strip-score {
+  color: #c47a6a;
+}
+
+.gate-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+  border-radius: 2px;
+  border-left: 3px solid transparent;
+}
+
+.gate-banner.gate-fail {
+  background: #f6e8e4;
+  border-left-color: #a66b5a;
+  color: #5c3a32;
+}
+
+.gate-banner.gate-warn {
+  background: #f6efdf;
+  border-left-color: #b08a4a;
+  color: #5a4a2e;
+}
+
+.gate-banner.gate-ok {
+  background: #e8efe6;
+  border-left-color: #6a8a62;
+  color: #3d4f3a;
+}
+
+.gate-banner p {
+  margin: 0;
+}
+
+.gate-issue-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.gate-issue {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.gate-issue:hover {
+  opacity: 0.85;
+}
+
 
 .strip-item.is-dirty {
   border-style: dashed;

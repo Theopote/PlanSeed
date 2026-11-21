@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
-from packages.persistence import ProjectStore
+from packages.persistence import ProjectConflictError, ProjectStore
 from packages.persistence.planseed_package import (
     PlanseedPackageError,
     pack_planseed,
@@ -77,6 +77,14 @@ class SaveProjectRequest(BaseModel):
     name: str = Field(min_length=1, max_length=API_LIMITS.max_project_name_chars)
     id: str | None = None
     payload: ProjectPayload
+    expected_updated_at: str | None = Field(
+        default=None,
+        description="乐观并发：已有项目时须匹配库中 updated_at；不匹配 → 409",
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="为 True 时忽略 expected_updated_at，强制覆盖",
+    )
 
 
 class ProjectDetail(BaseModel):
@@ -222,7 +230,25 @@ def list_projects() -> list[ProjectSummaryOut]:
 @router.post("")
 def save_project(body: SaveProjectRequest) -> ProjectDetail:
     payload = _validated_payload_dict(body.payload.model_dump())
-    saved = _store().save(name=body.name, payload=payload, project_id=body.id)
+    try:
+        saved = _store().save(
+            name=body.name,
+            payload=payload,
+            project_id=body.id,
+            expected_updated_at=body.expected_updated_at,
+            overwrite=body.overwrite,
+        )
+    except ProjectConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "project_conflict",
+                "message": str(exc),
+                "project_id": exc.project_id,
+                "current_updated_at": exc.current_updated_at,
+                "expected_updated_at": exc.expected_updated_at,
+            },
+        ) from exc
     return _detail_from_row(saved)
 
 
@@ -265,6 +291,7 @@ async def import_planseed_package(
         name=bundle.name,
         payload=payload,
         project_id=bundle.project_id,
+        overwrite=overwrite,
     )
     return _detail_from_row(saved)
 

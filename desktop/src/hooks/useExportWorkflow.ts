@@ -8,7 +8,7 @@ import {
   exportPng,
   exportReportJson,
   exportSvg,
-  saveProject,
+  saveProjectWithConflictPrompt,
   type CandidatePayload,
   type LayoutLocks,
   type PngExportSize,
@@ -32,6 +32,8 @@ export type UseExportWorkflowArgs = {
   compareId: string | null;
   projectId: string | null;
   setProjectId: Dispatch<SetStateAction<string | null>>;
+  projectUpdatedAt: string | null;
+  setProjectUpdatedAt: Dispatch<SetStateAction<string | null>>;
   projectName: string;
   setProjectName: Dispatch<SetStateAction<string>>;
   solverIdentity: SolverIdentity | null;
@@ -50,6 +52,8 @@ export function useExportWorkflow({
   compareId,
   projectId,
   setProjectId,
+  projectUpdatedAt,
+  setProjectUpdatedAt,
   projectName,
   setProjectName,
   solverIdentity,
@@ -76,9 +80,10 @@ export function useExportWorkflow({
       setError(null);
       try {
         const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-        const saved = await saveProject({
+        const saved = await saveProjectWithConflictPrompt({
           name: projectName.trim() || "未命名项目",
           id: projectId,
+          expected_updated_at: projectId ? projectUpdatedAt : null,
           payload: {
             form,
             program,
@@ -90,8 +95,13 @@ export function useExportWorkflow({
             schema_versions,
           },
         });
+        if (!saved) {
+          setError("已取消导出");
+          return;
+        }
         setProjectId(saved.id);
         setProjectName(saved.name);
+        setProjectUpdatedAt(saved.updated_at);
         const stored = saved.payload.candidates?.find((c) => c.id === selectedId);
         const revisionId =
           stored?.revision_id ?? selected?.revision_id ?? selectedId;
@@ -127,6 +137,7 @@ export function useExportWorkflow({
       candidates,
       projectName,
       projectId,
+      projectUpdatedAt,
       selectedId,
       selectedRoomId,
       form,
@@ -136,6 +147,7 @@ export function useExportWorkflow({
       resolveCanonicalSpec,
       setProjectId,
       setProjectName,
+      setProjectUpdatedAt,
       setReportBusy,
       setError,
     ],
@@ -162,9 +174,10 @@ export function useExportWorkflow({
       setError(null);
       try {
         const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-        const saved = await saveProject({
+        const saved = await saveProjectWithConflictPrompt({
           name: projectName.trim() || "未命名项目",
           id: projectId,
+          expected_updated_at: projectId ? projectUpdatedAt : null,
           payload: {
             form,
             program,
@@ -176,8 +189,13 @@ export function useExportWorkflow({
             schema_versions,
           },
         });
+        if (!saved) {
+          setError("已取消导出");
+          return;
+        }
         setProjectId(saved.id);
         setProjectName(saved.name);
+        setProjectUpdatedAt(saved.updated_at);
         const stored = saved.payload.candidates?.find((c) => c.id === selectedId);
         const revisionId =
           stored?.revision_id ?? selected?.revision_id ?? selectedId;
@@ -214,6 +232,7 @@ export function useExportWorkflow({
       candidates,
       projectName,
       projectId,
+      projectUpdatedAt,
       selectedId,
       selectedRoomId,
       form,
@@ -223,6 +242,7 @@ export function useExportWorkflow({
       resolveCanonicalSpec,
       setProjectId,
       setProjectName,
+      setProjectUpdatedAt,
       setReportBusy,
       setError,
     ],
@@ -248,9 +268,10 @@ export function useExportWorkflow({
     setError(null);
     try {
       const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-      const saved = await saveProject({
+      const saved = await saveProjectWithConflictPrompt({
         name: projectName.trim() || "未命名项目",
         id: projectId,
+        expected_updated_at: projectId ? projectUpdatedAt : null,
         payload: {
           form,
           program,
@@ -262,8 +283,13 @@ export function useExportWorkflow({
           schema_versions,
         },
       });
+      if (!saved) {
+        setError("已取消导出");
+        return;
+      }
       setProjectId(saved.id);
       setProjectName(saved.name);
+      setProjectUpdatedAt(saved.updated_at);
       const stored = saved.payload.candidates?.find((c) => c.id === selectedId);
       const revisionId =
         stored?.revision_id ?? selected?.revision_id ?? selectedId;
@@ -284,6 +310,7 @@ export function useExportWorkflow({
     candidates,
     projectName,
     projectId,
+    projectUpdatedAt,
     selectedId,
     form,
     locks,
@@ -291,6 +318,7 @@ export function useExportWorkflow({
     solverIdentity,
     resolveCanonicalSpec,
     setProjectId,
+    setProjectUpdatedAt,
     setProjectName,
     setReportBusy,
     setError,

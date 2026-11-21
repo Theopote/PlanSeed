@@ -11,7 +11,7 @@ import {
   importPlanseedPackage,
   listProjects,
   loadProject,
-  saveProject,
+  saveProjectWithConflictPrompt,
   type CandidatePayload,
   type LayoutLocks,
   type ProgramSummary,
@@ -80,6 +80,9 @@ export function useProjectSession({
 }: UseProjectSessionArgs) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("未命名项目");
+  const [projectUpdatedAt, setProjectUpdatedAt] = useState<string | null>(
+    null,
+  );
   const [projectBusy, setProjectBusy] = useState(false);
   const [versionHint, setVersionHint] = useState<string | null>(null);
   const [projectPicker, setProjectPicker] = useState<ProjectSummary[] | null>(
@@ -91,6 +94,7 @@ export function useProjectSession({
       const p = detail.payload;
       setProjectId(detail.id);
       setProjectName(detail.name);
+      setProjectUpdatedAt(detail.updated_at);
       if (p.form && typeof p.form === "object") {
         setForm({ ...DEFAULT_FORM, ...(p.form as RequirementForm) });
       }
@@ -181,9 +185,10 @@ export function useProjectSession({
     setError(null);
     try {
       const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-      const saved = await saveProject({
+      const saved = await saveProjectWithConflictPrompt({
         name: projectName.trim() || "未命名项目",
         id: projectId,
+        expected_updated_at: projectId ? projectUpdatedAt : null,
         payload: {
           form,
           program,
@@ -195,8 +200,13 @@ export function useProjectSession({
           schema_versions,
         },
       });
+      if (!saved) {
+        setError("已取消保存");
+        return;
+      }
       setProjectId(saved.id);
       setProjectName(saved.name);
+      setProjectUpdatedAt(saved.updated_at);
       // 仅保存不得清除 mismatch；用服务端回传判断
       if (saved.evaluation_version_mismatch) {
         setVersionHint(
@@ -212,6 +222,7 @@ export function useProjectSession({
     program,
     projectName,
     projectId,
+    projectUpdatedAt,
     form,
     locks,
     candidates,
@@ -247,9 +258,10 @@ export function useProjectSession({
     setError(null);
     try {
       const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-      const saved = await saveProject({
+      const saved = await saveProjectWithConflictPrompt({
         name: projectName.trim() || "未命名项目",
         id: projectId,
+        expected_updated_at: projectId ? projectUpdatedAt : null,
         payload: {
           form,
           program,
@@ -261,8 +273,13 @@ export function useProjectSession({
           schema_versions,
         },
       });
+      if (!saved) {
+        setError("已取消导出");
+        return;
+      }
       setProjectId(saved.id);
       setProjectName(saved.name);
+      setProjectUpdatedAt(saved.updated_at);
       const out = await exportPlanseedPackage(saved.id);
       downloadBlob(out.blob, out.filename);
     } catch (e) {
@@ -274,6 +291,7 @@ export function useProjectSession({
     program,
     projectName,
     projectId,
+    projectUpdatedAt,
     form,
     locks,
     candidates,
@@ -318,6 +336,8 @@ export function useProjectSession({
     setProjectId,
     projectName,
     setProjectName,
+    projectUpdatedAt,
+    setProjectUpdatedAt,
     projectBusy,
     versionHint,
     setVersionHint,

@@ -61,12 +61,27 @@ export function CandidateStrip({
                   : "—";
           const gen = c.variant_generation ?? 0;
           const display = lineageLabel(c.label, gen);
+          const selectionRole =
+            typeof c.metrics?.selection_role === "string"
+              ? c.metrics.selection_role
+              : null;
           const selectionLabel =
             typeof c.metrics?.selection_label === "string"
               ? c.metrics.selection_label
               : null;
+          const gatePass = c.metrics?.architectural_gate_pass;
+          const gateFailed = gatePass === false || gatePass === "false";
+          const roleClass =
+            selectionRole === "score_fill" || selectionRole === "gate_fill"
+              ? "role-fill"
+              : selectionRole === "top_score"
+                ? "role-top"
+                : selectionRole
+                  ? "role-axis"
+                  : "";
           const tipParts = [
             selectionLabel,
+            gateFailed ? "Architectural Gate 未通过（门槛外）" : null,
             "点击选中；Alt+点击设为比较对象",
             c.revision_status === "dirty"
               ? "Modified · Evaluation outdated"
@@ -80,7 +95,7 @@ export function CandidateStrip({
             <button
               key={c.id}
               type="button"
-              className={`strip-item ${active ? "active" : ""} ${comparing ? "compare" : ""} ${gen > 0 ? "is-variant" : ""} ${c.revision_status === "dirty" ? "is-dirty" : ""}`}
+              className={`strip-item ${active ? "active" : ""} ${comparing ? "compare" : ""} ${gen > 0 ? "is-variant" : ""} ${c.revision_status === "dirty" ? "is-dirty" : ""} ${gateFailed ? "is-gate-fail" : ""} ${roleClass}`}
               style={gen > 0 ? { marginLeft: Math.min(gen, 4) * 6 } : undefined}
               title={tipParts.join(" · ")}
               onClick={(e) => {
@@ -94,7 +109,7 @@ export function CandidateStrip({
               <span className="strip-label">{display}</span>
               <span className="strip-score">{score}</span>
               {selectionLabel ? (
-                <span className="strip-role">{selectionLabel}</span>
+                <span className={`strip-role ${roleClass}`}>{selectionLabel}</span>
               ) : null}
               <span className="strip-seed">s{c.seed}</span>
             </button>
