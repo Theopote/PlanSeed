@@ -108,9 +108,10 @@ def clamp_program_room_aspect_ratios(
     *,
     threshold: float | None = None,
     min_area_by_room_id: dict[str, float] | None = None,
+    max_area_by_room_id: dict[str, float] | None = None,
     tolerance: float = COVERAGE_TOLERANCE,
 ) -> list[RoomPlacement]:
-    """裁切超细长 program 房间；余量改走廊（避免 fill 再吸回细长）。"""
+    """裁切超细长 program 房间；框内不够则向邻房加厚短边；余量改走廊。"""
     from packages.schema.layout import PlacementSource
 
     thr = (
@@ -118,6 +119,8 @@ def clamp_program_room_aspect_ratios(
         if threshold is not None
         else DEFAULT_WEIGHTS.aspect_ratio_threshold
     )
+    mins = min_area_by_room_id or {}
+    maxs = max_area_by_room_id or {}
     updated = [p.model_copy(deep=True) for p in placements]
     changed = False
     for i, p in enumerate(updated):
@@ -131,12 +134,17 @@ def clamp_program_room_aspect_ratios(
         clamped = largest_aspect_ok_placement_rect(
             r.x, r.y, r.right, r.bottom, thr
         )
-        lo = (
-            min_area_by_room_id.get(p.room_id)
-            if min_area_by_room_id is not None
-            else None
-        )
+        lo = mins.get(p.room_id)
         if lo is not None and clamped.area + tolerance < lo:
+            if _thicken_slender_room_from_neighbors(
+                updated,
+                room_index=i,
+                threshold=thr,
+                min_area_by_room_id=mins,
+                max_area_by_room_id=maxs,
+                tolerance=tolerance,
+            ):
+                changed = True
             continue
         updated[i] = p.model_copy(update={"rect": clamped})
         changed = True
@@ -150,6 +158,190 @@ def clamp_program_room_aspect_ratios(
     )
 
 
+def _thicken_slender_room_from_neighbors(
+    placements: list[RoomPlacement],
+    *,
+    room_index: int,
+    threshold: float,
+    min_area_by_room_id: dict[str, float],
+    max_area_by_room_id: dict[str, float],
+    tolerance: float,
+) -> bool:
+    """
+    细长房框内无法裁到 min_area 时，沿短边向邻接房间/走廊匀厚度。
+
+    若接收房略宽于 donor 贴边，先裁到 donor 投影内再 cede，避免切进第三房间。
+    """
+    from packages.schema.layout import PlacementRect
+
+    recv = placements[room_index]
+    cur = from_placement(recv.rect)
+    if _rect_aspect_ratio(cur) <= threshold + 1e-6:
+        return False
+    short_is_depth = cur.width >= cur.depth
+    lo = min_area_by_room_id.get(recv.room_id, 0.0)
+    hi = max_area_by_room_id.get(recv.room_id, float("inf"))
+    preferred = ("north", "south") if short_is_depth else ("west", "east")
+
+    best: tuple[float, int, str, float, RoomPlacement] | None = None
+    for j, donor in enumerate(placements):
+        if j == room_index or is_fixed_void_placement(donor.room_id):
+            continue
+        donor_r = from_placement(donor.rect)
+        rel = _donor_relation(cur, donor_r, tolerance=LAYOUT_ABSORB_TOLERANCE)
+        if rel is None:
+            continue
+        direction, overlap = rel
+        if direction not in preferred:
+            continue
+        if overlap <= tolerance:
+            continue
+
+        # 裁到 donor 贴边投影内，保证 cede 条带不越出 donor
+        trimmed = recv
+        trim_r = cur
+        if direction in ("north", "south"):
+            left = max(cur.left, donor_r.left)
+            right = min(cur.right, donor_r.right)
+            if right - left <= tolerance:
+                continue
+            if left > cur.left + tolerance or right < cur.right - tolerance:
+                trim_r = Rect(
+                    x=left, y=cur.y, width=right - left, depth=cur.depth
+                )
+                if trim_r.area + tolerance < lo:
+                    continue
+                trimmed = recv.model_copy(
+                    update={
+                        "rect": PlacementRect(
+                            x=trim_r.x,
+                            y=trim_r.y,
+                            width=trim_r.width,
+                            depth=trim_r.depth,
+                        )
+                    }
+                )
+        else:
+            top = max(cur.top, donor_r.top)
+            bottom = min(cur.bottom, donor_r.bottom)
+            if bottom - top <= tolerance:
+                continue
+            if top > cur.top + tolerance or bottom < cur.bottom - tolerance:
+                trim_r = Rect(
+                    x=cur.x, y=top, width=cur.width, depth=bottom - top
+                )
+                if trim_r.area + tolerance < lo:
+                    continue
+                trimmed = recv.model_copy(
+                    update={
+                        "rect": PlacementRect(
+                            x=trim_r.x,
+                            y=trim_r.y,
+                            width=trim_r.width,
+                            depth=trim_r.depth,
+                        )
+                    }
+                )
+
+        long_side = max(trim_r.width, trim_r.depth)
+        need_short = long_side / threshold
+        cur_short = min(trim_r.width, trim_r.depth)
+        grow_need = need_short - cur_short
+        if grow_need <= tolerance:
+            continue
+
+        donor_min = min_area_by_room_id.get(donor.room_id, 0.0)
+        spare = donor.rect.area - donor_min
+        if spare <= tolerance and not donor.room_id.startswith("circ-"):
+            continue
+        if donor.room_id.startswith("circ-"):
+            spare = donor.rect.area
+
+        edge = (
+            trim_r.width if direction in ("north", "south") else trim_r.depth
+        )
+        if edge <= tolerance:
+            continue
+        size_limit = (
+            donor_r.depth - 0.05
+            if direction in ("north", "south")
+            else donor_r.width - 0.05
+        )
+        headroom = hi - trim_r.area
+        delta = min(grow_need, spare / edge, size_limit, headroom / edge)
+        if delta <= tolerance:
+            continue
+
+        # 走廊/无裁边优先；避开门厅（跨层对齐复制后易与对层走廊重叠）
+        score = delta
+        if donor.room_id.startswith("circ-"):
+            score += 100.0
+        if donor.room_id.startswith("foyer-"):
+            score -= 50.0
+        if trimmed.rect.width + 1e-9 >= cur.width and trimmed.rect.depth + 1e-9 >= cur.depth:
+            score += 20.0  # 无需裁接收房投影
+        if direction in ("north", "west"):
+            score += 5.0  # 略偏向远离南/东入口边
+        if best is None or score > best[0]:
+            best = (score, j, direction, delta, trimmed)
+
+    if best is None:
+        return False
+    _, j, direction, delta, trimmed = best
+    donor_before = from_placement(placements[j].rect)
+    donor_prior_ar = _rect_aspect_ratio(donor_before)
+    new_recv, new_donor = _cede_along_shared_edge(
+        trimmed, placements[j], direction, delta
+    )
+    if min(new_recv.rect.width, new_recv.rect.depth) <= tolerance:
+        return False
+    if min(new_donor.rect.width, new_donor.rect.depth) <= tolerance:
+        return False
+    new_recv_r = from_placement(new_recv.rect)
+    if _rect_aspect_ratio(new_recv_r) > threshold + 1e-6:
+        return False
+    if new_recv_r.area + tolerance < lo:
+        return False
+    if new_recv_r.area > hi + tolerance:
+        return False
+    if not _donor_cede_respects_aspect_cap(
+        new_donor.room_id,
+        from_placement(new_donor.rect),
+        donor_prior_ar,
+        cede_direction=direction,
+        donor_before=donor_before,
+    ):
+        # 走廊豁免；program donor 不可恶化长宽比
+        if not new_donor.room_id.startswith("circ-"):
+            return False
+    # 确认不与第三房间重叠
+    for k, other in enumerate(placements):
+        if k in (room_index, j):
+            continue
+        inter = intersection(new_recv_r, from_placement(other.rect))
+        if inter is not None and inter.area > tolerance:
+            return False
+        inter_d = intersection(
+            from_placement(new_donor.rect), from_placement(other.rect)
+        )
+        if inter_d is not None and inter_d.area > tolerance:
+            return False
+
+    placements[room_index] = new_recv
+    if (
+        new_donor.room_id.startswith("circ-")
+        and min(new_donor.rect.width, new_donor.rect.depth) < 0.5
+        and new_donor.rect.area <= tolerance * 10
+    ):
+        placements.pop(j)
+        if j < room_index:
+            # room_index 不变（pop 的是 j）
+            pass
+    else:
+        placements[j] = new_donor
+    return True
+
+
 def _overlap_clip_priority(p: RoomPlacement) -> int:
     """数值越小越不应被裁切（楼梯 / 天井 > 走廊 > 其他 generated > program）。"""
     from packages.schema.layout import PlacementSource
@@ -161,6 +353,43 @@ def _overlap_clip_priority(p: RoomPlacement) -> int:
     if p.source == PlacementSource.GENERATED:
         return 2
     return 3
+
+
+def clip_circulation_overlapping_program_rooms(
+    placements: list[RoomPlacement],
+    *,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """走廊/门厅与 program 房重叠时裁掉走廊（湿区跨层复制后专用）。"""
+    from packages.schema.layout import PlacementSource
+
+    program_rects = [
+        from_placement(p.rect)
+        for p in placements
+        if p.source == PlacementSource.PROGRAM
+        and not is_fixed_void_placement(p.room_id)
+        and not p.room_id.startswith(("circ-", "foyer-"))
+    ]
+    if not program_rects:
+        return placements
+    updated: list[RoomPlacement] = []
+    for p in placements:
+        if not (
+            p.room_id.startswith("circ-")
+            or p.room_id.startswith("foyer-")
+            or (p.category or "").lower() == "circulation"
+        ):
+            updated.append(p)
+            continue
+        clipped = clip_placement_away_from_obstacles(
+            p.rect, program_rects, tolerance=tolerance
+        )
+        if clipped is None:
+            continue
+        if clipped.width * clipped.depth <= tolerance:
+            continue
+        updated.append(p.model_copy(update={"rect": clipped}))
+    return updated
 
 
 def resolve_placement_overlaps(

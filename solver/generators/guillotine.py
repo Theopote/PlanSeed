@@ -50,6 +50,7 @@ from solver.geometry.coverage import (
     clip_placement_away_from_obstacles,
     clip_placements_to_pack_rects,
     absorb_impassable_corridor_slivers,
+    clip_circulation_overlapping_program_rooms,
     shrink_placement_to_max_area,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
@@ -852,6 +853,7 @@ class GuillotineGenerator:
                 list(fl.placements),
                 fl.floor_id,
                 min_area_by_room_id=min_by_id,
+                max_area_by_room_id=max_by_id,
             )
             placed = grow_rooms_to_min_area(
                 pack_rects,
@@ -864,6 +866,7 @@ class GuillotineGenerator:
                 placed,
                 fl.floor_id,
                 min_area_by_room_id=min_by_id,
+                max_area_by_room_id=max_by_id,
             )
             placed = assign_residual_gaps_as_circulation(
                 pack_rects,
@@ -913,6 +916,7 @@ class GuillotineGenerator:
                 placed,
                 fl.floor_id,
                 min_area_by_room_id=min_by_id,
+                max_area_by_room_id=max_by_id,
             )
             placed = clip_placements_to_pack_rects(
                 pack_rects, placed, fl.floor_id
@@ -941,11 +945,16 @@ class GuillotineGenerator:
         # finalize 可能挪开锚层湿区：错位层与压住锚足迹的卧室/走廊对调
         realigned_floors: list[FloorLayout] = []
         for fl in realign_wet_stack_by_occupant_swap(candidate, program):
+            # 对齐复制可能压住对层走廊：走廊退让，保留湿区足迹
+            placed = clip_circulation_overlapping_program_rooms(
+                list(fl.placements)
+            )
             placed = clamp_program_room_aspect_ratios(
                 pack_rects,
-                list(fl.placements),
+                placed,
                 fl.floor_id,
                 min_area_by_room_id=min_by_id,
+                max_area_by_room_id=max_by_id,
             )
             placed = grow_rooms_to_min_area(
                 pack_rects, placed, min_by_id, max_by_id
@@ -1213,6 +1222,7 @@ class GuillotineGenerator:
             placements,
             floor.id,
             min_area_by_room_id=min_by_id,
+                max_area_by_room_id=max_by_id,
         )
         placements = resolve_placement_overlaps(placements)
         placements = fill_floor_coverage_gaps(
@@ -1255,6 +1265,7 @@ class GuillotineGenerator:
             placements,
             floor.id,
             min_area_by_room_id=min_by_id,
+                max_area_by_room_id=max_by_id,
         )
         placements = assign_residual_gaps_as_circulation(
             pack_footprint,
