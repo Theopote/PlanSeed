@@ -23,7 +23,7 @@ from packages.schema.scoring import DesignFinding, EvaluationAxis, FindingSeveri
 from solver.circulation.stair_identity import is_stair_core_placement
 from solver.evaluation.findings import finding
 from solver.evaluation.privacy import private_ids_lacking_avoiding_path
-from solver.geometry.buildable import program_local_buildable
+from solver.geometry.exterior import has_exterior_wall
 from solver.geometry.rect import from_placement
 from solver.semantics.roles import (
     is_foyer,
@@ -38,7 +38,6 @@ from solver.topology.access import (
     reachable_nodes,
 )
 from solver.topology.derive_access import ensure_access_graph
-from solver.topology.windows import _pick_exterior_edge
 
 ARCHITECTURAL_GATE_VERSION = "arch-gate-v1"
 
@@ -359,7 +358,6 @@ def _check_black_wet(
     program: DesignProgram, candidate: LayoutCandidate
 ) -> list[GateIssue]:
     """客卫/卫生间无外墙 → 黑卫警告（启发式，非采光规范结论）。"""
-    buildable = program_local_buildable(program)
     placements = _placement_map(candidate)
     issues: list[GateIssue] = []
     for room in program.rooms:
@@ -370,7 +368,7 @@ def _check_black_wet(
         p = placements.get(room.id)
         if p is None:
             continue
-        if _pick_exterior_edge(from_placement(p.rect), buildable) is not None:
+        if has_exterior_wall(from_placement(p.rect), program):
             continue
         # daylight_required 的黑房间升为 blocker；普通客卫为 warning
         level = GateLevel.BLOCKER if room.daylight_required else GateLevel.WARNING

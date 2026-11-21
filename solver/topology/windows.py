@@ -14,7 +14,8 @@ from packages.schema.room import RoomSpec
 from packages.schema.scoring import DesignFinding, EvaluationAxis, FindingSeverity
 from solver.evaluation.findings import finding
 from solver.evaluation.orientation import EDGE_TOLERANCE
-from solver.geometry.rect import Rect, exterior_edges, from_placement, program_local_buildable
+from solver.geometry.exterior import pick_longest_exterior_edge
+from solver.geometry.rect import Rect, from_placement
 
 MIN_WINDOW_WIDTH = 0.9
 MAX_WINDOW_WIDTH = 3.0
@@ -51,15 +52,12 @@ def _edge_opening_geometry(
 
 def _pick_exterior_edge(
     room_rect: Rect,
-    buildable: Rect,
+    program: DesignProgram,
     *,
     tolerance: float = EDGE_TOLERANCE,
 ) -> tuple[str, float] | None:
-    """取贴外墙中最长的一段；无则 None。"""
-    edges = exterior_edges(room_rect, buildable, tolerance=tolerance)
-    if not edges:
-        return None
-    return max(edges.items(), key=lambda kv: kv[1])
+    """取贴真实外围护中最长的一段（支持 L / 庭院）；无则 None。"""
+    return pick_longest_exterior_edge(room_rect, program, tolerance=tolerance)
 
 
 def _find_placement(
@@ -102,7 +100,6 @@ def place_window_openings(
 
     结果写入各层 FloorLayout.window_openings（覆盖旧值）。
     """
-    buildable = program_local_buildable(program)
     findings: list[DesignFinding] = []
 
     for fl in candidate.floors:
@@ -117,7 +114,7 @@ def place_window_openings(
             continue
         placement, floor_id = located
         room_rect = from_placement(placement.rect)
-        picked = _pick_exterior_edge(room_rect, buildable)
+        picked = _pick_exterior_edge(room_rect, program)
         if picked is None:
             findings.append(_no_exterior_wall_finding(room))
             continue
@@ -148,7 +145,6 @@ def collect_daylight_findings(
     candidate: LayoutCandidate,
 ) -> list[DesignFinding]:
     """评价阶段并入：daylight_required 且无贴外墙的房间。"""
-    buildable = program_local_buildable(program)
     findings: list[DesignFinding] = []
     for room in program.rooms:
         if not room.daylight_required:
@@ -157,6 +153,6 @@ def collect_daylight_findings(
         if located is None:
             continue
         placement, _ = located
-        if _pick_exterior_edge(from_placement(placement.rect), buildable) is None:
+        if _pick_exterior_edge(from_placement(placement.rect), program) is None:
             findings.append(_no_exterior_wall_finding(room))
     return findings

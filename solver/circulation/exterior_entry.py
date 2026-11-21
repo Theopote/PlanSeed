@@ -16,7 +16,7 @@ from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
 from packages.schema.site import CardinalEdge, CardinalOrientation
 
-from solver.evaluation.orientation import exterior_model_edges
+from solver.geometry.exterior import program_exterior_edges
 from solver.geometry.rect import Rect, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 
@@ -109,12 +109,12 @@ def resolve_exterior_entry(
     def rooms_on_world(
         world: CardinalOrientation,
     ) -> list[tuple[RoomPlacement, str]]:
-        """返回 (placement, model_edge) 贴靠朝向 ``world`` 的外墙。"""
+        """返回 (placement, model_edge) 贴靠朝向 ``world`` 的真实外墙。"""
         wanted = cs.model_edges_facing(world)
         out: list[tuple[RoomPlacement, str]] = []
         for p in ground_placements:
             rect = from_placement(p.rect)
-            model = exterior_model_edges(rect, buildable)
+            model = set(program_exterior_edges(rect, program))
             for me in sorted(model & wanted):
                 out.append((p, me))
         return out
