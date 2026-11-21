@@ -28,7 +28,7 @@ from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometr
 from solver.circulation.exterior_entry import resolve_entry_edge
 from solver.circulation.stair_core import CorePlacementFailure
 from solver.evaluation.weights import DEFAULT_WEIGHTS
-from solver.semantics.roles import is_foyer
+from solver.semantics.roles import is_foyer, is_guest_bath, is_laundry, is_master_bath
 from solver.generators.wet_anchor import (
     anchor_floor_id,
     collect_wet_anchor_rects,
@@ -311,6 +311,23 @@ def _placement_touches_edge(
     return False
 
 
+def _touches_any_footprint_edge(
+    cand: PlacementRect,
+    *,
+    fx0: float,
+    fy0: float,
+    fx1: float,
+    fy1: float,
+    eps: float = 1e-6,
+) -> bool:
+    return (
+        abs(cand.x - fx0) <= eps
+        or abs(cand.x + cand.width - fx1) <= eps
+        or abs(cand.y - fy0) <= eps
+        or abs(cand.y + cand.depth - fy1) <= eps
+    )
+
+
 def _best_capped_placement(
     x0: float,
     y0: float,
@@ -321,6 +338,7 @@ def _best_capped_placement(
     *,
     prefer_edge: CardinalEdge | None = None,
     footprint_edge: tuple[float, float, float, float] | None = None,
+    exterior_bonus: float = 0.0,
 ) -> PlacementRect:
     """选择使剩余碎片与同层其它房间邻接边最大的 capped 放置。"""
     full = Rect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
@@ -342,6 +360,10 @@ def _best_capped_placement(
             cand, prefer_edge, pack_x0=fx0, pack_y0=fy0, pack_x1=fx1, pack_y1=fy1
         ):
             score += 1_000.0
+        if exterior_bonus > 0 and _touches_any_footprint_edge(
+            cand, fx0=fx0, fy0=fy0, fx1=fx1, fy1=fy1
+        ):
+            score += exterior_bonus
         if score > best_score:
             best_score = score
             best = cand
@@ -1161,6 +1183,11 @@ class GuillotineGenerator:
                     if is_foyer(lr.spec)
                     else None
                 )
+                exterior_bonus = 0.0
+                if is_guest_bath(lr.spec) or is_master_bath(lr.spec):
+                    exterior_bonus = 600.0
+                elif is_laundry(lr.spec):
+                    exterior_bonus = 200.0
                 capped = _best_capped_placement(
                     x0,
                     y0,
@@ -1170,6 +1197,7 @@ class GuillotineGenerator:
                     neighbor_rects,
                     prefer_edge=prefer,
                     footprint_edge=getattr(self, "_footprint_bounds", None),
+                    exterior_bonus=exterior_bonus,
                 )
                 lr.rect = capped
                 full = Rect(x=x0, y=y0, width=cw, depth=ch)
