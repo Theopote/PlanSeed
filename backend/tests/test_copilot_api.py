@@ -76,6 +76,8 @@ def test_strategy_generate_tags_candidates():
     m0 = body["candidates"][0].get("metrics") or {}
     assert m0.get("topology_strategy_id") == "family_core"
     assert m0.get("topology_strategy_label") == "家庭交流优先"
+    # 跨策略同 seed 不撞 id：候选 id 含 strategy
+    assert "family_core" in str(body["candidates"][0].get("id") or "")
 
 
 def test_intent_apply_partial_regen():

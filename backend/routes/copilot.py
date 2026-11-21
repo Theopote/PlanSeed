@@ -289,16 +289,13 @@ def _candidate_from_project(project_id: str, candidate_id: str) -> dict:
 
 
 def _resolve_optimize_candidate(body: OptimizeRequest) -> LayoutCandidate:
-    # 优先项目快照（含 layout_snapshot）；未保存或找不到则回退请求体
-    if body.project_id and body.candidate_id:
-        try:
-            raw = _candidate_from_project(body.project_id, body.candidate_id)
-            return _require_layout_candidate(raw)
-        except HTTPException as exc:
-            if exc.status_code != 404 or not body.candidate:
-                raise
+    # 请求体 candidate 优先：Intent 局部 regen 后未落盘时，UI 几何比项目快照新。
+    # 无请求体时再读项目快照（含 layout_snapshot）。
     if body.candidate:
         return _require_layout_candidate(body.candidate)
+    if body.project_id and body.candidate_id:
+        raw = _candidate_from_project(body.project_id, body.candidate_id)
+        return _require_layout_candidate(raw)
     raise HTTPException(
         status_code=422,
         detail="须提供 candidate，或 project_id + candidate_id",

@@ -1,9 +1,9 @@
 # Publish PlanSeed Alpha NSIS installer to GitHub Releases.
-# Usage (interactive PowerShell / Windows Terminal — not non-interactive agent shells):
+# Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1
 #
 # Optional:
-#   $env:PLANSEED_RELEASE_TAG = "v0.2.0-alpha"
+#   $env:PLANSEED_RELEASE_TAG = "v0.2.0-alpha.1"
 #   $env:PLANSEED_SETUP_EXE = "path\to\PlanSeed_0.2.0_x64-setup.exe"
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +11,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 . "$PSScriptRoot\_release_path.ps1"
 
-$Tag = if ($env:PLANSEED_RELEASE_TAG) { $env:PLANSEED_RELEASE_TAG } else { "v0.2.0-alpha" }
+$Tag = if ($env:PLANSEED_RELEASE_TAG) { $env:PLANSEED_RELEASE_TAG } else { "v0.2.0-alpha.1" }
 $Setup = if ($env:PLANSEED_SETUP_EXE) { $env:PLANSEED_SETUP_EXE } else { Get-PlanSeedNsisSetup $Root }
 
 if (-not (Test-Path $Setup)) {
@@ -46,39 +46,33 @@ if ($releaseExists) {
 }
 
 $Notes = @"
-## PlanSeed Alpha v0.2.0
+## PlanSeed Alpha v0.2.0-alpha.1
 
-**Platform:** Windows 10/11 x64 only · solver 0.6 · Architect Workflow / AI Design Copilot (early Alpha)
+**Platform:** Windows 10/11 x64 only · solver 0.6 · stability patch on Architect Workflow / Copilot
 
 ### Install
 1. Download ``$setupName``
 2. Run the installer
 3. Launch **PlanSeed** and wait until the engine shows Ready
 
-### Highlights
-- Intent Patch → Spec sync → Critique / Optimize / Strategies / Conversation
-- ``candidate_rebuild`` for Copilot; Optimize respects user locks
-- Intent Hybrid: deterministic + optional local Ollama draft (fallback on failure)
-- Desktop Copilot panel + ``design_conversation`` in project snapshot
+### Fixes (vs v0.2.0-alpha)
+- Default residential AccessGraph no longer blocked by empty relation compile
+- RoomGraph rebuilt after relation intents; near ≠ adjacency
+- Intent area changes sync hard ``area-bound-*`` constraints
+- Optimize prefers request-body candidate over stale project snapshot
+- Candidate IDs include strategy (no cross-strategy seed collisions)
+- ``uv.lock`` / CI lock check; installer scripts check exit codes
+
+See: ``docs/alpha-v0.2.0-alpha.1-release-notes.md``
 
 ### Notes
-- Local-first desktop app (Tauri + embedded solver engine)
-- Natural-language parsing needs a local [Ollama](https://ollama.com) install (optional)
-- Product default geometry remains **rect**; irregular site is engineering-only
-- Copilot Benchmark **ab_rate** still needs human review — this is an **Alpha** build
-
-See full notes: ``docs/alpha-v0.2.0-release-notes.md``
-
-### Smoke (optional, after install)
-With the app running:
-``````
-powershell -File scripts/windows_alpha_smoke.ps1
-``````
+- Still Alpha — Design Benchmark **ab_rate** needs human review
+- Ollama optional for NL; geometry default remains **rect**
 "@
 
 Write-Host "== creating release $Tag =="
 gh release create $Tag $Setup `
-  --title "PlanSeed Alpha v0.2.0" `
+  --title "PlanSeed Alpha v0.2.0-alpha.1" `
   --notes $Notes `
   --prerelease
 

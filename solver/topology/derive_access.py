@@ -164,9 +164,28 @@ def derive_residential_access_graph(program: DesignProgram) -> AccessGraph:
 
 
 def ensure_access_graph(program: DesignProgram) -> AccessGraph:
-    """若 program.access_graph 为空则填入住宅默认（软边为主）。"""
-    if program.access_graph is not None:
-        return program.access_graph
-    graph = derive_residential_access_graph(program)
-    program.access_graph = graph
-    return graph
+    """
+    确保住宅默认通行图可用。
+
+    - access_graph is None → 填入派生默认
+    - 已有图 → 合并缺失的默认软边（不覆盖已有同 pair+type 边）
+    """
+    derived = derive_residential_access_graph(program)
+    if program.access_graph is None:
+        program.access_graph = derived
+        return derived
+
+    existing = program.access_graph
+    seen = {
+        tuple(sorted((c.a, c.b))) + (c.type.value,) for c in existing.connections
+    }
+    for conn in derived.connections:
+        key = tuple(sorted((conn.a, conn.b))) + (conn.type.value,)
+        if key in seen:
+            continue
+        existing.add_connection(conn)
+        seen.add(key)
+    for r in program.rooms:
+        if r.id not in existing.node_ids:
+            existing.node_ids.append(r.id)
+    return existing

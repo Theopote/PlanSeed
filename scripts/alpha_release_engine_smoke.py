@@ -140,6 +140,77 @@ def main() -> int:
     _ok(partial.get("valid", 0) >= 1, f"partial regen has valid candidates (got {partial.get('valid')})")
     _ok(len(partial.get("candidates") or []) >= 1, "partial regen top-k")
 
+    # v0.2 Copilot：parse → apply → critique → optimize → strategy（装包引擎可验）
+    status, _, raw = _req(
+        "POST",
+        "/api/copilot/intent/parse",
+        body={"text": "保持客厅不变，主卧大一点", "use_llm": False},
+    )
+    _ok(status == 200, f"copilot intent/parse (got {status})")
+    patch = json.loads(raw)
+    _ok(bool(patch.get("changes") or patch.get("preserve")), "intent patch non-empty")
+
+    status, _, raw = _req(
+        "POST",
+        "/api/copilot/intent/apply",
+        body={
+            "patch": patch,
+            "use_benchmark": True,
+            "base_placements": base_placements,
+            "candidate_count": 4,
+            "return_top_k": 1,
+            "base_seed": max_seed + 11,
+        },
+    )
+    _ok(status == 200, f"copilot intent/apply (got {status}: {raw[:180]!r})")
+    applied = json.loads(raw)
+    applied_cands = applied.get("candidates") or []
+    _ok(len(applied_cands) >= 1, "intent/apply has candidates")
+    applied0 = applied_cands[0]
+
+    status, _, raw = _req(
+        "POST",
+        "/api/copilot/critique",
+        body={"use_benchmark": True, "candidate": applied0},
+    )
+    _ok(status == 200, f"copilot critique (got {status})")
+    critique = json.loads(raw)
+    _ok("must_fix" in critique or "should_improve" in critique, "critique keys")
+
+    status, _, raw = _req(
+        "POST",
+        "/api/copilot/optimize",
+        body={
+            "use_benchmark": True,
+            "candidate": applied0,
+            "max_rounds": 1,
+            "candidate_budget": 2,
+        },
+    )
+    _ok(status == 200, f"copilot optimize (got {status}: {raw[:180]!r})")
+    opt = json.loads(raw)
+    _ok("stopped_reason" in opt, "optimize stopped_reason")
+
+    status, _, raw = _req(
+        "POST",
+        "/api/copilot/strategy/generate",
+        body={
+            "strategy_id": "family_core",
+            "use_benchmark": True,
+            "candidate_count": 4,
+            "return_top_k": 1,
+            "base_seed": 0,
+        },
+    )
+    _ok(status == 200, f"copilot strategy/generate (got {status})")
+    strat = json.loads(raw)
+    sc = (strat.get("candidates") or [None])[0]
+    _ok(sc is not None, "strategy generate candidate")
+    _ok(
+        "family_core" in str(sc.get("id") or ""),
+        f"strategy id in candidate id (got {sc.get('id')!r})",
+    )
+
     if len(cands) >= 2 and c0.get("design_score") and cands[1].get("design_score"):
         status, _, raw = _req(
             "POST",

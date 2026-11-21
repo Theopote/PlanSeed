@@ -137,7 +137,7 @@ def run_pipeline(
 
     for gi, gen in enumerate(gens):
         for i in range(cfg.candidate_count):
-            # 多 strategy 错开 seed，避免 candidate-{seed} id 碰撞
+            # 错开 seed；候选 id 另含 strategy（见 make_candidate_id）
             seed = cfg.base_seed + i + gi * max(cfg.candidate_count, 1) * 1000
             candidate = gen.generate(program, seed, locks=locks)
             validation = checker.check(program, candidate)

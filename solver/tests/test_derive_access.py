@@ -137,7 +137,12 @@ class TestDeriveAccess:
             )
         )
         program.access_graph = custom
-        assert ensure_access_graph(program) is custom
+        merged = ensure_access_graph(program)
+        assert merged is custom
+        # 用户边保留；缺失的默认软边可合并进来
+        assert any(
+            c.id == "user-door" and c.required for c in merged.connections
+        )
 
     def test_generator_fills_access_graph(self):
         program = benchmark_program()

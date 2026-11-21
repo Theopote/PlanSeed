@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from packages.schema.constraints import (
     AdjacencyConstraint,
+    AreaConstraint,
+    ConstraintKind,
     ConstraintSource,
     OrientationConstraint,
     SeparationConstraint,
@@ -114,11 +116,42 @@ def apply_intent_patch(
             for r in new_program.rooms:
                 if r.id in targets:
                     old = r.target_area
-                    r = r.model_copy(update={"target_area": round(old * factor, 2)})
+                    new_area = round(old * factor, 2)
+                    # 显式上下限若与新目标冲突则清除，改由 target 系数推导
+                    updates: dict = {"target_area": new_area}
+                    if r.min_area is not None and r.min_area > new_area:
+                        updates["min_area"] = None
+                    if r.max_area is not None and r.max_area < new_area:
+                        updates["max_area"] = None
+                    r = r.model_copy(update=updates)
                     deltas.append(f"{r.id} 目标面积 {old:.1f}→{r.target_area:.1f}")
                     touched.add(r.id)
                 rooms.append(r)
-            new_program = new_program.model_copy(update={"rooms": rooms})
+            # 同步 area-bound-* 硬约束，避免 checker 仍按旧上下限拒收
+            rooms_by_id = {r.id: r for r in rooms}
+            constraints = []
+            for c in new_program.constraints:
+                if (
+                    c.kind == ConstraintKind.AREA
+                    and isinstance(c, AreaConstraint)
+                    and c.room_id in targets
+                    and c.room_id in rooms_by_id
+                ):
+                    room = rooms_by_id[c.room_id]
+                    constraints.append(
+                        c.model_copy(
+                            update={
+                                "min_area": room.resolved_min_area(),
+                                "max_area": room.resolved_max_area(),
+                                "target_area": room.target_area,
+                            }
+                        )
+                    )
+                else:
+                    constraints.append(c)
+            new_program = new_program.model_copy(
+                update={"rooms": rooms, "constraints": constraints}
+            )
 
         elif ch.action == IntentChangeAction.SET_ORIENTATION_PREFERENCE:
             if not targets:

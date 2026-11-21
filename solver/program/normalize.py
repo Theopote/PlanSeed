@@ -120,11 +120,13 @@ def build_room_graph(spec: ProjectSpec) -> RoomGraph:
 
     for c in spec.constraints:
         if c.kind == ConstraintKind.ADJACENCY:
+            # share_wall=False 表示 near 偏好，勿与共墙 adjacency 混用
+            share_wall = getattr(c, "share_wall", True)
             graph.add_edge(
                 RoomEdge(
                     source_id=c.room_a_id,
                     target_id=c.room_b_id,
-                    kind=RoomEdgeKind.ADJACENT,
+                    kind=RoomEdgeKind.ADJACENT if share_wall else RoomEdgeKind.NEAR,
                     weight=c.weight,
                 )
             )

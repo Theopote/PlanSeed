@@ -27,12 +27,26 @@ $ResRoot = Join-Path $Root "desktop\src-tauri\resources"
 $TargetDir = Join-Path $ResRoot "planseed-backend"
 New-Item -ItemType Directory -Force -Path $ResRoot | Out-Null
 
-Write-Host "[sidecar] syncing build group (PyInstaller via uv.lock)..."
-& $Uv sync --group build
+function Assert-Exit([int]$code, [string]$step) {
+  if ($code -ne 0) { throw "FAIL: $step (exit $code)" }
+}
 
 $Entry = Join-Path $Root "scripts\sidecar_entry.py"
 $Dist = Join-Path $Root "dist\sidecar"
 $Name = "planseed-backend"
+$BuiltDir = Join-Path $Dist $Name
+
+# 清理旧产物，避免失败后仍被 Test-Path 当成成功
+if (Test-Path $Dist) {
+  Remove-Item -Recurse -Force $Dist
+}
+if (Test-Path $TargetDir) {
+  Remove-Item -Recurse -Force $TargetDir
+}
+
+Write-Host "[sidecar] syncing build group (PyInstaller via uv.lock)..."
+& $Uv sync --group build
+Assert-Exit $LASTEXITCODE "uv sync --group build"
 
 Write-Host "[sidecar] building $Name (onedir)..."
 & $Uv run --group build pyinstaller `
@@ -57,8 +71,8 @@ Write-Host "[sidecar] building $Name (onedir)..."
   --collect-all resvg_py `
   --collect-binaries resvg_py `
   $Entry
+Assert-Exit $LASTEXITCODE "pyinstaller"
 
-$BuiltDir = Join-Path $Dist $Name
 if (-not (Test-Path $BuiltDir)) {
   throw "PyInstaller output missing: $BuiltDir"
 }

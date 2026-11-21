@@ -84,6 +84,8 @@ def tag_candidates_with_strategy(
     candidates: list,
     strategy: TopologyStrategy,
 ) -> None:
+    from packages.schema.identity import make_candidate_id
+
     for c in candidates:
         c.metrics["topology_strategy_id"] = strategy.id
         c.metrics["topology_strategy_label"] = strategy.label
@@ -92,3 +94,5 @@ def tag_candidates_with_strategy(
             c.metrics[f"strategy_weight_{axis}"] = float(w)
         if not c.metrics.get("selection_label"):
             c.metrics["selection_label"] = strategy.label
+        # 跨拓扑策略同 seed 须不同身份（否则 Compare / 项目快照会互相覆盖）
+        c.id = make_candidate_id(strategy.id, int(c.seed))

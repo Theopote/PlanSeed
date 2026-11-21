@@ -16,12 +16,18 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$Setup = Get-PlanSeedNsisSetup $Root
-
-if ($RebuildInstaller) {
-    & "$PSScriptRoot\build_installer.ps1"
+function Assert-Exit([int]$code, [string]$step) {
+    if ($code -ne 0) { throw "FAIL: $step (exit $code)" }
 }
 
+# 先构建再解析产物，避免旧 setup 路径/全新环境缺包
+if ($RebuildInstaller) {
+    Write-Host "== rebuilding installer =="
+    & "$PSScriptRoot\build_installer.ps1"
+    Assert-Exit $LASTEXITCODE "build_installer.ps1"
+}
+
+$Setup = Get-PlanSeedNsisSetup $Root
 if (-not (Test-Path $Setup)) {
     throw "NSIS setup missing: $Setup`nRun: powershell -File scripts/build_installer.ps1"
 }

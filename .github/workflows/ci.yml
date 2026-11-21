@@ -26,7 +26,10 @@ jobs:
           enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync --group research
+        run: uv sync --group research --locked
+
+      - name: uv lock --check (project version / lock 一致性)
+        run: uv lock --check
 
       - name: Pytest + coverage report (observe only — no fail_under)
         run: >

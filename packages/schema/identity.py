@@ -41,6 +41,12 @@ def selection_strategy_for(mode: str) -> str:
     return _SELECTION_STRATEGY_BY_MODE.get(mode, mode)
 
 
+def make_candidate_id(strategy_id: str, seed: int) -> str:
+    """稳定候选身份：strategy + seed，避免跨策略同 seed 碰撞。"""
+    safe = (strategy_id or "gen").strip().replace(" ", "-") or "gen"
+    return f"candidate-{safe}-{seed}"
+
+
 def solver_identity() -> dict[str, str]:
     """默认 Alpha 求解身份（含 Solver 2.0 策略层）。"""
     # 延迟导入避免 identity ↔ provenance 循环

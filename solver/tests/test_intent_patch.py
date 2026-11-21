@@ -79,3 +79,42 @@ def test_reduce_corridor_raises_penalty():
     new_prog, _scope, _preview = apply_intent_patch(program, patch)
     assert new_prog.solver_config.corridor_penalty >= 1.2
     assert new_prog.solver_config.score_weight_overrides.get("circulation", 0) >= 0.22
+
+
+def test_increase_area_syncs_area_bound_constraint():
+    from packages.schema.constraints import AreaConstraint, ConstraintKind
+    from packages.schema.intent_patch import DesignIntentPatch, IntentChange
+
+    program = benchmark_program()
+    master = next(r for r in program.rooms if r.id == "r5")
+    old_target = master.target_area
+    old_bound = next(
+        c
+        for c in program.constraints
+        if c.kind == ConstraintKind.AREA
+        and isinstance(c, AreaConstraint)
+        and c.room_id == "r5"
+    )
+    patch = DesignIntentPatch(
+        changes=[
+            IntentChange(
+                action=IntentChangeAction.INCREASE_TARGET_AREA,
+                target="master_bedroom",
+                value=0.2,
+            )
+        ]
+    )
+    new_prog, _scope, _preview = apply_intent_patch(program, patch)
+    new_master = next(r for r in new_prog.rooms if r.id == "r5")
+    assert new_master.target_area > old_target
+    new_bound = next(
+        c
+        for c in new_prog.constraints
+        if c.kind == ConstraintKind.AREA
+        and isinstance(c, AreaConstraint)
+        and c.room_id == "r5"
+    )
+    assert new_bound.target_area == new_master.target_area
+    assert new_bound.min_area == new_master.resolved_min_area()
+    assert new_bound.max_area == new_master.resolved_max_area()
+    assert new_bound.min_area != old_bound.min_area or new_bound.target_area != old_bound.target_area

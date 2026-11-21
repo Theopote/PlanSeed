@@ -74,8 +74,15 @@ Install: winget install Microsoft.VisualStudio.2022.BuildTools --source winget -
 "@
 }
 
+function Assert-Exit([int]$code, [string]$step) {
+    if ($code -ne 0) { throw "FAIL: $step (exit $code)" }
+}
+
+$nsisDir = Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis"
+
 if (-not $SkipSidecar) {
     & "$PSScriptRoot\build_backend_sidecar.ps1"
+    Assert-Exit $LASTEXITCODE "build_backend_sidecar.ps1"
 }
 
 $sidecar = Join-Path $Root "desktop\src-tauri\resources\planseed-backend\planseed-backend.exe"
@@ -88,16 +95,25 @@ Push-Location (Join-Path $Root "desktop")
 try {
     $env:CI = "true"
     pnpm install --frozen-lockfile
+    Assert-Exit $LASTEXITCODE "pnpm install"
     Write-Host "[installer] tauri build (NSIS)..."
     pnpm tauri:build
+    Assert-Exit $LASTEXITCODE "pnpm tauri:build"
 }
 finally {
     Pop-Location
 }
 
-$nsis = Get-ChildItem -Path (Join-Path $Root "desktop\src-tauri\target\release\bundle\nsis") -Filter "*-setup.exe" -ErrorAction SilentlyContinue
+# 取本轮新建/更新的 setup（按 LastWriteTime），避免旧 0.x 产物掩盖失败
+$nsis = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
 if (-not $nsis) {
     throw "NSIS setup.exe not found under desktop/src-tauri/target/release/bundle/nsis/"
+}
+$age = (Get-Date) - $nsis.LastWriteTime
+if ($age.TotalMinutes -gt 30) {
+    throw "NSIS setup looks stale ($($nsis.Name), $($nsis.LastWriteTime)). Build may have failed silently."
 }
 
 Write-Host ""

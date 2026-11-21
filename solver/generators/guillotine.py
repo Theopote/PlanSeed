@@ -6,7 +6,7 @@ import random
 from dataclasses import dataclass
 
 from packages.schema.core import CorePlacementResult
-from packages.schema.identity import GENERATOR_VERSION
+from packages.schema.identity import GENERATOR_VERSION, make_candidate_id
 from packages.schema.layout import (
     FloorLayout,
     LayoutCandidate,
@@ -597,7 +597,7 @@ class GuillotineGenerator:
                 program=program,
             )
             return LayoutCandidate(
-                id=f"candidate-{seed}",
+                id=make_candidate_id(self.strategy_id, seed),
                 seed=seed,
                 floors=[
                     FloorLayout(floor_id=fl.id, placements=[])
@@ -805,7 +805,7 @@ class GuillotineGenerator:
             "stair_locked": locks.stair is not None,
         }
         candidate = LayoutCandidate(
-            id=f"candidate-{seed}",
+            id=make_candidate_id(self.strategy_id, seed),
             seed=seed,
             floors=floor_layouts,
             wet_stacks=list(building_zones.wet_stacks),
