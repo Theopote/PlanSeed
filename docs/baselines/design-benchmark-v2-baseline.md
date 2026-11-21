@@ -77,7 +77,17 @@ uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --co
   --out debug/design-benchmark-v2/auto_rerun_for_ab.json
 ```
 
-人工按 [design-benchmark-v2.md](../design-benchmark-v2.md) 协议评级后，合并写入 `docs/baselines/`。  
+**已导出（2026-11-21）：** `review-ab-rerate/{B01,B04,B06,B12}` 各 32 SVG；自动报告 `auto_rerun_for_ab.json`；评级模板 `review-ab-rerate/grades-template.json`。  
+当前自动 valid_rate：B01 0.531 · B04 0.625 · B06 0.531 · B12 0.812（聚合 **0.625**）。
+
+人工按 [design-benchmark-v2.md](../design-benchmark-v2.md) 填模板后：
+
+```bash
+uv run python -m solver.benchmark.design_acceptance \
+  --grades-only debug/design-benchmark-v2/review-ab-rerate/grades-template.json \
+  --out docs/baselines/design_benchmark_v2_n32_graded.json
+```
+
 **产品 KPI = ab_rate**；Blind 字段准仅衡量需求解析，不替代建筑师接受率。
 
 ## 复现

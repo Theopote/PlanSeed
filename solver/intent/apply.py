@@ -230,18 +230,18 @@ def apply_intent_patch(
             mutable = sorted(program_ids - set(locked))[:1] or sorted(program_ids)[:1]
             warnings.append("无明确变更目标：默认重排一个未锁定房间")
 
-    # RegenerationScope 要求 mutable 非空且与 locked 不交
-    locked_for_scope = [rid for rid in locked if rid not in mutable]
+    # locked_rooms 为空 → 默认锁定「全部 − mutable」，避免只钉 preserve 导致其余房间全放开
     scope = RegenerationScope(
         mutable_rooms=mutable,
-        locked_rooms=locked_for_scope,
+        locked_rooms=[],
         preserve_topology=True,
         preserve_floor_assignment=True,
     )
+    effective_locked = sorted(program_ids - set(mutable))
 
     preview = IntentPatchPreview(
         patch=patch,
-        locked_rooms=locked_for_scope,
+        locked_rooms=effective_locked,
         mutable_rooms=mutable,
         program_deltas=deltas,
         warnings=warnings,
