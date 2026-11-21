@@ -333,15 +333,28 @@ export function useCandidateWorkflow({
     ],
   );
 
+  /** Copilot 异步请求启动时领取 token；切换项目会 invalidate */
+  const beginAsyncRequest = useCallback(() => ++runSeq.current, []);
+
+  const isAsyncCurrent = useCallback(
+    (token: number) => token === runSeq.current,
+    [],
+  );
+
   const ingestCopilotGenerate = useCallback(
-    (data: GenerateResponse, mode: "replace" | "variant" = "variant") => {
+    (
+      data: GenerateResponse,
+      mode: "replace" | "variant" = "variant",
+      token?: number,
+    ) => {
+      if (token !== undefined && token !== runSeq.current) return;
       const fp = locksFingerprint(locks);
       if (mode === "replace") {
         applyResult(data, fp);
         return;
       }
       mergeVariantCandidates(
-        runSeq.current,
+        token ?? runSeq.current,
         data,
         selectedId,
         selected?.variant_generation ?? 0,
@@ -358,7 +371,8 @@ export function useCandidateWorkflow({
   );
 
   const ingestCopilotBest = useCallback(
-    (best: CandidatePayload) => {
+    (best: CandidatePayload, token?: number) => {
+      if (token !== undefined && token !== runSeq.current) return;
       const fp = locksFingerprint(locks);
       const parentGen = selected?.variant_generation ?? 0;
       const labeled = relabel([
@@ -623,6 +637,8 @@ export function useCandidateWorkflow({
     relabel,
     stampRootLineage,
     applyResult,
+    beginAsyncRequest,
+    isAsyncCurrent,
     ingestCopilotGenerate,
     ingestCopilotBest,
     run,

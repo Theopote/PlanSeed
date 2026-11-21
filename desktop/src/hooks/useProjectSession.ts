@@ -191,80 +191,97 @@ export function useProjectSession({
     ],
   );
 
-  const onSaveProject = useCallback(async () => {
-    if (!program) {
-      setError("请先 Generate 再保存");
-      return;
-    }
-    setProjectBusy(true);
-    setError(null);
+  /** 保存 / 导出共用：需求、候选、锁定、对话必须同路径写入 */
+  const buildProjectPayload = useCallback(async () => {
+    const schema_versions = buildSchemaVersions(solverIdentity, candidates);
+    let design_conversation: Record<string, unknown> | undefined;
     try {
-      const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-      let design_conversation: Record<string, unknown> | undefined;
-      try {
-        const { getCopilotConversation } = await import("../api/client");
-        // 未保存项目使用 draft 会话键，首次 Save 一并写入 payload
-        design_conversation = await getCopilotConversation(
-          projectId ?? "draft",
-        );
-      } catch {
-        /* 无对话时跳过 */
+      const { getCopilotConversation } = await import("../api/client");
+      design_conversation = await getCopilotConversation(projectId ?? "draft");
+    } catch {
+      /* 无对话时跳过 */
+    }
+    return {
+      form,
+      program,
+      requirement_spec: resolveCanonicalSpec(),
+      locks: cloneLayoutLocks(locks),
+      candidates,
+      selected_id: selectedId,
+      compare_id: compareId,
+      schema_versions,
+      ...(design_conversation ? { design_conversation } : {}),
+    };
+  }, [
+    solverIdentity,
+    candidates,
+    projectId,
+    form,
+    program,
+    resolveCanonicalSpec,
+    locks,
+    selectedId,
+    compareId,
+  ]);
+
+  const persistProject = useCallback(
+    async (opts: { cancelLabel: string }) => {
+      if (!program) {
+        setError("请先 Generate 再保存");
+        return null;
       }
+      const payload = await buildProjectPayload();
       const saved = await saveProjectWithConflictPrompt({
         name: projectName.trim() || "未命名项目",
         id: projectId,
         expected_updated_at: projectId ? projectUpdatedAt : null,
-        payload: {
-          form,
-          program,
-          requirement_spec: resolveCanonicalSpec(),
-          locks: cloneLayoutLocks(locks),
-          candidates,
-          selected_id: selectedId,
-          compare_id: compareId,
-          schema_versions,
-          ...(design_conversation ? { design_conversation } : {}),
-        },
+        payload,
       });
       if (!saved) {
-        setError("已取消保存");
-        return;
+        setError(opts.cancelLabel);
+        return null;
       }
       setProjectId(saved.id);
       setProjectName(saved.name);
       setProjectUpdatedAt(saved.updated_at);
-      if (design_conversation) {
+      const conv = payload.design_conversation as
+        | Record<string, unknown>
+        | undefined;
+      if (conv) {
         const { putCopilotConversation } = await import("../api/client");
         await putCopilotConversation(saved.id, {
-          ...design_conversation,
+          ...conv,
           project_id: saved.id,
         });
       }
-      // 仅保存不得清除 mismatch；用服务端回传判断
       if (saved.evaluation_version_mismatch) {
         setVersionHint(
           `评价版本已变（快照 ${saved.payload.schema_versions?.evaluation_version ?? "?"} → 当前 ${saved.current_evaluation_version}）：分数可能不可比；布局几何仍按快照。`,
         );
       }
+      return saved;
+    },
+    [
+      program,
+      buildProjectPayload,
+      projectName,
+      projectId,
+      projectUpdatedAt,
+      setError,
+    ],
+  );
+
+  const onSaveProject = useCallback(async () => {
+    setProjectBusy(true);
+    setError(null);
+    try {
+      await persistProject({ cancelLabel: "已取消保存" });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setProjectBusy(false);
     }
-  }, [
-    program,
-    projectName,
-    projectId,
-    projectUpdatedAt,
-    form,
-    locks,
-    candidates,
-    selectedId,
-    compareId,
-    solverIdentity,
-    resolveCanonicalSpec,
-    setError,
-  ]);
+  }, [persistProject, setError]);
 
   const onLoadProject = useCallback(
     async (id: string) => {
@@ -290,29 +307,8 @@ export function useProjectSession({
     setProjectBusy(true);
     setError(null);
     try {
-      const schema_versions = buildSchemaVersions(solverIdentity, candidates);
-      const saved = await saveProjectWithConflictPrompt({
-        name: projectName.trim() || "未命名项目",
-        id: projectId,
-        expected_updated_at: projectId ? projectUpdatedAt : null,
-        payload: {
-          form,
-          program,
-          requirement_spec: resolveCanonicalSpec(),
-          locks: cloneLayoutLocks(locks),
-          candidates,
-          selected_id: selectedId,
-          compare_id: compareId,
-          schema_versions,
-        },
-      });
-      if (!saved) {
-        setError("已取消导出");
-        return;
-      }
-      setProjectId(saved.id);
-      setProjectName(saved.name);
-      setProjectUpdatedAt(saved.updated_at);
+      const saved = await persistProject({ cancelLabel: "已取消导出" });
+      if (!saved) return;
       const out = await exportPlanseedPackage(saved.id);
       downloadBlob(out.blob, out.filename);
     } catch (e) {
@@ -320,20 +316,7 @@ export function useProjectSession({
     } finally {
       setProjectBusy(false);
     }
-  }, [
-    program,
-    projectName,
-    projectId,
-    projectUpdatedAt,
-    form,
-    locks,
-    candidates,
-    selectedId,
-    compareId,
-    solverIdentity,
-    resolveCanonicalSpec,
-    setError,
-  ]);
+  }, [program, persistProject, setError]);
 
   const onImportPlanseed = useCallback(
     async (file: File) => {

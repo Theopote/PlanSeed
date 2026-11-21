@@ -247,6 +247,10 @@ def normalize_requirements(
     program = normalize_project(project, config)
     program.constraints = _apply_preference_constraints(working, program.constraints, program)
     program.room_graph = build_room_graph(project)
+    # relation_intents 是需求事实源的一部分：必须编译回约束 / AccessGraph
+    from solver.program.relation_compiler import compile_relation_intents
+
+    program = compile_relation_intents(working, program)
     program.assumptions = list(assumptions)
     program.unknowns = list(unknowns)
 

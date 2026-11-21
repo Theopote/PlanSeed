@@ -4,18 +4,41 @@ from __future__ import annotations
 
 from packages.schema.intent_patch import DesignIntentPatch, IntentChangeAction
 from packages.schema.program import DesignProgram
-from packages.schema.requirements import RelationIntent, RequirementSpec
+from packages.schema.requirements import RelationIntent, RequirementSpec, SpaceRequirement
 from packages.schema.site import CardinalOrientation
 
 from solver.intent.apply import resolve_room_ids
 
 
-def _space_matches_room(space_id: str | None, space_name: str, room_id: str, room_name: str | None) -> bool:
-    if space_id and space_id == room_id:
-        return True
-    if space_name and room_name and space_name == room_name:
-        return True
-    return False
+def _match_spaces_to_rooms(
+    spaces: list[SpaceRequirement],
+    program: DesignProgram,
+) -> list[tuple[SpaceRequirement, str | None]]:
+    """
+    一对一匹配 space → room_id。
+
+    优先 id；无 id 时按名称消费尚未占用的房间，禁止把同名多间全部归并到同一 room_id。
+    """
+    used: set[str] = set()
+    out: list[tuple[SpaceRequirement, str | None]] = []
+    rooms_by_id = {r.id: r for r in program.rooms}
+
+    for space in spaces:
+        if space.id and space.id in rooms_by_id and space.id not in used:
+            used.add(space.id)
+            out.append((space, space.id))
+            continue
+        matched_id: str | None = None
+        if space.name:
+            for r in program.rooms:
+                if r.id in used:
+                    continue
+                if (r.name or "") == space.name:
+                    matched_id = r.id
+                    used.add(r.id)
+                    break
+        out.append((space, matched_id))
+    return out
 
 
 def sync_requirement_spec_after_intent(
@@ -26,29 +49,22 @@ def sync_requirement_spec_after_intent(
     """
     将 IntentPatch 对 DesignProgram 的修改镜像到 RequirementSpec。
 
-    - 目标面积 / 朝向：按房间 id/name 写回 spaces
-    - 邻接/分离：追加 relation_intents
+    - 目标面积 / 朝向：按稳定一对一映射写回 spaces
+    - 邻接/分离：追加 relation_intents（优先存 room id）
     - 缩短走廊：preferences.prefer_short_corridor = True
     """
     rooms_by_id = {r.id: r for r in patched_program.rooms}
-    spaces = []
-    for space in spec.spaces:
+    matched = _match_spaces_to_rooms(spec.spaces, patched_program)
+    spaces: list[SpaceRequirement] = []
+    for space, room_id in matched:
         updates: dict = {}
-        matched = None
-        if space.id and space.id in rooms_by_id:
-            matched = rooms_by_id[space.id]
-        else:
-            for r in patched_program.rooms:
-                if _space_matches_room(space.id, space.name, r.id, r.name):
-                    matched = r
-                    break
-        if matched is not None:
-            updates["target_area"] = matched.target_area
+        if room_id and room_id in rooms_by_id:
+            room = rooms_by_id[room_id]
+            updates["target_area"] = room.target_area
             if space.id is None:
-                updates["id"] = matched.id
+                updates["id"] = room.id
         spaces.append(space.model_copy(update=updates) if updates else space)
 
-    # 朝向：直接来自 patch（Program 侧写入 OrientationConstraint，不改 RoomSpec）
     for ch in patch.changes:
         if ch.action != IntentChangeAction.SET_ORIENTATION_PREFERENCE:
             continue
@@ -61,12 +77,7 @@ def sync_requirement_spec_after_intent(
         spaces = [
             (
                 s.model_copy(update={"preferred_orientation": orient})
-                if (s.id in targets)
-                or any(
-                    _space_matches_room(s.id, s.name, rid, rooms_by_id[rid].name)
-                    for rid in targets
-                    if rid in rooms_by_id
-                )
+                if s.id in targets
                 else s
             )
             for s in spaces
@@ -91,12 +102,11 @@ def sync_requirement_spec_after_intent(
             for b in partners:
                 if a == b:
                     continue
-                name_a = rooms_by_id[a].name or a if a in rooms_by_id else a
-                name_b = rooms_by_id[b].name or b if b in rooms_by_id else b
+                # 存 room id，便于 normalize 稳定回编译（名称可重复）
                 relations.append(
                     RelationIntent(
-                        a=name_a,
-                        b=name_b,
+                        a=a,
+                        b=b,
                         kind=kind,  # type: ignore[arg-type]
                         strength=strength,  # type: ignore[arg-type]
                         note="intent_patch",

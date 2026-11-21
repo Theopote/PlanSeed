@@ -80,6 +80,7 @@ class OptimizeRequest(BaseModel):
     use_benchmark: bool = True
     requirements: object | None = None
     candidate: dict
+    locks: LayoutLocks | None = None
     max_rounds: int = Field(default=2, ge=1, le=5)
     candidate_budget: int = Field(default=4, ge=2, le=16)
 
@@ -269,6 +270,7 @@ def optimize(body: OptimizeRequest) -> dict:
         cand,
         max_rounds=body.max_rounds,
         candidate_budget=body.candidate_budget,
+        user_locks=body.locks,
     )
     # 仅当会话选出相对输入候选的新几何时回传 best，避免前端重复追加
     improved = result.best is not None and result.best.id != cand.id

@@ -1730,6 +1730,7 @@ export interface components {
              * @default 4
              */
             candidate_budget: number;
+            locks?: components["schemas"]["LayoutLocks"] | null;
             /**
              * Max Rounds
              * @default 2

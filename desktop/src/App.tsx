@@ -409,11 +409,15 @@ function App() {
             locks={candidate.locks}
             requirementSpec={requirement.requirementSpec}
             regenerating={candidate.loading}
+            beginAsyncRequest={candidate.beginAsyncRequest}
+            isAsyncCurrent={candidate.isAsyncCurrent}
             onError={setError}
-            onMergeGenerate={(data, mode) =>
-              candidate.ingestCopilotGenerate(data, mode ?? "variant")
+            onMergeGenerate={(data, mode, token) =>
+              candidate.ingestCopilotGenerate(data, mode ?? "variant", token)
             }
-            onMergeBest={(best) => candidate.ingestCopilotBest(best)}
+            onMergeBest={(best, token) =>
+              candidate.ingestCopilotBest(best, token)
+            }
           />
         </div>
       </div>

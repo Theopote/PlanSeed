@@ -83,9 +83,23 @@ NL「两层、四卧、客厅朝南」→ 生成 A → 选中 A
 
 测试须覆盖桌面实际发送的 `CandidatePayload`，不能只手工构造完整 `LayoutCandidate`。
 
+## 关系意图编译（P0）
+
+`RequirementSpec.relation_intents` 经 `solver/program/relation_compiler.py` 在 normalize 时编译为：
+
+| kind | 编译目标 |
+|------|----------|
+| adjacency / near | `AdjacencyConstraint` |
+| separation | `SeparationConstraint` |
+| access | `AccessGraph` + `SpaceConnection(DOOR)` |
+| open_connection | `AccessGraph` + `SpaceConnection(OPEN)` |
+
+保存后再次 Generate，邻接/分离/通行不得静默丢失。
+
 ## 已知缺口（勿标完成）
 
 - 意图解析正式入口尚未完整接入 Ollama 草稿  
 - TopologyStrategy 的 `objective_weights` / `corridor_penalty` 尚未全部进入 SolverPolicy  
-- 策略生成默认 `replace` 候选集（比较分支 UX 待改）  
+- 候选跨需求版本比较指纹（`requirement_revision_id`）尚未落地  
+- 候选重建仍为有损（无门洞/入口元数据）；优化宜逐步改为后端可信快照  
 - Design Benchmark v2 人工 ab_rate 待几何改动后重评  

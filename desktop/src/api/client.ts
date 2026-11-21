@@ -1229,6 +1229,7 @@ export async function optimizeCandidate(
   opts?: {
     use_benchmark?: boolean;
     requirements?: RequirementSpecPayload | null;
+    locks?: LayoutLocks | null;
     max_rounds?: number;
     candidate_budget?: number;
   },
@@ -1246,6 +1247,7 @@ export async function optimizeCandidate(
       use_benchmark: useBenchmark,
       requirements: useBenchmark ? undefined : opts?.requirements,
       candidate,
+      locks: opts?.locks ?? undefined,
       max_rounds: opts?.max_rounds ?? 2,
       candidate_budget: opts?.candidate_budget ?? 4,
     }),

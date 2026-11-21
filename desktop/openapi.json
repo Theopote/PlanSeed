@@ -2522,6 +2522,16 @@
             "title": "Candidate Budget",
             "type": "integer"
           },
+          "locks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LayoutLocks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "max_rounds": {
             "default": 2,
             "maximum": 5.0,

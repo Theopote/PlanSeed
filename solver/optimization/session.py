@@ -6,12 +6,16 @@ from dataclasses import dataclass, field
 
 from packages.schema.intent_patch import DesignIntentPatch
 from packages.schema.layout import LayoutCandidate
+from packages.schema.locks import LayoutLocks
 from packages.schema.program import DesignProgram
+from packages.schema.regeneration import RegenerationScope
 from solver.critique.critic import critique_candidate
 from solver.intent.apply import apply_intent_patch
+from solver.regeneration.errors import RegenerationScopeError
 from solver.regeneration.scope import (
     filter_candidates_preserving_topology,
     locks_from_regeneration_scope,
+    merge_layout_locks,
 )
 
 
@@ -59,12 +63,31 @@ def candidate_quality_key(c: LayoutCandidate) -> tuple[int, int, float]:
     )
 
 
+def _respect_user_locks(
+    scope: RegenerationScope,
+    user_locks: LayoutLocks | None,
+) -> RegenerationScope:
+    """用户显式锁定优先：从 mutable 中剔除，冲突无解时抛错。"""
+    if user_locks is None or not user_locks.rooms:
+        return scope
+    locked = {r.room_id for r in user_locks.rooms}
+    mutable = [m for m in scope.mutable_rooms if m not in locked]
+    if not mutable:
+        raise RegenerationScopeError(
+            "用户锁定与优化可变范围冲突：无可移动房间",
+            code="user_lock_blocks_optimization",
+            room_ids=sorted(locked),
+        )
+    return scope.model_copy(update={"mutable_rooms": mutable})
+
+
 def run_optimization_session(
     program: DesignProgram,
     base_candidate: LayoutCandidate,
     *,
     max_rounds: int = 3,
     candidate_budget: int = 8,
+    user_locks: LayoutLocks | None = None,
     generate_fn=None,
 ) -> OptimizationSessionResult:
     """
@@ -72,6 +95,7 @@ def run_optimization_session(
 
     ``generate_fn(program, locks) -> list[LayoutCandidate]`` 可注入；
     默认调用 Guillotine + 简单评价管线。
+    用户 ``user_locks`` 优先于 Intent 推导的 mutable。
     """
     if generate_fn is None:
 
@@ -133,9 +157,29 @@ def run_optimization_session(
             break
 
         try:
-            locks = locks_from_regeneration_scope(scope, new_program, best)
+            scope = _respect_user_locks(scope, user_locks)
+            scope_locks = locks_from_regeneration_scope(scope, new_program, best)
+            locks = merge_layout_locks(
+                user_locks,
+                scope_locks,
+                mutable_room_ids=set(scope.mutable_rooms),
+            )
             cands = generate_fn(new_program, locks)
             cands = filter_candidates_preserving_topology(scope, new_program, cands)
+        except RegenerationScopeError as exc:
+            stopped = f"lock_conflict:{exc.code}"
+            rounds.append(
+                OptimizationRound(
+                    index=i,
+                    patch=patch,
+                    candidate_id=best.id,
+                    score=_score_of(best),
+                    private_through=_priv(best),
+                    gate_pass=_gate_ok(best),
+                    stopped_reason=stopped,
+                )
+            )
+            break
         except Exception as exc:  # noqa: BLE001
             stopped = f"regen_failed:{type(exc).__name__}"
             rounds.append(
