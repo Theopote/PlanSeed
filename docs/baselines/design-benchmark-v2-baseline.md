@@ -1,5 +1,6 @@
 # Design Benchmark v2 — Baseline
 
+> **规格文档：** [../design-benchmark-v2.md](../design-benchmark-v2.md)（本文件仅存首跑摘要与复现，不重复规格）  
 > **首跑：** 2026-08-26 · Guillotine · n=32 · seed=42  
 > **自动指标：** [design_benchmark_v2_n32.json](design_benchmark_v2_n32.json)  
 > **人工评级：** [design_benchmark_v2_grades_theopote.json](design_benchmark_v2_grades_theopote.json)（reviewer: Theopote）  
@@ -48,13 +49,15 @@ B01, B04, B06, B12 — 80/80 valid 候选已评级。
 
 ## 复现
 
+`debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。
+
 ```bash
-# 生成 + 导出
+# 生成 + 导出（SVG/中间报告仅本地）
 uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --count 32 \
   --export-svg debug/design-benchmark-v2/review \
-  --out debug/design-benchmark-v2/review/report.json
+  --out docs/baselines/design_benchmark_v2_n32.json
 
-# 合并人工评级
+# 合并人工评级 → 入库基线
 uv run python -m solver.benchmark.design_acceptance \
   --grades-only docs/baselines/design_benchmark_v2_grades_theopote.json \
   --out docs/baselines/design_benchmark_v2_n32_graded.json

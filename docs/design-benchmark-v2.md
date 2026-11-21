@@ -497,6 +497,9 @@ uv run python -m solver.benchmark --suite design-v2 --merge-grades docs/baseline
 
 ## 8. 基线与 Gate
 
+首跑摘要与复现命令见 [baselines/design-benchmark-v2-baseline.md](baselines/design-benchmark-v2-baseline.md)（与本规格文件分名存放）。  
+本地 SVG 评审包输出到 `debug/design-benchmark-v2/`（gitignore，不入库）。
+
 首跑前 **不设 gate**。首跑后：
 
 1. 记录 Guillotine `ab_rate` per case 为 baseline

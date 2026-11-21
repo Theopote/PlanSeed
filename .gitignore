@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_basetemp/
+.pytest_tmp/
 .mypy_cache/
 .ruff_cache/
 .idea/
@@ -20,9 +21,8 @@ tauri-build.log
 .env.*
 !.env.example
 
-debug/*.svg
-debug/print-smoke/
-debug/desktop-hand-gate/
+# 本地调试/评审产物不入库（保留目录占位）
+debug/*
 !debug/.gitkeep
 node_modules/
 desktop/node_modules/

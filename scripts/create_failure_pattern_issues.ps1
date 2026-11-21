@@ -52,7 +52,7 @@ Design Benchmark v2 human review (Theopote, 2026-08-26) — B04 ab_rate 3.1%
 
 ## Related
 - #6 Partial Regeneration API
-- docs/baselines/design-benchmark-v2.md
+- docs/baselines/design-benchmark-v2-baseline.md
 "@
     }
     @{
