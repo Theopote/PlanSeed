@@ -165,6 +165,8 @@ class ZonePlanner:
             rooms=rooms,
             entry_model_edge=entry_model_edge,
             wet_exterior_ends=wet_exterior_ends,
+            snap_module=snap_module,
+            rng=rng,
         )
 
     def plan_floor(
@@ -465,12 +467,15 @@ class ZonePlanner:
         rooms: list[RoomSpec] | None = None,
         entry_model_edge: CardinalEdge | None = None,
         wet_exterior_ends: bool = False,
+        snap_module: float = 0.3,
+        rng: random.Random | None = None,
     ) -> list[ZoneGeometry]:
         """把 stair 切分后的多块 free rect 按目标面积缺口分给各功能区。"""
         geometries: list[ZoneGeometry] = []
         if not groups or not free_rects:
             return geometries
 
+        rng = rng or random.Random(0)
         rects = sorted(free_rects, key=lambda r: r.area, reverse=True)
         remaining_need = {g.zone: g.target_area for g in groups}
         buckets: dict[ArchitecturalZone, list[Rect]] = {g.zone: [] for g in groups}
@@ -483,8 +488,48 @@ class ZonePlanner:
             (g.zone for g in groups if _group_needs_exterior_wet(g, by_id)),
             None,
         )
+        total_free = sum(r.area for r in free_rects) or 1.0
+
+        def _bucket_rect(zone: ArchitecturalZone, rect: Rect) -> None:
+            buckets[zone].append(rect)
+            remaining_need[zone] = max(0.0, remaining_need[zone] - rect.area)
 
         for rect in rects:
+            hungry = [g for g in groups if remaining_need.get(g.zone, 0.0) > 1e-9]
+            # 仅「一大两小」主导块（>55% 总 free）：整给 DAY 会饿死 SERVICE/NIGHT
+            # 过宽的 1.5×need 会在多层车库案打崩 valid
+            dominant = rect.area > total_free * 0.55
+            if len(hungry) >= 2 and dominant:
+                split_groups = [
+                    ZoneRoomGroup(
+                        zone=g.zone,
+                        room_ids=list(g.room_ids),
+                        target_area=max(remaining_need[g.zone], 1e-6),
+                    )
+                    for g in hungry
+                ]
+                parts = self._split_rect_into_zones(
+                    floor_id,
+                    rect,
+                    split_groups,
+                    snap_module,
+                    rng,
+                    rooms=rooms,
+                    entry_model_edge=entry_model_edge,
+                    wet_exterior_ends=wet_exterior_ends,
+                )
+                for zg in parts:
+                    _bucket_rect(
+                        zg.zone,
+                        Rect(
+                            x=zg.rect.x,
+                            y=zg.rect.y,
+                            width=zg.rect.width,
+                            depth=zg.rect.depth,
+                        ),
+                    )
+                continue
+
             foyer_need = remaining_need.get(foyer_zone, 0.0) if foyer_zone else 0.0
             wet_need = remaining_need.get(wet_zone, 0.0) if wet_zone else 0.0
             # 仅把「面积不太离谱」的贴边碎块给门厅组，避免整块大区饿死 SERVICE
@@ -509,10 +554,7 @@ class ZonePlanner:
             else:
                 best = max(groups, key=lambda g: remaining_need.get(g.zone, 0.0))
                 best_zone = best.zone
-            buckets[best_zone].append(rect)
-            remaining_need[best_zone] = max(
-                0.0, remaining_need[best_zone] - rect.area
-            )
+            _bucket_rect(best_zone, rect)
 
         for group in groups:
             for rect in buckets[group.zone]:

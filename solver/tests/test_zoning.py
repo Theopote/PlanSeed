@@ -100,6 +100,46 @@ class TestZonePlanner:
         assert ArchitecturalZone.SERVICE in zones
         assert abs(sum(z.rect.area for z in plan.zones) - free[0].area) < 0.5
 
+    def test_oversized_free_rect_does_not_starve_service(self):
+        """南侧楼梯留下「一大两小」时，大块须切开，SERVICE 不得空仓。"""
+        rooms = [
+            RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=16),
+            RoomSpec(
+                id="kitchen",
+                name="厨房",
+                category=RoomCategory.WET,
+                target_area=9,
+                tags=["kitchen"],
+            ),
+            RoomSpec(id="bed1", name="主卧", category=RoomCategory.PRIVATE, target_area=12),
+            RoomSpec(id="bed2", name="次卧", category=RoomCategory.PRIVATE, target_area=10),
+            RoomSpec(id="bath1", name="卫生间", category=RoomCategory.WET, target_area=4),
+        ]
+        # 模拟 B01 seed=42：南侧楼梯扣完后的 free
+        free = [
+            Rect(x=0.0, y=0.0, width=8.0, depth=10.2),
+            Rect(x=0.0, y=10.2, width=1.8, depth=1.8),
+            Rect(x=6.0, y=10.2, width=2.0, depth=1.8),
+        ]
+        zones = ZonePlanner().plan_geometry(
+            rooms=rooms,
+            free_rects=free,
+            snap_module=0.3,
+            rng=random.Random(42),
+            floor_id="F1",
+        )
+        by_zone = {z.zone for z in zones}
+        assert ArchitecturalZone.SERVICE in by_zone
+        service_area = sum(
+            z.rect.width * z.rect.depth
+            for z in zones
+            if z.zone == ArchitecturalZone.SERVICE
+        )
+        assert service_area >= 3.0
+        assert "bath1" in next(
+            z.room_ids for z in zones if z.zone == ArchitecturalZone.SERVICE
+        )
+
     def test_kitchen_packs_with_day_not_service_band(self):
         """厨房功能属 DAY；与客卫可同属 WS1，但不挤进 SERVICE 功能条。"""
         f1 = [
