@@ -47,17 +47,35 @@ ab_rate = (count_A + count_B) / 32
 
 B01, B04, B06, B12 — 80/80 valid 候选已评级。
 
+## 自动重跑对照（2026-11-21）
+
+> **不是**新的人工 ab_rate。旧 grades 绑定首跑几何，不可直接套到新候选。  
+> 本地产物：`debug/design-benchmark-v2/auto_rerun_n32.json`（gitignore）。  
+> 命令：`uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --count 32 --out debug/design-benchmark-v2/auto_rerun_n32.json`
+
+| Case | 首跑 valid_rate | 重跑 valid_rate | Δ | 重跑 valid 中无 Gate blocker | 有 Gate blocker |
+|------|----------------:|---------------:|--:|---------------------------:|----------------:|
+| B01 | 0.531 | 0.531 | 0 | 17/17 | 0 |
+| B04 | 0.625 | 0.469 | −0.156 | 15/15 | 0 |
+| B06 | 0.531 | 0.531 | 0 | 17/17 | 0 |
+| B12 | 0.812 | 0.812 | 0 | 20/26 | 6 |
+
+四 case 合计 valid_rate：首跑评审子集 **0.625** → 重跑 **0.586**（B04 明显下降）。
+
+重跑常见 Gate **warning**（非 blocker）：B06 几乎全部 valid 带 `black_wet`；B01/B04/B12 亦见暗卫/深度访问类 findings。  
+**下一步：** 导出 SVG 后按原标准重做 A/B/C/D，才能更新 ab_rate；在此之前不得宣称建筑师接受率已提升。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。
 
 ```bash
-# 生成 + 导出（SVG/中间报告仅本地）
+# 生成 + 导出（SVG/中间报告仅本地；勿直接覆盖入库 JSON，除非准备同步人工重评）
 uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --count 32 \
   --export-svg debug/design-benchmark-v2/review \
-  --out docs/baselines/design_benchmark_v2_n32.json
+  --out debug/design-benchmark-v2/auto_rerun_n32.json
 
-# 合并人工评级 → 入库基线
+# 人工评级合并（仅当 grades 对应当前几何）
 uv run python -m solver.benchmark.design_acceptance \
   --grades-only docs/baselines/design_benchmark_v2_grades_theopote.json \
   --out docs/baselines/design_benchmark_v2_n32_graded.json
