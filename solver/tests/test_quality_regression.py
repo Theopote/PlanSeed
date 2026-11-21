@@ -87,15 +87,20 @@ class TestQualityRegression:
             )
 
     def test_core_placement_diversity(self):
-        """seed 应驱动多种 StairCore 区位，而非永远贴西。"""
-        program = benchmark_program()
-        result = run_pipeline(program)
+        """多层楼梯锁入口边；换入口方位应得到不同 StairCore 区位。"""
+        from packages.schema.site import CardinalEdge
+
         q = DEFAULT_QUALITY
-        placements = {
-            c.floors[0].core_placement
-            for c in result.all_candidates
-            if c.floors and c.floors[0].core_placement
-        }
+        placements: set[str] = set()
+        for edge in (CardinalEdge.SOUTH, CardinalEdge.WEST, CardinalEdge.EAST):
+            program = benchmark_program()
+            program.site.entrance_edge = edge
+            # 少候选即可：区位由入口边决定，不靠 seed 抽正交边
+            program.solver_config.candidate_count = max(4, q.min_core_placements)
+            result = run_pipeline(program)
+            for c in result.all_candidates:
+                if c.floors and c.floors[0].core_placement:
+                    placements.add(c.floors[0].core_placement)
         assert len(placements) >= q.min_core_placements, (
             f"core_placements={placements} count={len(placements)} "
             f"< {q.min_core_placements}"

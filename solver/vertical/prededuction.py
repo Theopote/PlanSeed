@@ -179,7 +179,7 @@ def build_prededuction_plan(
             rng,
             preferred=preferred,
             entrance_edge=program.site.entrance_edge,
-            # 多层：入口边为主+正交边少量；一层：避开入口边让客厅贴外墙
+            # 多层：楼梯只贴入口边；一层：避开入口边让客厅贴外墙
             entrance_bias_copies=0,
             exclude_center=multi,
             exclude_opposite=multi,

@@ -71,17 +71,10 @@ def choose_core_placement(
         CardinalEdge.WEST: CorePlacement.EAST,
     }
     if entrance_edge_only and entrance_edge is not None:
-        # 多层：入口边为主，正交边少量保留多样性；排除对侧与居中
+        # 多层：只贴入口边（正交边楼梯易落入夜区/湿区错位）
         ent = edge_map.get(entrance_edge)
-        opp = opposite_map.get(entrance_edge)
-        options = [
-            p
-            for p in options
-            if p != CorePlacement.CENTER and p != opp
-        ]
         if ent is not None:
-            # 入口边约占 12/14（≈86%），正交边各 1：保多样性、少伤 privacy
-            options = [ent] * 12 + [p for p in options if p != ent]
+            options = [ent]
     else:
         if exclude_center:
             # 多层居中楼梯常与入口侧门厅脱边，多一跳走廊
