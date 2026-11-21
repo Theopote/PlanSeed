@@ -50,6 +50,7 @@ from solver.geometry.coverage import (
 from solver.geometry.free_rects import subtract_rects
 from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
+from solver.geometry.wet_exterior_repair import swap_black_baths_to_exterior
 from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
 from solver.topology.plan import (
@@ -63,6 +64,52 @@ from solver.topology.zoning import ZonePlanner, zone_for_room
 from solver.vertical.prededuction import build_prededuction_plan
 
 _ASPECT_THRESHOLD = DEFAULT_WEIGHTS.aspect_ratio_threshold
+
+
+def _group_has_bath(group: list[_LayoutRoom]) -> bool:
+    return any(is_guest_bath(lr.spec) or is_master_bath(lr.spec) for lr in group)
+
+
+def _bias_bath_group_to_exterior(
+    group1: list[_LayoutRoom],
+    group2: list[_LayoutRoom],
+    *,
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    split_horizontal: bool,
+    footprint: tuple[float, float, float, float] | None,
+) -> tuple[list[_LayoutRoom], list[_LayoutRoom]]:
+    """
+    二分时把含卫浴的一侧贴到当前包区已触 footprint 的外缘。
+
+    仅当恰好一侧含卫浴、且包区只在一侧贴外墙时换位；两侧都贴则不动。
+    """
+    if footprint is None:
+        return group1, group2
+    g1_bath = _group_has_bath(group1)
+    g2_bath = _group_has_bath(group2)
+    if g1_bath == g2_bath:
+        return group1, group2
+    bath, other = (group1, group2) if g1_bath else (group2, group1)
+    fx0, fy0, fx1, fy1 = footprint
+    eps = 1e-6
+    if split_horizontal:
+        touch_lo = abs(x0 - fx0) <= eps
+        touch_hi = abs(x1 - fx1) <= eps
+        if touch_lo and not touch_hi:
+            return bath, other
+        if touch_hi and not touch_lo:
+            return other, bath
+    else:
+        touch_lo = abs(y0 - fy0) <= eps
+        touch_hi = abs(y1 - fy1) <= eps
+        if touch_lo and not touch_hi:
+            return bath, other
+        if touch_hi and not touch_lo:
+            return other, bath
+    return group1, group2
 
 
 def _rect_aspect(width: float, depth: float) -> float:
@@ -647,6 +694,7 @@ class GuillotineGenerator:
                 atrium_voids=atrium_voids_by_floor.get(floor.id, []),
                 prededuction_obstacles=prededuction.holes_by_floor.get(floor.id, []),
                 entry_model_edge=entry_model_edge if is_ground else None,
+                program=program,
             )
             # 合并锁定房间放置
             locked_on_floor = locks.rooms_on_floor(floor.id)
@@ -857,6 +905,7 @@ class GuillotineGenerator:
         atrium_voids: list[VerticalVoidPlacement] | None = None,
         prededuction_obstacles: list[Rect] | None = None,
         entry_model_edge: CardinalEdge | None = None,
+        program: DesignProgram | None = None,
     ) -> FloorLayout:
         layout_rooms: dict[str, _LayoutRoom] = {
             r.id: _LayoutRoom(spec=r, weight=r.target_area) for r in floor_rooms
@@ -1021,6 +1070,13 @@ class GuillotineGenerator:
             placements,
             floor.id,
         )
+        if program is not None:
+            rooms_by_id = {r.id: r for r in floor_rooms}
+            placements = swap_black_baths_to_exterior(
+                placements,
+                program=program,
+                rooms_by_id=rooms_by_id,
+            )
 
         return FloorLayout(
             floor_id=floor.id,
@@ -1185,9 +1241,9 @@ class GuillotineGenerator:
                 )
                 exterior_bonus = 0.0
                 if is_guest_bath(lr.spec) or is_master_bath(lr.spec):
-                    exterior_bonus = 600.0
+                    exterior_bonus = 1500.0
                 elif is_laundry(lr.spec):
-                    exterior_bonus = 200.0
+                    exterior_bonus = 250.0
                 capped = _best_capped_placement(
                     x0,
                     y0,
@@ -1281,12 +1337,23 @@ class GuillotineGenerator:
 
         width = x1 - x0
         height = y1 - y0
-        frac = _compute_split_fraction(group1, group2, width, height)
 
         if abs(width - height) < 1e-6:
             split_horizontal = rng.random() < 0.5
         else:
             split_horizontal = width >= height
+
+        group1, group2 = _bias_bath_group_to_exterior(
+            group1,
+            group2,
+            x0=x0,
+            y0=y0,
+            x1=x1,
+            y1=y1,
+            split_horizontal=split_horizontal,
+            footprint=getattr(self, "_footprint_bounds", None),
+        )
+        frac = _compute_split_fraction(group1, group2, width, height)
 
         if split_horizontal:
             cut_x = _clamped_axis_cut(

@@ -125,6 +125,12 @@ n=32 自动 valid 与首跑同量级（B04 **0.625**）；valid 候选入口进�
 卫浴 capped 放置对外墙加分，降低黑卫。  
 agent-draft 抽样（n=32，非签章）：聚合 ab≈0.41（B12≈0.63 · B01≈0.50 · B04≈0.31 · B06≈0.19）；不替代人工签章。
 
+### 卫浴贴外缘（2026-11-21）
+
+区内 guillotine 二分把卫浴侧贴 footprint 外缘 + 提高 exterior_bonus；打包后仅与储藏/洗衣/书房做黑卫软交换。  
+**不做**整层 wet-zone 两端重排（会打崩 B06 valid）。  
+agent-draft（n=32，非签章）：聚合 ab≈**0.53**（B01≈0.50 · B04≈0.31 · B06≈0.50 · B12≈0.81）；valid 与改前同量级；不替代人工签章。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。

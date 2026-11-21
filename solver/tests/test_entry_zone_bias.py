@@ -97,3 +97,29 @@ def test_no_foyer_keeps_area_order() -> None:
     # 面积序：DAY(22) 先于 NIGHT/SERVICE → 低 y 侧
     day = next(z for z in zones if z.zone == ArchitecturalZone.DAY)
     assert abs(day.rect.y - 0.0) < 1e-6
+
+
+def test_wet_zone_pinned_to_split_end_on_single_floor() -> None:
+    """一层：客卫所在 SERVICE 贴切分端，避免夹心黑卫。"""
+    rooms = [
+        RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=22),
+        RoomSpec(id="bed", name="卧室", category=RoomCategory.PRIVATE, target_area=14),
+        RoomSpec(id="bath", name="卫生间", category=RoomCategory.WET, target_area=4),
+    ]
+    for r in rooms:
+        r.floor_id = "F1"
+    planner = ZonePlanner()
+    zones = planner.plan_geometry(
+        rooms=rooms,
+        free_rects=[Rect(x=0, y=0, width=10, depth=16)],
+        snap_module=0.3,
+        rng=random.Random(1),
+        floor_id="F1",
+        wet_exterior_ends=True,
+    )
+    service = next(z for z in zones if z.zone == ArchitecturalZone.SERVICE)
+    # 垂直条带切分：SERVICE 应贴 y=0 或 y=16 一端
+    top = abs(service.rect.y - 0.0) < 1e-6
+    bottom = abs((service.rect.y + service.rect.depth) - 16.0) < 1e-6
+    assert top or bottom
+    assert "bath" in service.room_ids

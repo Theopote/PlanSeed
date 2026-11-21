@@ -131,6 +131,7 @@ class ZonePlanner:
         rng: random.Random | None = None,
         floor_id: str = "_shared",
         entry_model_edge: CardinalEdge | None = None,
+        wet_exterior_ends: bool = False,
     ) -> list[ZoneGeometry]:
         rng = rng or random.Random(0)
         groups = [g for g in self.group_rooms(rooms) if g.room_ids]
@@ -138,6 +139,9 @@ class ZonePlanner:
             return []
 
         free_rects = sorted(free_rects, key=lambda r: r.area, reverse=True)
+        # 仅一层：卫浴区贴切分两端，避免 SERVICE 夹心导致黑卫
+        if wet_exterior_ends:
+            groups = _order_groups_for_wet_exterior(groups, rooms)
 
         if len(free_rects) == 1 and len(groups) > 1:
             return self._split_rect_into_zones(
@@ -148,6 +152,7 @@ class ZonePlanner:
                 rng,
                 rooms=rooms,
                 entry_model_edge=entry_model_edge,
+                wet_exterior_ends=wet_exterior_ends,
             )
         # 多块 free：先按面积排序，再把贴入口边的碎块优先给 DAY
         groups = _order_groups_for_entry(
@@ -159,6 +164,7 @@ class ZonePlanner:
             groups,
             rooms=rooms,
             entry_model_edge=entry_model_edge,
+            wet_exterior_ends=wet_exterior_ends,
         )
 
     def plan_floor(
@@ -177,6 +183,7 @@ class ZonePlanner:
             snap_module=snap_module,
             rng=rng,
             floor_id=floor_id,
+            wet_exterior_ends=True,
         )
         return FloorZonePlan(floor_id=floor_id, zones=zones)
 
@@ -224,6 +231,8 @@ class ZonePlanner:
                 else free_rects
             )
             edge = entry_model_edge if floor_id == ground else None
+            # 不在 plan_building 开 wet_exterior_ends：一层 B06 valid 0.50→0.375
+            # 且 draft AB 不升；卫浴外墙改由区内打包 exterior_bonus 承担。
             zones = self.plan_geometry(
                 rooms=rooms,
                 free_rects=floor_free,
@@ -231,6 +240,7 @@ class ZonePlanner:
                 rng=rng,
                 floor_id=floor_id,
                 entry_model_edge=edge,
+                wet_exterior_ends=False,
             )
             floor_plans[floor_id] = FloorZonePlan(floor_id=floor_id, zones=zones)
         return BuildingZonePlan(floors=floor_plans, wet_stacks=wet_stacks)
@@ -367,6 +377,7 @@ class ZonePlanner:
         *,
         rooms: list[RoomSpec] | None = None,
         entry_model_edge: CardinalEdge | None = None,
+        wet_exterior_ends: bool = False,
     ) -> list[ZoneGeometry]:
         total = sum(g.target_area for g in groups) or 1.0
         by_id = {r.id: r for r in (rooms or [])}
@@ -396,6 +407,7 @@ class ZonePlanner:
                 and entry_model_edge in (CardinalEdge.NORTH, CardinalEdge.SOUTH)
             )
         )
+        # 门厅贴入口边；一层时再把卫浴区固定在切分两端（入口重排之后再落端）
         ordered = (
             _order_groups_for_entry(
                 groups, rooms or [], entry_model_edge=entry_model_edge
@@ -403,6 +415,8 @@ class ZonePlanner:
             if axis_aligned
             else list(groups)
         )
+        if wet_exterior_ends:
+            ordered = _pin_wet_groups_to_ends(ordered, rooms or [])
 
         cursor = rect.x if horizontal else rect.y
         end = rect.right if horizontal else rect.bottom
@@ -450,6 +464,7 @@ class ZonePlanner:
         *,
         rooms: list[RoomSpec] | None = None,
         entry_model_edge: CardinalEdge | None = None,
+        wet_exterior_ends: bool = False,
     ) -> list[ZoneGeometry]:
         """把 stair 切分后的多块 free rect 按目标面积缺口分给各功能区。"""
         geometries: list[ZoneGeometry] = []
@@ -464,19 +479,33 @@ class ZonePlanner:
             (g.zone for g in groups if _group_has_foyer(g, by_id)),
             None,
         )
+        wet_zone = next(
+            (g.zone for g in groups if _group_needs_exterior_wet(g, by_id)),
+            None,
+        )
 
         for rect in rects:
-            need = remaining_need.get(foyer_zone, 0.0) if foyer_zone else 0.0
+            foyer_need = remaining_need.get(foyer_zone, 0.0) if foyer_zone else 0.0
+            wet_need = remaining_need.get(wet_zone, 0.0) if wet_zone else 0.0
             # 仅把「面积不太离谱」的贴边碎块给门厅组，避免整块大区饿死 SERVICE
-            edge_ok = (
+            foyer_edge_ok = (
                 entry_model_edge is not None
                 and foyer_zone is not None
-                and need > 1e-9
-                and rect.area <= max(need * 3.0, 24.0)
+                and foyer_need > 1e-9
+                and rect.area <= max(foyer_need * 3.0, 24.0)
                 and _rect_touches_edge(rect, entry_model_edge, free_rects)
             )
-            if edge_ok:
+            wet_edge_ok = (
+                wet_exterior_ends
+                and wet_zone is not None
+                and wet_need > 1e-9
+                and rect.area <= max(wet_need * 3.0, 20.0)
+                and _rect_touches_any_perimeter(rect, free_rects)
+            )
+            if foyer_edge_ok:
                 best_zone = foyer_zone
+            elif wet_edge_ok:
+                best_zone = wet_zone
             else:
                 best = max(groups, key=lambda g: remaining_need.get(g.zone, 0.0))
                 best_zone = best.zone
@@ -516,6 +545,54 @@ def _group_has_foyer(
         if room is not None and is_foyer(room):
             return True
     return False
+
+
+def _group_needs_exterior_wet(
+    group: ZoneRoomGroup, rooms_by_id: dict[str, RoomSpec]
+) -> bool:
+    for rid in group.room_ids:
+        room = rooms_by_id.get(rid)
+        if room is not None and (is_guest_bath(room) or is_master_bath(room)):
+            return True
+    return False
+
+
+def _order_groups_for_wet_exterior(
+    groups: list[ZoneRoomGroup],
+    rooms: list[RoomSpec],
+) -> list[ZoneRoomGroup]:
+    """一层专用（多块 free 预排）：卫浴区贴切分两端。"""
+    return _pin_wet_groups_to_ends(groups, rooms)
+
+
+def _pin_wet_groups_to_ends(
+    groups: list[ZoneRoomGroup],
+    rooms: list[RoomSpec],
+) -> list[ZoneRoomGroup]:
+    """
+    含卫浴分区贴切分两端，避免夹心黑卫。
+
+    一个卫浴区 → 末端；两个及以上 → 最小/次小分置首尾。
+    已在入口侧的门厅组尽量不动：若湿区被赶到入口端且首端已是门厅，改挂到另一端。
+    """
+    if len(groups) < 2:
+        return groups
+    by_id = {r.id: r for r in rooms}
+    wet_groups = sorted(
+        (g for g in groups if _group_needs_exterior_wet(g, by_id)),
+        key=lambda g: (g.target_area, g.zone.value),
+    )
+    if not wet_groups:
+        return groups
+    rest = [g for g in groups if g not in wet_groups]
+    if len(wet_groups) == 1:
+        wet = wet_groups[0]
+        if rest and _group_has_foyer(rest[0], by_id):
+            return [*rest, wet]
+        if rest and _group_has_foyer(rest[-1], by_id):
+            return [wet, *rest]
+        return [*rest, wet]
+    return [wet_groups[0], *rest, wet_groups[1]]
 
 
 def _order_groups_for_entry(
@@ -565,3 +642,16 @@ def _rect_touches_edge(
     if edge == CardinalEdge.SOUTH:
         return abs(rect.bottom - max_y) <= eps
     return False
+
+
+def _rect_touches_any_perimeter(rect: Rect, all_rects: list[Rect]) -> bool:
+    """碎块是否贴本层 free 包络任意一边（一层卫浴外墙偏好）。"""
+    return any(
+        _rect_touches_edge(rect, edge, all_rects)
+        for edge in (
+            CardinalEdge.WEST,
+            CardinalEdge.EAST,
+            CardinalEdge.NORTH,
+            CardinalEdge.SOUTH,
+        )
+    )
