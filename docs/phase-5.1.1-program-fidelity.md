@@ -25,11 +25,14 @@
 
 ```text
 Generate → requirement_spec + program_summary + candidates
-Save/Load → requirement_spec 往返
+Save/Load → requirement_spec 往返（+ design_conversation）
 Edit room area → sync spaces in requirement_spec
+Copilot IntentPatch → Program 增量 + sync_requirement_spec_after_intent → 返回更新 Spec
 Mutation / Revalidate → POST requirements = canonical spec
 hydrate → stair_* from stair-* placements → evaluate
 ```
+
+**v0.2 延伸：** Intent 应用不得只改 `DesignProgram` 而返回旧 Spec；见 [copilot.md](copilot.md) · `solver/intent/spec_sync.py`。
 
 ## 明确延后
 

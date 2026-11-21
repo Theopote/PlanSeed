@@ -32,16 +32,18 @@ RequirementSpec → normalize → DesignProgram → generate → LayoutCandidate
 2. **输入输出分离**：RoomSpec（需求）与 RoomPlacement（solver 输出）不可混用。
 3. **可复现**：相同 DesignProgram + seed 必须相同结果；禁止未注入的全局 `random`。
 4. **NL 解析**：Hybrid Semantic Parser（Local LLM + 确定性抽取 + Vocabulary + Semantic Gate + Repair）；LLM 不直接输出 DesignProgram 或坐标。
-5. **注释 / commit message**：中文；标识符：英文。
+5. **RequirementSpec 事实源**：IntentPatch / 面积编辑必须写回 Spec；见 [docs/copilot.md](docs/copilot.md)。
+6. **注释 / commit message**：中文；标识符：英文。
 
-更多见 [docs/architecture.md](docs/architecture.md)、[docs/hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)。
+更多见 [docs/architecture.md](docs/architecture.md)、[docs/hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)、[docs/v0.2-architect-workflow.md](docs/v0.2-architect-workflow.md)。
 
 ## Pull Request
 
 1. 从最新 `master` 开分支，主题尽量单一。
 2. 附上动机与验证方式（相关测试 / 手工步骤）。
 3. 确保本地 `uv run pytest` 与 `uv run ruff check .` 通过；改动到桌面端时跑 `pnpm --dir desktop build`。
-4. 不要提交密钥、`.env`、构建产物、`node_modules`、sidecar 二进制。
+4. 改 FastAPI / Pydantic 请求响应后：`uv run python scripts/export_openapi.py` 与 `pnpm --dir desktop generate:api`，并提交 `desktop/openapi.json` + `generated.ts`。
+5. 不要提交密钥、`.env`、构建产物、`node_modules`、sidecar 二进制。
 
 ## Issue
 

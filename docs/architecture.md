@@ -57,6 +57,19 @@ RequirementSpec → normalize → DesignProgram → generate → LayoutCandidate
 
 LLM Phase 6 目标：`Natural Language → Hybrid Semantic Parser → RequirementSpec → normalize → Solver`
 
+### Architect Workflow / Copilot（v0.2）
+
+```text
+选中 CandidatePayload
+  → IntentPatch / Strategy / Critic / Optimize
+  →（必要时）写回 RequirementSpec + 局部 regen
+  → DesignConversation 随项目快照持久化
+```
+
+- 桌面候选形状 ≠ Solver `LayoutCandidate`；重建见 `backend/services/candidate_rebuild.py`  
+- Intent 变更必须镜像到 `RequirementSpec`（ADR-003），不能只改一次性 Program  
+- 详：[copilot.md](copilot.md) · [v0.2-architect-workflow.md](v0.2-architect-workflow.md)
+
 ## 3. 已拍板决策
 
 - **Python 环境**：3.12 + uv；所有命令 `uv run`
@@ -67,9 +80,9 @@ LLM Phase 6 目标：`Natural Language → Hybrid Semantic Parser → Requiremen
 - **Adjacency ≠ Access Intent**：Solver 拓扑与 Requirement `relation_intents` 均须分流（near / access / open_connection / separation…）；见 [hybrid-semantic-parser.md](hybrid-semantic-parser.md)
 - **版本签名**：`solver_version` / `generator_version` / `evaluation_version`（`packages/schema/identity.py`）；解释历史分数与 regression，≠ `engine_version`
 - **静态检查**：ruff clean → mypy 核心 → 逐目录收紧；**不做**全仓 `mypy --strict`
-- **CI**：`.github/workflows/ci.yml`（pytest / ruff / mypy / pnpm build / cargo check）；sidecar 打包不进每次 commit
-- **FastAPI + Tauri**：四区 Workbench；**当前 Phase 4.3**（受控 Move/Resize + Mutation Authority）
-- **路线图**：见 [roadmap.md](roadmap.md) · [phase-4.3-direct-manipulation.md](phase-4.3-direct-manipulation.md)
+- **CI**：`.github/workflows/ci.yml`（pytest / ruff / mypy / OpenAPI→TS drift / pnpm build / cargo check）；sidecar 打包不进每次 commit
+- **FastAPI + Tauri**：四区 Workbench + Copilot 面板；交互编辑见 Phase 4.3
+- **路线图**：见 [roadmap.md](roadmap.md) · [v0.2-architect-workflow.md](v0.2-architect-workflow.md) · [copilot.md](copilot.md)
 - **UI 纪律**：不因壳已出现就堆按钮；加深 `Evaluation → Finding → Inspector → Compare`
 - **引擎复用**：仅当 `GET /api/health` 返回 `service=planseed` 时 reuse 端口
 

@@ -21,7 +21,7 @@ Local-first、本地运行的独栋住宅生成式设计工具。
 | **Release** | **PlanSeed Alpha v0.1.1**（[`v0.1.1-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha)）· v0.1.0：[v0.1.0-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha) |
 | **Platform** | Windows 10/11 x64 |
 | **Status** | **Released**（v0.1.1-alpha · 2026-08-18） |
-| **Next** | [v0.2 Architect Workflow](docs/v0.2-architect-workflow.md) · [Design Benchmark v2](docs/design-benchmark-v2.md) |
+| **Next** | [v0.2 Architect Workflow](docs/v0.2-architect-workflow.md) · [AI Copilot 数据闭环](docs/copilot.md) · [Design Benchmark v2](docs/design-benchmark-v2.md) |
 
 下载安装包：[GitHub Releases](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) · v0.1.1 说明：[docs/alpha-v0.1.1-release-notes.md](docs/alpha-v0.1.1-release-notes.md) · v0.1.0：[alpha-v0.1-release-notes.md](docs/alpha-v0.1-release-notes.md)
 
@@ -96,20 +96,32 @@ pnpm tauri:dev
 RequirementSpec  →  normalize  →  DesignProgram  →  generate  →  LayoutCandidate
 ```
 
-- **RequirementSpec**：用户 / LLM 表达的需求（Hybrid Semantic Parser，非纯 LLM）
+- **RequirementSpec**：用户 / LLM 表达的需求（Hybrid Semantic Parser，非纯 LLM）；**唯一需求事实源**
 - **DesignProgram**：Normalizer 规范化后的建筑任务
-- **LayoutCandidate**：Solver 生成的几何方案
+- **LayoutCandidate**：Solver 生成的几何方案（API 侧为扁平 `CandidatePayload`）
 
 LLM 不直接输出 DesignProgram 或坐标。详见 [docs/hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)。
 
+### AI Design Copilot（v0.2）
+
+工作台可对当前方案做意图补丁、策略生成、审查与受控优化。关键纪律：
+
+- 桌面 `CandidatePayload`（`placements` + `design_score`）须经后端重建为 `LayoutCandidate`，禁止空几何悄悄通过  
+- IntentPatch 必须写回 `RequirementSpec`，不能只改一次性 Program  
+- 设计对话写入 `ProjectPayload.design_conversation`，重启后可恢复  
+
+详见 [docs/copilot.md](docs/copilot.md) · [docs/v0.2-architect-workflow.md](docs/v0.2-architect-workflow.md)。
+
 ## 文档
 
+- [v0.2-architect-workflow.md](docs/v0.2-architect-workflow.md) · [copilot.md](docs/copilot.md)
 - [phases/phase-8-solver-2.0.md](docs/phases/phase-8-solver-2.0.md)
 - [adr/](docs/adr/) · [c4.md](docs/c4.md)
 - [architecture.md](docs/architecture.md)
 - [schema.md](docs/schema.md)
 - [solver.md](docs/solver.md)
 - [scoring.md](docs/scoring.md)
+- [api-contract.md](docs/api-contract.md)
 - [hybrid-semantic-parser.md](docs/hybrid-semantic-parser.md)
 
 ## 贡献

@@ -2,7 +2,7 @@
 
 > **▶ Alpha v0.1.1 Released**（[`v0.1.1-alpha`](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.1-alpha) · 2026-08-18）· v0.1.0：[v0.1.0-alpha](https://github.com/Theopote/PlanSeed/releases/tag/v0.1.0-alpha)  
 > **当前：v0.2 — Architect Workflow / AI Design Copilot** — Intent Patch → Topology Strategy → Critic → Conversation；`v0.1.x` 仅 bugfix/UX  
-> v0.2 总览：[v0.2-architect-workflow.md](v0.2-architect-workflow.md) · Benchmark v2：[design-benchmark-v2.md](design-benchmark-v2.md) · KPI：**ab_rate**  
+> v0.2 总览：[v0.2-architect-workflow.md](v0.2-architect-workflow.md) · Copilot 闭环：[copilot.md](copilot.md) · Benchmark v2：[design-benchmark-v2.md](design-benchmark-v2.md) · KPI：**ab_rate**  
 > Release 验收：[alpha-v0.1-release-readiness.md](alpha-v0.1-release-readiness.md) · 手测：[alpha-v0.1-hand-smoke.md](alpha-v0.1-hand-smoke.md) · Phase 8：[phases/phase-8-solver-2.0.md](phases/phase-8-solver-2.0.md) · ADR：[adr/](adr/) · C4：[c4.md](c4.md)
 
 ## 项目状态（阶段判断）

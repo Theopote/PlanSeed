@@ -32,7 +32,7 @@
 | 符号 | 位置 |
 |------|------|
 | `GenerateResponse` | `backend/schemas/api.py` |
-| `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`、`svg` 整图、`floor_svgs` 分层） |
+| `CandidatePayload` | 同上（含 `design_score`、`provenance`、`placements`、`svg` 整图、`floor_svgs` 分层）。**≠** `LayoutCandidate`：房间在扁平 `placements`，评价在 `design_score`；Copilot 须经 `backend/services/candidate_rebuild.py` 重建 |
 | `CandidatePayload` · 血缘 | Phase 5 additive：`variant_parent_id` / `variant_generation` / `lock_snapshot_id` |
 | `GenerateRequest` · `locks` | Phase 4.1：`LayoutLocks`（rooms + stair + zones）；生成前 `validate_layout_locks`，非法 → **422** |
 | `GenerateRequest` · `base_seed` | Phase 4.2 additive：变体批次种子起点 |
@@ -41,7 +41,8 @@
 | `CandidateProvenance` | solver / generator / evaluation_version |
 | `solver_identity` | generate / health 响应 |
 | `CompareRequest` / `CompareResponse` | `POST /api/compare` |
-| Projects CRUD | Phase 5 / 5.1.1：`GET/POST /api/projects`；payload 含 `requirement_spec`；详见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md) |
+| Projects CRUD | Phase 5 / 5.1.1：`GET/POST /api/projects`；payload 含 `requirement_spec`、`design_conversation`；详见 [phase-5.1.1-program-fidelity.md](phase-5.1.1-program-fidelity.md) · [copilot.md](copilot.md) |
+| Copilot | v0.2：`/api/copilot/intent/*` · `/critique` · `/optimize` · `/strategies` · `/conversation/*`；候选须经 `candidate_rebuild`；详见 [copilot.md](copilot.md) |
 | `.planseed` 包 | Phase 7.5-D：`GET /api/projects/{id}/package`（ZIP 下载）；`POST /api/projects/import`（body=ZIP）；`format=planseed-project` |
 | Mutation preview / revalidate | Phase 5.1：`POST /api/mutations/preview`、`POST /api/mutations/revalidate`；详见 [phase-5.1-revision-integrity.md](phase-5.1-revision-integrity.md) |
 | `POST /api/requirements/parse` | Phase 6.5 additive：NL → `RequirementSpec`（含 repair）；详见 [phase-6.5-nl-generate.md](phase-6.5-nl-generate.md) |
@@ -98,4 +99,5 @@ geometry_backend
 1. 需要破坏性改契约 → 先写迁移 / bump 版本 → 再改 Desktop 类型。  
 2. 改评价规则 → bump `EVALUATION_VERSION`。  
 2b. 改 Top-K / ranking / compare 默认对象 → bump `SELECTION_VERSION`（及必要时 `SOLVER_VERSION`）。  
-3. Phase 4 交互编辑 **消费**本契约，不重新发明响应形状。
+3. Phase 4 交互编辑 **消费**本契约，不重新发明响应形状。  
+4. 改 Copilot / Projects payload 字段后：同步 OpenAPI + `generated.ts`，并更新 [copilot.md](copilot.md) 若触及数据闭环。

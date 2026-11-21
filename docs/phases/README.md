@@ -1,10 +1,12 @@
 # Phase 文档索引
 
-历史 Phase 说明。当前开发焦点见 [roadmap.md](../roadmap.md)（**Post-v0.1 Planning**）。
+历史 Phase 说明。当前开发焦点见 [roadmap.md](../roadmap.md)（**v0.2 Architect Workflow**）。
 
 | 位置 | 说明 |
 |------|------|
-| [`../roadmap.md`](../roadmap.md) | **← 当前** Post-v0.1 · issue-driven 维护 |
+| [`../roadmap.md`](../roadmap.md) | 主路线图 |
+| [`../v0.2-architect-workflow.md`](../v0.2-architect-workflow.md) | **← 当前** v0.2 总览 |
+| [`../copilot.md`](../copilot.md) | AI Copilot 数据闭环 |
 | [`../alpha-v0.1-release-readiness.md`](../alpha-v0.1-release-readiness.md) | v0.1.0 发布验收记录（已关门） |
 | [`../alpha-v0.1-release-notes.md`](../alpha-v0.1-release-notes.md) | v0.1.0 发布说明 |
 | [`../alpha-v0.1.1-release-notes.md`](../alpha-v0.1.1-release-notes.md) | v0.1.1 发布说明 |

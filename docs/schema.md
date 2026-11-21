@@ -120,8 +120,22 @@ room_id, floor_id, x, y, width, depth
 
 ```python
 id, seed, floors[], wet_stacks[], vertical_void_placements[],
-door_openings[], exterior_entry, validation, score, metrics
+door_openings[], exterior_entry, validation, evaluation, score, metrics
 ```
+
+**API 侧 `CandidatePayload`（`backend/schemas/api.py`）形状不同：** 房间在扁平 `placements[]`，评价在 `design_score`（≠ `floors` / `evaluation`）。Copilot critique/optimize 须经 `candidate_rebuild` 重建；见 [copilot.md](copilot.md)。
+
+### DesignIntentPatch / DesignConversation（v0.2）
+
+```python
+# packages/schema/intent_patch.py
+DesignIntentPatch  # preserve + changes → RegenerationScope
+
+# packages/schema/design_conversation.py
+DesignConversationState  # 多轮上下文；ProjectPayload.design_conversation 持久化
+```
+
+Intent 应用后须写回 `RequirementSpec`（`solver/intent/spec_sync.py`），遵守 ADR-003。
 
 ### VerticalVoidPlacement（solver 输出）
 
@@ -221,6 +235,7 @@ ProjectSpec.model_json_schema()
 ```text
 packages/schema/
 ├── project.py      # ProjectSpec, HouseholdSpec, PreferencesSpec
+├── requirements.py # RequirementSpec（canonical）
 ├── site.py         # SiteSpec, SetbackSpec, Rect2D
 ├── room.py         # RoomSpec, FloorSpec
 ├── core.py         # StairCoreSpec, CorePlacement, CorePlacementResult
@@ -230,5 +245,8 @@ packages/schema/
 ├── scoring.py      # DesignScore（含 evaluation_version）；DesignEvaluation = temporary alias
 ├── identity.py     # solver / generator / evaluation 版本签名
 ├── program.py      # DesignProgram, SolverConfig
-└── topology.py     # RoomGraph, RoomEdge
+├── topology.py     # RoomGraph, RoomEdge
+├── topology_strategy.py  # 命名设计策略
+├── intent_patch.py       # DesignIntentPatch
+└── design_conversation.py
 ```

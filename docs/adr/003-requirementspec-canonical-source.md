@@ -16,4 +16,5 @@ Assumption / Unknown 可追踪，不可静默丢弃。
 ## Consequences
 
 - API 与桌面以 Spec 同步为准（见 program fidelity）  
-- Solver 只消费 Program，不回头猜 NL
+- Solver 只消费 Program，不回头猜 NL  
+- **v0.2 Copilot：** `DesignIntentPatch` 应用后必须经 `sync_requirement_spec_after_intent` 写回 Spec；禁止「Program 已变、响应仍带旧 Spec」（见 [copilot.md](../copilot.md)）
