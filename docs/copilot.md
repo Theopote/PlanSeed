@@ -117,7 +117,11 @@ NL「两层、四卧、客厅朝南」→ 生成 A → 选中 A
 
 `circulation_area_ratio` 写入 metrics；`corridor_penalty>1` 且交通面积比 >12% 时，circulation 轴额外扣分。
 
+## Intent Hybrid（Ollama 草稿可选）
+
+`POST /api/copilot/intent/parse` 默认 `use_llm=true`：尝试本机 Ollama 输出 `IntentPatchDraft`（短 Prompt + 几何 Gate），再与确定性抽取合并。  
+Ollama 不可用 / 越界 / 非法 action → **静默回退**确定性结果（不 503）。入口：`packages/llm/intent_draft.py`。
+
 ## 已知缺口（勿标完成）
 
-- 意图解析正式入口尚未完整接入 Ollama 草稿  
-- Design Benchmark v2 人工 ab_rate 待几何改动后重评  
+- Design Benchmark v2 人工 ab_rate 待几何改动后重评（见 [baselines/design-benchmark-v2-baseline.md](baselines/design-benchmark-v2-baseline.md)）  

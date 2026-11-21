@@ -67,9 +67,10 @@ B01, B04, B06, B12 — 80/80 valid 候选已评级。
 重跑常见 Gate **warning**（非 blocker）：B06 几乎全部 valid 带 `black_wet`；B01/B04/B12 亦见暗卫/深度访问类 findings。  
 **下一步：** 导出 SVG 后按原标准重做 A/B/C/D，才能更新 ab_rate；在此之前不得宣称建筑师接受率已提升。
 
-### 人工 ab_rate 重评门闩（AI Copilot 前）
+### 人工 ab_rate 重评门闩（AI Copilot / 几何改动后）
 
-旧 grades 绑定首跑几何，**不可**套到 ExteriorWallSegment / Gate / Intent 之后的新候选。
+旧 grades 绑定首跑几何，**不可**套到 ExteriorWallSegment / Gate / Intent / Copilot 数据闭环之后的新候选。  
+当前产品 HEAD 已含 layout_snapshot、关系意图回编译、策略权重进评价等；**须用本轮导出的 SVG 重新 A/B/C/D**，agent-draft / 自动 B 级 ≠ 建筑师接受率。
 
 ```bash
 uv run python -m solver.benchmark --suite design-v2 --cases B01,B04,B06,B12 --count 32 \

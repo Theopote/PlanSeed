@@ -1431,6 +1431,12 @@ export interface components {
              * @default false
              */
             use_benchmark: boolean;
+            /**
+             * Use Llm
+             * @description 尝试 Ollama Intent 草稿；失败则回退确定性解析（不 503）
+             * @default true
+             */
+            use_llm: boolean;
         };
         /**
          * IntentPatchPreview

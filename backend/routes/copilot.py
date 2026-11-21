@@ -44,6 +44,10 @@ class IntentParseRequest(BaseModel):
     text: str = Field(min_length=1)
     target_candidate: str = "selected"
     use_benchmark: bool = False
+    use_llm: bool = Field(
+        default=True,
+        description="尝试 Ollama Intent 草稿；失败则回退确定性解析（不 503）",
+    )
 
 
 class IntentPreviewRequest(BaseModel):
@@ -118,7 +122,19 @@ def list_strategies() -> list[TopologyStrategy]:
 
 @router.post("/api/copilot/intent/parse", response_model=DesignIntentPatch)
 def parse_intent(body: IntentParseRequest) -> DesignIntentPatch:
-    return parse_intent_patch(body.text, target_candidate=body.target_candidate)
+    provider = None
+    if body.use_llm:
+        try:
+            from backend.services.nl_parse import get_nl_provider
+
+            provider = get_nl_provider()
+        except Exception:  # noqa: BLE001 — Ollama 未就绪则确定性回退
+            provider = None
+    return parse_intent_patch(
+        body.text,
+        target_candidate=body.target_candidate,
+        provider=provider,
+    )
 
 
 def _solve_request(

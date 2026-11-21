@@ -160,25 +160,21 @@ def parse_intent_patch_deterministic(
     )
 
 
-def parse_intent_patch(
-    text: str,
-    *,
-    target_candidate: str = "selected",
-    llm_draft: dict[str, Any] | None = None,
+def _merge_llm_draft(
+    base: DesignIntentPatch,
+    llm_draft: dict[str, Any],
 ) -> DesignIntentPatch:
-    """
-    Hybrid：确定性抽取为主；若提供 llm_draft 则合并（draft 不得含坐标）。
-    """
-    base = parse_intent_patch_deterministic(text, target_candidate=target_candidate)
-    if not llm_draft:
-        return base
-
     preserve = list(base.preserve)
     for p in llm_draft.get("preserve") or []:
         tok = _clean_token(str(p))
         if tok and tok not in preserve:
             preserve.append(tok)
 
+    # 已有确定性 (action, target) 不再重复追加
+    seen = {
+        (c.action.value, c.target, c.partner)
+        for c in base.changes
+    }
     changes = list(base.changes)
     for raw in llm_draft.get("changes") or []:
         if not isinstance(raw, dict):
@@ -188,15 +184,25 @@ def parse_intent_patch(
             act = IntentChangeAction(str(action))
         except ValueError:
             continue
+        target = raw.get("target")
+        partner = raw.get("partner")
+        key = (act.value, target, partner)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            prio = IntentPriority(
+                str(raw.get("priority") or IntentPriority.PREFERRED.value)
+            )
+        except ValueError:
+            prio = IntentPriority.PREFERRED
         changes.append(
             IntentChange(
                 action=act,
-                target=raw.get("target"),
-                partner=raw.get("partner"),
+                target=target,
+                partner=partner,
                 value=raw.get("value"),
-                priority=IntentPriority(
-                    str(raw.get("priority") or IntentPriority.PREFERRED.value)
-                ),
+                priority=prio,
             )
         )
 
@@ -211,6 +217,31 @@ def parse_intent_patch(
             "preserve": preserve,
             "changes": changes,
             "regeneration": mode,
+            "source": "hybrid",
             "confidence": min(0.95, base.confidence + 0.1),
         }
     )
+
+
+def parse_intent_patch(
+    text: str,
+    *,
+    target_candidate: str = "selected",
+    llm_draft: dict[str, Any] | None = None,
+    provider: Any | None = None,
+) -> DesignIntentPatch:
+    """
+    Hybrid：确定性抽取为主。
+
+    - ``llm_draft``：已 Gate 的草稿
+    - ``provider``：若提供则尝试拉取 LLM 草稿；失败静默回退确定性结果
+    """
+    base = parse_intent_patch_deterministic(text, target_candidate=target_candidate)
+    draft = llm_draft
+    if draft is None and provider is not None:
+        from packages.llm.intent_draft import fetch_intent_llm_draft
+
+        draft = fetch_intent_llm_draft(text, provider)
+    if not draft:
+        return base
+    return _merge_llm_draft(base, draft)

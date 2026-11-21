@@ -1817,6 +1817,12 @@
             "default": false,
             "title": "Use Benchmark",
             "type": "boolean"
+          },
+          "use_llm": {
+            "default": true,
+            "description": "尝试 Ollama Intent 草稿；失败则回退确定性解析（不 503）",
+            "title": "Use Llm",
+            "type": "boolean"
           }
         },
         "required": [

@@ -1087,11 +1087,16 @@ export type TopologyStrategy = {
 export async function parseIntentPatch(
   text: string,
   target_candidate = "selected",
+  opts?: { use_llm?: boolean },
 ): Promise<DesignIntentPatch> {
   const r = await fetch(`${_apiBase}/api/copilot/intent/parse`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, target_candidate }),
+    body: JSON.stringify({
+      text,
+      target_candidate,
+      use_llm: opts?.use_llm ?? true,
+    }),
   });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json() as Promise<DesignIntentPatch>;
