@@ -28,7 +28,13 @@ from packages.schema.zoning import ArchitecturalZone, FloorZonePlan, ZoneGeometr
 from solver.circulation.exterior_entry import resolve_entry_edge
 from solver.circulation.stair_core import CorePlacementFailure
 from solver.evaluation.weights import DEFAULT_WEIGHTS
-from solver.semantics.roles import is_foyer, is_guest_bath, is_laundry, is_master_bath
+from solver.semantics.roles import (
+    is_foyer,
+    is_guest_bath,
+    is_laundry,
+    is_living,
+    is_master_bath,
+)
 from solver.generators.wet_anchor import (
     anchor_floor_id,
     collect_wet_anchor_rects,
@@ -932,6 +938,7 @@ class GuillotineGenerator:
         self._floor_pack_leftovers = []
         self._entry_model_edge = entry_model_edge
         self._footprint_bounds = (0.0, 0.0, floor_width, floor_depth)
+        self._floor_has_foyer = any(is_foyer(r) for r in floor_rooms)
         self._stair_rect = Rect(
             x=core.rect.x,
             y=core.rect.y,
@@ -1258,11 +1265,17 @@ class GuillotineGenerator:
                     for other in self._current_layout_rooms.values()
                     if other.rect is not None and other.spec.id != lr.spec.id
                 ]
-                prefer = (
-                    getattr(self, "_entry_model_edge", None)
-                    if is_foyer(lr.spec)
-                    else None
-                )
+                prefer = None
+                edge = getattr(self, "_entry_model_edge", None)
+                if is_foyer(lr.spec):
+                    prefer = edge
+                elif (
+                    is_living(lr.spec)
+                    and edge is not None
+                    and not getattr(self, "_floor_has_foyer", False)
+                ):
+                    # 无门厅时客厅 capped 贴入口边（不整区重排 DAY，避免 valid 回退）
+                    prefer = edge
                 exterior_bonus = 0.0
                 if is_guest_bath(lr.spec) or is_master_bath(lr.spec):
                     exterior_bonus = 1500.0

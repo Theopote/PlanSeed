@@ -76,8 +76,8 @@ def test_foyer_zone_pinned_to_south_entry() -> None:
     assert abs((foyer_zone.rect.y + foyer_zone.rect.depth) - 16.0) < 1e-6
 
 
-def test_no_foyer_keeps_area_order() -> None:
-    """无门厅时不因入口重排 DAY，避免 valid 回退。"""
+def test_no_foyer_pins_living_day_to_south_entry() -> None:
+    """无门厅时含客厅的 DAY 贴南入口，避免入口只接到走廊。"""
     rooms = [
         RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=22),
         RoomSpec(id="bed", name="卧室", category=RoomCategory.PRIVATE, target_area=14),
@@ -94,9 +94,9 @@ def test_no_foyer_keeps_area_order() -> None:
         floor_id="F1",
         entry_model_edge=CardinalEdge.SOUTH,
     )
-    # 面积序：DAY(22) 先于 NIGHT/SERVICE → 低 y 侧
     day = next(z for z in zones if z.zone == ArchitecturalZone.DAY)
-    assert abs(day.rect.y - 0.0) < 1e-6
+    assert abs((day.rect.y + day.rect.depth) - 16.0) < 1e-6
+    assert "living" in day.room_ids
 
 
 def test_wet_zone_pinned_to_split_end_on_single_floor() -> None:

@@ -140,6 +140,41 @@ class TestZonePlanner:
             z.room_ids for z in zones if z.zone == ArchitecturalZone.SERVICE
         )
 
+    def test_satisfied_zones_skip_stair_side_scraps(self):
+        """主导块切开后，楼梯旁碎块不再作为额外 DAY 区，避免厨卫落入过小条带。"""
+        rooms = [
+            RoomSpec(id="living", name="客厅", category=RoomCategory.PUBLIC, target_area=22),
+            RoomSpec(
+                id="kitchen",
+                name="厨房",
+                category=RoomCategory.WET,
+                target_area=16,
+                tags=["kitchen"],
+            ),
+            RoomSpec(id="bed", name="卧室", category=RoomCategory.PRIVATE, target_area=14),
+            RoomSpec(id="bath", name="卫生间", category=RoomCategory.WET, target_area=4),
+        ]
+        free = [
+            Rect(x=0.0, y=0.0, width=12.0, depth=12.2),
+            Rect(x=0.0, y=12.2, width=3.9, depth=1.8),
+            Rect(x=8.1, y=12.2, width=3.9, depth=1.8),
+        ]
+        zones = ZonePlanner().plan_geometry(
+            rooms=rooms,
+            free_rects=free,
+            snap_module=0.3,
+            rng=random.Random(42),
+            floor_id="F1",
+        )
+        day_rects = [z for z in zones if z.zone == ArchitecturalZone.DAY]
+        # 不应把两个 7㎡ 碎块也标成 DAY（与主导切开后的 DAY 并列）
+        tiny = [
+            z
+            for z in day_rects
+            if z.rect.width * z.rect.depth < 10.0
+        ]
+        assert not tiny
+
     def test_kitchen_packs_with_day_not_service_band(self):
         """厨房功能属 DAY；与客卫可同属 WS1，但不挤进 SERVICE 功能条。"""
         f1 = [

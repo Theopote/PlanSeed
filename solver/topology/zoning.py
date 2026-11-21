@@ -29,6 +29,7 @@ from solver.semantics.roles import (
     is_guest_bath,
     is_kitchen,
     is_laundry,
+    is_living,
     is_master_bath,
     is_storage,
     is_study,
@@ -383,13 +384,15 @@ class ZonePlanner:
     ) -> list[ZoneGeometry]:
         total = sum(g.target_area for g in groups) or 1.0
         by_id = {r.id: r for r in (rooms or [])}
-        has_foyer = any(_group_has_foyer(g, by_id) for g in groups)
+        has_entry_public = any(
+            _group_has_foyer(g, by_id) or _group_has_living(g, by_id) for g in groups
+        )
 
-        # 有门厅时优先沿入口法向切开；无门厅保持短边启发式（避免 valid 回退）
+        # 有门厅/客厅时优先沿入口法向切开，使公区能贴入口边
         horizontal = rect.width >= rect.depth
         if abs(rect.width - rect.depth) < 1e-6:
             horizontal = rng.random() < 0.5
-        if has_foyer and entry_model_edge is not None:
+        if has_entry_public and entry_model_edge is not None:
             min_span = module * 4
             if (
                 entry_model_edge in (CardinalEdge.WEST, CardinalEdge.EAST)
@@ -409,7 +412,7 @@ class ZonePlanner:
                 and entry_model_edge in (CardinalEdge.NORTH, CardinalEdge.SOUTH)
             )
         )
-        # 门厅贴入口边；一层时再把卫浴区固定在切分两端（入口重排之后再落端）
+        # 门厅/客厅贴入口边；一层时再把卫浴区固定在切分两端
         ordered = (
             _order_groups_for_entry(
                 groups, rooms or [], entry_model_edge=entry_model_edge
@@ -552,8 +555,25 @@ class ZonePlanner:
             elif wet_edge_ok:
                 best_zone = wet_zone
             else:
-                best = max(groups, key=lambda g: remaining_need.get(g.zone, 0.0))
-                best_zone = best.zone
+                # 尚未分到任何块的缺口区优先，避免 SERVICE 空仓
+                unserved = [
+                    g
+                    for g in groups
+                    if not buckets[g.zone] and remaining_need.get(g.zone, 0.0) > 1e-9
+                ]
+                if unserved:
+                    best_zone = max(
+                        unserved, key=lambda g: remaining_need.get(g.zone, 0.0)
+                    ).zone
+                elif all(
+                    remaining_need.get(g.zone, 0.0) <= 1e-9 for g in groups
+                ):
+                    # 缺口已满：楼梯旁碎块不再塞进 DAY，否则厨房会被扔进 7㎡ 条带
+                    continue
+                else:
+                    best_zone = max(
+                        groups, key=lambda g: remaining_need.get(g.zone, 0.0)
+                    ).zone
             _bucket_rect(best_zone, rect)
 
         for group in groups:
@@ -581,10 +601,20 @@ def rooms_for_zone(
 def _group_has_foyer(
     group: ZoneRoomGroup, rooms_by_id: dict[str, RoomSpec]
 ) -> bool:
-    """仅门厅触发入口区重排；客厅过大，挪 DAY 会打崩 valid。"""
+    """门厅触发入口区重排。"""
     for rid in group.room_ids:
         room = rooms_by_id.get(rid)
         if room is not None and is_foyer(room):
+            return True
+    return False
+
+
+def _group_has_living(
+    group: ZoneRoomGroup, rooms_by_id: dict[str, RoomSpec]
+) -> bool:
+    for rid in group.room_ids:
+        room = rooms_by_id.get(rid)
+        if room is not None and is_living(room):
             return True
     return False
 
@@ -644,16 +674,19 @@ def _order_groups_for_entry(
     entry_model_edge: CardinalEdge | None,
 ) -> list[ZoneRoomGroup]:
     """
-    有门厅时：入口低坐标侧（W/N）把门厅所在组放到切分前端；
-    高坐标侧（E/S）放到后端。无门厅则保持面积序。
+    入口低坐标侧（W/N）把入口公区组放到切分前端；高坐标侧（E/S）放到后端。
+
+    优先门厅；无门厅时退到含客厅的 DAY（一层适老等），避免入口只接到走廊。
     """
     if entry_model_edge is None or len(groups) < 2:
         return groups
     by_id = {r.id: r for r in rooms}
     foyer_groups = [g for g in groups if _group_has_foyer(g, by_id)]
-    if not foyer_groups:
+    living_groups = [g for g in groups if _group_has_living(g, by_id)]
+    candidates = foyer_groups or living_groups
+    if not candidates:
         return groups
-    prefer = min(foyer_groups, key=lambda g: (g.target_area, g.zone.value))
+    prefer = min(candidates, key=lambda g: (g.target_area, g.zone.value))
     rest = [g for g in groups if g is not prefer]
     if entry_model_edge in (CardinalEdge.WEST, CardinalEdge.NORTH):
         return [prefer, *rest]
