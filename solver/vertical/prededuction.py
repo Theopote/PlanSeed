@@ -178,6 +178,8 @@ def build_prededuction_plan(
             rng,
             preferred=preferred,
             entrance_edge=program.site.entrance_edge,
+            # 多层：入口侧楼梯更常与门厅共边，避免多一跳走廊触发 deep_access
+            entrance_bias_copies=4 if len(program.floors) >= 2 else 2,
         )
         stair_core = place_stair_core_resolving(
             floor_width=floor_width,

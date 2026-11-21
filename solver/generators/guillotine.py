@@ -386,6 +386,8 @@ def _best_capped_placement(
     prefer_edge: CardinalEdge | None = None,
     footprint_edge: tuple[float, float, float, float] | None = None,
     exterior_bonus: float = 0.0,
+    prefer_adjacent: Rect | None = None,
+    adjacent_bonus: float = 0.0,
 ) -> PlacementRect:
     """选择使剩余碎片与同层其它房间邻接边最大的 capped 放置。"""
     full = Rect(x=x0, y=y0, width=x1 - x0, depth=y1 - y0)
@@ -411,6 +413,10 @@ def _best_capped_placement(
             cand, fx0=fx0, fy0=fy0, fx1=fx1, fy1=fy1
         ):
             score += exterior_bonus
+        if prefer_adjacent is not None and adjacent_bonus > 0:
+            shared = shared_edge_length(capped, prefer_adjacent)
+            if shared > 0.5:
+                score += adjacent_bonus + 100.0 * shared
         if score > best_score:
             best_score = score
             best = cand
@@ -914,6 +920,12 @@ class GuillotineGenerator:
         self._floor_pack_leftovers = []
         self._entry_model_edge = entry_model_edge
         self._footprint_bounds = (0.0, 0.0, floor_width, floor_depth)
+        self._stair_rect = Rect(
+            x=core.rect.x,
+            y=core.rect.y,
+            width=core.rect.width,
+            depth=core.rect.depth,
+        )
 
         footprint_bbox = Rect(x=0, y=0, width=floor_width, depth=floor_depth)
         fixed_obstacles = list(prededuction_obstacles or [])
@@ -1244,6 +1256,11 @@ class GuillotineGenerator:
                     exterior_bonus = 1500.0
                 elif is_laundry(lr.spec):
                     exterior_bonus = 250.0
+                adj = None
+                adj_bonus = 0.0
+                if is_foyer(lr.spec):
+                    adj = getattr(self, "_stair_rect", None)
+                    adj_bonus = 2_000.0
                 capped = _best_capped_placement(
                     x0,
                     y0,
@@ -1254,6 +1271,8 @@ class GuillotineGenerator:
                     prefer_edge=prefer,
                     footprint_edge=getattr(self, "_footprint_bounds", None),
                     exterior_bonus=exterior_bonus,
+                    prefer_adjacent=adj,
+                    adjacent_bonus=adj_bonus,
                 )
                 lr.rect = capped
                 full = Rect(x=x0, y=y0, width=cw, depth=ch)
