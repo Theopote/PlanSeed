@@ -4,10 +4,9 @@ ExteriorEntry 解析 — Entrance ≠ Stair。
 边优先级：ExteriorEntrySpec.preferred_edge → SiteSpec.entrance_edge
 → road_edges[0] → 默认 SOUTH。
 
-入口只建立到**一个**物理落位房间的 EXTERIOR_ENTRY：
-在选定边上按门厅>客厅>…排序，把入口线段吸附到首选房间外墙，
-``connected_room_ids`` 仅含开口真正落在其边界上的房间（通常一个）。
-其它贴边房间不得凭「同侧」获得虚假入口边。
+``entrance_edge`` / ``road_edges`` 语义为**世界方位**（与朝向评价一致）。
+选房与吸附统一用 ``SiteCoordinateSystem`` 把世界方位换成 **model 边**，
+再落到该 model 外墙上。入口只连接一个物理落位房间。
 """
 
 from __future__ import annotations
@@ -15,9 +14,9 @@ from __future__ import annotations
 from packages.schema.entry import ExteriorEntryPlacement, ExteriorEntrySpec
 from packages.schema.layout import LayoutCandidate, RoomPlacement
 from packages.schema.program import DesignProgram
-from packages.schema.site import CardinalEdge
+from packages.schema.site import CardinalEdge, CardinalOrientation
 
-from solver.evaluation.orientation import exterior_world_orientations
+from solver.evaluation.orientation import exterior_model_edges
 from solver.geometry.rect import Rect, from_placement, program_local_buildable
 from solver.geometry.site_coords import SiteCoordinateSystem
 
@@ -31,6 +30,12 @@ _ENTRY_CATEGORY_RANK = {
 }
 
 _EDGE_EPS = 1e-6
+_ALL_WORLD = (
+    CardinalOrientation.SOUTH,
+    CardinalOrientation.NORTH,
+    CardinalOrientation.EAST,
+    CardinalOrientation.WEST,
+)
 
 
 def _is_stair(p: RoomPlacement) -> bool:
@@ -44,7 +49,7 @@ def resolve_entry_edge(
     spec: ExteriorEntrySpec | None = None,
 ) -> CardinalEdge:
     """
-    入口边解析：
+    入口**世界方位**解析：
     preferred_edge → entrance_edge → road_edges[0] → SOUTH
     """
     if spec is None:
@@ -60,6 +65,15 @@ def resolve_entry_edge(
     return CardinalEdge.SOUTH
 
 
+def _as_world(edge: CardinalEdge | CardinalOrientation | str) -> CardinalOrientation:
+    val = edge.value if hasattr(edge, "value") else str(edge).lower()
+    return CardinalOrientation(val)
+
+
+def _as_model_edge(name: str) -> CardinalEdge:
+    return CardinalEdge(name)
+
+
 def resolve_exterior_entry(
     program: DesignProgram,
     candidate: LayoutCandidate,
@@ -67,27 +81,15 @@ def resolve_exterior_entry(
     entry_width: float | None = None,
     spec: ExteriorEntrySpec | None = None,
 ) -> ExteriorEntryPlacement:
-    """在选定边上放置入口，并只连接开口真正落在边界上的房间。"""
+    """按世界方位选边，在对应 model 外墙上放置唯一入口。"""
     spec = spec or getattr(program, "exterior_entry_spec", None) or ExteriorEntrySpec()
-    edge = resolve_entry_edge(program, spec)
+    preferred_world = _as_world(resolve_entry_edge(program, spec))
     width = entry_width if entry_width is not None else spec.width
-    road = list(program.site.road_edges or [])
-    on_road = edge in road
+    road_worlds = {_as_world(e) for e in (program.site.road_edges or [])}
 
     buildable = program_local_buildable(program)
     ground = candidate.floors[0].floor_id if candidate.floors else "F1"
-
-    cs = SiteCoordinateSystem(getattr(program.site, "north_angle", 0.0) or 0.0)
-    edge_val = edge.value
-
-    touching: list[RoomPlacement] = []
-    if candidate.floors:
-        for p in candidate.floors[0].placements:
-            worlds = exterior_world_orientations(
-                from_placement(p.rect), buildable, cs
-            )
-            if edge_val in worlds:
-                touching.append(p)
+    cs = SiteCoordinateSystem.from_site(program.site)
 
     from solver.semantics.roles import is_foyer, is_living
 
@@ -100,30 +102,73 @@ def resolve_exterior_entry(
         cat = (p.category or "other").lower()
         return (stair_pen, foyer_pen, _ENTRY_CATEGORY_RANK.get(cat, 5), p.room_id)
 
-    ranked = sorted(touching, key=rank)
-    if not ranked and candidate.floors:
-        any_ext: list[RoomPlacement] = []
-        for p in candidate.floors[0].placements:
-            worlds = exterior_world_orientations(
-                from_placement(p.rect), buildable, cs
-            )
-            if worlds:
-                any_ext.append(p)
-        ranked = sorted(any_ext, key=rank)
+    ground_placements: list[RoomPlacement] = (
+        list(candidate.floors[0].placements) if candidate.floors else []
+    )
 
-    cx, cy = _point_on_buildable_edge(buildable, edge)
-    connected: list[str] = []
-    if ranked:
-        primary = ranked[0]
-        cx, cy = _snap_entry_to_room_edge(
-            from_placement(primary.rect), edge, width, buildable
+    def rooms_on_world(
+        world: CardinalOrientation,
+    ) -> list[tuple[RoomPlacement, str]]:
+        """返回 (placement, model_edge) 贴靠朝向 ``world`` 的外墙。"""
+        wanted = cs.model_edges_facing(world)
+        out: list[tuple[RoomPlacement, str]] = []
+        for p in ground_placements:
+            rect = from_placement(p.rect)
+            model = exterior_model_edges(rect, buildable)
+            for me in sorted(model & wanted):
+                out.append((p, me))
+        return out
+
+    # 1) 首选世界方位；2) 临路其它方位；3) 任意有外墙方位（并改写实际朝向）
+    search_worlds: list[CardinalOrientation] = [preferred_world]
+    for w in _ALL_WORLD:
+        if w not in search_worlds and w in road_worlds:
+            search_worlds.append(w)
+    for w in _ALL_WORLD:
+        if w not in search_worlds:
+            search_worlds.append(w)
+
+    chosen_world = preferred_world
+    primary: RoomPlacement | None = None
+    model_edge_name: str | None = None
+
+    for world in search_worlds:
+        hits = rooms_on_world(world)
+        if not hits:
+            continue
+        hits_sorted = sorted(hits, key=lambda t: rank(t[0]))
+        primary, model_edge_name = hits_sorted[0]
+        chosen_world = world
+        break
+
+    model_edge = (
+        _as_model_edge(model_edge_name)
+        if model_edge_name is not None
+        else _as_model_edge(
+            next(iter(cs.model_edges_facing(preferred_world)), preferred_world.value)
         )
-        # 唯一物理入口房间（同侧贴边不等于入口连通）
-        connected = [primary.room_id]
+    )
+
+    cx, cy = _point_on_buildable_model_edge(buildable, model_edge)
+    connected: list[str] = []
+    if primary is not None:
+        room_rect = from_placement(primary.rect)
+        cx, cy = _snap_entry_to_room_edge(room_rect, model_edge, width, buildable)
+        if _entry_opening_on_room(room_rect, model_edge, cx, cy, width):
+            connected = [primary.room_id]
+        else:
+            # 吸附失败则不建立虚假 EXTERIOR_ENTRY
+            connected = []
+
+    on_road = bool(
+        connected
+        and chosen_world in road_worlds
+        and _opening_on_buildable_exterior(buildable, model_edge, cx, cy, width)
+    )
 
     return ExteriorEntryPlacement(
         id=spec.id,
-        edge=edge,
+        edge=model_edge,
         floor_id=ground,
         x=cx,
         y=cy,
@@ -133,7 +178,9 @@ def resolve_exterior_entry(
     )
 
 
-def _point_on_buildable_edge(buildable: Rect, edge: CardinalEdge) -> tuple[float, float]:
+def _point_on_buildable_model_edge(
+    buildable: Rect, edge: CardinalEdge
+) -> tuple[float, float]:
     mid_x = buildable.x + buildable.width / 2
     mid_y = buildable.y + buildable.depth / 2
     if edge == CardinalEdge.NORTH:
@@ -147,23 +194,23 @@ def _point_on_buildable_edge(buildable: Rect, edge: CardinalEdge) -> tuple[float
 
 def _snap_entry_to_room_edge(
     room: Rect,
-    edge: CardinalEdge,
+    model_edge: CardinalEdge,
     width: float,
     buildable: Rect,
 ) -> tuple[float, float]:
-    """把入口中心吸附到房间朝向 ``edge`` 的外墙中段，并夹在 buildable 内。"""
+    """把入口中心吸附到房间的 **model** 外墙中段。"""
     half = max(width, 0.1) / 2
-    if edge == CardinalEdge.SOUTH:
+    if model_edge == CardinalEdge.SOUTH:
         lo = max(room.left + half, buildable.left + half)
         hi = min(room.right - half, buildable.right - half)
         x = (lo + hi) / 2 if lo <= hi else (room.left + room.right) / 2
         return x, room.bottom
-    if edge == CardinalEdge.NORTH:
+    if model_edge == CardinalEdge.NORTH:
         lo = max(room.left + half, buildable.left + half)
         hi = min(room.right - half, buildable.right - half)
         x = (lo + hi) / 2 if lo <= hi else (room.left + room.right) / 2
         return x, room.top
-    if edge == CardinalEdge.WEST:
+    if model_edge == CardinalEdge.WEST:
         lo = max(room.bottom + half, buildable.bottom + half)
         hi = min(room.top - half, buildable.top - half)
         y = (lo + hi) / 2 if lo <= hi else (room.bottom + room.top) / 2
@@ -176,29 +223,59 @@ def _snap_entry_to_room_edge(
 
 def _entry_opening_on_room(
     room: Rect,
-    edge: CardinalEdge,
+    model_edge: CardinalEdge,
     cx: float,
     cy: float,
     width: float,
 ) -> bool:
-    """入口线段（中心+宽度）是否落在房间该侧外墙上。"""
+    """入口线段是否完整落在房间该 model 外墙上。"""
     half = max(width, 0.1) / 2
-    if edge == CardinalEdge.SOUTH:
+    if model_edge == CardinalEdge.SOUTH:
         if abs(cy - room.bottom) > _EDGE_EPS:
             return False
         a, b = cx - half, cx + half
-        return b > room.left + _EDGE_EPS and a < room.right - _EDGE_EPS
-    if edge == CardinalEdge.NORTH:
+        return a >= room.left - _EDGE_EPS and b <= room.right + _EDGE_EPS
+    if model_edge == CardinalEdge.NORTH:
         if abs(cy - room.top) > _EDGE_EPS:
             return False
         a, b = cx - half, cx + half
-        return b > room.left + _EDGE_EPS and a < room.right - _EDGE_EPS
-    if edge == CardinalEdge.WEST:
+        return a >= room.left - _EDGE_EPS and b <= room.right + _EDGE_EPS
+    if model_edge == CardinalEdge.WEST:
         if abs(cx - room.left) > _EDGE_EPS:
             return False
         a, b = cy - half, cy + half
-        return b > room.bottom + _EDGE_EPS and a < room.top - _EDGE_EPS
+        return a >= room.top - _EDGE_EPS and b <= room.bottom + _EDGE_EPS
     if abs(cx - room.right) > _EDGE_EPS:
         return False
     a, b = cy - half, cy + half
-    return b > room.bottom + _EDGE_EPS and a < room.top - _EDGE_EPS
+    return a >= room.top - _EDGE_EPS and b <= room.bottom + _EDGE_EPS
+
+
+def _opening_on_buildable_exterior(
+    buildable: Rect,
+    model_edge: CardinalEdge,
+    cx: float,
+    cy: float,
+    width: float,
+) -> bool:
+    """开口中心是否贴在可建区对应 model 外缘上。"""
+    half = max(width, 0.1) / 2
+    if model_edge == CardinalEdge.SOUTH:
+        return abs(cy - buildable.bottom) <= _EDGE_EPS and (
+            cx - half >= buildable.left - _EDGE_EPS
+            and cx + half <= buildable.right + _EDGE_EPS
+        )
+    if model_edge == CardinalEdge.NORTH:
+        return abs(cy - buildable.top) <= _EDGE_EPS and (
+            cx - half >= buildable.left - _EDGE_EPS
+            and cx + half <= buildable.right + _EDGE_EPS
+        )
+    if model_edge == CardinalEdge.WEST:
+        return abs(cx - buildable.left) <= _EDGE_EPS and (
+            cy - half >= buildable.top - _EDGE_EPS
+            and cy + half <= buildable.bottom + _EDGE_EPS
+        )
+    return abs(cx - buildable.right) <= _EDGE_EPS and (
+        cy - half >= buildable.top - _EDGE_EPS
+        and cy + half <= buildable.bottom + _EDGE_EPS
+    )

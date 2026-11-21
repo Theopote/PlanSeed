@@ -134,11 +134,12 @@ def _is_passable_corridor_fragment(placement: RoomPlacement) -> bool:
 def _add_circulation_fragment_links(
     candidate: LayoutCandidate,
     *,
-    min_length: float = 0.05,
+    min_length: float | None = None,
 ) -> list[RealizedConnection]:
-    """相邻走廊碎片互连，避免 circ 网络断裂。"""
-    from solver.topology.doors import shared_boundary_between
+    """相邻走廊碎片互连；共边须达物理通行下限，禁止 5cm 虚假通路。"""
+    from solver.topology.doors import PHYSICAL_MIN_WIDTH, shared_boundary_between
 
+    edge_min = PHYSICAL_MIN_WIDTH if min_length is None else min_length
     out: list[RealizedConnection] = []
     seen: set[tuple[str, str]] = set()
     for fl in candidate.floors:
@@ -151,7 +152,7 @@ def _add_circulation_fragment_links(
         ]
         for i, a in enumerate(corridors):
             for b in corridors[i + 1 :]:
-                if shared_boundary_between(a, b, min_length=min_length) is None:
+                if shared_boundary_between(a, b, min_length=edge_min) is None:
                     continue
                 pair = tuple(sorted((a.room_id, b.room_id)))
                 if pair in seen:
@@ -261,7 +262,13 @@ def build_realized_connections(
             )
         )
 
+    from solver.topology.doors import PHYSICAL_MIN_WIDTH
+
     for op in candidate.door_openings:
+        clear = op.clear_width if op.clear_width is not None else op.width
+        # 过窄开口保留在 door_openings 供诊断，但不进入可达图
+        if clear + 1e-9 < PHYSICAL_MIN_WIDTH:
+            continue
         try:
             ctype = SpaceConnectionType(op.connection_type)
         except ValueError:

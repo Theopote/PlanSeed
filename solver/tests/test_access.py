@@ -225,3 +225,87 @@ class TestRealizedAccessSemantics:
             for c in graph.connections
             if "circ-F1-0" in (c.a, c.b)
         }
+
+    def test_narrow_door_opening_excluded_from_realized_graph(self):
+        """clear_width < 0.7m 的开口不进入可达图（仍保留在 door_openings）。"""
+        from packages.schema.layout import DoorOpening
+        from solver.topology.access import build_realized_connections
+        from solver.topology.doors import PHYSICAL_MIN_WIDTH
+
+        program = _program_two_rooms()
+        living = _placement("living", x=0, y=0, w=5, d=5, cat="public")
+        bed = _placement("bed", x=5, y=0, w=5, d=5, cat="private")
+        candidate = LayoutCandidate(
+            id="narrow-door",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[living, bed])],
+            door_openings=[
+                DoorOpening(
+                    id="d-narrow",
+                    connection_id="c-narrow",
+                    room_a_id="living",
+                    room_b_id="bed",
+                    floor_id="F1",
+                    x=5.0,
+                    y=2.5,
+                    width=0.4,
+                    axis="y",
+                    clear_width=0.4,
+                ),
+                DoorOpening(
+                    id="d-ok",
+                    connection_id="c-ok",
+                    room_a_id="living",
+                    room_b_id="bed",
+                    floor_id="F1",
+                    x=5.0,
+                    y=1.0,
+                    width=PHYSICAL_MIN_WIDTH,
+                    axis="y",
+                    clear_width=PHYSICAL_MIN_WIDTH,
+                ),
+            ],
+        )
+        realized = build_realized_connections(program, candidate)
+        opening_ids = {rc.opening_id for rc in realized if rc.source == "opening"}
+        assert "d-narrow" not in opening_ids
+        assert "d-ok" in opening_ids
+        assert len(candidate.door_openings) == 2
+
+    def test_circulation_fragment_link_requires_physical_width(self):
+        """走廊碎片互连拒绝极窄共边（默认 ≥ PHYSICAL_MIN_WIDTH）。"""
+        from solver.topology.access import (
+            _add_circulation_fragment_links,
+            build_realized_connections,
+        )
+
+        program = _program_two_rooms()
+        a = RoomPlacement(
+            room_id="circ-F1-0",
+            floor_id="F1",
+            rect=PlacementRect(x=0, y=0, width=4, depth=1.0),
+            source=PlacementSource.GENERATED,
+            name="走廊A",
+            category="circulation",
+        )
+        # 仅 0.2m 竖向共边 — 低于 0.7m
+        b = RoomPlacement(
+            room_id="circ-F1-1",
+            floor_id="F1",
+            rect=PlacementRect(x=3.8, y=1.0, width=4, depth=1.0),
+            source=PlacementSource.GENERATED,
+            name="走廊B",
+            category="circulation",
+        )
+        candidate = LayoutCandidate(
+            id="frag-narrow",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[a, b])],
+        )
+        links = _add_circulation_fragment_links(candidate)
+        assert links == []
+        # 显式放宽门槛时仍可连通（几何诊断）
+        wide = _add_circulation_fragment_links(candidate, min_length=0.05)
+        assert len(wide) == 1
+        realized = build_realized_connections(program, candidate)
+        assert not any(rc.source == "circulation_link" for rc in realized)

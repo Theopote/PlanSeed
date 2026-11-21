@@ -79,19 +79,21 @@ class TestExteriorEntry:
         assert entry.id == ENTRY_NODE_ID
         assert entry.edge == CardinalEdge.SOUTH
         assert entry.on_road_edge is True
-        assert entry.connected_room_ids[0] == "living"
-        assert "stair-F1" in entry.connected_room_ids
-        # AccessGraph 起点连 living，不把楼梯当首选
+        # 唯一入口：只连客厅；楼梯同侧贴边也不进 connected / EXTERIOR_ENTRY
+        assert entry.connected_room_ids == ["living"]
+        assert "stair-F1" not in entry.connected_room_ids
+        candidate.exterior_entry = entry
         graph = build_realized_access_graph(program, candidate)
         ext = [
             c
             for c in graph.connections
             if c.type.value == "exterior_entry" and ENTRY_NODE_ID in (c.a, c.b)
         ]
+        assert len(ext) == 1
         assert any("living" in (c.a, c.b) for c in ext)
         assert not any(
             "stair-F1" in (c.a, c.b) for c in ext
-        ), "有厅时不应把楼梯作为 ExteriorEntry 首达"
+        ), "有厅时不应把楼梯作为 ExteriorEntry"
 
     def test_guillotine_stair_not_named_entrance(self):
         program = benchmark_program()
@@ -103,3 +105,51 @@ class TestExteriorEntry:
                 if p.room_id.startswith("stair-"):
                     assert p.name == "楼梯"
                     assert "入口" not in (p.name or "")
+
+    def test_entry_world_south_snaps_to_model_east_when_rotated(self):
+        """north_angle=90°：世界正南对应 model 东墙，吸附不得错用 model 南墙。"""
+        site = SiteSpec(
+            width=10,
+            depth=10,
+            entrance_edge=CardinalEdge.SOUTH,
+            road_edges=[CardinalEdge.SOUTH],
+            north_angle=90.0,
+        )
+        rooms = [
+            RoomSpec(
+                id="living",
+                name="客厅",
+                category=RoomCategory.PUBLIC,
+                target_area=20,
+            ),
+        ]
+        rooms[0].floor_id = "F1"
+        program = DesignProgram(
+            project_id="entry-rot",
+            site=site,
+            buildable=site.buildable_envelope,
+            floors=[FloorSpec(id="F1", label="一层", room_ids=["living"])],
+            rooms=rooms,
+            constraints=[],
+            solver_config=SolverConfig(),
+        )
+        # 贴 model 东墙（世界南）；勿贴 model 南墙
+        living = RoomPlacement(
+            room_id="living",
+            floor_id="F1",
+            rect=PlacementRect(x=7, y=2, width=3, depth=6),
+            source=PlacementSource.PROGRAM,
+            name="客厅",
+            category="public",
+        )
+        candidate = LayoutCandidate(
+            id="rot",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[living])],
+        )
+        entry = resolve_exterior_entry(program, candidate)
+        assert entry.connected_room_ids == ["living"]
+        assert entry.edge == CardinalEdge.EAST
+        assert abs(entry.x - 10.0) < 1e-6
+        assert 2.0 - 1e-6 <= entry.y <= 8.0 + 1e-6
+        assert entry.on_road_edge is True

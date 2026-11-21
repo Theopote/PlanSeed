@@ -115,7 +115,14 @@ def rank_candidates(
         c for c in valid if not bool(c.metrics.get("architectural_gate_pass", True))
     ]
     gate_pass.sort(key=lambda c: c.score or 0.0, reverse=True)
-    gate_fail.sort(key=lambda c: c.score or 0.0, reverse=True)
+
+    def _gate_fail_key(c: LayoutCandidate) -> tuple[int, int, float]:
+        # 门槛外仍优先：更少 blocker → 更少穿卧室 → 更高分
+        blockers = int(c.metrics.get("architectural_gate_blocker_count") or 99)
+        priv = int(c.metrics.get("private_through_count") or 0)
+        return (blockers, priv, -(c.score or 0.0))
+
+    gate_fail.sort(key=_gate_fail_key)
     # 保持「过门槛优先」的总序，供 score / geom 路径使用
     valid = gate_pass + gate_fail
 

@@ -1238,6 +1238,16 @@ button.secondary {
   font-size: 0.85rem;
 }
 
+.strip-batch-gate-warn {
+  margin: 0 0 0.45rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #5c3a32;
+  background: #f6e8e4;
+  border-left: 3px solid #a66b5a;
+}
+
 .strip-role {
   display: block;
   margin-top: 0.15rem;

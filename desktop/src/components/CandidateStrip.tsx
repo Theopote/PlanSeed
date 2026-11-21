@@ -29,8 +29,25 @@ export function CandidateStrip({
     a.revision_status !== "dirty" &&
     b.revision_status !== "dirty";
 
+  const scored = candidates.filter((c) => c.revision_status !== "dirty");
+  const anyGateMetric = scored.some(
+    (c) => c.metrics?.architectural_gate_pass !== undefined,
+  );
+  const nonePassGate =
+    anyGateMetric &&
+    scored.length > 0 &&
+    scored.every((c) => {
+      const g = c.metrics?.architectural_gate_pass;
+      return g === false || g === "false";
+    });
+
   return (
     <footer className="candidate-strip">
+      {nonePassGate && (
+        <p className="strip-batch-gate-warn" role="status">
+          本批次没有通过 Architectural Gate 的推荐方案；下列为门槛外高分补充，请勿当作正常推荐。
+        </p>
+      )}
       <div className="strip-tools">
         <span className="strip-hint">点击选中 · Alt+点击比较</span>
         {compareId && (

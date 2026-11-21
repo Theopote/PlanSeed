@@ -56,7 +56,13 @@ def compute_site_metrics(
     entry_on_road = 1.0
     if roads:
         if candidate.exterior_entry is not None:
-            entry_on_road = 1.0 if candidate.exterior_entry.on_road_edge else 0.0
+            # 信任入口解析后的落点校验（世界方位 + model 外缘），禁止仅凭 edge 名
+            entry = candidate.exterior_entry
+            entry_on_road = (
+                1.0
+                if entry.on_road_edge and entry.connected_room_ids
+                else 0.0
+            )
         elif site.entrance_edge.value in roads:
             entry_on_road = 1.0
         else:

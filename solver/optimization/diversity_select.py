@@ -79,7 +79,15 @@ def select_diverse_alternatives(
         for c in candidates
         if c.validation and c.validation.valid and c.score is not None
     ]
-    valid.sort(key=lambda c: c.score or 0.0, reverse=True)
+
+    def _pref_key(c: LayoutCandidate) -> tuple[int, int, int, float]:
+        # 过门槛优先；门槛外：更少 blocker / 更少穿卧室 / 更高分
+        gate_fail = 0 if bool(c.metrics.get("architectural_gate_pass", True)) else 1
+        blockers = int(c.metrics.get("architectural_gate_blocker_count") or 0)
+        priv = int(c.metrics.get("private_through_count") or 0)
+        return (gate_fail, blockers, priv, -(c.score or 0.0))
+
+    valid.sort(key=_pref_key)
     if not valid:
         return []
 

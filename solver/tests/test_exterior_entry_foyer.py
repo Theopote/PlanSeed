@@ -67,8 +67,8 @@ def test_entry_prefers_foyer_over_other_public() -> None:
     )
     entry = resolve_exterior_entry(program, cand)
     assert entry.connected_room_ids == ["entry"]
-    # 本地坐标：y 向下，南墙 = room.y + depth；入口吸附在门厅南墙中段
-    assert abs(entry.y - 3.0) < 1e-6
+    # 房间贴 y=0（model 北墙）；世界南无贴边时回退到实际外墙方位
+    assert entry.edge in (CardinalEdge.NORTH, CardinalEdge.SOUTH)
     assert 4.0 - 1e-6 <= entry.x <= 8.0 + 1e-6
 
 

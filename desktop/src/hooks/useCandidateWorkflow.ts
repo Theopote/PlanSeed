@@ -183,10 +183,12 @@ export function useCandidateWorkflow({
 
   const runSeq = useRef(0);
 
-  /** 项目加载/导入/新建时调用，使进行中的 Generate 结果失效。 */
+  /** 项目加载/导入/新建：使旧 Generate 失效并清除忙碌态，避免 Loading 残留。 */
   const invalidateGenerationRequests = useCallback(() => {
     runSeq.current += 1;
-  }, []);
+    setLoading(false);
+    setNlBusy(false);
+  }, [setNlBusy]);
 
   const mergeVariantCandidates = useCallback(
     (
