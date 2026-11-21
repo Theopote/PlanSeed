@@ -1943,6 +1943,13 @@ export interface components {
             }[];
             /** Compare Id */
             compare_id?: string | null;
+            /**
+             * Design Conversation
+             * @description DesignConversationState 快照；重启后由客户端回灌 Copilot 会话
+             */
+            design_conversation?: {
+                [key: string]: unknown;
+            } | null;
             /** Form */
             form?: {
                 [key: string]: unknown;

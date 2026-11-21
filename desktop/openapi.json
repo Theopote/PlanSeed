@@ -2996,6 +2996,19 @@
             ],
             "title": "Compare Id"
           },
+          "design_conversation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "DesignConversationState 快照；重启后由客户端回灌 Copilot 会话",
+            "title": "Design Conversation"
+          },
           "form": {
             "additionalProperties": true,
             "title": "Form",
