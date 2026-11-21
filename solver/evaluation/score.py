@@ -24,6 +24,11 @@ from solver.evaluation.access import (
     compute_access_metrics,
 )
 from solver.evaluation.adjacency import adjacency_score, compute_adjacency_metrics
+from solver.evaluation.architectural_gate import (
+    apply_architectural_gate_metrics,
+    architectural_gate_findings,
+    evaluate_architectural_gate,
+)
 from solver.evaluation.circulation import (
     circulation_architecture_score,
     circulation_findings,
@@ -116,6 +121,9 @@ class CompositeEvaluator:
 
         soft_violations = orientation_soft_violations(program, candidate)
 
+        gate = evaluate_architectural_gate(program, candidate)
+        apply_architectural_gate_metrics(candidate, gate)
+
         findings = []
         findings.extend(
             circulation_findings(
@@ -128,6 +136,11 @@ class CompositeEvaluator:
         )
         findings.extend(layout_stability_findings(circ_m, candidate))
         findings.extend(collect_daylight_findings(program, candidate))
+        findings.extend(architectural_gate_findings(program, candidate, result=gate))
+
+        # blocker 轻降总分：不替代硬约束，但拉开与可推荐方案的差距
+        if not gate.passed:
+            total = max(0.0, total - min(12.0, 4.0 * len(gate.blockers)))
 
         if float(adj_m.get("required_adjacency_satisfaction", 1.0)) < 1.0:
             findings.append(

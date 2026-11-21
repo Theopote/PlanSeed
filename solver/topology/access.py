@@ -20,6 +20,7 @@ from packages.schema.topology import (
     SpaceConnection,
     SpaceConnectionType,
 )
+from solver.circulation.stair_identity import is_stair_core_placement
 from solver.geometry.rect import from_placement, shared_edge_length
 from solver.topology.constants import (
     ENTRY_NODE_ID,
@@ -48,14 +49,15 @@ def occupied_room_ids(program: DesignProgram) -> set[str]:
 
 
 def _add_stair_realized(candidate: LayoutCandidate) -> list[RealizedConnection]:
-    """跨层对齐楼梯核 → realized STAIR（非共墙）。"""
+    """跨层对齐楼梯核 → realized STAIR（非共墙）。
+
+    只连接真实楼梯核；禁止把同尺寸 circ-* 走廊误判为楼梯。
+    """
     out: list[RealizedConnection] = []
     by_floor: dict[str, list[RoomPlacement]] = {}
     for fl in candidate.floors:
         by_floor[fl.floor_id] = [
-            p
-            for p in fl.placements
-            if p.category == "circulation" or p.room_id.startswith("stair-")
+            p for p in fl.placements if is_stair_core_placement(p)
         ]
     floor_ids = [fl.floor_id for fl in candidate.floors]
     for i in range(len(floor_ids) - 1):
@@ -96,15 +98,7 @@ def _add_stair_access_realized(
 
     out: list[RealizedConnection] = []
     for fl in candidate.floors:
-        stairs = [
-            p
-            for p in fl.placements
-            if p.room_id.startswith("stair-")
-            or (
-                (p.category or "") == "circulation"
-                and "楼梯" in (p.name or "")
-            )
-        ]
+        stairs = [p for p in fl.placements if is_stair_core_placement(p)]
         rooms = [p for p in fl.placements if p not in stairs]
         for s in stairs:
             for r in rooms:

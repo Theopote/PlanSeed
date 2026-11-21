@@ -25,17 +25,12 @@ from packages.schema.provenance import (
 from packages.schema.scoring import DesignScore
 
 from solver.circulation.exterior_entry import resolve_exterior_entry
+from solver.circulation.stair_identity import is_stair_core_placement as is_stair_placement
 from solver.constraints.checker import ConstraintEvaluationResult
 from solver.constraints.checker_impl import DefaultConstraintChecker
 from solver.evaluation.score import CompositeEvaluator
 from solver.locks import check_lock_invariants
 from solver.topology.derive_access import ensure_access_graph
-
-
-def is_stair_placement(p: RoomPlacement) -> bool:
-    return p.room_id.startswith("stair-") or (
-        p.category == "circulation" and p.name is not None and "楼梯" in p.name
-    )
 
 
 def derive_stair_core_from_placements(

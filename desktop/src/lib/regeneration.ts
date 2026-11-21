@@ -19,6 +19,8 @@ export function programPlacementsFromCandidate(
 export function buildPartialRegenerationScope(
   mutableRoomId: string,
 ): RegenerationScope {
+  // preserve_topology：仅意图标记，后端尚未硬化为硬不变量
+  // preserve_floor_assignment：后端硬校验锁定房间楼层
   return {
     mutable_rooms: [mutableRoomId],
     locked_rooms: [],

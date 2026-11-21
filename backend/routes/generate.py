@@ -59,9 +59,15 @@ def generate(body: GenerateRequest) -> GenerateResponse:
 @router.post("/api/regenerate/partial", response_model=GenerateResponse)
 def regenerate_partial(body: PartialRegenerateRequest) -> GenerateResponse:
     """v0.2-B：RegenerationScope 驱动的局部重生成。"""
+    from fastapi import HTTPException
+    from solver.regeneration.errors import RegenerationScopeError
+
     resolved = resolve_solve_input(body)
     program = resolved.program
-    locks, _scope = resolve_partial_regenerate(body, program)
+    try:
+        locks, _scope = resolve_partial_regenerate(body, program)
+    except RegenerationScopeError as exc:
+        raise HTTPException(status_code=422, detail=exc.to_detail()) from exc
     result = generate_layouts(program, locks=locks)
     candidates = [
         serialize_candidate(program, cand, i)

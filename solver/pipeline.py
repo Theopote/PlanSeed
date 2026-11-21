@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 
 from packages.schema.layout import LayoutCandidate
@@ -13,6 +14,26 @@ from solver.evaluation.score import CompositeEvaluator
 from solver.generators.base import LayoutGenerator
 from solver.generators.guillotine import GuillotineGenerator
 from solver.optimization.rank import rank_candidates
+
+
+def layout_geometry_fingerprint(candidate: LayoutCandidate) -> str:
+    """几何多样性指纹：仅房间身份 + 楼层 + 规范化矩形（排除 id/seed 等元数据）。"""
+    rows: list[tuple[str, str, float, float, float, float]] = []
+    for fl in candidate.floors:
+        for p in fl.placements:
+            r = p.rect
+            rows.append(
+                (
+                    fl.floor_id,
+                    p.room_id,
+                    round(r.x, 3),
+                    round(r.y, 3),
+                    round(r.width, 3),
+                    round(r.depth, 3),
+                )
+            )
+    rows.sort()
+    return json.dumps(rows, separators=(",", ":"))
 
 
 def _generators_from_config(cfg) -> list[LayoutGenerator]:
@@ -46,17 +67,8 @@ class PipelineResult:
     violation_summary: dict[str, int] = field(default_factory=dict)
 
     def compute_metrics(self) -> PipelineMetrics:
-        import json
-
         fingerprints = {
-            json.dumps(
-                c.model_dump(
-                    exclude={"score", "metrics", "validation", "evaluation"}
-                ),
-                sort_keys=True,
-                default=str,
-            )
-            for c in self.all_candidates
+            layout_geometry_fingerprint(c) for c in self.all_candidates
         }
         scored = [c.score for c in self.all_candidates if c.score is not None]
         soft_counts = [

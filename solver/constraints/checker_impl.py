@@ -182,6 +182,7 @@ class DefaultConstraintChecker:
         允许 ns（width×depth）或 ew（depth×width）两种朝向。
         """
         from packages.schema.layout import PlacementSource
+        from solver.circulation.stair_identity import stair_core_placements
         from solver.vertical.prededuction import resolve_stair_core_spec_for_program
 
         violations: list[Violation] = []
@@ -204,11 +205,11 @@ class DefaultConstraintChecker:
         }
 
         for fl in candidate.floors:
+            # 只认楼梯核身份；禁止「第一个 circulation」顺序敏感误判
             stairs = [
                 p
-                for p in fl.placements
+                for p in stair_core_placements(fl.placements)
                 if p.source == PlacementSource.GENERATED
-                and (p.category == "circulation" or (p.room_id or "").startswith("stair"))
             ]
             if not stairs:
                 violations.append(

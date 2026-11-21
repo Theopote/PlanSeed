@@ -122,6 +122,22 @@ def test_no_axis_pick_when_not_better_than_top():
     assert selected[1].metrics["selection_role"] == "diverse"
 
 
+def test_score_fill_not_labeled_as_diverse():
+    """几何雷同、放宽门槛补齐时须标「高分补充」而非「几何多样」。"""
+    top = _cand(cid="top", seed=0, total=90, circ=50, priv=50, x=0)
+    twin = _cand(cid="twin", seed=1, total=88, circ=50, priv=50, x=0)
+    selected = select_diverse_alternatives(
+        [top, twin],
+        top_k=2,
+        min_diversity_threshold=0.99,
+        axis_margin=2.0,
+    )
+    assert selected[0].id == "top"
+    assert selected[1].id == "twin"
+    assert selected[1].metrics["selection_role"] == "score_fill"
+    assert selected[1].metrics["selection_label"] == "高分补充"
+
+
 def test_rank_candidates_tags_roles_by_default():
     cands = [
         _cand(cid="a", seed=0, total=90, circ=40, priv=40, x=0),
@@ -133,7 +149,7 @@ def test_rank_candidates_tags_roles_by_default():
     )
     assert ranked[0].metrics.get("selection_role") == "top_score"
     roles = {c.metrics.get("selection_role") for c in ranked}
-    assert "circulation" in roles or "privacy" in roles or "diverse" in roles
+    assert roles & {"circulation", "privacy", "diverse", "score_fill"}
 
 
 def test_rank_pure_score_when_diversity_disabled():

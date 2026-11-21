@@ -191,11 +191,8 @@ export function useCandidateWorkflow({
       parentGen: number,
       fp: string,
     ): boolean => {
-      if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
-      setProgram(data.program_summary);
-      if (data.solver_identity) {
-        setSolverIdentity(identityFromPayload(data.solver_identity));
-      }
+      // 先算后提交：任何 setState 前必须确认请求仍是最新
+      if (token !== runSeq.current) return false;
       const fresh = data.candidates
         .filter((c) => !candidates.some((e) => e.id === c.id))
         .map((c) => ({
@@ -219,6 +216,11 @@ export function useCandidateWorkflow({
         merged = [...missing, ...tail].slice(-16);
       }
       if (token !== runSeq.current) return false;
+      if (data.requirement_spec) setRequirementSpec(data.requirement_spec);
+      setProgram(data.program_summary);
+      if (data.solver_identity) {
+        setSolverIdentity(identityFromPayload(data.solver_identity));
+      }
       setCandidates(merged);
       setStats({
         generated: data.generated,
@@ -302,9 +304,10 @@ export function useCandidateWorkflow({
         if (token !== runSeq.current) return;
         applyResult(data, locksFingerprint(EMPTY_LOCKS));
       } catch (e) {
+        if (token !== runSeq.current) return;
         setError(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoading(false);
+        if (token === runSeq.current) setLoading(false);
       }
     },
     [
@@ -342,15 +345,17 @@ export function useCandidateWorkflow({
         const data = await partialRegenerateFromProgram(spec, {
           regeneration_scope: scope,
           base_placements: basePlacements,
+          locks: cloneLayoutLocks(locks),
           base_seed: maxSeed + 1,
           candidate_count: 8,
           return_top_k: 3,
         });
         mergeVariantCandidates(token, data, prevSelected, parentGen, fp);
       } catch (e) {
+        if (token !== runSeq.current) return;
         setError(e instanceof Error ? e.message : String(e));
       } finally {
-        setLoading(false);
+        if (token === runSeq.current) setLoading(false);
       }
     },
     [
@@ -374,6 +379,7 @@ export function useCandidateWorkflow({
     setError(null);
     try {
       const parsed = await parseRequirementsNl(nlText);
+      if (token !== runSeq.current) return;
       applyParsedSpec(parsed.requirement_spec);
       setLocks({ ...EMPTY_LOCKS });
       const data = await generateFromProgram(parsed.requirement_spec, {
@@ -390,11 +396,14 @@ export function useCandidateWorkflow({
       setLlmSessionState(null);
       void fetchLlmStatus().then(setLlmStatus);
     } catch (e) {
+      if (token !== runSeq.current) return;
       setError(e instanceof Error ? e.message : String(e));
       setLlmSessionState("ParseFailed");
     } finally {
-      setNlBusy(false);
-      setLoading(false);
+      if (token === runSeq.current) {
+        setNlBusy(false);
+        setLoading(false);
+      }
     }
   }, [
     nlText,

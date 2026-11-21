@@ -19,6 +19,11 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Regress uv path resolve
+        shell: pwsh
+        run: |
+          .\scripts\test_sidecar_uv_resolve.ps1
+
       - name: Build sidecar
         shell: pwsh
         run: |

@@ -141,14 +141,14 @@ def select_diverse_alternatives(
             selected.append(c)
             selected_ids.add(c.id)
 
-    # 仍不足：忽略几何门槛，按分数补齐
+    # 仍不足：忽略几何门槛，按分数补齐（不得标成「几何多样」）
     if len(selected) < top_k:
         for c in valid:
             if len(selected) >= top_k:
                 break
             if c.id in selected_ids:
                 continue
-            _tag(c, "diverse", "几何多样")
+            _tag(c, "score_fill", "高分补充")
             selected.append(c)
             selected_ids.add(c.id)
 

@@ -107,7 +107,17 @@ def rank_candidates(
         if c.validation and c.validation.valid and c.score is not None
     ]
 
-    valid.sort(key=lambda c: c.score or 0.0, reverse=True)
+    # Architectural Quality Gate：优先推荐无 blocker 的候选；不足时再回填
+    gate_pass = [
+        c for c in valid if bool(c.metrics.get("architectural_gate_pass", True))
+    ]
+    gate_fail = [
+        c for c in valid if not bool(c.metrics.get("architectural_gate_pass", True))
+    ]
+    gate_pass.sort(key=lambda c: c.score or 0.0, reverse=True)
+    gate_fail.sort(key=lambda c: c.score or 0.0, reverse=True)
+    # 保持「过门槛优先」的总序，供 score / geom 路径使用
+    valid = gate_pass + gate_fail
 
     if min_diversity_threshold is None:
         resolved = "score"
@@ -131,12 +141,26 @@ def rank_candidates(
         from solver.optimization.diversity_select import select_diverse_alternatives
 
         selected = select_diverse_alternatives(
-            valid,
+            gate_pass if gate_pass else valid,
             top_k,
             min_diversity_threshold=min_diversity_threshold or DEFAULT_MIN_DIVERSITY_THRESHOLD,
             buildable_width=buildable_width,
             buildable_depth=buildable_depth,
         )
+        if len(selected) < top_k and gate_pass and gate_fail:
+            # 过门槛不足时用未过门槛高分补齐，并标记
+            fill = select_diverse_alternatives(
+                gate_fail,
+                top_k - len(selected),
+                min_diversity_threshold=min_diversity_threshold
+                or DEFAULT_MIN_DIVERSITY_THRESHOLD,
+                buildable_width=buildable_width,
+                buildable_depth=buildable_depth,
+            )
+            for c in fill:
+                c.metrics["selection_role"] = "gate_fill"
+                c.metrics["selection_label"] = "门槛外补充"
+            selected = selected + fill
     else:
         selected = _select_diverse(
             valid,

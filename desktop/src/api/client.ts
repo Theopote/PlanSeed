@@ -525,6 +525,8 @@ export async function partialRegenerateFromProgram(
   opts: {
     regeneration_scope: RegenerationScope;
     base_placements: RoomPlacementPayload[];
+    /** 会话既有锁；后端与作用域锁合并，避免分区/楼梯锁丢失 */
+    locks?: LayoutLocks | null;
     candidate_count?: number;
     return_top_k?: number;
     base_seed?: number;
@@ -538,6 +540,9 @@ export async function partialRegenerateFromProgram(
     regeneration_scope: opts.regeneration_scope,
     base_placements: opts.base_placements,
   };
+  if (opts.locks != null) {
+    body.locks = opts.locks;
+  }
   if (opts.base_seed != null) {
     body.base_seed = opts.base_seed;
   }

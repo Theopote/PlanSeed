@@ -149,3 +149,87 @@ def test_partial_regenerate_rejects_empty_placements():
         },
     )
     assert bad.status_code == 422
+
+
+def test_partial_regenerate_unknown_room_returns_422():
+    client = _client()
+    gen = client.post(
+        "/api/generate",
+        json={"use_benchmark": True, "candidate_count": 4, "return_top_k": 2},
+    )
+    assert gen.status_code == 200
+    body = gen.json()
+    req_spec = body["requirement_spec"]
+    program = body["program_summary"]
+    base = body["candidates"][0]
+    placements = _program_placements(base, program)
+
+    bad = client.post(
+        "/api/regenerate/partial",
+        json={
+            "use_benchmark": False,
+            "requirements": req_spec,
+            "regeneration_scope": {
+                "mutable_rooms": ["not-a-room"],
+                "preserve_topology": True,
+                "preserve_floor_assignment": True,
+            },
+            "base_placements": placements,
+        },
+    )
+    assert bad.status_code == 422, bad.text
+    detail = bad.json()["detail"]
+    assert detail["code"] == "unknown_mutable_rooms"
+
+
+def test_partial_regenerate_merges_existing_zone_locks(benchmark_session: dict):
+    from packages.schema.locks import LayoutLocks, LockedStairCore, LockedZoneRect
+    from packages.schema.zoning import ArchitecturalZone
+
+    base = benchmark_session["candidates"][0]
+    program = benchmark_session["program_summary"]
+    req_spec = benchmark_session["requirement_spec"]
+    mutable_room = program["rooms"][0]["id"]
+    placements = _program_placements(base, program)
+    stair_p = next(
+        (p for p in placements if str(p["room_id"]).startswith("stair-")),
+        None,
+    )
+    stair_lock = None
+    if stair_p is not None:
+        stair_lock = LockedStairCore(
+            x=stair_p["x"],
+            y=stair_p["y"],
+            width=stair_p["width"],
+            depth=stair_p["depth"],
+            core_placement="south",
+        )
+    existing = LayoutLocks(
+        rooms=[],
+        stair=stair_lock,
+        zones=[
+            LockedZoneRect(
+                zone=ArchitecturalZone.DAY,
+                floor_id="F1",
+                x=0,
+                y=0,
+                width=6,
+                depth=6,
+                room_ids=[mutable_room],
+            )
+        ],
+    )
+    req = PartialRegenerateRequest(
+        use_benchmark=False,
+        requirements=req_spec,
+        regeneration_scope=RegenerationScope(mutable_rooms=[mutable_room]),
+        base_placements=[RoomPlacementPayload(**p) for p in placements],
+        locks=existing,
+    )
+    resolved = resolve_solve_input(req)
+    locks, _ = resolve_partial_regenerate(req, resolved.program)
+    if stair_lock is not None:
+        assert locks.stair is not None
+        assert locks.stair.core_placement == "south"
+    assert len(locks.zones) == 1
+    assert mutable_room not in {r.room_id for r in locks.rooms}

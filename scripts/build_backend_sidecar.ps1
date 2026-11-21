@@ -7,15 +7,21 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 # 嵌套 powershell / 非登录 shell 常缺 PATH；补常见 uv 安装位
+# 强制 @()：单元素 Where-Object 结果可能变成字符串，此时 [0] 会取到首字符（如 "C"）
 $UvCandidates = @(
-  (Get-Command uv -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source),
-  (Join-Path $env:USERPROFILE ".local\bin\uv.exe"),
-  (Join-Path $env:USERPROFILE ".cargo\bin\uv.exe")
-) | Where-Object { $_ -and (Test-Path $_) }
-if (-not $UvCandidates) {
+  @(
+    (Get-Command uv -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source),
+    (Join-Path $env:USERPROFILE ".local\bin\uv.exe"),
+    (Join-Path $env:USERPROFILE ".cargo\bin\uv.exe")
+  ) | Where-Object { $_ -and (Test-Path $_) }
+)
+if ($UvCandidates.Count -lt 1) {
   throw "uv not found. Install uv and ensure ~/.local/bin is on PATH."
 }
-$Uv = $UvCandidates[0]
+$Uv = [string]$UvCandidates[0]
+if (-not ((Test-Path -LiteralPath $Uv) -and ($Uv -match '(?i)(^|[\\/])uv(\.exe)?$'))) {
+  throw "uv candidate is not an executable path: $Uv"
+}
 
 $ResRoot = Join-Path $Root "desktop\src-tauri\resources"
 $TargetDir = Join-Path $ResRoot "planseed-backend"

@@ -2,10 +2,42 @@
 
 from __future__ import annotations
 
+from packages.schema.layout import (
+    FloorLayout,
+    LayoutCandidate,
+    PlacementRect,
+    PlacementSource,
+    RoomPlacement,
+)
 from solver.optimization.rank import layout_similarity
-from solver.pipeline import run_pipeline
+from solver.pipeline import layout_geometry_fingerprint, run_pipeline
 from solver.program.requirements_normalize import normalize_requirements_to_program
 from solver.tests.test_guillotine import benchmark_program
+
+
+def test_geometry_fingerprint_ignores_id_and_seed():
+    def _cand(cid: str, seed: int) -> LayoutCandidate:
+        return LayoutCandidate(
+            id=cid,
+            seed=seed,
+            floors=[
+                FloorLayout(
+                    floor_id="F1",
+                    placements=[
+                        RoomPlacement(
+                            room_id="r1",
+                            floor_id="F1",
+                            rect=PlacementRect(x=0, y=0, width=3, depth=4),
+                            source=PlacementSource.PROGRAM,
+                        )
+                    ],
+                )
+            ],
+        )
+
+    assert layout_geometry_fingerprint(_cand("a", 1)) == layout_geometry_fingerprint(
+        _cand("b", 99)
+    )
 
 
 class TestPipeline:

@@ -116,16 +116,22 @@ def resolve_partial_regenerate(
     body: PartialRegenerateRequest,
     program: DesignProgram,
 ) -> tuple[LayoutLocks, object]:
-    """RegenerationScope + base placements → LayoutLocks。"""
+    """RegenerationScope + base placements → LayoutLocks（合并既有会话锁）。"""
     from packages.schema.regeneration import RegenerationScope
     from solver.regeneration.scope import (
         enrich_regeneration_scope,
         locks_from_placement_rects,
+        merge_layout_locks,
     )
 
     scope: RegenerationScope = enrich_regeneration_scope(
         body.regeneration_scope, program
     )
     rects = placements_to_locked_rects(body.base_placements)
-    locks = locks_from_placement_rects(scope, program, rects)
+    scope_locks = locks_from_placement_rects(scope, program, rects)
+    locks = merge_layout_locks(
+        body.locks,
+        scope_locks,
+        mutable_room_ids=scope.mutable_room_ids,
+    )
     return locks, scope
