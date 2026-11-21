@@ -84,10 +84,17 @@ def resolve_exterior_entry(
             if edge_val in worlds:
                 touching.append(p)
 
-    def rank(p: RoomPlacement) -> tuple[int, int, str]:
+    from solver.semantics.roles import is_foyer, is_living
+
+    foyer_ids = {r.id for r in program.rooms if is_foyer(r)}
+    living_ids = {r.id for r in program.rooms if is_living(r)}
+
+    def rank(p: RoomPlacement) -> tuple[int, int, int, str]:
         stair_pen = 10 if _is_stair(p) else 0
+        # 门厅 > 客厅 > 其它公区：改善入口—门厅—楼梯组织
+        foyer_pen = 0 if p.room_id in foyer_ids else (1 if p.room_id in living_ids else 2)
         cat = (p.category or "other").lower()
-        return (stair_pen, _ENTRY_CATEGORY_RANK.get(cat, 5), p.room_id)
+        return (stair_pen, foyer_pen, _ENTRY_CATEGORY_RANK.get(cat, 5), p.room_id)
 
     connected = [p.room_id for p in sorted(touching, key=rank)]
 

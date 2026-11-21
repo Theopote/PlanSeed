@@ -212,6 +212,60 @@ class TestPrivatePrivateDoorBlocking:
         assert frozenset({"hall", "bed_a"}) in door_pairs
         assert frozenset({"hall", "bed_b"}) in door_pairs
 
+    def test_guest_bath_prefers_public_over_private(self) -> None:
+        """规则3：客卫与客厅共墙时，不得再开向卧室。"""
+        program = DesignProgram(
+            project_id="guest-bath-public",
+            site=SiteSpec(width=10, depth=10),
+            buildable=SiteSpec(width=10, depth=10).buildable_envelope,
+            floors=[
+                FloorSpec(
+                    id="F1",
+                    label="一层",
+                    room_ids=["living", "bath", "bed1"],
+                )
+            ],
+            rooms=[
+                RoomSpec(
+                    id="living",
+                    name="客厅",
+                    category=RoomCategory.PUBLIC,
+                    target_area=20,
+                    floor_id="F1",
+                ),
+                RoomSpec(
+                    id="bath",
+                    name="客卫",
+                    category=RoomCategory.WET,
+                    target_area=4,
+                    floor_id="F1",
+                ),
+                RoomSpec(
+                    id="bed1",
+                    name="主卧",
+                    category=RoomCategory.PRIVATE,
+                    target_area=14,
+                    floor_id="F1",
+                ),
+            ],
+            constraints=[],
+            solver_config=SolverConfig(),
+        )
+        # 客厅在下；客卫与主卧在上且均贴客厅；客卫亦贴主卧 → 应只开客卫-客厅
+        living = _placement("living", x=0, y=0, w=8, d=5, cat="public", name="客厅")
+        bath = _placement("bath", x=0, y=5, w=3, d=3, cat="wet", name="客卫")
+        bed1 = _placement("bed1", x=3, y=5, w=5, d=3, cat="private", name="主卧")
+        candidate = LayoutCandidate(
+            id="guest-public",
+            seed=0,
+            floors=[FloorLayout(floor_id="F1", placements=[living, bath, bed1])],
+        )
+        place_door_openings(program, candidate)
+        pairs = {frozenset({op.room_a_id, op.room_b_id}) for op in candidate.door_openings}
+        assert frozenset({"living", "bath"}) in pairs
+        assert frozenset({"living", "bed1"}) in pairs
+        assert frozenset({"bath", "bed1"}) not in pairs
+
     def test_wet_private_fanout_rejected_when_more_than_one_bedroom(self) -> None:
         program = DesignProgram(
             project_id="wet-fanout",

@@ -141,6 +141,13 @@ class CompositeEvaluator:
         # blocker 轻降总分：不替代硬约束，但拉开与可推荐方案的差距
         if not gate.passed:
             total = max(0.0, total - min(12.0, 4.0 * len(gate.blockers)))
+        # 黑卫等 warning 亦降分，避免高分却建筑师不可用
+        black_wet_n = sum(1 for w in gate.warnings if w.code == "black_wet")
+        if black_wet_n:
+            total = max(0.0, total - min(6.0, 2.0 * black_wet_n))
+        sliver_n = sum(1 for w in gate.warnings if w.code == "sliver_room")
+        if sliver_n:
+            total = max(0.0, total - min(4.0, 1.5 * sliver_n))
 
         if float(adj_m.get("required_adjacency_satisfaction", 1.0)) < 1.0:
             findings.append(

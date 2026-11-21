@@ -42,6 +42,86 @@ def _is_wet_category(category: str | None) -> bool:
     return (category or "").lower() == "wet"
 
 
+def _is_public_or_circulation_category(category: str | None) -> bool:
+    return (category or "").lower() in ("public", "circulation")
+
+
+def _guest_bath_ids(program: DesignProgram) -> set[str]:
+    from solver.semantics.roles import is_guest_bath
+
+    return {r.id for r in program.rooms if is_guest_bath(r)}
+
+
+def _wet_has_publicish_wall(
+    wet_id: str,
+    ctx: _FloorGraphContext,
+    *,
+    floor_placements: list[RoomPlacement] | None = None,
+) -> bool:
+    """客卫是否与公区/交通/服务（含 circ-* 碎片）共墙。"""
+    for a, b in ctx.edge_bound:
+        other = b if a == wet_id else a if b == wet_id else None
+        if other is None:
+            continue
+        other_p = ctx.by_id.get(other)
+        if other_p is None:
+            continue
+        cat = (other_p.category or "").lower()
+        if cat in ("public", "circulation", "service"):
+            return True
+    # program-only 图不含 circ-*；补查同层走廊碎片短共边
+    wet = ctx.by_id.get(wet_id)
+    if wet is None or not floor_placements:
+        return False
+    from solver.topology.constants import MIN_CORRIDOR_SLIVER_SHORT
+
+    for p in floor_placements:
+        if not str(p.room_id).startswith("circ-"):
+            continue
+        if (p.category or "").lower() != "circulation":
+            continue
+        if p.floor_id != wet.floor_id:
+            continue
+        if shared_boundary_between(wet, p, min_length=MIN_CORRIDOR_SLIVER_SHORT):
+            return True
+    return False
+
+
+def _collect_rule3_guest_bath_private_candidates(
+    program: DesignProgram,
+    ctx: _FloorGraphContext,
+    required_pairs: set[tuple[str, str]],
+    *,
+    floor_placements: list[RoomPlacement] | None = None,
+) -> set[tuple[str, str]]:
+    """
+    规则3：客卫若已与公区/交通/服务共墙，则排除客卫↔卧室边。
+
+    避免客卫只开向主卧/次卧（Design Benchmark B12 失败模式）。
+    """
+    guests = _guest_bath_ids(program)
+    if not guests:
+        return set()
+    candidates: set[tuple[str, str]] = set()
+    for wet_id in guests:
+        if wet_id not in ctx.by_id:
+            continue
+        if not _wet_has_publicish_wall(
+            wet_id, ctx, floor_placements=floor_placements
+        ):
+            continue
+        for key in ctx.edge_bound:
+            if key in required_pairs:
+                continue
+            if wet_id not in key:
+                continue
+            pa = ctx.by_id[key[0]]
+            pb = ctx.by_id[key[1]]
+            if _is_wet_private_pair(pa, pb):
+                candidates.add(key)
+    return candidates
+
+
 def _wet_private_neighbor_map(
     openings: list[DoorOpening],
     by_id: dict[str, RoomPlacement],
@@ -250,17 +330,27 @@ def _spanning_neighbor_sort_key(
     by_id: dict[str, RoomPlacement],
     cur: str,
     nb: str,
-) -> tuple[int, int, str]:
-    """生成树 BFS 邻接排序：私密-私密边靠后，湿-私其次。"""
+) -> tuple[int, int, int, str]:
+    """生成树 BFS 邻接排序：避私密互穿，优先进入公区/交通。"""
     pa, pb = by_id[cur], by_id[nb]
     pp = 1 if _private_private_pair(pa, pb) else 0
     wet = 1 if _is_wet_private_pair(pa, pb) else 0
-    return (pp, wet, nb)
+    cat = (pb.category or "other").lower()
+    # 越小越优先：公区/交通 → 服务 → 湿区 → 其它 → 私密
+    cat_rank = {
+        "public": 0,
+        "circulation": 0,
+        "service": 1,
+        "wet": 2,
+        "other": 3,
+        "private": 4,
+    }.get(cat, 3)
+    return (pp, wet, cat_rank, nb)
 
 
 @dataclass(frozen=True)
 class _JointPrivacyPlan:
-    """规则1/2 联合删边计划：omit=不落门/spanning 排除；forced=被迫保留并打标。"""
+    """规则1/2/3 联合删边计划：omit=不落门/spanning 排除；forced=被迫保留并打标。"""
 
     omit_pp_keys: set[tuple[str, str]]
     forced_pp_keys: set[tuple[str, str]]
@@ -308,10 +398,13 @@ def _plan_joint_privacy_edges(
     openings: list[DoorOpening],
     intents: list[SpaceConnection],
     seen_pairs: set[tuple[str, str]],
+    *,
+    program: DesignProgram,
+    floor_placements: list[RoomPlacement] | None = None,
 ) -> _JointPrivacyPlan:
     """
-    规则1/2 联合校验：先合并候选删边，再一次性做连通分析；
-    不可达时按规则2优先、规则1次之恢复被迫边。
+    规则1/2/3 联合校验：先合并候选删边，再一次性做连通分析；
+    不可达时优先恢复规则3（客卫公区优先）、再规则2、再规则1。
     """
     required_pp: set[tuple[str, str]] = set()
     for conn in intents:
@@ -321,19 +414,27 @@ def _plan_joint_privacy_edges(
     rule1 = _collect_rule1_pp_candidates(openings, ctx, required_pp)
     wet_private = _wet_private_neighbor_map(openings, ctx.by_id)
     rule2 = _collect_rule2_wet_fanout_candidates(ctx, wet_private)
-    removal = rule1 | rule2
+    rule3 = _collect_rule3_guest_bath_private_candidates(
+        program,
+        ctx,
+        required_pp,
+        floor_placements=floor_placements,
+    )
+    # 规则3 并入 wet 封锁集（与规则2 同走 blocked_wet 通路）
+    rule2_wet = rule2 | rule3
+    removal = rule1 | rule2_wet
 
     if _planned_access_covers_floor(
         ctx,
         openings,
         seen_pairs,
         omit_pp_keys=removal & rule1,
-        blocked_wet_keys=removal & rule2,
+        blocked_wet_keys=removal & rule2_wet,
     ):
         return _JointPrivacyPlan(
             omit_pp_keys=removal & rule1,
             forced_pp_keys=set(),
-            blocked_wet_keys=removal & rule2,
+            blocked_wet_keys=removal & rule2_wet,
             forced_wet_keys=set(),
         )
 
@@ -341,56 +442,56 @@ def _plan_joint_privacy_edges(
     forced_wet: set[tuple[str, str]] = set()
     remaining = set(removal)
 
-    while remaining and not _planned_access_covers_floor(
-        ctx,
-        openings,
-        seen_pairs,
-        omit_pp_keys=(remaining & rule1) - forced_pp,
-        blocked_wet_keys=(remaining & rule2) - forced_wet,
-        forced_wet_keys=forced_wet,
-    ):
+    def _covers(
+        rem: set[tuple[str, str]],
+        *,
+        extra_forced_wet: set[tuple[str, str]] | None = None,
+    ) -> bool:
+        fw = forced_wet | (extra_forced_wet or set())
+        return _planned_access_covers_floor(
+            ctx,
+            openings,
+            seen_pairs,
+            omit_pp_keys=(rem & rule1) - forced_pp,
+            blocked_wet_keys=(rem & rule2_wet) - fw,
+            forced_wet_keys=fw,
+        )
+
+    while remaining and not _covers(remaining):
         restored: tuple[str, str] | None = None
-        for key in sorted(remaining):
-            if key not in rule2:
-                continue
-            trial_remaining = remaining - {key}
-            if _planned_access_covers_floor(
-                ctx,
-                openings,
-                seen_pairs,
-                omit_pp_keys=(trial_remaining & rule1) - forced_pp,
-                blocked_wet_keys=(trial_remaining & rule2) - forced_wet,
-                forced_wet_keys=forced_wet | {key},
-            ):
-                restored = key
-                forced_wet.add(key)
-                remaining = trial_remaining
+        # 恢复优先级：规则2扇出 > 规则3客卫公区 > 规则1私密互穿
+        for prefer_set in (rule2, rule3, rule1):
+            for key in sorted(remaining):
+                if key not in prefer_set:
+                    continue
+                trial_remaining = remaining - {key}
+                if key in rule2_wet:
+                    if _covers(trial_remaining, extra_forced_wet={key}):
+                        restored = key
+                        forced_wet.add(key)
+                        remaining = trial_remaining
+                        break
+                else:
+                    if _covers(trial_remaining):
+                        # 实际是 pp：需记 forced_pp
+                        restored = key
+                        forced_pp.add(key)
+                        remaining = trial_remaining
+                        break
+            if restored is not None:
                 break
         if restored is not None:
             continue
 
-        for key in sorted(remaining):
-            if key not in rule1:
-                continue
-            trial_remaining = remaining - {key}
-            if _planned_access_covers_floor(
-                ctx,
-                openings,
-                seen_pairs,
-                omit_pp_keys=(trial_remaining & rule1) - forced_pp,
-                blocked_wet_keys=(trial_remaining & rule2) - forced_wet,
-                forced_wet_keys=forced_wet,
-            ):
-                restored = key
-                forced_pp.add(key)
-                remaining = trial_remaining
-                break
-        if restored is not None:
-            continue
-
-        # 单条恢复不足：贪心先恢复规则2，再规则1
-        key = min(remaining, key=lambda k: (0 if k in rule2 else 1, k))
-        if key in rule2:
+        # 单条恢复不足：贪心 — 规则2 → 规则3 → 规则1
+        key = min(
+            remaining,
+            key=lambda k: (
+                0 if k in rule2 else 1 if k in rule3 else 2,
+                k,
+            ),
+        )
+        if key in rule2_wet:
             forced_wet.add(key)
         else:
             forced_pp.add(key)
@@ -399,7 +500,7 @@ def _plan_joint_privacy_edges(
     return _JointPrivacyPlan(
         omit_pp_keys=(remaining & rule1) - forced_pp,
         forced_pp_keys=forced_pp,
-        blocked_wet_keys=(remaining & rule2) - forced_wet,
+        blocked_wet_keys=(remaining & rule2_wet) - forced_wet,
         forced_wet_keys=forced_wet,
     )
 
@@ -759,8 +860,18 @@ def place_door_openings(
         seen_pairs.add(_pair_key(pa.room_id, pb.room_id))
 
     intents = opening_connections(program)
+    placements_by_floor: dict[str, list[RoomPlacement]] = {
+        fl.floor_id: list(fl.placements) for fl in candidate.floors
+    }
     privacy_plans = {
-        floor_id: _plan_joint_privacy_edges(ctx, openings, intents, seen_pairs)
+        floor_id: _plan_joint_privacy_edges(
+            ctx,
+            openings,
+            intents,
+            seen_pairs,
+            program=program,
+            floor_placements=placements_by_floor.get(floor_id),
+        )
         for floor_id, ctx in floor_ctx.items()
     }
     openings = _apply_joint_privacy_plans(openings, floor_ctx, privacy_plans)
@@ -776,8 +887,159 @@ def place_door_openings(
             privacy_plans=privacy_plans,
         )
     )
+    seen_pairs = {_pair_key(op.room_a_id, op.room_b_id) for op in openings}
+    openings.extend(
+        _ensure_guest_bath_acceptable_openings(
+            program,
+            candidate,
+            openings,
+            seen_pairs=seen_pairs,
+            min_length=min_length,
+        )
+    )
     candidate.door_openings = openings
     return openings
+
+
+def _guest_bath_neighbor_acceptable(
+    program: DesignProgram,
+    neighbor_id: str,
+) -> bool:
+    """与 Architectural Gate 对齐：客卫可接受邻接（禁私密/厨房）。"""
+    from solver.semantics.roles import is_guest_bath, is_kitchen
+
+    if neighbor_id.startswith("stair-") or neighbor_id.startswith("circ-"):
+        return True
+    room = program.room_by_id(neighbor_id)
+    if room is None:
+        return False
+    if is_kitchen(room):
+        return False
+    if room.category.value == "private":
+        return False
+    if room.category.value in ("public", "circulation", "service", "other"):
+        return True
+    if room.category.value == "wet" and not is_guest_bath(room):
+        return True
+    return False
+
+
+def _guest_bath_has_acceptable_opening(
+    guest_id: str,
+    openings: list[DoorOpening],
+    program: DesignProgram,
+) -> bool:
+    for op in openings:
+        other = None
+        if op.room_a_id == guest_id:
+            other = op.room_b_id
+        elif op.room_b_id == guest_id:
+            other = op.room_a_id
+        if other is not None and _guest_bath_neighbor_acceptable(program, other):
+            return True
+    return False
+
+
+def _ensure_guest_bath_acceptable_openings(
+    program: DesignProgram,
+    candidate: LayoutCandidate,
+    openings: list[DoorOpening],
+    *,
+    seen_pairs: set[tuple[str, str]],
+    min_length: float,
+) -> list[DoorOpening]:
+    """
+    客卫若尚无通向公区/服务/交通的门，则对共墙可接受邻居补 OPEN。
+
+    覆盖 B12 失败模式：客卫只与厨房/卧室共边且 spanning 未补服务向开口。
+    """
+    guests = _guest_bath_ids(program)
+    if not guests:
+        return []
+
+    by_floor: dict[str, list[RoomPlacement]] = {
+        fl.floor_id: list(fl.placements) for fl in candidate.floors
+    }
+    # 优先级：公区 > 交通/楼梯 > 服务/其它 > 非厨湿区
+    def _pref(nid: str) -> tuple[int, str]:
+        if nid.startswith("circ-") or nid.startswith("stair-"):
+            return (1, nid)
+        room = program.room_by_id(nid)
+        if room is None:
+            return (9, nid)
+        cat = room.category.value
+        if cat == "public":
+            return (0, nid)
+        if cat == "circulation":
+            return (1, nid)
+        if cat in ("service", "other"):
+            return (2, nid)
+        if cat == "wet":
+            return (3, nid)
+        return (8, nid)
+
+    added: list[DoorOpening] = []
+    local_seen = set(seen_pairs)
+    for gid in sorted(guests):
+        if _guest_bath_has_acceptable_opening(gid, openings + added, program):
+            continue
+        gp: RoomPlacement | None = None
+        for fl in candidate.floors:
+            for p in fl.placements:
+                if p.room_id == gid:
+                    gp = p
+                    break
+            if gp is not None:
+                break
+        if gp is None:
+            continue
+        neighbors = by_floor.get(gp.floor_id, [])
+        options: list[tuple[tuple[int, str], RoomPlacement, SharedBoundary]] = []
+        for other in neighbors:
+            if other.room_id == gid:
+                continue
+            if not _guest_bath_neighbor_acceptable(program, other.room_id):
+                continue
+            # circ 可用较短共边；program 房间仍用门洞门槛
+            thr = (
+                min_length
+                if not str(other.room_id).startswith("circ-")
+                else min(min_length, 0.5)
+            )
+            bound = shared_boundary_between(gp, other, min_length=thr)
+            if bound is None:
+                continue
+            key = _pair_key(gid, other.room_id)
+            if key in local_seen:
+                continue
+            options.append((_pref(other.room_id), other, bound))
+        if not options:
+            continue
+        options.sort(key=lambda t: t[0])
+        _pref_key, other, bound = options[0]
+        key = _pair_key(gid, other.room_id)
+        local_seen.add(key)
+        width = min(bound.length, max(PREFERRED_CLEAR_WIDTH, bound.length * 0.5))
+        added.append(
+            DoorOpening(
+                id=f"open-guest-{key[0]}-{key[1]}",
+                connection_id=f"guest-access-{key[0]}-{key[1]}",
+                room_a_id=key[0],
+                room_b_id=key[1],
+                floor_id=gp.floor_id,
+                x=bound.mid_x,
+                y=bound.mid_y,
+                width=width,
+                axis=bound.axis,  # type: ignore[arg-type]
+                connection_type=SpaceConnectionType.OPEN.value,
+                clear_width=width,
+                swing_room_id=None,
+                hinge_side=None,
+                hinge_x=None,
+                hinge_y=None,
+            )
+        )
+    return added
 
 
 @dataclass(frozen=True)
@@ -871,6 +1133,15 @@ def _apply_joint_privacy_plans(
             and pb is not None
             and _private_private_pair(pa, pb)
             and key in plan.omit_pp_keys
+        ):
+            continue
+        # 规则2/3：封锁的湿-私密 intent 门不落地（被迫保留除外）
+        if (
+            pa is not None
+            and pb is not None
+            and _is_wet_private_pair(pa, pb)
+            and key in plan.blocked_wet_keys
+            and key not in plan.forced_wet_keys
         ):
             continue
         updates: dict[str, bool] = {}

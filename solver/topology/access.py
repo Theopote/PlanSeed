@@ -175,16 +175,23 @@ def _add_circulation_corridor_passages(
     program: DesignProgram,
     candidate: LayoutCandidate,
     *,
-    min_length: float = MIN_ACCESS_WALL,
+    min_length: float | None = None,
 ) -> list[RealizedConnection]:
     """
     generated 走廊碎片与贴邻 program 房间：基础设施开口（同楼梯贴邻 PASSAGE）。
 
     使 ADR-011 几何修补切出的 circ-* 真正进入 RealizedAccessGraph，
     卧室可经走廊到达，而非被迫穿其他卧室。
+
+    共边门槛默认 ``MIN_CORRIDOR_SLIVER_SHORT``（0.5m），低于门洞的
+    ``MIN_ACCESS_WALL``（0.9m）：走廊贴边常为短边，过严会导致客卫/卧室
+    几何上贴廊却图论上仍只能经私密互穿（B12 Gate 失败模式）。
     """
     from solver.topology.doors import shared_boundary_between
 
+    edge_min = (
+        MIN_CORRIDOR_SLIVER_SHORT if min_length is None else min_length
+    )
     program_ids = {r.id for r in program.rooms}
     out: list[RealizedConnection] = []
     seen: set[tuple[str, str]] = set()
@@ -200,7 +207,7 @@ def _add_circulation_corridor_passages(
             if not _is_passable_corridor_fragment(circ):
                 continue
             for room in rooms:
-                if shared_boundary_between(circ, room, min_length=min_length) is None:
+                if shared_boundary_between(circ, room, min_length=edge_min) is None:
                     continue
                 pair = tuple(sorted((circ.room_id, room.room_id)))
                 if pair in seen:
