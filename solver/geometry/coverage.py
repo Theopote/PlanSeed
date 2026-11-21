@@ -1637,6 +1637,107 @@ def apply_corridor_access_repair_if_safe(
     return result
 
 
+def absorb_impassable_corridor_slivers(
+    footprint: FootprintLike,
+    placements: list[RoomPlacement],
+    floor_id: str,
+    *,
+    max_area_by_room_id: dict[str, float] | None = None,
+    min_passable_short: float = 0.5,
+    tolerance: float = COVERAGE_TOLERANCE,
+) -> list[RoomPlacement]:
+    """
+    把短边 < min_passable_short 的走廊并入邻接房间/走廊。
+
+    这类细条无法进入 RealizedAccessGraph（通行下限），会把卫浴等隔成孤岛。
+    优先并入其它走廊；program 房间不得超过 max_area（余量由 residual 再铺）。
+    """
+    from packages.schema.layout import PlacementRect
+
+    caps = max_area_by_room_id or {}
+    updated = [p.model_copy(deep=True) for p in placements]
+    changed = True
+    while changed:
+        changed = False
+        for i, p in enumerate(list(updated)):
+            if not p.room_id.startswith("circ-"):
+                continue
+            if is_fixed_void_placement(p.room_id):
+                continue
+            cur = from_placement(p.rect)
+            if min(cur.width, cur.depth) + 1e-9 >= min_passable_short:
+                continue
+            best_j: int | None = None
+            best_merged: Rect | None = None
+            best_score = float("-inf")
+            for j, other in enumerate(updated):
+                if i == j or is_fixed_void_placement(other.room_id):
+                    continue
+                other_r = from_placement(other.rect)
+                edge = shared_edge_length(cur, other_r)
+                if edge <= tolerance:
+                    if not (
+                        abs(cur.bottom - other_r.top) <= LAYOUT_ABSORB_TOLERANCE
+                        or abs(cur.top - other_r.bottom) <= LAYOUT_ABSORB_TOLERANCE
+                        or abs(cur.right - other_r.left) <= LAYOUT_ABSORB_TOLERANCE
+                        or abs(cur.left - other_r.right) <= LAYOUT_ABSORB_TOLERANCE
+                    ):
+                        continue
+                    edge = max(edge, 0.05)
+                others = [
+                    from_placement(updated[k].rect)
+                    for k in range(len(updated))
+                    if k not in (i, j)
+                ]
+                is_circ = other.room_id.startswith("circ-")
+                cap = None if is_circ else caps.get(other.room_id)
+                if cap is not None:
+                    merged = try_absorb_sliver_within_area_cap(
+                        other_r,
+                        cur,
+                        others,
+                        cap,
+                        tolerance=LAYOUT_ABSORB_TOLERANCE,
+                    )
+                else:
+                    merged = try_absorb_sliver_without_overlap(
+                        other_r, cur, others, tolerance=LAYOUT_ABSORB_TOLERANCE
+                    )
+                if merged is None:
+                    continue
+                if not is_circ and not _merged_respects_aspect_cap(
+                    other.room_id, merged
+                ):
+                    continue
+                # 走廊优先，避免把细条并进已顶满 max 的 program 房
+                score = edge + (1000.0 if is_circ else 0.0)
+                if score >= best_score:
+                    best_score = score
+                    best_j = j
+                    best_merged = merged
+            if best_j is None or best_merged is None:
+                continue
+            other = updated[best_j]
+            updated[best_j] = other.model_copy(
+                update={
+                    "rect": PlacementRect(
+                        x=best_merged.x,
+                        y=best_merged.y,
+                        width=best_merged.width,
+                        depth=best_merged.depth,
+                    )
+                }
+            )
+            updated.pop(i)
+            changed = True
+            break
+    if len(updated) == len(placements):
+        return placements
+    return assign_residual_gaps_as_circulation(
+        footprint, updated, floor_id, tolerance=tolerance
+    )
+
+
 def clip_placements_to_pack_rects(
     pack_rects: list[Rect],
     placements: list[RoomPlacement],

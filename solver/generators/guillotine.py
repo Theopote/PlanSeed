@@ -49,6 +49,7 @@ from solver.geometry.coverage import (
     clamp_program_room_aspect_ratios,
     clip_placement_away_from_obstacles,
     clip_placements_to_pack_rects,
+    absorb_impassable_corridor_slivers,
     shrink_placement_to_max_area,
     fill_floor_coverage_gaps,
     grow_rooms_to_min_area,
@@ -60,7 +61,10 @@ from solver.geometry.rect import Rect, from_placement, shared_edge_length
 from solver.geometry.snap import snap_value
 from solver.geometry.entrance_claim import claim_entrance_edge_circulation
 from solver.geometry.wet_exterior_repair import swap_black_baths_to_exterior
-from solver.generators.wet_anchor import nudge_wet_stack_alignment
+from solver.generators.wet_anchor import (
+    nudge_wet_stack_alignment,
+    realign_wet_stack_by_occupant_swap,
+)
 from solver.program.floor_assignment import assert_all_rooms_placed
 from solver.topology.derive_access import ensure_access_graph
 from solver.topology.plan import (
@@ -913,11 +917,50 @@ class GuillotineGenerator:
             placed = clip_placements_to_pack_rects(
                 pack_rects, placed, fl.floor_id
             )
+            placed = absorb_impassable_corridor_slivers(
+                pack_rects,
+                placed,
+                fl.floor_id,
+                max_area_by_room_id=max_by_id,
+            )
+            placed = grow_rooms_to_min_area(
+                pack_rects, placed, min_by_id, max_by_id
+            )
             placed = assign_residual_gaps_as_circulation(
                 pack_rects, placed, fl.floor_id
             )
+            # residual 可能再切出不可通行细条，收尾再吸一次
+            placed = absorb_impassable_corridor_slivers(
+                pack_rects,
+                placed,
+                fl.floor_id,
+                max_area_by_room_id=max_by_id,
+            )
             clipped_floors.append(fl.model_copy(update={"placements": placed}))
         candidate = candidate.model_copy(update={"floors": clipped_floors})
+        # finalize 可能挪开锚层湿区：错位层与压住锚足迹的卧室/走廊对调
+        realigned_floors: list[FloorLayout] = []
+        for fl in realign_wet_stack_by_occupant_swap(candidate, program):
+            placed = clamp_program_room_aspect_ratios(
+                pack_rects,
+                list(fl.placements),
+                fl.floor_id,
+                min_area_by_room_id=min_by_id,
+            )
+            placed = grow_rooms_to_min_area(
+                pack_rects, placed, min_by_id, max_by_id
+            )
+            placed = assign_residual_gaps_as_circulation(
+                pack_rects, placed, fl.floor_id
+            )
+            placed = absorb_impassable_corridor_slivers(
+                pack_rects,
+                placed,
+                fl.floor_id,
+                max_area_by_room_id=max_by_id,
+            )
+            realigned_floors.append(fl.model_copy(update={"placements": placed}))
+        candidate = candidate.model_copy(update={"floors": realigned_floors})
         # 几何修补后再解析入口，避免走廊回收后仍绑定旧 connected_room_ids
         candidate.exterior_entry = resolve_exterior_entry(program, candidate)
         place_door_openings(program, candidate)

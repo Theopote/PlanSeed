@@ -263,6 +263,541 @@ def _shrink_larger_toward_smaller(
     return None
 
 
+def _wet_stack_swap_donor_ok(room: RoomSpec | None, *, room_id: str) -> bool:
+    """可与错位湿区对调的占用者：卧室/辅助/走廊；不碰门厅楼梯厨客餐厅。"""
+    from packages.schema.room import RoomCategory
+    from solver.semantics.roles import (
+        TAG_BEDROOM,
+        TAG_MASTER_BEDROOM,
+        has_any_tag,
+        is_dining,
+        is_foyer,
+        is_kitchen,
+        is_laundry,
+        is_living,
+        is_storage,
+        is_study,
+    )
+
+    if room_id.startswith(("stair-", "void-", "foyer-")):
+        return False
+    if room_id.startswith("circ-"):
+        return True
+    if room is None:
+        return False
+    if is_foyer(room) or is_living(room) or is_kitchen(room) or is_dining(room):
+        return False
+    if wet_stack_group_for_room(room) is not None:
+        return False
+    if is_storage(room) or is_laundry(room) or is_study(room):
+        return True
+    if has_any_tag(room, TAG_BEDROOM) or has_any_tag(room, TAG_MASTER_BEDROOM):
+        return True
+    return room.category == RoomCategory.PRIVATE
+
+
+def realign_wet_stack_by_occupant_swap(
+    candidate,
+    program: DesignProgram,
+    *,
+    min_iou: float | None = None,
+) -> list:
+    """
+    finalize 后湿区 IoU=0 时：把错位层湿区与压住锚足迹的卧室/走廊对调。
+
+    锚层几何已定（含 clip/grow）；仅挪另一层，避免再改坏 F1。
+    """
+    from packages.schema.layout import FloorLayout, RoomPlacement
+    from packages.schema.vertical_void import DEFAULT_WET_STACK_MIN_IOU
+    from solver.evaluation.vertical import (
+        _greedy_pair_wet_rooms,
+        _wet_placements_by_key,
+        min_iou_for_floor_pair,
+        wet_room_ids_for,
+    )
+    from solver.evaluation.weights import DEFAULT_WEIGHTS
+
+    if len(candidate.floors) < 2:
+        return list(candidate.floors)
+
+    thr = min_iou if min_iou is not None else DEFAULT_WET_STACK_MIN_IOU
+    wet_ids = wet_room_ids_for(candidate, program)
+    room_by_id = {r.id: r for r in program.rooms}
+    anchor_fid = anchor_floor_id(program)
+    floors: list[FloorLayout] = [fl.model_copy(deep=True) for fl in candidate.floors]
+    by_floor: dict[str, dict[str, RoomPlacement]] = {
+        fl.floor_id: {p.room_id: p for p in fl.placements} for fl in floors
+    }
+    aspect_thr = DEFAULT_WEIGHTS.aspect_ratio_threshold + 1e-6
+
+    def _aspect_ok(rect: Rect) -> bool:
+        short = min(rect.width, rect.depth)
+        long = max(rect.width, rect.depth)
+        return long / max(short, 0.01) <= aspect_thr
+
+    for i in range(len(floors) - 1):
+        low = floors[i]
+        high = floors[i + 1]
+        pair_min = (
+            thr
+            if min_iou is not None
+            else min_iou_for_floor_pair(program, low.floor_id, high.floor_id)
+        )
+        low_by = _wet_placements_by_key(
+            low, wet_ids=wet_ids, room_by_id=room_by_id
+        )
+        high_by = _wet_placements_by_key(
+            high, wet_ids=wet_ids, room_by_id=room_by_id
+        )
+        for key in sorted(set(low_by) & set(high_by)):
+            for (rid_a, rect_a), (rid_b, rect_b) in _greedy_pair_wet_rooms(
+                low_by[key], high_by[key]
+            ):
+                if rect_iou(rect_a, rect_b) + 1e-6 >= pair_min:
+                    continue
+                # 锚层足迹为 keep；另一层湿区去对调占用者
+                if low.floor_id == anchor_fid:
+                    keep_fid, keep_rect = low.floor_id, rect_a
+                    move_fid, move_rid, move_rect = high.floor_id, rid_b, rect_b
+                elif high.floor_id == anchor_fid:
+                    keep_fid, keep_rect = high.floor_id, rect_b
+                    move_fid, move_rid, move_rect = low.floor_id, rid_a, rect_a
+                else:
+                    keep_fid, keep_rect = low.floor_id, rect_a
+                    move_fid, move_rid, move_rect = high.floor_id, rid_b, rect_b
+                _ = keep_fid  # 锚层只读
+                move_room = room_by_id.get(move_rid)
+                if move_room is None:
+                    continue
+                if (
+                    keep_rect.area + 1e-9 < move_room.resolved_min_area()
+                    or keep_rect.area > move_room.resolved_max_area() + 1e-9
+                ):
+                    continue
+                if not _aspect_ok(keep_rect):
+                    continue
+                # 错位层上盖住锚足迹的主占用者
+                placed_map = by_floor[move_fid]
+                best_oid: str | None = None
+                best_cover = 0.0
+                for oid, op in placed_map.items():
+                    if oid == move_rid:
+                        continue
+                    inter = intersection(from_placement(op.rect), keep_rect)
+                    if inter is None:
+                        continue
+                    if inter.area > best_cover:
+                        best_cover = inter.area
+                        best_oid = oid
+                if best_oid is None or best_cover < keep_rect.area * 0.5:
+                    continue
+                donor_p = placed_map[best_oid]
+                donor_rect = from_placement(donor_p.rect)
+                # 占用者应大致落在锚足迹上（允许 finalize 后同脚印）
+                if rect_iou(donor_rect, keep_rect) + 1e-6 < 0.5 and best_cover < keep_rect.area * 0.85:
+                    continue
+                donor_room = room_by_id.get(best_oid)
+                if not _wet_stack_swap_donor_ok(donor_room, room_id=best_oid):
+                    continue
+                # 占用者换到湿区旧位：面积可暂低于 min（后续 grow）
+                if donor_room is not None:
+                    if move_rect.area > donor_room.resolved_max_area() + 1e-9:
+                        continue
+                elif not best_oid.startswith("circ-"):
+                    continue
+                wet_p = placed_map.get(move_rid)
+                if wet_p is None:
+                    continue
+                # 对调：湿区落到锚足迹；若与 live circ 不通则内缩通行条
+                plan = _wet_swap_with_access_band(
+                    keep_rect=keep_rect,
+                    donor_id=best_oid,
+                    donor_rect=move_rect,
+                    placed_map=placed_map,
+                    move_rid=move_rid,
+                    move_room=move_room,
+                    donor_room=donor_room,
+                    room_by_id=room_by_id,
+                    pair_min=pair_min,
+                    aspect_ok=_aspect_ok,
+                )
+                if plan is None:
+                    continue
+                wet_rect, extra_circs, donor_after, neighbor_shrinks = plan
+                placed_map[move_rid] = wet_p.model_copy(
+                    update={
+                        "rect": PlacementRect(
+                            x=wet_rect.x,
+                            y=wet_rect.y,
+                            width=wet_rect.width,
+                            depth=wet_rect.depth,
+                        )
+                    }
+                )
+                placed_map[best_oid] = donor_p.model_copy(
+                    update={
+                        "rect": PlacementRect(
+                            x=donor_after.x,
+                            y=donor_after.y,
+                            width=donor_after.width,
+                            depth=donor_after.depth,
+                        )
+                    }
+                )
+                for nid, nrect in neighbor_shrinks:
+                    np = placed_map.get(nid)
+                    if np is None:
+                        continue
+                    placed_map[nid] = np.model_copy(
+                        update={
+                            "rect": PlacementRect(
+                                x=nrect.x,
+                                y=nrect.y,
+                                width=nrect.width,
+                                depth=nrect.depth,
+                            )
+                        }
+                    )
+                from packages.schema.layout import PlacementSource
+
+                for ci, crect in enumerate(extra_circs):
+                    cid = f"circ-{move_fid}-wet{ci}"
+                    n = ci
+                    while cid in placed_map:
+                        n += 1
+                        cid = f"circ-{move_fid}-wet{n}"
+                    placed_map[cid] = RoomPlacement(
+                        room_id=cid,
+                        floor_id=move_fid,
+                        rect=PlacementRect(
+                            x=crect.x,
+                            y=crect.y,
+                            width=crect.width,
+                            depth=crect.depth,
+                        ),
+                        source=PlacementSource.GENERATED,
+                        name="circulation",
+                        category="circulation",
+                    )
+
+    out: list[FloorLayout] = []
+    for fl in floors:
+        placed = list(by_floor[fl.floor_id].values())
+        order = {p.room_id: i for i, p in enumerate(fl.placements)}
+        placed.sort(key=lambda p: order.get(p.room_id, 10_000))
+        out.append(fl.model_copy(update={"placements": placed}))
+    return out
+
+
+def _circulation_component_ids(placed_map: dict, *, exclude: str | None = None) -> set[str]:
+    """从楼梯出发、仅经 circ/foyer/stair 连通的通行组件。"""
+    from solver.geometry.rect import shared_edge_length
+
+    nodes = {
+        rid: from_placement(p.rect)
+        for rid, p in placed_map.items()
+        if rid != exclude
+        and rid.startswith(("circ-", "stair-", "foyer-"))
+    }
+    roots = [rid for rid in nodes if rid.startswith("stair-")]
+    if not roots:
+        return set()
+    seen: set[str] = set()
+    stack = list(roots)
+    while stack:
+        cur = stack.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        cr = nodes[cur]
+        for oid, orect in nodes.items():
+            if oid in seen:
+                continue
+            if shared_edge_length(cr, orect) + 1e-9 >= 0.5:
+                stack.append(oid)
+    return seen
+
+
+def _wet_swap_with_access_band(
+    *,
+    keep_rect: Rect,
+    donor_id: str,
+    donor_rect: Rect,
+    placed_map: dict,
+    move_rid: str,
+    move_room: RoomSpec,
+    donor_room: RoomSpec | None,
+    room_by_id: dict[str, RoomSpec],
+    pair_min: float,
+    aspect_ok,
+) -> tuple[Rect, list[Rect], Rect, list[tuple[str, Rect]]] | None:
+    """
+    湿区落到 keep_rect；若与 live circ 不通，内缩通行条并向邻房延伸。
+
+    返回 (wet_rect, extra_circs, donor_rect, neighbor_shrinks)；
+    donor 落在湿区旧位 donor_rect（通常为 move 前湿区矩形）。
+    """
+    from solver.geometry.rect import shared_edge_length
+
+    _ = donor_room
+    live_circ = _circulation_component_ids(placed_map, exclude=move_rid)
+
+    def _touches_live_circ(rect: Rect) -> bool:
+        for oid in live_circ:
+            op = placed_map.get(oid)
+            if op is None:
+                continue
+            if shared_edge_length(rect, from_placement(op.rect)) + 1e-9 >= 0.5:
+                return True
+        return False
+
+    if _touches_live_circ(keep_rect):
+        return keep_rect, [], donor_rect, []
+
+    band = 0.9
+    min_area = move_room.resolved_min_area()
+    max_area = move_room.resolved_max_area()
+
+    # 优先南缘内缩（B09：锚在北翼、走廊在南）
+    for side in ("south", "north", "east", "west"):
+        if side == "south":
+            if keep_rect.depth <= band + 0.3:
+                continue
+            wet = Rect(
+                x=keep_rect.x,
+                y=keep_rect.y,
+                width=keep_rect.width,
+                depth=keep_rect.depth - band,
+            )
+            strip = Rect(
+                x=keep_rect.x,
+                y=keep_rect.bottom - band,
+                width=keep_rect.width,
+                depth=band,
+            )
+        elif side == "north":
+            if keep_rect.depth <= band + 0.3:
+                continue
+            wet = Rect(
+                x=keep_rect.x,
+                y=keep_rect.y + band,
+                width=keep_rect.width,
+                depth=keep_rect.depth - band,
+            )
+            strip = Rect(
+                x=keep_rect.x, y=keep_rect.y, width=keep_rect.width, depth=band
+            )
+        elif side == "east":
+            if keep_rect.width <= band + 0.3:
+                continue
+            wet = Rect(
+                x=keep_rect.x,
+                y=keep_rect.y,
+                width=keep_rect.width - band,
+                depth=keep_rect.depth,
+            )
+            strip = Rect(
+                x=keep_rect.right - band,
+                y=keep_rect.y,
+                width=band,
+                depth=keep_rect.depth,
+            )
+        else:
+            if keep_rect.width <= band + 0.3:
+                continue
+            wet = Rect(
+                x=keep_rect.x + band,
+                y=keep_rect.y,
+                width=keep_rect.width - band,
+                depth=keep_rect.depth,
+            )
+            strip = Rect(
+                x=keep_rect.x, y=keep_rect.y, width=band, depth=keep_rect.depth
+            )
+        if wet.area + 1e-9 < min_area or wet.area > max_area + 1e-9:
+            continue
+        if not aspect_ok(wet):
+            continue
+        if rect_iou(wet, keep_rect) + 1e-6 < pair_min:
+            continue
+        if _touches_live_circ(strip):
+            return wet, [strip], donor_rect, []
+        extended = _extend_access_strip_through_neighbors(
+            strip,
+            placed_map,
+            move_rid=move_rid,
+            donor_id=donor_id,
+            live_circ=live_circ,
+            room_by_id=room_by_id,
+        )
+        if extended is None:
+            continue
+        full_strip, shrinks = extended
+        return wet, [full_strip], donor_rect, shrinks
+
+    # 无法开通行：整块对调
+    return keep_rect, [], donor_rect, []
+
+
+def _extend_access_strip_through_neighbors(
+    strip: Rect,
+    placed_map: dict,
+    *,
+    move_rid: str,
+    donor_id: str,
+    live_circ: set[str],
+    room_by_id: dict[str, RoomSpec],
+) -> tuple[Rect, list[tuple[str, Rect]]] | None:
+    """把通行条沿长边伸进邻房，直到碰到 live circ。"""
+    from solver.geometry.rect import shared_edge_length
+
+    # 水平条（南北缘）：向西/东延伸
+    horizontal = strip.width >= strip.depth
+    live_rects = [
+        from_placement(placed_map[oid].rect)
+        for oid in live_circ
+        if oid in placed_map
+    ]
+    if not live_rects:
+        return None
+
+    def _try_extend(direction: str) -> tuple[Rect, list[tuple[str, Rect]]] | None:
+        shrinks: list[tuple[str, Rect]] = []
+        cur = strip
+        for _ in range(4):
+            if any(
+                shared_edge_length(cur, lr) + 1e-9 >= 0.5 for lr in live_rects
+            ):
+                return cur, shrinks
+            # 找贴边邻房
+            best_id: str | None = None
+            best_rect: Rect | None = None
+            for oid, op in placed_map.items():
+                if oid in (move_rid, donor_id) or oid.startswith(
+                    ("stair-", "void-")
+                ):
+                    continue
+                if oid.startswith(("circ-", "foyer-")):
+                    continue
+                orect = from_placement(op.rect)
+                if horizontal and direction == "west":
+                    if abs(orect.right - cur.left) > 1e-6:
+                        continue
+                    y0 = max(orect.top, cur.top)
+                    y1 = min(orect.bottom, cur.bottom)
+                    if y1 - y0 < 0.5:
+                        continue
+                elif horizontal and direction == "east":
+                    if abs(orect.left - cur.right) > 1e-6:
+                        continue
+                    y0 = max(orect.top, cur.top)
+                    y1 = min(orect.bottom, cur.bottom)
+                    if y1 - y0 < 0.5:
+                        continue
+                elif (not horizontal) and direction == "north":
+                    if abs(orect.bottom - cur.top) > 1e-6:
+                        continue
+                    x0 = max(orect.left, cur.left)
+                    x1 = min(orect.right, cur.right)
+                    if x1 - x0 < 0.5:
+                        continue
+                elif (not horizontal) and direction == "south":
+                    if abs(orect.top - cur.bottom) > 1e-6:
+                        continue
+                    x0 = max(orect.left, cur.left)
+                    x1 = min(orect.right, cur.right)
+                    if x1 - x0 < 0.5:
+                        continue
+                else:
+                    continue
+                best_id, best_rect = oid, orect
+                break
+            if best_id is None or best_rect is None:
+                return None
+            room = room_by_id.get(best_id)
+            band = strip.depth if horizontal else strip.width
+            if horizontal and direction == "west":
+                # 从邻房东侧切 band 高的条并入
+                take_w = best_rect.width
+                # 只切与 strip 同 y 带
+                new_piece = Rect(
+                    x=best_rect.x,
+                    y=cur.y,
+                    width=take_w,
+                    depth=cur.depth,
+                )
+                # 邻房上推/下推：保留 strip 带以外部分 → 整房从南缘削（若 strip 贴底）
+                if abs(best_rect.bottom - cur.bottom) <= 1e-6:
+                    shrunk = Rect(
+                        x=best_rect.x,
+                        y=best_rect.y,
+                        width=best_rect.width,
+                        depth=best_rect.depth - cur.depth,
+                    )
+                elif abs(best_rect.top - cur.top) <= 1e-6:
+                    shrunk = Rect(
+                        x=best_rect.x,
+                        y=best_rect.y + cur.depth,
+                        width=best_rect.width,
+                        depth=best_rect.depth - cur.depth,
+                    )
+                else:
+                    return None
+                merged = Rect(
+                    x=new_piece.x,
+                    y=cur.y,
+                    width=cur.right - new_piece.x,
+                    depth=cur.depth,
+                )
+            elif horizontal and direction == "east":
+                if abs(best_rect.bottom - cur.bottom) <= 1e-6:
+                    shrunk = Rect(
+                        x=best_rect.x,
+                        y=best_rect.y,
+                        width=best_rect.width,
+                        depth=best_rect.depth - cur.depth,
+                    )
+                elif abs(best_rect.top - cur.top) <= 1e-6:
+                    shrunk = Rect(
+                        x=best_rect.x,
+                        y=best_rect.y + cur.depth,
+                        width=best_rect.width,
+                        depth=best_rect.depth - cur.depth,
+                    )
+                else:
+                    return None
+                merged = Rect(
+                    x=cur.x,
+                    y=cur.y,
+                    width=best_rect.right - cur.x,
+                    depth=cur.depth,
+                )
+            else:
+                return None
+            if shrunk.width <= 1e-6 or shrunk.depth <= 1e-6:
+                return None
+            if room is not None and shrunk.area + 1e-9 < room.resolved_min_area():
+                return None
+            shrinks.append((best_id, shrunk))
+            cur = merged
+            _ = band
+        if any(shared_edge_length(cur, lr) + 1e-9 >= 0.5 for lr in live_rects):
+            return cur, shrinks
+        return None
+
+    if horizontal:
+        for d in ("west", "east"):
+            got = _try_extend(d)
+            if got is not None:
+                return got
+    else:
+        for d in ("north", "south"):
+            got = _try_extend(d)
+            if got is not None:
+                return got
+    return None
+
+
 def nudge_wet_stack_alignment(
     candidate,
     program: DesignProgram,
