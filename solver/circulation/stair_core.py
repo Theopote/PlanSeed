@@ -48,7 +48,7 @@ def choose_core_placement(
     preferred: CorePlacement | None = None,
     entrance_edge: CardinalEdge | None = None,
 ) -> CorePlacement:
-    """seed 选择区位；有 preferred 则固定；否则略偏向入口边。"""
+    """seed 选择区位；有 preferred 则固定；否则明显偏向入口边（贴近门厅）。"""
     if preferred is not None:
         return preferred
 
@@ -62,10 +62,9 @@ def choose_core_placement(
         }
         bias = edge_map.get(entrance_edge)
         if bias is not None:
-            options.append(bias)
+            # 入口边略加重（约 1/3）：贴近门厅，避免过度偏置打崩 valid
+            options.extend([bias, bias])
     return rng.choice(options)
-
-
 def default_orientation_for(placement: CorePlacement) -> Orientation:
     """WEST/EAST/CENTER → ns；NORTH/SOUTH → ew。"""
     if placement in (CorePlacement.WEST, CorePlacement.EAST, CorePlacement.CENTER):

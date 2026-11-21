@@ -116,6 +116,26 @@ def _preferred_path_for_private(
     return _path_to(parent, private_id)
 
 
+def collapsed_access_depth(path: list[str]) -> int:
+    """
+    访问深度（边数），连续 stair-* 只计 1 步。
+
+    跨层楼梯核在 realized 图上是两个节点，但对日常往返应视为一次竖向交通；
+    否则两层住宅卧室几乎必然 depth≥4，deep_access 失去区分度。
+    """
+    if len(path) < 2:
+        return 0
+    depth = 0
+    i = 1
+    while i < len(path):
+        depth += 1
+        if path[i].startswith("stair-"):
+            while i + 1 < len(path) and path[i + 1].startswith("stair-"):
+                i += 1
+        i += 1
+    return depth
+
+
 def private_ids_lacking_avoiding_path(
     program: DesignProgram,
     candidate: LayoutCandidate,
@@ -307,8 +327,8 @@ def privacy_findings(
         if "circulation" in cats[:-1] and cats[-1] == "private":
             good_via_hall += 1
 
-        # 深度偏大
-        depth = len(path) - 1
+        # 深度偏大（楼梯跨层折叠后再判）
+        depth = collapsed_access_depth(path)
         if depth >= 4:
             out.append(
                 finding(
@@ -317,7 +337,8 @@ def privacy_findings(
                     severity=FindingSeverity.WARNING,
                     title=f"{target_name} 访问深度 {depth}",
                     message=(
-                        f"到达「{target_name}」需经过 {depth} 个空间节点，"
+                        f"到达「{target_name}」的折叠访问深度为 {depth}"
+                        f"（路径：{' → '.join(_name(program, n) for n in path)}），"
                         "私密区离公共核偏远，日常往返路径偏长。"
                     ),
                     room_ids=[pid],

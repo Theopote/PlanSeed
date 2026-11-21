@@ -117,7 +117,12 @@ uv run python -m solver.benchmark.design_acceptance \
 ### 入口公区偏置（2026-11-21）
 
 B04 P0「入口未进公区」：门厅 capped 放置偏好贴入口边 + 有门厅时 Zone 沿入口法向偏置 + 几何修补后重解析 ExteriorEntry。  
-n=32 自动 valid 与首跑同量级（B04 **0.625**）；入口连门厅率显著上升（抽样约半数以上），不替代人工 ab_rate。
+n=32 自动 valid 与首跑同量级（B04 **0.625**）；valid 候选入口进公区约满额，不替代人工 ab_rate。
+
+### 访问深度折叠（2026-11-21）
+
+`privacy.deep_access` 对连续 `stair-*` 只计 1 步，避免两层住宅因竖向节点翻倍而几乎全员 depth≥4。  
+agent-draft 抽样（n=32，非签章）：B12 draft ab≈0.41；B01≈0.31；B04/B06 仍受穿室/暗卫等约束。
 
 ## 复现
 
