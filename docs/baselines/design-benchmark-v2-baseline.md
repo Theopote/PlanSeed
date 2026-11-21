@@ -99,6 +99,21 @@ uv run python -m solver.benchmark.design_acceptance \
 
 **产品 KPI = ab_rate**；Blind 字段准仅衡量需求解析，不替代建筑师接受率。
 
+### agent-draft 预评级（2026-11-21 · 非签章）
+
+基于 findings 规则的保守草案（`scripts/draft_ab_grades_from_findings.py`）：
+
+| Case | draft ab_rate | 解读 |
+|------|--------------:|------|
+| B01 | 0.344 | 11×B / 6×C（穿室可改） |
+| B04 | 0.000 | 20×C（入口公区+深访问） |
+| B06 | 0.000 | 17×C（暗卫/洗衣+流线） |
+| B12 | 0.000 | 26×C（多重深访问） |
+| **聚合** | **0.0859** | 与旧几何首跑 **8.6%** 同量级 |
+
+产物：`debug/.../grades-agent-draft.json`、`auto_rerun_for_ab_graded_draft.json`。  
+**不得**当作建筑师 baseline；人工复核后替换 `reviewer` 再入库 `docs/baselines/`。
+
 ## 复现
 
 `debug/design-benchmark-v2/` 为本地评审产物（已 gitignore），正式基线写入 `docs/baselines/`。
